@@ -1,0 +1,489 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agentic-governance.internal/canonical-event/v0.1.0",
+  "title": "Agentic AI Canonical Event Envelope",
+  "description": "Unified event schema for detection, policy, enforcement, and audit data across all agentic AI tools and environments. Defined in Playbook v0.1 Section 9.",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this event."
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "detection.observed",
+        "attribution.updated",
+        "policy.evaluated",
+        "enforcement.applied",
+        "approval.requested",
+        "approval.resolved",
+        "exception.lifecycle",
+        "evidence.linked",
+        "incident.flagged"
+      ],
+      "description": "Canonical event type driving downstream routing and conditional field requirements."
+    },
+    "event_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of the event schema used to produce this event."
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp when the underlying activity was observed at the endpoint."
+    },
+    "ingested_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp when the event was ingested into the audit pipeline."
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Correlation key for events within the same agentic session."
+    },
+    "trace_id": {
+      "type": "string",
+      "description": "Distributed trace identifier linking events across pipeline stages."
+    },
+    "parent_event_id": {
+      "oneOf": [
+        { "type": "string", "format": "uuid" },
+        { "type": "null" }
+      ],
+      "description": "UUID of the causally-preceding event, or null for root events."
+    },
+    "actor": { "$ref": "#/$defs/actor" },
+    "endpoint": { "$ref": "#/$defs/endpoint" },
+    "tool": { "$ref": "#/$defs/tool" },
+    "action": { "$ref": "#/$defs/action" },
+    "target": { "$ref": "#/$defs/target" },
+    "policy": { "$ref": "#/$defs/policy" },
+    "approval": { "$ref": "#/$defs/approval" },
+    "exception": { "$ref": "#/$defs/exception" },
+    "evidence": { "$ref": "#/$defs/evidence" },
+    "outcome": { "$ref": "#/$defs/outcome" },
+    "severity": { "$ref": "#/$defs/severity" }
+  },
+  "required": [
+    "event_id",
+    "event_type",
+    "event_version",
+    "observed_at",
+    "ingested_at",
+    "session_id",
+    "trace_id",
+    "actor",
+    "endpoint"
+  ],
+  "additionalProperties": false,
+
+  "allOf": [
+    {
+      "if": {
+        "properties": { "event_type": { "const": "detection.observed" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "action", "target"],
+        "properties": {
+          "tool": {
+            "required": ["class", "attribution_confidence"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "attribution.updated" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "policy.evaluated" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "action", "target", "policy"],
+        "properties": {
+          "policy": {
+            "required": ["decision_state", "rule_id", "rule_version"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "enforcement.applied" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "action", "target", "policy", "outcome"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "approval.requested" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["approval"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "approval.resolved" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["approval"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "exception.lifecycle" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["exception"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "evidence.linked" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["evidence"],
+        "properties": {
+          "evidence": {
+            "properties": {
+              "ids": { "minItems": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "incident.flagged" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["outcome", "severity"],
+        "properties": {
+          "outcome": {
+            "properties": {
+              "incident_flag": { "const": true }
+            },
+            "required": ["incident_flag", "incident_id"]
+          }
+        }
+      }
+    }
+  ],
+
+  "$defs": {
+    "actor": {
+      "type": "object",
+      "description": "The human, service, or automation identity associated with the observed activity.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique actor identifier (user principal, service account, automation ID)."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["human", "service", "automation"]
+        },
+        "trust_tier": {
+          "type": "string",
+          "enum": ["T0", "T1", "T2", "T3"],
+          "description": "T0 = unknown, T1 = basic, T2 = org-verified, T3 = privileged/admin."
+        },
+        "identity_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Confidence that the actor attribution is correct."
+        },
+        "org_context": {
+          "type": "string",
+          "enum": ["org", "personal", "unknown"],
+          "description": "Whether the actor is operating in an organizational, personal, or unknown context."
+        }
+      },
+      "required": ["id", "type", "trust_tier", "identity_confidence", "org_context"],
+      "additionalProperties": false
+    },
+
+    "endpoint": {
+      "type": "object",
+      "description": "The device where the activity was observed.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique endpoint identifier (asset tag, MDM device ID)."
+        },
+        "os": {
+          "type": "string",
+          "description": "Operating system descriptor (e.g. macOS 26.3, Windows 11, Ubuntu 24.04)."
+        },
+        "posture": {
+          "type": "string",
+          "enum": ["managed", "unmanaged"],
+          "description": "Whether the endpoint is under organizational management."
+        }
+      },
+      "required": ["id", "os", "posture"],
+      "additionalProperties": false
+    },
+
+    "tool": {
+      "type": "object",
+      "description": "The agentic AI tool detected or evaluated.",
+      "properties": {
+        "name": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "Tool product name, or null if not yet identified."
+        },
+        "class": {
+          "type": "string",
+          "enum": ["A", "B", "C"],
+          "description": "A = SaaS Copilot/Assistive, B = Local Model Runtime, C = Autonomous Executor."
+        },
+        "version": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "Detected tool version, or null if unknown."
+        },
+        "attribution_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Confidence score for the tool attribution."
+        },
+        "attribution_sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["process", "file", "network", "identity", "behavior"]
+          },
+          "description": "Telemetry layers that contributed to the tool attribution."
+        }
+      },
+      "required": ["class", "attribution_confidence", "attribution_sources"],
+      "additionalProperties": false
+    },
+
+    "action": {
+      "type": "object",
+      "description": "The specific action observed or evaluated.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["read", "write", "exec", "network", "repo", "privileged"],
+          "description": "Action category."
+        },
+        "risk_class": {
+          "type": "string",
+          "enum": ["R1", "R2", "R3", "R4"],
+          "description": "R1 = low-impact read, R2 = scoped write, R3 = broad/boundary-crossing, R4 = privileged/destructive."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Human-readable summary of the action."
+        },
+        "raw_ref": {
+          "type": "string",
+          "description": "Pointer to the raw telemetry record (URI or evidence ID). Not the payload itself."
+        }
+      },
+      "required": ["type", "risk_class", "summary", "raw_ref"],
+      "additionalProperties": false
+    },
+
+    "target": {
+      "type": "object",
+      "description": "The asset or resource targeted by the action.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["path", "repo", "host", "destination", "resource"],
+          "description": "Target category."
+        },
+        "id": {
+          "type": "string",
+          "description": "Unique target identifier (file path, repo slug, hostname, URI)."
+        },
+        "scope": {
+          "type": "string",
+          "description": "Scope descriptor (project name, directory tree, network zone)."
+        },
+        "sensitivity_tier": {
+          "type": "string",
+          "enum": ["Tier0", "Tier1", "Tier2", "Tier3"],
+          "description": "Tier0 = non-sensitive, Tier3 = crown-jewel/regulated."
+        }
+      },
+      "required": ["type", "id", "scope", "sensitivity_tier"],
+      "additionalProperties": false
+    },
+
+    "policy": {
+      "type": "object",
+      "description": "Policy evaluation result for this event.",
+      "properties": {
+        "decision_state": {
+          "type": "string",
+          "enum": ["detect", "warn", "approval_required", "block"],
+          "description": "Enforcement ladder decision."
+        },
+        "rule_id": {
+          "type": "string",
+          "description": "Stable identifier for the policy rule that produced this decision."
+        },
+        "rule_version": {
+          "type": "string",
+          "description": "Version of the policy rule at evaluation time."
+        },
+        "reason_codes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Machine-readable codes explaining the decision rationale."
+        },
+        "decision_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Confidence in the policy decision itself."
+        }
+      },
+      "required": ["decision_state", "rule_id", "rule_version", "reason_codes", "decision_confidence"],
+      "additionalProperties": false
+    },
+
+    "approval": {
+      "type": "object",
+      "description": "Approval request or resolution metadata.",
+      "properties": {
+        "id": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "Approval ticket identifier."
+        },
+        "scope_id": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "Scoping identifier for the approval (tool + action + target composite key)."
+        }
+      },
+      "required": ["id", "scope_id"],
+      "additionalProperties": false
+    },
+
+    "exception": {
+      "type": "object",
+      "description": "Exception state reference for this event.",
+      "properties": {
+        "id": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "Exception identifier."
+        },
+        "status": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["pending", "active", "expired", "revoked", "rejected"]
+            },
+            { "type": "null" }
+          ],
+          "description": "Current exception lifecycle state."
+        }
+      },
+      "required": ["id", "status"],
+      "additionalProperties": false
+    },
+
+    "evidence": {
+      "type": "object",
+      "description": "Linked evidence references. Evidence objects are stored externally; only IDs and integrity hashes appear here.",
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Array of evidence object IDs linked to this event."
+        },
+        "integrity_status": {
+          "type": "string",
+          "enum": ["valid", "failed", "pending"],
+          "description": "Aggregate integrity verification status of linked evidence."
+        },
+        "hash_refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "SHA-256 hashes of linked evidence objects for integrity verification."
+        }
+      },
+      "required": ["ids", "integrity_status", "hash_refs"],
+      "additionalProperties": false
+    },
+
+    "outcome": {
+      "type": "object",
+      "description": "Enforcement outcome and incident routing metadata.",
+      "properties": {
+        "enforcement_result": {
+          "type": "string",
+          "enum": ["allowed", "held", "denied"],
+          "description": "Result of enforcement: allowed (proceed), held (pending approval), denied (blocked)."
+        },
+        "incident_flag": {
+          "type": "boolean",
+          "description": "Whether this event has been flagged for incident handling."
+        },
+        "incident_id": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "Incident ticket identifier, or null if no incident was created."
+        }
+      },
+      "required": ["enforcement_result", "incident_flag", "incident_id"],
+      "additionalProperties": false
+    },
+
+    "severity": {
+      "type": "object",
+      "description": "Severity classification for operational urgency and SLA routing.",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["S0", "S1", "S2", "S3", "S4"],
+          "description": "S0 = Info, S1 = Low, S2 = Medium, S3 = High, S4 = Critical."
+        }
+      },
+      "required": ["level"],
+      "additionalProperties": false
+    }
+  }
+}
