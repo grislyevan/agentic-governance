@@ -1,0 +1,25 @@
+---
+description: Git commit prompts and playbook version tracking for the agentic-governance project
+alwaysApply: true
+---
+
+# Git Commit Discipline
+
+After making substantive changes (new lab runs, collector code, schema updates, playbook edits, new issue docs), prompt the user to commit before moving on. Suggest a concise commit message that explains *why*, not *what*.
+
+One logical change per commit. Don't bundle unrelated changes.
+
+# Playbook Versioning
+
+The playbook at `playbook/PLAYBOOK-v0.1-...md` uses semantic versioning in its filename and `Version:` header.
+
+When the playbook is edited, assess whether a version bump is needed:
+- **Patch** (0.1 → 0.1.1): Typo fixes, clarifications, minor wording changes
+- **Minor** (0.1 → 0.2): New sections, policy changes, new detection profiles, lab findings integrated
+- **Major** (0.2 → 1.0): Structural overhaul, production-ready milestone
+
+When bumping, update both:
+1. The `Version:` line in the frontmatter
+2. The filename (rename the file to match)
+
+Prompt the user to bump when edits cross the threshold from patch to minor.
