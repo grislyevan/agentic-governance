@@ -21,6 +21,7 @@ from scanner.copilot import CopilotScanner
 from scanner.cursor import CursorScanner
 from scanner.ollama import OllamaScanner
 from scanner.open_interpreter import OpenInterpreterScanner
+from scanner.openclaw import OpenClawScanner
 
 EVENT_VERSION = "0.1.0"
 
@@ -153,6 +154,7 @@ def run_scan(args: argparse.Namespace) -> int:
         CursorScanner(),
         CopilotScanner(),
         OpenInterpreterScanner(),
+        OpenClawScanner(),
     ]
     total_events = 0
 
