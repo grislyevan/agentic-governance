@@ -20,8 +20,35 @@ OLLAMA_WEIGHTS: dict[str, float] = {
     "behavior": 0.20,
 }
 
+CURSOR_WEIGHTS: dict[str, float] = {
+    "process": 0.30,
+    "file": 0.20,
+    "network": 0.20,
+    "identity": 0.10,
+    "behavior": 0.20,
+}
+
+COPILOT_WEIGHTS: dict[str, float] = {
+    "process": 0.25,
+    "file": 0.25,
+    "network": 0.15,
+    "identity": 0.15,
+    "behavior": 0.20,
+}
+
+OPEN_INTERPRETER_WEIGHTS: dict[str, float] = {
+    "process": 0.25,
+    "file": 0.15,
+    "network": 0.15,
+    "identity": 0.10,
+    "behavior": 0.35,
+}
+
 TOOL_WEIGHTS: dict[str, dict[str, float]] = {
     "Ollama": OLLAMA_WEIGHTS,
+    "Cursor": CURSOR_WEIGHTS,
+    "GitHub Copilot": COPILOT_WEIGHTS,
+    "Open Interpreter": OPEN_INTERPRETER_WEIGHTS,
 }
 
 

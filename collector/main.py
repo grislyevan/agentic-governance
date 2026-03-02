@@ -17,7 +17,10 @@ from engine.policy import PolicyDecision, evaluate_policy
 from output.emitter import EventEmitter
 from scanner.base import ScanResult
 from scanner.claude_code import ClaudeCodeScanner
+from scanner.copilot import CopilotScanner
+from scanner.cursor import CursorScanner
 from scanner.ollama import OllamaScanner
+from scanner.open_interpreter import OpenInterpreterScanner
 
 EVENT_VERSION = "0.1.0"
 
@@ -144,7 +147,13 @@ def run_scan(args: argparse.Namespace) -> int:
         dry_run=args.dry_run,
     )
 
-    scanners = [ClaudeCodeScanner(), OllamaScanner()]
+    scanners = [
+        ClaudeCodeScanner(),
+        OllamaScanner(),
+        CursorScanner(),
+        CopilotScanner(),
+        OpenInterpreterScanner(),
+    ]
     total_events = 0
 
     for scanner in scanners:
