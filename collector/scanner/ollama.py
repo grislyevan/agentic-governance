@@ -51,8 +51,29 @@ class OllamaScanner(BaseScanner):
 
         self._apply_penalties(result)
         self._determine_action(result)
+        result.tool_version = self._detect_version(verbose)
 
         return result
+
+    def _detect_version(self, verbose: bool) -> str | None:
+        """Detect Ollama version via ollama --version (version may be on stdout or stderr)."""
+        proc = self._run_cmd(["ollama", "--version"], timeout=5)
+        if not proc:
+            return None
+        combined = (proc.stdout or "").strip() + "\n" + (proc.stderr or "").strip()
+        if not combined:
+            return None
+        # Ollama may print "Warning: client version is 0.17.5" on stderr; extract semver.
+        match = re.search(r"(\d+\.\d+\.\d+)", combined)
+        if match:
+            version = match.group(1)
+            self._log(f"Version from CLI: {version}", verbose)
+            return version
+        first_line = combined.splitlines()[0].strip() if combined else ""
+        if first_line:
+            self._log(f"Version from CLI: {first_line}", verbose)
+            return first_line
+        return None
 
     def _scan_process(self, result: ScanResult, verbose: bool) -> float:
         """Check for ollama daemon and CLI processes."""

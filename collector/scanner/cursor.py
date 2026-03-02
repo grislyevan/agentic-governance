@@ -8,6 +8,7 @@ processes. The `extension-host (agent-exec)` process is the binary Class C indic
 from __future__ import annotations
 
 import os
+import plistlib
 import re
 import time
 from pathlib import Path
@@ -63,8 +64,25 @@ class CursorScanner(BaseScanner):
 
         self._apply_penalties(result)
         self._determine_action(result)
+        result.tool_version = self._detect_version(verbose)
 
         return result
+
+    def _detect_version(self, verbose: bool) -> str | None:
+        """Detect Cursor app version from Info.plist."""
+        plist_path = Path(APP_PATH) / "Contents" / "Info.plist"
+        if not plist_path.is_file():
+            return None
+        try:
+            with open(plist_path, "rb") as f:
+                plist = plistlib.load(f)
+            version = plist.get("CFBundleShortVersionString") or plist.get("CFBundleVersion")
+            if version:
+                self._log(f"Version from Info.plist: {version}", verbose)
+                return str(version)
+        except (OSError, plistlib.InvalidFileException):
+            pass
+        return None
 
     def _scan_process(self, result: ScanResult, verbose: bool) -> float:
         """Check for Cursor Electron process tree and agent-exec extension host."""

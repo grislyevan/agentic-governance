@@ -51,8 +51,32 @@ class ClaudeCodeScanner(BaseScanner):
 
         self._apply_penalties(result)
         self._determine_action(result)
+        result.tool_version = self._detect_version(verbose)
 
         return result
+
+    def _detect_version(self, verbose: bool) -> str | None:
+        """Detect Claude Code CLI version via --version or config under install paths."""
+        proc = self._run_cmd(["claude", "--version"], timeout=5)
+        if proc and proc.returncode == 0 and proc.stdout.strip():
+            version = proc.stdout.strip()
+            if version:
+                self._log(f"Version from CLI: {version}", verbose)
+                return version
+        claude_dir = Path.home() / ".claude"
+        for candidate in (claude_dir / "settings.json", claude_dir / "settings.local.json"):
+            if not candidate.is_file():
+                continue
+            try:
+                data = json.loads(candidate.read_text())
+                if isinstance(data, dict) and "version" in data:
+                    ver = str(data["version"]).strip()
+                    if ver:
+                        self._log(f"Version from config: {ver}", verbose)
+                        return ver
+            except (json.JSONDecodeError, PermissionError, OSError):
+                continue
+        return None
 
     def _scan_process(self, result: ScanResult, verbose: bool) -> float:
         """Check for running claude/claude-code processes and child chains."""

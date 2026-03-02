@@ -8,6 +8,7 @@ state) is required.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -56,8 +57,28 @@ class CopilotScanner(BaseScanner):
 
         self._apply_penalties(result)
         self._determine_action(result)
+        result.tool_version = self._detect_version(verbose)
 
         return result
+
+    def _detect_version(self, verbose: bool) -> str | None:
+        """Detect Copilot extension version from extension manifest (package.json)."""
+        ext_dir = self._find_copilot_extension_dir()
+        if not ext_dir:
+            return None
+        package_json = ext_dir / "package.json"
+        if not package_json.is_file():
+            return None
+        try:
+            data = json.loads(package_json.read_text())
+            if isinstance(data, dict) and "version" in data:
+                version = str(data["version"]).strip()
+                if version:
+                    self._log(f"Version from extension manifest: {version}", verbose)
+                    return version
+        except (json.JSONDecodeError, PermissionError, OSError):
+            pass
+        return None
 
     def _scan_process(self, result: ScanResult, verbose: bool) -> float:
         """Check for VS Code process tree including extension host."""

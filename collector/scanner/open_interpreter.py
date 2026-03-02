@@ -58,8 +58,28 @@ class OpenInterpreterScanner(BaseScanner):
 
         self._apply_penalties(result)
         self._determine_action(result)
+        result.tool_version = self._detect_version(verbose)
 
         return result
+
+    def _detect_version(self, verbose: bool) -> str | None:
+        """Detect Open Interpreter version via CLI or pip show."""
+        proc = self._run_cmd(["open-interpreter", "--version"], timeout=5)
+        if proc and proc.returncode == 0 and proc.stdout.strip():
+            version = proc.stdout.strip()
+            if version:
+                self._log(f"Version from CLI: {version}", verbose)
+                return version
+        proc = self._run_cmd(["pip", "show", "open-interpreter"], timeout=10)
+        if proc and proc.returncode == 0 and proc.stdout.strip():
+            for line in proc.stdout.splitlines():
+                if line.strip().lower().startswith("version:"):
+                    version = line.split(":", 1)[1].strip()
+                    if version:
+                        self._log(f"Version from pip show: {version}", verbose)
+                        return version
+                    break
+        return None
 
     def _scan_process(self, result: ScanResult, verbose: bool) -> float:
         """Check for Python processes with interpreter module paths and ipykernel children."""
