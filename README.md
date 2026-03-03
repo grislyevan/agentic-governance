@@ -2,7 +2,7 @@
 
 Endpoint telemetry and policy for agentic AI tool detection. This repo defines detection profiles, schemas, and a collector that scans endpoints for tools (Claude Code, Ollama, Cursor, Copilot, Open Interpreter), computes confidence, evaluates policy, and emits NDJSON events.
 
-**Main reference:** the [playbook](playbook/PLAYBOOK-v0.2-agentic-ai-endpoint-detection-governance.md) (detection profiles, policy, and lab methodology).
+**Main reference:** the [playbook](playbook/PLAYBOOK-v0.3-agentic-ai-endpoint-detection-governance.md) (detection profiles, policy, and lab methodology).
 
 ## Repo layout
 

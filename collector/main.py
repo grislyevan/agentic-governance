@@ -23,7 +23,7 @@ from scanner.ollama import OllamaScanner
 from scanner.open_interpreter import OpenInterpreterScanner
 from scanner.openclaw import OpenClawScanner
 
-EVENT_VERSION = "0.1.0"
+EVENT_VERSION = "0.2.0"
 
 
 def build_event(

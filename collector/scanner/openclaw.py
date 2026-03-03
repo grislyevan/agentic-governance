@@ -1,9 +1,10 @@
-"""OpenClaw detection module (Class C — Autonomous Executor with persistent daemon).
+"""OpenClaw detection module (Class D — Persistent Autonomous Agent).
 
 OpenClaw is a Node.js-based personal AI assistant that runs as a persistent gateway
-daemon via LaunchAgent/systemd.  It combines Class C autonomous execution (shell,
-files, browser) with Class B daemon persistence and introduces novel capabilities:
-multi-channel messaging, self-modifying skills, and proactive/scheduled execution.
+daemon via LaunchAgent/systemd. It satisfies all four Class D criteria: (1) daemon
+persistence with KeepAlive+RunAtLoad, (2) proactive/scheduled execution via
+cron/heartbeat, (3) external communication channels (WhatsApp/Telegram/Slack),
+and (4) self-modification via a live-reloaded skills system.
 
 Detection anchors (priority order from LAB-RUN-007):
   1. ~/.openclaw/ directory (215 MB, config/credentials/skills/sessions/logs)
@@ -46,7 +47,7 @@ class OpenClawScanner(BaseScanner):
 
     @property
     def tool_class(self) -> str:
-        return "C"
+        return "D"
 
     def scan(self, verbose: bool = False) -> ScanResult:
         result = ScanResult(

@@ -36,7 +36,7 @@ class ScanResult:
 
     detected: bool
     tool_name: str | None = None
-    tool_class: str | None = None  # A, B, or C
+    tool_class: str | None = None  # A, B, C, or D
     tool_version: str | None = None
     signals: LayerSignals = field(default_factory=LayerSignals)
     penalties: list[tuple[str, float]] = field(default_factory=list)

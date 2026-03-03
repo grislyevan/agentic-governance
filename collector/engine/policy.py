@@ -1,4 +1,8 @@
-"""Policy evaluation engine implementing Playbook Section 6.3 deterministic escalation rules."""
+"""Policy evaluation engine implementing Playbook Section 6.3 deterministic escalation rules.
+
+Class D rules (ENFORCE-D01 through ENFORCE-D03) take precedence over general rules 1–7
+and reflect the stricter governance posture required for Persistent Autonomous Agents.
+"""
 
 from __future__ import annotations
 
@@ -38,6 +42,48 @@ def evaluate_policy(
     reason_codes.append(f"{confidence_class.lower()}_confidence")
     reason_codes.append(f"sensitivity_{sensitivity.lower()}")
     reason_codes.append(f"action_risk_{action_risk.lower()}")
+
+    # --- Class D rules (take precedence over general rules) ---
+
+    # Rule D1: Class D + any confidence + R3+ → Block
+    # Self-modification (R3) and external channel comms are blocked in all governed contexts.
+    if tool_class == "D" and risk_num >= 3:
+        reason_codes.append("class_d_persistent_autonomous_agent")
+        reason_codes.append("r3_or_higher_action_always_block_for_class_d")
+        return PolicyDecision(
+            decision_state="block",
+            rule_id="ENFORCE-D01",
+            rule_version=RULE_VERSION,
+            reason_codes=reason_codes,
+            decision_confidence=confidence,
+        )
+
+    # Rule D2: Class D + medium+ confidence + R2 → Approval Required
+    # No off-state means medium-confidence detection with any write action requires approval.
+    if tool_class == "D" and confidence_class in ("Medium", "High") and risk_num >= 2:
+        reason_codes.append("class_d_persistent_autonomous_agent")
+        reason_codes.append("medium_or_high_confidence_write_requires_approval")
+        return PolicyDecision(
+            decision_state="approval_required",
+            rule_id="ENFORCE-D02",
+            rule_version=RULE_VERSION,
+            reason_codes=reason_codes,
+            decision_confidence=confidence,
+        )
+
+    # Rule D3: Class D + any confidence → Warn (floor — no safe baseline for always-on agents)
+    if tool_class == "D":
+        reason_codes.append("class_d_persistent_autonomous_agent")
+        reason_codes.append("always_on_agent_no_safe_baseline")
+        return PolicyDecision(
+            decision_state="warn",
+            rule_id="ENFORCE-D03",
+            rule_version=RULE_VERSION,
+            reason_codes=reason_codes,
+            decision_confidence=confidence,
+        )
+
+    # --- General rules (Class A / B / C) ---
 
     # Rule 5: Any confidence + explicit deny + Tier 3 → Block (highest priority)
     if explicit_deny and tier_num >= 3:
