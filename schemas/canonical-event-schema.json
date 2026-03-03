@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.agentic-governance.internal/canonical-event/v0.1.0",
   "title": "Agentic AI Canonical Event Envelope",
-  "description": "Unified event schema for detection, policy, enforcement, and audit data across all agentic AI tools and environments. Defined in Playbook v0.1 Section 9.",
+  "description": "Unified event schema for detection, policy, enforcement, and audit data across all agentic AI tools and environments. Defined in Playbook v0.2 Section 9.",
   "type": "object",
   "properties": {
     "event_id": {

@@ -43,7 +43,7 @@ This playbook is the operational framework for detecting and governing agentic A
 
 | In Scope (Active) | Shelved (Pending Running System) |
 |---|---|
-| Detection profiles: 10 tools (INIT-13–22) | Test matrix definition (INIT-28) |
+| Detection profiles: 11 tools (INIT-13–22 + OpenClaw) | Test matrix definition (INIT-28) |
 | Policy class model (INIT-23) | Automated replay (INIT-29) |
 | Enforcement ladder (INIT-24) | Metrics pipeline (INIT-30) |
 | Risky action controls (INIT-25) | Evasion suite (INIT-31) |
@@ -1174,6 +1174,16 @@ Residual Risk:       [statement of remaining coverage gaps]
 19. **VS Code's Network Service centralizes all connections in one attributable process.** Unlike Claude Code (connections from main process, ephemeral) or Ollama (daemon listener), VS Code routes all network I/O through a dedicated `Code Helper (Network)` process. This makes process-to-socket attribution trivial at any polling interval — similar to Ollama's persistent listener but for outbound HTTPS.
 20. **Copilot's agent mode capabilities are gated behind authentication and feature flags.** Experiment flags (`edit_mode_hidden`, `use-responses-api`) in VS Code 1.109.5 indicate agent/edit mode exists as a capability. When exercised, this would represent a Class A→C escalation path similar to Cursor. Classification should be re-evaluated when agent mode is validated (CP-POS-03).
 
+**From LAB-RUN-007 (OpenClaw):**
+
+21. **LaunchAgent plist is a credential store and detection goldmine.** OpenClaw's `ai.openclaw.gateway.plist` embeds API keys, external service credentials (JIRA), gateway tokens, and PATH configuration as environment variables. The plist is world-readable (mode 644). Detection should treat LaunchAgent plists as high-value identity and configuration artifacts. Any tool that installs a LaunchAgent may embed credentials.
+22. **`KeepAlive: true` + `RunAtLoad: true` is the strongest persistence of any profiled tool.** This combination means the daemon auto-starts on login AND auto-restarts on kill. `launchctl unload` stops the daemon, but `kill` alone does not — launchd respawns it. Detection must account for always-on daemons that survive process termination.
+23. **Self-modification requires no approval gate.** OpenClaw's agent created a new skill file with a single prompt. No human confirmation was requested. The skill watcher auto-reloads changes. Governance must monitor writes to `~/.openclaw/workspace/skills/` as a high-risk behavioral signal.
+24. **`openclaw status` is the richest single-command diagnostic of any tool.** Reveals gateway state, channel connections (with linked phone numbers), session inventory, model assignments, token usage, security audit findings, heartbeat config, and memory state. Recommend periodic `openclaw status` capture for governance monitoring.
+25. **OpenClaw CLI is a thin client — all intelligence runs in the daemon.** `openclaw agent --agent main --message "..."` sends a message to the gateway via WebSocket. The daemon handles the agent turn. Detection should focus on the daemon process, not the transient CLI invocations — same client-server pattern as Ollama.
+26. **Config backup chain enables forensic reconstruction.** `openclaw.json.bak` through `.bak.4` (5 generations) preserve configuration history. Diffs reveal when channels were added, models changed, or security settings modified. Useful for incident timeline construction.
+27. **Three-class taxonomy is strained but not broken by persistent autonomous agents.** OpenClaw's combination of Class C execution + Class B daemon persistence + novel capabilities (self-modification, multi-channel, proactive execution) does not require a new class today, but a Class D designation should be prepared for when multiple tools share this profile.
+
 ### 12.5 Lab Run Log
 
 | Run ID | Date | Tool | Scenario | Result | Notes |
@@ -1185,6 +1195,7 @@ Residual Risk:       [statement of remaining coverage gaps]
 | LAB-RUN-006 | 2026-03-02 | Open Interpreter v0.4.3 | OI-POS-01: Standard venv install + agentic command execution | **Conditional Pass** | Second Class C tool validated. Confidence: 0.525 (Medium) — notably lower than Claude Code (0.71). 10/14 IOCs confirmed. Key findings: (1) Process name is generic `python3`, not `interpreter` — requires module-path matching, (2) uses Jupyter/IPyKernel for code execution (indirection layer), (3) ZERO persistent state outside virtualenv — ephemeral session model limits post-hoc forensics, (4) venv location arbitrary, (5) behavior layer is primary detection anchor (inverted from Claude Code), (6) `auto_run=True` eliminates all safety confirmations, (7) model provider configurable — network target not fixed, (8) package-install-then-execute chain (risk marker) confirmed. **Class C profiles are NOT generalizable** — tool-specific weight calibration needed. Proposed OI weights: Behavior 0.35, Process 0.25, File 0.15, Network 0.15, Identity 0.10. OpenAI quota exceeded during lab; Ollama local backend used as fallback. Full results: `LAB-RUN-006-RESULTS.md` |
 | LAB-RUN-004 | 2026-03-02 | Cursor v2.5.26 | CUR-POS-01: Standard IDE session + AI edit + agentic task | **Pass** | First Class A→C tool validated. **First High confidence score: 0.79.** First tool to reach High without sudo/EDR. 9/9 Section 4.2 IOCs confirmed. Key findings: (1) `extension-host (agent-exec)` is binary Class C escalation indicator in process tree, (2) agent transcript JSONL files provide complete session forensics, (3) `ai-code-tracking.db` is centralized AI activity tracker, (4) persistent TLS connections PID-attributable (inverts Claude Code's network gap), (5) `Made-with: Cursor` git trailer (one-way signal), (6) identity state in Electron user-data-dir not `~/.cursor/`, (7) code signing provides cryptographic provenance. 10 findings fed back. Proposed Cursor weight calibration (Network 0.15→0.20, Identity 0.15→0.10). Full results: `LAB-RUN-004-RESULTS.md` |
 | LAB-RUN-005 | 2026-03-02 | GitHub Copilot (github.copilot-chat v0.37.9) in VS Code 1.109.5 | CP-POS-01: Standard VS Code session + Copilot install + launch (unauthenticated) | **Conditional Pass** | **First Class A tool validated. Empirical data now exists for all three tool classes (A, B, C).** Confidence: 0.45 (Medium, barely) — depressed by unauthenticated scenario (projected ~0.74 with auth, ~0.80 with EDR). 4/11 IOCs confirmed, 2 partially observed, 5 not observed (all due to unauthenticated state). Key findings: (1) Extension installed as bundled `github.copilot-chat` (lowercase, single extension), (2) extension-host process shared by all extensions — requires cross-layer correlation, (3) VS Code `machineId` + `devDeviceId` provide persistent device identity, (4) `chatEntitlement`/`chatRegistered` distinguish installed/entitled/active states, (5) GitHub Authentication log records explicit auth state, (6) VS Code Network Service centralizes all connections in one attributable PID, (7) persistent HTTPS connections (not ephemeral like Claude Code), (8) A/B experiment flags enable Copilot version fingerprinting, (9) agent mode capabilities present but auth-gated (`edit_mode_hidden` flag), (10) identity layer is bimodal — strongest when authenticated, weakest when not. 10 findings fed back. Proposed Class A bimodal weight calibration (Identity 0.15→0.25 when authenticated). Full results: `LAB-RUN-005-RESULTS.md` |
+| LAB-RUN-007 | 2026-03-02 | OpenClaw v2026.3.1 | OC-POS-01: Standard install + onboard + agentic task + skill creation | **Conditional Pass** | **First persistent autonomous agent validated. New highest confidence score: 0.80 (High) — surpasses Cursor (0.79). First tool OUTSIDE original 10-tool scope.** 18/27 IOCs confirmed, 5 confirmed architecturally. Key findings: (1) `KeepAlive + RunAtLoad` LaunchAgent is strongest persistence of any tool, (2) LaunchAgent embeds external credentials (JIRA token) in world-readable plist, (3) self-modification confirmed — agent wrote own skill with zero approval gate, (4) 215 MB `~/.openclaw/` with config/credentials/skills/sessions/logs/memory — richest file footprint, (5) strongest identity footprint (multi-provider API keys + chat platform creds + external service tokens), (6) `openclaw status` is richest single-command diagnostic, (7) gateway WS on `:18789` is persistent PID-attributable signal, (8) CLI is thin client to daemon (like Ollama), (9) three-class taxonomy strained but not broken. Proposed weights: File 0.30, Process 0.25, Behavior 0.15. Gaps: multi-channel messaging not tested, proactive/cron not exercised, browser automation not tested. Full results: `LAB-RUN-007-RESULTS.md` |
 
 ---
 
@@ -1462,32 +1473,62 @@ Classification:
 | Identity | 0.15 | 0.10 | Env-var credentials only, no persistent identity store |
 | Behavior | 0.20 | 0.35 | Dominant signal — command-chain pattern is the primary detection anchor |
 
+### Empirical Calibration Data (from LAB-RUN-007)
+
+**OpenClaw v2026.3.1 — five-layer observed signal strengths:**
+
+| Layer | Default Weight | Observed Signal | Weighted | Calibration Note |
+|---|---|---|---|---|
+| Process | 0.30 | 0.90 | 0.270 | Named `openclaw-gateway` process with LaunchAgent persistence. Clear daemon + CLI client-server model (like Ollama). `KeepAlive + RunAtLoad` is strongest persistence mechanism tested. |
+| File | 0.20 | 0.95 | 0.190 | Richest file footprint of any tested tool. 215 MB `~/.openclaw/` with config, credentials, skills, sessions, logs, memory, workspace, and device state. Self-authored skill confirmed. |
+| Network | 0.15 | 0.70 | 0.105 | Gateway WS listener on `:18789` trivially attributable via `lsof` (like Ollama). Model provider traffic confirmed indirectly. Chat platform connections confirmed at config level. |
+| Identity | 0.15 | 0.85 | 0.1275 | Strongest identity footprint of any tested tool. Multi-provider API keys, chat platform credentials, external service tokens (JIRA), gateway token. All centralized in config and LaunchAgent plist. |
+| Behavior | 0.20 | 0.80 | 0.160 | Shell execution and self-modification confirmed. Multi-file burst-write observed. Proactive/scheduled and multi-channel capabilities confirmed architecturally but not exercised. |
+
+**Computed scores:**
+- Five-layer default weights: **0.80 (High)**, penalty −0.05 (partial proc-net linkage)
+- Projected with EDR + active channel monitoring: **~0.90 (High)**
+
+**Recommended weight adjustment for OpenClaw / Persistent Autonomous Agents:**
+
+| Layer | Current | Proposed | Justification |
+|---|---|---|---|
+| Process | 0.30 | 0.25 | Named daemon is distinctive but less critical than file layer for forensic value. LaunchAgent is the key persistence signal. |
+| File | 0.20 | 0.30 | Dominant signal — 215 MB directory with config, credentials, skills, sessions, logs, memory. Richest footprint tested. |
+| Network | 0.15 | 0.15 | No change — gateway listener is strong, but model API traffic has same polling challenges as other tools. |
+| Identity | 0.15 | 0.15 | No change — strongest identity layer tested, but high signal strength compensates without weight increase. |
+| Behavior | 0.20 | 0.15 | Less dominant than file layer. Self-modification and shell execution confirmed, but artifacts produced are the primary detection anchors. |
+
 ### Cross-Tool Calibration Comparison
 
-| Layer | Claude Code (Class C) | Ollama (Class B) | Cursor (Class A→C) | Copilot (Class A) | Open Interpreter (Class C) | Interpretation |
-|---|---|---|---|---|---|---|
-| Process | 0.85 | 0.90 | **0.95** | 0.80 | 0.70 | OI lowest — generic `python3` name requires module-path inspection. |
-| File | **0.95** | 0.90 | 0.90 | 0.85 | 0.65 | OI weakest by far — ephemeral session model, zero persistent state outside venv. |
-| Network | 0.30 | 0.70 | **0.75** | 0.55 | 0.55 | OI provider-dependent; with local Ollama, similar to Copilot range. |
-| Identity | **0.80** | 0.50 | 0.55 | 0.40* | 0.55 | OI similar to Ollama (env vars / OS user); Claude Code strongest (OAuth). *Copilot bimodal. |
-| Behavior | 0.75 | 0.80 | 0.90 | 0.25* | **0.85** | OI has second-strongest behavioral signal — command-chain execution is distinctive. *Copilot scenario-limited. |
-| **Final** | **0.71** | **0.69** | **0.79** | **0.45** | **0.525** | OI is the hardest Class C tool to detect despite highest-risk behavior. |
+| Layer | Claude Code (Class C) | Ollama (Class B) | Cursor (Class A→C) | Copilot (Class A) | Open Interpreter (Class C) | OpenClaw (Class C persistent) | Interpretation |
+|---|---|---|---|---|---|---|---|
+| Process | 0.85 | 0.90 | **0.95** | 0.80 | 0.70 | 0.90 | OI lowest (generic `python3`). OpenClaw matches Ollama — named daemon + LaunchAgent persistence. |
+| File | **0.95** | 0.90 | 0.90 | 0.85 | 0.65 | **0.95** | OpenClaw ties Claude Code as strongest. 215 MB with config/credentials/skills/sessions/logs. OI still weakest. |
+| Network | 0.30 | 0.70 | **0.75** | 0.55 | 0.55 | 0.70 | OpenClaw matches Ollama — persistent localhost listener on `:18789`. Both invertible vs CLI tools. |
+| Identity | **0.80** | 0.50 | 0.55 | 0.40* | 0.55 | **0.85** | **OpenClaw is now the strongest identity layer.** Multi-provider API keys + chat platform credentials + external service tokens. *Copilot bimodal. |
+| Behavior | 0.75 | 0.80 | 0.90 | 0.25* | **0.85** | 0.80 | OpenClaw has self-modification (novel). Proactive/multi-channel not exercised — would likely increase to 0.90+. |
+| **Final** | **0.71** | **0.69** | **0.79** | **0.45** | **0.525** | **0.80** | **OpenClaw is now the highest-confidence tool.** Also the highest-risk. |
 
 **Key insights:**
 
-1. **Cursor's multi-process Electron architecture is a governance advantage.** Labeled extension-host types provide process-level class indicators unique to IDE-class tools. Combined with persistent network connections (unlike CLI tools) and complete agent transcripts (unlike daemon tools), Cursor achieves the highest confidence of any tool tested.
+1. **OpenClaw achieves the highest confidence score (0.80) of any tested tool.** This is driven by the richest file and identity footprints in the playbook. The combination of persistent daemon, rich config directory, embedded credentials, and self-modification creates an exceptionally detectable tool — which is also the highest-risk.
 
-2. **Class A tools have a bimodal detection profile driven by authentication state.** Copilot scores Medium-barely when unauthenticated but would score near-High when authenticated with an org-managed GitHub account. Weight calibration for Class A tools must account for this bimodality — identity weight should be context-dependent.
+2. **Cursor's multi-process Electron architecture is a governance advantage.** Labeled extension-host types provide process-level class indicators unique to IDE-class tools. Combined with persistent network connections (unlike CLI tools) and complete agent transcripts (unlike daemon tools), Cursor achieves the second-highest confidence.
 
-3. **Each tool class has a different weakest layer:** Class A (Copilot) = Process (shared extension host), Class B (Ollama) = Identity (no account system), Class C varies: Claude Code = Network (ephemeral HTTPS), Open Interpreter = File (ephemeral state) + Process (generic name). Per-tool weight calibration is now empirically justified.
+3. **Class A tools have a bimodal detection profile driven by authentication state.** Copilot scores Medium-barely when unauthenticated but would score near-High when authenticated with an org-managed GitHub account. Weight calibration for Class A tools must account for this bimodality — identity weight should be context-dependent.
 
-4. **Milestone: empirical data now exists for all three tool classes (A, B, C) with two Class C data points.** With LAB-RUN-006, we have cross-tool comparison within Class C. The default five-layer weights can now be calibrated per-tool with empirical justification.
+4. **Each tool class has a different weakest layer:** Class A (Copilot) = Process (shared extension host), Class B (Ollama) = Identity (no account system), Class C varies: Claude Code = Network (ephemeral HTTPS), Open Interpreter = File (ephemeral state) + Process (generic name), OpenClaw = Network (model API traffic, same as others). Per-tool weight calibration is now empirically justified.
 
-5. **Class C detection profiles are NOT generalizable.** Claude Code (0.71) and Open Interpreter (0.525) are both Class C but have inverted detection anchors: Claude Code is file-anchored (0.95); Open Interpreter is behavior-anchored (0.85). The Python/venv architecture creates structural detection challenges that Node.js/npm tools do not have. Weight calibration must be per-tool within Class C.
+5. **Milestone: empirical data now exists for all three tool classes (A, B, C) with three Class C data points plus one beyond the original 10-tool scope.** With LAB-RUN-007, we have a tool that straddles class boundaries. The default five-layer weights can now be calibrated per-tool with empirical justification.
+
+6. **Class C detection profiles are NOT generalizable — confirmed with a third data point.** Claude Code (0.71), Open Interpreter (0.525), and OpenClaw (0.80) are all Class C but have dramatically different detection profiles. OpenClaw is file+identity-anchored; Claude Code is file-anchored; Open Interpreter is behavior-anchored. Weight calibration must be per-tool within Class C.
+
+7. **Persistent autonomous agents may warrant a new class.** OpenClaw's combination of Class C execution + Class B daemon persistence + novel capabilities (self-modification, multi-channel communication, proactive execution) is qualitatively different from any other tested tool. If additional tools emerge with this profile, a Class D designation is recommended.
 
 ---
 
-*End of Playbook v0.1 — Updated 2026-03-02 with LAB-RUN-006 findings*
+*End of Playbook v0.2 — Updated 2026-03-02 with LAB-RUN-007 (OpenClaw) findings*
 
 **Next actions:**
 1. ~~Execute first lab sprint (Section 12.3 priority order)~~ — **In progress.** Claude Code CC-POS-01 + CC-POS-02 complete. Ollama OL-POS-01 complete. Cursor CUR-POS-01 complete. Copilot CP-POS-01 complete. **Open Interpreter OI-POS-01 complete.**
@@ -1496,19 +1537,26 @@ Classification:
 4. ~~Cursor lab run (LAB-RUN-004)~~ — **Complete.** First Class A→C tool validated. First High confidence score (0.79). `agent-exec` extension host confirmed as binary Class C indicator. 9/9 IOCs confirmed + 10 new findings. Section 4.2 updated with lab findings.
 5. ~~Copilot lab run (LAB-RUN-005)~~ — **Complete (unauthenticated baseline).** First pure Class A tool validated. Milestone: empirical data for all three tool classes (A, B, C). 4/11 IOCs confirmed, 2 partial, 5 not observed. Bimodal identity profile documented.
 6. ~~Open Interpreter lab run (LAB-RUN-006)~~ — **Complete.** Second Class C tool validated. **Key finding: Class C profiles are NOT generalizable.** OI scored 0.525 vs Claude Code's 0.71 — inverted detection anchors (behavior vs file). 10/14 IOCs confirmed. Ephemeral session model, generic process name, and Jupyter/IPyKernel code execution architecture documented. Section 4.7 updated with lab findings.
-7. **CP-POS-02:** Repeat Copilot lab with authenticated GitHub org-managed account. **Highest priority** — closes the largest gap from CP-POS-01.
-8. **OI-POS-02:** Open Interpreter multi-step automation with restricted paths. Validates credential-store and restricted-path IOCs not triggered in OI-POS-01.
-9. **OI-EVA-01:** Wrapped launch, ephemeral venv/container. Validates the primary OI evasion scenario (Section 12.1). Test: rename venv, invoke via `python -m interpreter`, delete venv post-session.
-10. **CP-EVA-01:** Personal account on managed endpoint, proxy route.
-11. **CP-POS-03:** Exercise Copilot agent/edit mode.
-12. **CUR-POS-02:** Multi-file refactor + git workflow in agentic mode.
-13. **CUR-EVA-01:** Wrapped launch path / proxy attribution evasion.
-14. **CUR-EVA-02:** `Made-with: Cursor` git trailer suppression.
-15. **CUR-IDENTITY-01:** Deep examination of `~/Library/Application Support/Cursor/` for account/auth state.
-16. **OL-POS-02:** Ollama local API automation session.
-17. **OL-EVA-01:** Custom port + containerized evasion.
-18. **CC-POS-03:** Shell tool usage scenario in a sensitive repo context.
-19. **JSON Schema formalization** from event model — empirical data now available from 7 lab runs across all 3 classes.
-20. **Per-tool weight calibration formalization** — empirical data from 5 tools now supports per-tool weight profiles. **Open Interpreter data proves per-tool (not per-class) calibration is needed.**
-21. Reactivate shelved items per dependency triggers (Section 13)
-22. Iterate this document based on lab findings
+7. ~~OpenClaw lab run (LAB-RUN-007)~~ — **Complete.** First persistent autonomous agent validated. **New highest confidence: 0.80 (High).** First tool outside original 10-tool scope. 18/27 IOCs confirmed. Self-modification, LaunchAgent persistence, credential exposure in plist, 215 MB forensic footprint. Section 4.11 created and updated with lab findings. Three-class taxonomy discussion initiated.
+8. **CP-POS-02:** Repeat Copilot lab with authenticated GitHub org-managed account. **Highest priority** — closes the largest gap from CP-POS-01.
+9. **OI-POS-02:** Open Interpreter multi-step automation with restricted paths. Validates credential-store and restricted-path IOCs not triggered in OI-POS-01.
+10. **OI-EVA-01:** Wrapped launch, ephemeral venv/container. Validates the primary OI evasion scenario (Section 12.1). Test: rename venv, invoke via `python -m interpreter`, delete venv post-session.
+11. **CP-EVA-01:** Personal account on managed endpoint, proxy route.
+12. **CP-POS-03:** Exercise Copilot agent/edit mode.
+13. **CUR-POS-02:** Multi-file refactor + git workflow in agentic mode.
+14. **CUR-EVA-01:** Wrapped launch path / proxy attribution evasion.
+15. **CUR-EVA-02:** `Made-with: Cursor` git trailer suppression.
+16. **CUR-IDENTITY-01:** Deep examination of `~/Library/Application Support/Cursor/` for account/auth state.
+17. **OL-POS-02:** Ollama local API automation session.
+18. **OL-EVA-01:** Custom port + containerized evasion.
+19. **CC-POS-03:** Shell tool usage scenario in a sensitive repo context.
+20. **OC-POS-02:** OpenClaw multi-channel messaging integration (WhatsApp/Telegram). Validates chat platform connection IOCs and external-input-to-local-execution pipeline. Requires test messaging accounts.
+21. **OC-POS-03:** OpenClaw cron/proactive execution. Configure a heartbeat or cron job and capture autonomous agent turn triggered by schedule. Validates the novel "proactive execution without user prompt" IOC.
+22. **OC-POS-04:** OpenClaw browser automation. Exercise the browser tool to validate CDP-controlled Chrome/Chromium child processes and browser automation traffic IOCs.
+23. **OC-EVA-01:** Renamed binary, custom port (`--port`), containerized gateway (Docker). Validates primary OpenClaw evasion scenarios.
+24. **Class D taxonomy discussion:** OpenClaw's combination of persistent daemon + self-modification + multi-channel communication + proactive execution strains the three-class taxonomy. Prepare a Class D definition ("Persistent Autonomous Agents") for when 2+ tools share this profile. Monitor: OpenAI agent platform, Anthropic agent infrastructure, similar open-source persistent agents.
+25. **LaunchAgent credential exposure audit:** OpenClaw's plist embeds external service credentials (JIRA, gateway tokens) in world-readable mode. Audit all LaunchAgent plists across tested tools for credential exposure. Consider adding a plist credential scan to the standard lab protocol.
+26. **JSON Schema formalization** from event model — empirical data now available from 8 lab runs across all 3 classes + persistent agent.
+27. **Per-tool weight calibration formalization** — empirical data from 6 tools now supports per-tool weight profiles. **OpenClaw + Open Interpreter data proves per-tool (not per-class) calibration is needed.**
+28. Reactivate shelved items per dependency triggers (Section 13)
+29. Iterate this document based on lab findings
