@@ -3,3 +3,7 @@ __pycache__/
 .DS_Store
 *.ndjson
 .env
+dashboard/dist/
+node_modules/
+.venv/
+*.egg-info/
