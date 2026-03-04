@@ -1,0 +1,31 @@
+# Agentic Governance — Network Allowlist
+# One domain or IP per line.  Wildcard prefix (*.example.com) supported.
+# Lines starting with # are comments.
+
+# --- LLM Provider APIs ---
+api.openai.com
+api.anthropic.com
+generativelanguage.googleapis.com
+api.cohere.com
+api.mistral.ai
+
+# --- Code Hosting ---
+*.github.com
+*.gitlab.com
+*.bitbucket.org
+
+# --- Cursor ---
+api2.cursor.sh
+*.cursor.sh
+
+# --- GitHub Copilot ---
+copilot-proxy.githubusercontent.com
+*.githubcopilot.com
+
+# --- Continue ---
+api.continue.dev
+
+# --- Package Registries (expected traffic) ---
+registry.npmjs.org
+pypi.org
+files.pythonhosted.org

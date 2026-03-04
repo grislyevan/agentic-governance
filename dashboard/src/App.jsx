@@ -84,11 +84,33 @@ function useEvents() {
   return { events, loading, error, loadFromApi, loadFromFile, refresh, canRefresh };
 }
 
+function endpointLiveness(lastObserved, intervalMs = 300_000) {
+  if (!lastObserved) return 'ungoverned';
+  const elapsed = Date.now() - new Date(lastObserved).getTime();
+  if (elapsed <= intervalMs * 1.5) return 'active';
+  if (elapsed <= intervalMs * 4.5) return 'stale';
+  return 'ungoverned';
+}
+
+const statusLabels = {
+  active: 'Active',
+  stale: 'Stale',
+  ungoverned: 'Ungoverned',
+  decommissioned: 'Decommissioned',
+};
+
 function EndpointHeader({ endpoint, lastObserved, eventCount }) {
   if (!endpoint) return null;
+  const liveness = endpointLiveness(lastObserved);
   return (
     <header className="endpoint-header">
-      <div className="endpoint-id">{endpoint.id}</div>
+      <div className="endpoint-id-row">
+        <span className="endpoint-id">{endpoint.id}</span>
+        <span className={`status-badge status-${liveness}`}>
+          <span className="status-dot" />
+          {statusLabels[liveness] || liveness}
+        </span>
+      </div>
       <div className="endpoint-meta">
         <span>{endpoint.os}</span>
         <span className="sep">·</span>

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -16,6 +19,15 @@ from ..models.endpoint import Endpoint
 from ..models.event import Event
 from ..models.user import User
 from ..schemas.events import EventIngest, EventListResponse, EventResponse
+
+logger = logging.getLogger(__name__)
+
+try:
+    from cryptography.hazmat.primitives.serialization import load_pem_public_key
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    _HAS_CRYPTO = True
+except ImportError:
+    _HAS_CRYPTO = False
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -58,6 +70,41 @@ def _get_or_create_endpoint(
     return ep.id
 
 
+def _verify_signature(body: EventIngest, db: Session, tenant_id: str) -> bool | None:
+    """Verify the Ed25519 signature on an incoming event.
+
+    Returns True if valid, False if invalid, None if unsigned or
+    crypto is unavailable.
+    """
+    sig_hex = body.signature
+    fingerprint = body.key_fingerprint
+    if not sig_hex or not fingerprint or not _HAS_CRYPTO:
+        return None
+
+    ep = db.query(Endpoint).filter(
+        Endpoint.tenant_id == tenant_id,
+        Endpoint.key_fingerprint == fingerprint,
+    ).first()
+    if ep is None or ep.signing_public_key is None:
+        logger.warning("Signature from unknown fingerprint %s", fingerprint)
+        return False
+
+    try:
+        pub_key = load_pem_public_key(ep.signing_public_key.encode())
+        if not isinstance(pub_key, Ed25519PublicKey):
+            return False
+
+        event_dict = body.model_dump(exclude={"signature", "key_fingerprint"})
+        filtered = {k: v for k, v in event_dict.items() if v is not None}
+        canonical = json.dumps(filtered, sort_keys=True, separators=(",", ":"), default=str).encode()
+        sig_bytes = bytes.fromhex(sig_hex)
+        pub_key.verify(sig_bytes, canonical)
+        return True
+    except Exception:
+        logger.warning("Signature verification failed for fingerprint %s", fingerprint)
+        return False
+
+
 @router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
 def ingest_event(
     body: EventIngest,
@@ -65,12 +112,24 @@ def ingest_event(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ) -> EventResponse:
-    """Ingest a single canonical event from the collector agent."""
+    """Ingest a single canonical event from the collector agent.
+
+    If the event carries ``_signature`` and ``_key_fingerprint``, the
+    server verifies the Ed25519 signature against the enrolled public
+    key.  Events with invalid signatures are rejected with 403.
+    """
     tenant_id = _get_tenant_id(authorization, x_api_key, db)
 
     existing = db.query(Event).filter(Event.event_id == body.event_id).first()
     if existing:
         return EventResponse.model_validate(existing)
+
+    sig_verified = _verify_signature(body, db, tenant_id)
+    if sig_verified is False:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Event signature verification failed",
+        )
 
     endpoint_id = _get_or_create_endpoint(tenant_id, body.endpoint, db)
 
@@ -101,6 +160,7 @@ def ingest_event(
         decision_state=policy.get("decision_state"),
         rule_id=policy.get("rule_id"),
         severity_level=severity.get("level"),
+        signature_verified=sig_verified,
         payload=body.model_dump(),
     )
     db.add(event)

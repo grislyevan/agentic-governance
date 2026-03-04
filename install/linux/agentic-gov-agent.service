@@ -42,10 +42,11 @@ EnvironmentFile=-%h/.config/agentic-gov/agent.env
 
 Environment=PYTHONPATH=/opt/agentic-gov/collector
 
-# Restart on any failure with backoff
-Restart=on-failure
-RestartSec=30s
-StartLimitBurst=5
+# Always restart — if the process is killed (tamper), systemd
+# brings it back automatically (anti-tamper resilience).
+Restart=always
+RestartSec=10s
+StartLimitBurst=10
 StartLimitIntervalSec=300s
 
 # Resource limits

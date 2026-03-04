@@ -20,11 +20,12 @@ class LayerSignals:
     network: float = 0.0
     identity: float = 0.0
     behavior: float = 0.0
+    binary_hash: float = 0.0
 
     def active_layers(self) -> list[str]:
         """Return names of layers with non-zero signal."""
         layers = []
-        for name in ("process", "file", "network", "identity", "behavior"):
+        for name in ("process", "file", "network", "identity", "behavior", "binary_hash"):
             if getattr(self, name) > 0.0:
                 layers.append(name)
         return layers

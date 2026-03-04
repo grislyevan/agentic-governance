@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class EventIngest(BaseModel):
@@ -25,6 +25,12 @@ class EventIngest(BaseModel):
     policy: dict[str, Any] | None = None
     severity: dict[str, Any] | None = None
 
+    # Payload signing (Feature 4)
+    signature: str | None = Field(default=None, alias="_signature")
+    key_fingerprint: str | None = Field(default=None, alias="_key_fingerprint")
+
+    model_config = {"populate_by_name": True}
+
 
 class EventResponse(BaseModel):
     id: str
@@ -39,6 +45,7 @@ class EventResponse(BaseModel):
     decision_state: str | None
     rule_id: str | None
     severity_level: str | None
+    signature_verified: bool | None = None
     payload: dict[str, Any]
 
     model_config = {"from_attributes": True}

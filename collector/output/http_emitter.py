@@ -1,7 +1,8 @@
 """HTTP transport layer for sending events to the central API.
 
 Replaces the local NDJSON file write (EventEmitter) when running in
-daemon/agent mode.  Uses only stdlib (urllib.request) — no extra deps.
+daemon/agent mode.  Uses only stdlib (urllib.request) — no extra deps
+beyond ``cryptography`` for optional payload signing.
 
 Retry policy: exponential backoff, up to 3 attempts per event.
 On final failure, the event is appended to the local NDJSON buffer
@@ -33,6 +34,17 @@ _DEFAULT_TIMEOUT = 10
 _MAX_RETRIES = 3
 _RETRY_BASE_DELAY = 1.0  # seconds; doubles each attempt
 
+try:
+    from collector.crypto.signer import (
+        load_signing_key,
+        load_public_key_pem,
+        get_key_fingerprint,
+        sign_event,
+    )
+    _HAS_CRYPTO = True
+except ImportError:
+    _HAS_CRYPTO = False
+
 
 class HttpEmitter:
     """POST events to the central API with retry and local buffer fallback."""
@@ -43,6 +55,7 @@ class HttpEmitter:
         api_key: str,
         timeout: int = _DEFAULT_TIMEOUT,
         buffer: LocalBuffer | None = None,
+        sign_events: bool = True,
     ) -> None:
         self._api_url = api_url.rstrip("/")
         self._api_key = api_key
@@ -50,6 +63,16 @@ class HttpEmitter:
         self._buffer = buffer or LocalBuffer()
         self._sent = 0
         self._buffered = 0
+
+        self._signing_key = None
+        self._key_fingerprint: str | None = None
+        if sign_events and _HAS_CRYPTO:
+            self._signing_key = load_signing_key()
+            if self._signing_key:
+                pub_pem = load_public_key_pem()
+                if pub_pem:
+                    self._key_fingerprint = get_key_fingerprint(pub_pem)
+                logger.info("Event signing enabled (fingerprint=%s)", self._key_fingerprint)
 
     # ------------------------------------------------------------------
     # Core emit
@@ -59,7 +82,12 @@ class HttpEmitter:
         """Send a single event to POST /events.
 
         Returns True if accepted by the server, False if buffered locally.
+        If a signing key is loaded, the event is signed before transmission.
         """
+        if self._signing_key is not None and _HAS_CRYPTO:
+            event["_signature"] = sign_event(event, self._signing_key)
+            event["_key_fingerprint"] = self._key_fingerprint
+
         payload = json.dumps(event, separators=(",", ":")).encode("utf-8")
         url = f"{self._api_url}/events"
 

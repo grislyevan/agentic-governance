@@ -344,6 +344,59 @@ def _heartbeat_loop(
         emitter.heartbeat(hostname=hostname, interval_seconds=interval)
 
 
+def _build_lifecycle_event(
+    event_type: str,
+    endpoint_id: str,
+    actor_id: str,
+    summary: str,
+) -> dict[str, Any]:
+    """Build a lightweight lifecycle event (heartbeat/shutdown)."""
+    now = datetime.now(timezone.utc).isoformat()
+    session_id = str(uuid.uuid4())
+    return {
+        "event_id": str(uuid.uuid4()),
+        "event_type": event_type,
+        "event_version": EVENT_VERSION,
+        "observed_at": now,
+        "ingested_at": now,
+        "session_id": session_id,
+        "trace_id": f"trace-lifecycle-{session_id[:8]}",
+        "parent_event_id": None,
+        "actor": {
+            "id": actor_id,
+            "type": "automation",
+            "trust_tier": "T1",
+            "identity_confidence": 1.0,
+            "org_context": "unknown",
+        },
+        "endpoint": {
+            "id": endpoint_id,
+            "os": f"{platform.system()} {platform.release()} {platform.machine()}",
+            "posture": "unmanaged",
+        },
+        "action": {
+            "type": "exec",
+            "risk_class": "R1",
+            "summary": summary,
+            "raw_ref": f"evidence://collector-lifecycle/{endpoint_id}/{session_id}",
+        },
+        "target": {
+            "type": "host",
+            "id": endpoint_id,
+            "scope": "local endpoint",
+            "sensitivity_tier": "Tier0",
+        },
+        "tool": {
+            "name": "agentic-gov-collector",
+            "class": "A",
+            "version": EVENT_VERSION,
+            "attribution_confidence": 1.0,
+            "attribution_sources": ["process"],
+        },
+        "severity": {"level": "S0"},
+    }
+
+
 def _run_daemon(args: argparse.Namespace) -> None:
     """Run the collector as a persistent daemon until SIGINT/SIGTERM."""
     hostname = args.endpoint_id
@@ -375,7 +428,6 @@ def _run_daemon(args: argparse.Namespace) -> None:
     )
 
     while not stop_event.is_set():
-        # Flush any buffered events before running a new scan
         flushed = emitter.flush_buffer()
         if flushed and args.verbose:
             print(f"Flushed {flushed} buffered events")
@@ -384,6 +436,16 @@ def _run_daemon(args: argparse.Namespace) -> None:
 
         if stop_event.wait(timeout=args.interval):
             break
+
+    # Emit graceful shutdown event so the API can distinguish between
+    # a clean stop (decommission/restart) and a killed process (tamper).
+    shutdown_event = _build_lifecycle_event(
+        event_type="agent.shutdown",
+        endpoint_id=hostname,
+        actor_id=args.actor_id,
+        summary="Collector agent shutting down gracefully",
+    )
+    emitter.emit(shutdown_event)
 
     stop_event.set()
     print("Agentic-gov endpoint agent stopped.", file=sys.stderr)

@@ -21,7 +21,11 @@
         "approval.resolved",
         "exception.lifecycle",
         "evidence.linked",
-        "incident.flagged"
+        "incident.flagged",
+        "heartbeat.received",
+        "heartbeat.missed",
+        "agent.shutdown",
+        "detection.cleared"
       ],
       "description": "Canonical event type driving downstream routing and conditional field requirements."
     },

@@ -93,12 +93,50 @@
   border: 1px solid var(--border);
 }
 
+.endpoint-id-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
 .endpoint-id {
   font-family: var(--font-mono);
   font-weight: 500;
   font-size: 1rem;
-  margin-bottom: 0.25rem;
 }
+
+/* Endpoint liveness status badge */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-active { background: rgba(63, 185, 80, 0.15); color: var(--success); border: 1px solid rgba(63, 185, 80, 0.3); }
+.status-active .status-dot { background: var(--success); }
+
+.status-stale { background: rgba(210, 153, 34, 0.15); color: var(--warn); border: 1px solid rgba(210, 153, 34, 0.3); }
+.status-stale .status-dot { background: var(--warn); }
+
+.status-ungoverned { background: rgba(248, 81, 73, 0.15); color: var(--danger); border: 1px solid rgba(248, 81, 73, 0.3); }
+.status-ungoverned .status-dot { background: var(--danger); }
+
+.status-decommissioned { background: rgba(110, 118, 129, 0.15); color: #8b949e; border: 1px solid rgba(110, 118, 129, 0.3); }
+.status-decommissioned .status-dot { background: #8b949e; }
 
 .endpoint-meta {
   font-size: 0.875rem;

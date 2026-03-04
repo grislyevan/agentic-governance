@@ -18,6 +18,8 @@ class EndpointResponse(BaseModel):
     hostname: str
     os_info: str | None
     posture: str
+    status: str
+    heartbeat_interval: int
     last_seen_at: datetime | None
     created_at: datetime
 
@@ -27,3 +29,14 @@ class EndpointResponse(BaseModel):
 class EndpointListResponse(BaseModel):
     total: int
     items: list[EndpointResponse]
+
+
+class EndpointStatusResponse(BaseModel):
+    id: str
+    hostname: str
+    status: str
+    last_seen_at: datetime | None
+    heartbeat_interval: int
+    seconds_since_heartbeat: float | None
+
+    model_config = {"from_attributes": True}

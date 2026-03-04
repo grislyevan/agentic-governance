@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -42,6 +42,9 @@ class Event(Base):
     decision_state: Mapped[str | None] = mapped_column(String(32))
     rule_id: Mapped[str | None] = mapped_column(String(32))
     severity_level: Mapped[str | None] = mapped_column(String(4))
+
+    # Signature verification
+    signature_verified: Mapped[bool | None] = mapped_column(Boolean)
 
     # Full canonical event payload
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
