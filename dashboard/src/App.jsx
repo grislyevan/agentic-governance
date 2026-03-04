@@ -16,7 +16,11 @@ function useEvents() {
     setLastFile(null);
     try {
       const res = await fetch('/api/events', { cache: 'no-store' });
-      if (!res.ok) throw new Error(res.status === 404 ? 'No NDJSON file served. Use "Load file" or start the server with NDJSON_PATH.' : `${res.status}`);
+      if (!res.ok) throw new Error(
+        res.status === 404
+          ? 'No NDJSON file served. Start the API server or run the collector first.'
+          : `Server returned ${res.status}`
+      );
       const text = await res.text();
       setEvents(parseNdjson(text));
     } catch (e) {
@@ -50,7 +54,9 @@ function useEvents() {
       setError(null);
       fetch(`/api/events?_=${Date.now()}`, { cache: 'no-store' })
         .then((res) => {
-          if (!res.ok) throw new Error(res.status === 404 ? 'No NDJSON file served.' : `${res.status}`);
+          if (!res.ok) throw new Error(
+            res.status === 404 ? 'No NDJSON file served.' : `Server returned ${res.status}`
+          );
           return res.text();
         })
         .then((text) => setEvents(parseNdjson(text)))
@@ -64,18 +70,11 @@ function useEvents() {
       setLoading(true);
       const reader = new FileReader();
       reader.onload = () => {
-        try {
-          setEvents(parseNdjson(reader.result));
-        } catch (e) {
-          setError(e.message);
-          setEvents([]);
-        }
+        try { setEvents(parseNdjson(reader.result)); }
+        catch (e) { setError(e.message); setEvents([]); }
         setLoading(false);
       };
-      reader.onerror = () => {
-        setError('Failed to read file');
-        setLoading(false);
-      };
+      reader.onerror = () => { setError('Failed to read file'); setLoading(false); };
       reader.readAsText(lastFile);
     }
   }, [source, lastFile]);
@@ -85,7 +84,7 @@ function useEvents() {
   return { events, loading, error, loadFromApi, loadFromFile, refresh, canRefresh };
 }
 
-function EndpointHeader({ endpoint, lastObserved }) {
+function EndpointHeader({ endpoint, lastObserved, eventCount }) {
   if (!endpoint) return null;
   return (
     <header className="endpoint-header">
@@ -93,11 +92,17 @@ function EndpointHeader({ endpoint, lastObserved }) {
       <div className="endpoint-meta">
         <span>{endpoint.os}</span>
         <span className="sep">·</span>
-        <span>{endpoint.posture}</span>
+        <span className={`posture posture-${endpoint.posture}`}>{endpoint.posture}</span>
         {lastObserved && (
           <>
             <span className="sep">·</span>
             <span className="last-scan">Last scan: {new Date(lastObserved).toLocaleString()}</span>
+          </>
+        )}
+        {eventCount != null && (
+          <>
+            <span className="sep">·</span>
+            <span className="event-count">{eventCount} events</span>
           </>
         )}
       </div>
@@ -105,7 +110,14 @@ function EndpointHeader({ endpoint, lastObserved }) {
   );
 }
 
+function SeverityBadge({ level }) {
+  if (!level) return <span className="severity severity-none">—</span>;
+  return <span className={`severity severity-${level.toLowerCase()}`}>{level}</span>;
+}
+
 function ToolRow({ tool }) {
+  const [expanded, setExpanded] = useState(false);
+
   const decisionClass = {
     detect: 'decision-detect',
     warn: 'decision-warn',
@@ -113,36 +125,117 @@ function ToolRow({ tool }) {
     block: 'decision-block',
   }[tool.decision_state] || '';
 
+  const toolClassLabel = tool.class !== '—'
+    ? <span className="tool-class-badge" title={toolClassDesc(tool.class)}>Class {tool.class}</span>
+    : <span className="tool-class-badge">—</span>;
+
   return (
-    <tr>
-      <td className="tool-name">{tool.name}</td>
-      <td className="tool-class">Class {tool.class}</td>
-      <td>
-        <span className={`confidence confidence-${tool.confidenceBand.toLowerCase()}`}>
-          {tool.confidenceBand}
+    <>
+      <tr className={expanded ? 'row-expanded' : ''} onClick={() => setExpanded(!expanded)} style={{ cursor: 'pointer' }}>
+        <td className="tool-name">
+          {tool.name}
+          {tool.version && <span className="tool-version">{tool.version}</span>}
+        </td>
+        <td>{toolClassLabel}</td>
+        <td>
+          <span className={`confidence confidence-${(tool.confidenceBand || '').toLowerCase()}`}>
+            {tool.confidenceBand}
+          </span>
+          {tool.attribution_confidence != null && (
+            <span className="confidence-value"> ({Math.round(tool.attribution_confidence * 100)}%)</span>
+          )}
+        </td>
+        <td>
+          <span className={`decision ${decisionClass}`}>{tool.policyLabel}</span>
+        </td>
+        <td><SeverityBadge level={tool.severity_level} /></td>
+        <td className="reason">
+          {tool.summary || (tool.reason_codes?.length ? tool.reason_codes.slice(0, 2).join(', ') : '—')}
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="detail-row">
+          <td colSpan={6}>
+            <div className="detail-panel">
+              {tool.enforcement_applied && (
+                <div className="detail-section">
+                  <span className="detail-label">Enforcement applied:</span>
+                  <span className={`decision decision-${tool.enforcement_applied}`}>
+                    {tool.enforcement_applied.replace(/_/g, ' ')}
+                  </span>
+                </div>
+              )}
+              {tool.reason_codes?.length > 0 && (
+                <div className="detail-section">
+                  <span className="detail-label">Reason codes:</span>
+                  <span className="detail-codes">{tool.reason_codes.join(' · ')}</span>
+                </div>
+              )}
+              {tool.summary && (
+                <div className="detail-section">
+                  <span className="detail-label">Action summary:</span>
+                  <span className="detail-summary">{tool.summary}</span>
+                </div>
+              )}
+              {tool.observed_at && (
+                <div className="detail-section">
+                  <span className="detail-label">Observed:</span>
+                  <span>{new Date(tool.observed_at).toLocaleString()}</span>
+                </div>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function toolClassDesc(cls) {
+  const descs = {
+    A: 'Class A — Assistive IDE Extension',
+    B: 'Class B — Local Model Runtime',
+    C: 'Class C — Autonomous Executor',
+    D: 'Class D — Persistent Autonomous Agent',
+  };
+  return descs[cls] || `Class ${cls}`;
+}
+
+function SummaryBar({ tools }) {
+  if (!tools.length) return null;
+  const counts = { block: 0, approval_required: 0, warn: 0, detect: 0 };
+  for (const t of tools) {
+    if (t.decision_state in counts) counts[t.decision_state]++;
+  }
+  const items = [
+    { state: 'block', label: 'Block', count: counts.block },
+    { state: 'approval_required', label: 'Approval req.', count: counts.approval_required },
+    { state: 'warn', label: 'Warn', count: counts.warn },
+    { state: 'detect', label: 'Detect', count: counts.detect },
+  ].filter((i) => i.count > 0);
+
+  if (!items.length) return null;
+
+  return (
+    <div className="summary-bar">
+      {items.map((i) => (
+        <span key={i.state} className={`summary-chip summary-${i.state}`}>
+          {i.label} <strong>{i.count}</strong>
         </span>
-        {tool.attribution_confidence != null && (
-          <span className="confidence-value"> ({Math.round(tool.attribution_confidence * 100)}%)</span>
-        )}
-      </td>
-      <td>
-        <span className={`decision ${decisionClass}`}>{tool.policyLabel}</span>
-      </td>
-      <td className="reason">
-        {tool.reason_codes?.length ? tool.reason_codes.join(', ') : (tool.summary || '—')}
-      </td>
-    </tr>
+      ))}
+    </div>
   );
 }
 
 function Dashboard({ summary }) {
-  const { endpoint, tools, lastObserved } = summary;
+  const { endpoint, tools, lastObserved, eventCount } = summary;
 
   return (
     <div className="dashboard">
-      <EndpointHeader endpoint={endpoint} lastObserved={lastObserved} />
+      <EndpointHeader endpoint={endpoint} lastObserved={lastObserved} eventCount={eventCount} />
+      <SummaryBar tools={tools} />
       <section className="tools-section">
-        <h2>Detected AI tools</h2>
+        <h2>Detected AI tools <span className="tools-count">({tools.length})</span></h2>
         {tools.length === 0 ? (
           <p className="empty">No tools detected in this scan.</p>
         ) : (
@@ -153,7 +246,8 @@ function Dashboard({ summary }) {
                 <th>Class</th>
                 <th>Confidence</th>
                 <th>Policy</th>
-                <th>Reason / summary</th>
+                <th>Severity</th>
+                <th>Action summary</th>
               </tr>
             </thead>
             <tbody>
@@ -163,6 +257,7 @@ function Dashboard({ summary }) {
             </tbody>
           </table>
         )}
+        <p className="table-hint">Click a row to expand details.</p>
       </section>
     </div>
   );
@@ -175,7 +270,10 @@ export default function App() {
   return (
     <div className="app">
       <div className="app-bar">
-        <h1>Agentic Governance — Endpoint view</h1>
+        <div className="app-bar-left">
+          <h1>Agentic Governance</h1>
+          <span className="app-subtitle">Endpoint AI telemetry</span>
+        </div>
         <div className="actions">
           <button type="button" onClick={loadFromApi} disabled={loading}>
             {loading ? 'Loading…' : 'Load from server'}
@@ -197,18 +295,19 @@ export default function App() {
         </div>
       </div>
 
-      {error && (
-        <div className="banner error">
-          {error}
-        </div>
-      )}
+      {error && <div className="banner error">{error}</div>}
 
       {events.length > 0 ? (
         <Dashboard summary={summary} />
       ) : !loading && !error ? (
         <div className="empty-state">
-          <p>Load NDJSON from the server (default: <code>collector/scan-results.ndjson</code>) or choose a file.</p>
-          <p>Run the collector: <code>cd collector && python main.py --dry-run</code> prints to stdout; without <code>--dry-run</code> it writes to <code>scan-results.ndjson</code>.</p>
+          <p>Load NDJSON from the server or choose a local file to inspect scan results.</p>
+          <p>
+            Run the collector:{' '}
+            <code>cd collector &amp;&amp; python main.py --dry-run --verbose</code>
+            {' '}(stdout) or without <code>--dry-run</code> to write <code>scan-results.ndjson</code>.
+          </p>
+          <p>Then start the server: <code>cd dashboard &amp;&amp; npm run dev</code></p>
         </div>
       ) : null}
     </div>
