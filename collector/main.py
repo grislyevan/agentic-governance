@@ -1,4 +1,15 @@
-"""CLI entrypoint: runs scans, scores confidence, evaluates policy, emits events."""
+"""CLI entrypoint: runs scans, scores confidence, evaluates policy, emits events.
+
+One-shot mode (default):
+    python -m collector.main --dry-run
+
+Daemon mode (persistent endpoint agent):
+    python -m collector.main \\
+        --api-url http://localhost:8000 \\
+        --api-key <key> \\
+        --interval 300 \\
+        --report-all          # omit to report changes only
+"""
 
 from __future__ import annotations
 
@@ -6,15 +17,20 @@ import argparse
 import getpass
 import logging
 import platform
+import signal
 import socket
 import sys
+import threading
+import time
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Union
 
 from engine.confidence import classify_confidence, compute_confidence
 from engine.policy import PolicyDecision, evaluate_policy
 from output.emitter import EventEmitter
+from output.http_emitter import HttpEmitter
+from agent.state import StateDiffer
 from scanner.base import ScanResult
 from scanner.aider import AiderScanner
 from scanner.claude_code import ClaudeCodeScanner
@@ -27,6 +43,8 @@ from scanner.lm_studio import LMStudioScanner
 from scanner.ollama import OllamaScanner
 from scanner.open_interpreter import OpenInterpreterScanner
 from scanner.openclaw import OpenClawScanner
+
+AnyEmitter = Union[EventEmitter, HttpEmitter]
 
 EVENT_VERSION = "0.2.0"
 
@@ -135,23 +153,32 @@ def _compute_severity(
     return "S0"
 
 
-def run_scan(args: argparse.Namespace) -> int:
-    """Execute the full scan pipeline."""
+def run_scan(
+    args: argparse.Namespace,
+    emitter: AnyEmitter | None = None,
+    state_differ: StateDiffer | None = None,
+) -> int:
+    """Execute the full scan pipeline.
+
+    When *emitter* is None the function creates a local EventEmitter
+    (one-shot mode).  When provided (daemon mode) it uses the caller-
+    supplied emitter and optionally a StateDiffer to suppress unchanged
+    detections.
+    """
     session_id = str(uuid.uuid4())
     trace_id = f"trace-collector-{session_id[:8]}"
     endpoint_id = args.endpoint_id
     actor_id = args.actor_id
     sensitivity = args.sensitivity
+    own_emitter = emitter is None
+
+    if own_emitter:
+        emitter = EventEmitter(output_path=args.output, dry_run=args.dry_run)
 
     if args.verbose:
         print(f"Collector session: {session_id}")
         print(f"Endpoint: {endpoint_id}  Actor: {actor_id}  Sensitivity: {sensitivity}")
         print("-" * 60)
-
-    emitter = EventEmitter(
-        output_path=args.output,
-        dry_run=args.dry_run,
-    )
 
     scanners = [
         ClaudeCodeScanner(),
@@ -167,6 +194,7 @@ def run_scan(args: argparse.Namespace) -> int:
         ClineScanner(),
     ]
     total_events = 0
+    detected_tools: set[str] = set()
 
     for scanner in scanners:
         if args.verbose:
@@ -179,8 +207,32 @@ def run_scan(args: argparse.Namespace) -> int:
                 print(f"  {scanner.tool_name}: Not detected")
             continue
 
+        detected_tools.add(scan.tool_name)
         confidence = compute_confidence(scan)
         conf_class = classify_confidence(confidence)
+        policy_decision = evaluate_policy(
+            confidence=confidence,
+            confidence_class=conf_class,
+            tool_class=scan.tool_class or "A",
+            sensitivity=sensitivity,
+            action_risk=scan.action_risk,
+        )
+
+        # In daemon mode, skip if nothing material changed
+        if state_differ is not None:
+            changed, reasons = state_differ.is_changed(
+                tool_name=scan.tool_name,
+                tool_class=scan.tool_class or "A",
+                confidence=confidence,
+                decision_state=policy_decision.decision_state,
+                detected=True,
+            )
+            if not changed:
+                if args.verbose:
+                    print(f"  {scanner.tool_name}: state unchanged — skipping")
+                continue
+            if args.verbose and reasons:
+                print(f"  {scanner.tool_name}: change detected — {', '.join(reasons)}")
 
         if args.verbose:
             print(f"\n  Confidence: {confidence:.4f} ({conf_class})")
@@ -207,14 +259,14 @@ def run_scan(args: argparse.Namespace) -> int:
             print(f"  Emitting detection.observed event...")
         if emitter.emit(detection_event):
             total_events += 1
-
-        policy_decision = evaluate_policy(
-            confidence=confidence,
-            confidence_class=conf_class,
-            tool_class=scan.tool_class or "A",
-            sensitivity=sensitivity,
-            action_risk=scan.action_risk,
-        )
+            if state_differ is not None:
+                state_differ.update(
+                    tool_name=scan.tool_name,
+                    tool_class=scan.tool_class or "A",
+                    confidence=confidence,
+                    decision_state=policy_decision.decision_state,
+                    detected=True,
+                )
 
         if args.verbose:
             print(f"  Policy: {policy_decision.decision_state} "
@@ -238,15 +290,103 @@ def run_scan(args: argparse.Namespace) -> int:
         if emitter.emit(policy_event):
             total_events += 1
 
+    # Emit detection.cleared for tools that vanished since last cycle
+    if state_differ is not None:
+        for tool_name in state_differ.cleared_tools(detected_tools):
+            if args.verbose:
+                print(f"\n  {tool_name}: no longer detected — emitting detection.cleared")
+            cleared_scan = ScanResult(
+                tool_name=tool_name,
+                detected=False,
+                tool_class=state_differ.get_last_class(tool_name),
+                tool_version=None,
+                action_type="removal",
+                action_risk="R1",
+                action_summary=f"{tool_name} is no longer detected on this endpoint",
+            )
+            cleared_event = build_event(
+                event_type="detection.cleared",
+                endpoint_id=endpoint_id,
+                actor_id=actor_id,
+                session_id=session_id,
+                trace_id=trace_id,
+                scan=cleared_scan,
+                confidence=0.0,
+                sensitivity=sensitivity,
+            )
+            if emitter.emit(cleared_event):
+                total_events += 1
+            state_differ.mark_cleared(tool_name)
+
     stats = emitter.stats
     if args.verbose:
         print(f"\n{'=' * 60}")
     print(f"Scan complete. Events emitted: {stats['emitted']}, "
           f"validation failures: {stats['failed']}")
-    if not args.dry_run:
+    if own_emitter and not args.dry_run:
         print(f"Output: {args.output}")
 
     return 0 if stats["failed"] == 0 else 1
+
+
+# ---------------------------------------------------------------------------
+# Daemon helpers
+# ---------------------------------------------------------------------------
+
+def _heartbeat_loop(
+    emitter: HttpEmitter,
+    hostname: str,
+    interval: int,
+    stop_event: threading.Event,
+) -> None:
+    """Background thread: send heartbeats every interval seconds."""
+    while not stop_event.wait(timeout=interval):
+        emitter.heartbeat(hostname=hostname, interval_seconds=interval)
+
+
+def _run_daemon(args: argparse.Namespace) -> None:
+    """Run the collector as a persistent daemon until SIGINT/SIGTERM."""
+    hostname = args.endpoint_id
+    emitter = HttpEmitter(api_url=args.api_url, api_key=args.api_key)
+    differ = StateDiffer(report_all=args.report_all)
+
+    stop_event = threading.Event()
+
+    def _handle_signal(signum: int, frame: Any) -> None:
+        print(f"\nReceived signal {signum}, shutting down daemon…", file=sys.stderr)
+        stop_event.set()
+
+    signal.signal(signal.SIGINT, _handle_signal)
+    signal.signal(signal.SIGTERM, _handle_signal)
+
+    heartbeat_thread = threading.Thread(
+        target=_heartbeat_loop,
+        args=(emitter, hostname, args.interval, stop_event),
+        daemon=True,
+        name="heartbeat",
+    )
+    heartbeat_thread.start()
+
+    print(
+        f"Agentic-gov endpoint agent started — "
+        f"interval={args.interval}s  api={args.api_url}  "
+        f"mode={'report-all' if args.report_all else 'changes-only'}",
+        file=sys.stderr,
+    )
+
+    while not stop_event.is_set():
+        # Flush any buffered events before running a new scan
+        flushed = emitter.flush_buffer()
+        if flushed and args.verbose:
+            print(f"Flushed {flushed} buffered events")
+
+        run_scan(args, emitter=emitter, state_differ=differ)
+
+        if stop_event.wait(timeout=args.interval):
+            break
+
+    stop_event.set()
+    print("Agentic-gov endpoint agent stopped.", file=sys.stderr)
 
 
 def main() -> None:
@@ -278,6 +418,23 @@ def main() -> None:
         "--verbose", action="store_true",
         help="Print detailed scan progress",
     )
+    # Daemon / agent mode flags
+    parser.add_argument(
+        "--interval", type=int, default=0, metavar="SECONDS",
+        help="Run as persistent daemon, scanning every N seconds (0 = one-shot)",
+    )
+    parser.add_argument(
+        "--api-url", default=None, metavar="URL",
+        help="Central API base URL, e.g. http://localhost:8000",
+    )
+    parser.add_argument(
+        "--api-key", default=None, metavar="KEY",
+        help="API key for authenticating with the central server",
+    )
+    parser.add_argument(
+        "--report-all", action="store_true",
+        help="Report all detections every cycle (default: changes only)",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -285,7 +442,12 @@ def main() -> None:
         format="%(levelname)s %(name)s: %(message)s",
     )
 
-    sys.exit(run_scan(args))
+    if args.interval > 0:
+        if not args.api_url or not args.api_key:
+            parser.error("--interval requires both --api-url and --api-key")
+        _run_daemon(args)
+    else:
+        sys.exit(run_scan(args))
 
 
 if __name__ == "__main__":

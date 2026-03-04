@@ -1,0 +1,63 @@
+# systemd user service for the agentic-gov endpoint agent.
+#
+# Install (per-user, no root required):
+#   mkdir -p ~/.config/systemd/user/
+#   cp agentic-gov-agent.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now agentic-gov-agent.service
+#
+# Install (system-wide, requires root):
+#   cp agentic-gov-agent.service /etc/systemd/system/
+#   systemctl daemon-reload
+#   systemctl enable --now agentic-gov-agent.service
+#
+# View logs:
+#   journalctl --user -u agentic-gov-agent -f
+#
+# Set AGENTIC_GOV_API_URL / AGENTIC_GOV_API_KEY in an EnvironmentFile
+# at /etc/agentic-gov/agent.env (or ~/.config/agentic-gov/agent.env for
+# per-user installs) before enabling.
+
+[Unit]
+Description=Agentic-gov endpoint agent — agentic AI tool detection
+Documentation=https://github.com/your-org/agentic-governance
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# Adjust WorkingDirectory and ExecStart to your install path
+WorkingDirectory=/opt/agentic-gov
+
+ExecStart=/opt/agentic-gov/.venv/bin/python -m collector.main \
+    --api-url ${AGENTIC_GOV_API_URL} \
+    --api-key ${AGENTIC_GOV_API_KEY} \
+    --interval ${AGENTIC_GOV_INTERVAL:-300} \
+    --sensitivity ${AGENTIC_GOV_SENSITIVITY:-Tier1}
+
+# Load secrets from file — create this before enabling the service
+EnvironmentFile=-/etc/agentic-gov/agent.env
+EnvironmentFile=-%h/.config/agentic-gov/agent.env
+
+Environment=PYTHONPATH=/opt/agentic-gov/collector
+
+# Restart on any failure with backoff
+Restart=on-failure
+RestartSec=30s
+StartLimitBurst=5
+StartLimitIntervalSec=300s
+
+# Resource limits
+MemoryMax=256M
+CPUQuota=10%
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ReadWritePaths=%h/.agentic-gov /tmp
+
+[Install]
+WantedBy=default.target

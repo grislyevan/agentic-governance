@@ -83,11 +83,16 @@ API Client ────────────────────▶│ Mu
 - [x] API key support for headless collector agents
 - [x] Docker Compose for local dev (API + DB)
 - [x] OpenAPI spec auto-generated from FastAPI routes
-- [ ] Collector emits to API endpoint instead of local NDJSON file
+- [x] Collector HTTP emitter (`collector/output/http_emitter.py`) — POST /events with retry + local buffer fallback
+- [x] Persistent endpoint agent daemon (`--interval`, `--api-url`, `--api-key`, `--report-all` flags)
+- [x] StateDiffer — change-only reporting with JSON persistence (`collector/agent/state.py`)
+- [x] LocalBuffer — offline NDJSON queue flushed on reconnect (`collector/agent/buffer.py`)
+- [x] `POST /endpoints/heartbeat` — auto-registers endpoints, updates `last_seen_at`
+- [x] OS-level install scripts: macOS LaunchAgent + Linux systemd unit (`install/`)
 - [ ] Integration tests for API endpoints
 - [ ] Alembic migrations wired up
 
-**Files:** `api/`, `docker-compose.yml`
+**Files:** `api/`, `collector/output/`, `collector/agent/`, `docker-compose.yml`, `install/`
 
 ---
 

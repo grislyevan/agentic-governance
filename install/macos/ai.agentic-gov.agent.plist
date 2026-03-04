@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS LaunchAgent for the agentic-gov endpoint agent.
+
+  Install:
+      cp ai.agentic-gov.agent.plist ~/Library/LaunchAgents/
+      launchctl load -w ~/Library/LaunchAgents/ai.agentic-gov.agent.plist
+
+  Edit the EnvironmentVariables section below to supply your API URL,
+  API key, and desired scan interval before loading.
+-->
+<plist version="1.0">
+<dict>
+
+    <key>Label</key>
+    <string>ai.agentic-gov.agent</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <!-- Adjust to your virtual-env Python path -->
+        <string>/usr/local/bin/python3</string>
+        <string>-m</string>
+        <string>collector.main</string>
+        <string>--api-url</string>
+        <string>$(AGENTIC_GOV_API_URL)</string>
+        <string>--api-key</string>
+        <string>$(AGENTIC_GOV_API_KEY)</string>
+        <string>--interval</string>
+        <string>$(AGENTIC_GOV_INTERVAL)</string>
+        <string>--sensitivity</string>
+        <string>$(AGENTIC_GOV_SENSITIVITY)</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!-- Central API endpoint — required -->
+        <key>AGENTIC_GOV_API_URL</key>
+        <string>http://localhost:8000</string>
+
+        <!-- API key issued from the SaaS dashboard — required -->
+        <key>AGENTIC_GOV_API_KEY</key>
+        <string>REPLACE_ME</string>
+
+        <!-- Scan interval in seconds (default: 300 = 5 min) -->
+        <key>AGENTIC_GOV_INTERVAL</key>
+        <string>300</string>
+
+        <!-- Asset sensitivity tier: Tier0 | Tier1 | Tier2 | Tier3 -->
+        <key>AGENTIC_GOV_SENSITIVITY</key>
+        <string>Tier1</string>
+
+        <!-- Working directory must contain the collector package -->
+        <key>PYTHONPATH</key>
+        <string>/opt/agentic-gov/collector</string>
+    </dict>
+
+    <!-- Start on login and keep alive if it crashes -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Log paths -->
+    <key>StandardOutPath</key>
+    <string>/tmp/agentic-gov-agent.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/agentic-gov-agent-err.log</string>
+
+    <!-- Throttle restarts to avoid rapid loops on persistent failure -->
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+</dict>
+</plist>
