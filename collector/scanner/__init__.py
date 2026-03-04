@@ -1,4 +1,25 @@
+from .aider import AiderScanner
 from .claude_code import ClaudeCodeScanner
+from .cline import ClineScanner
+from .continue_ext import ContinueScanner
+from .copilot import CopilotScanner
+from .cursor import CursorScanner
+from .gpt_pilot import GPTPilotScanner
+from .lm_studio import LMStudioScanner
 from .ollama import OllamaScanner
+from .open_interpreter import OpenInterpreterScanner
+from .openclaw import OpenClawScanner
 
-__all__ = ["ClaudeCodeScanner", "OllamaScanner"]
+__all__ = [
+    "AiderScanner",
+    "ClaudeCodeScanner",
+    "ClineScanner",
+    "ContinueScanner",
+    "CopilotScanner",
+    "CursorScanner",
+    "GPTPilotScanner",
+    "LMStudioScanner",
+    "OllamaScanner",
+    "OpenInterpreterScanner",
+    "OpenClawScanner",
+]

@@ -16,9 +16,14 @@ from engine.confidence import classify_confidence, compute_confidence
 from engine.policy import PolicyDecision, evaluate_policy
 from output.emitter import EventEmitter
 from scanner.base import ScanResult
+from scanner.aider import AiderScanner
 from scanner.claude_code import ClaudeCodeScanner
+from scanner.cline import ClineScanner
+from scanner.continue_ext import ContinueScanner
 from scanner.copilot import CopilotScanner
 from scanner.cursor import CursorScanner
+from scanner.gpt_pilot import GPTPilotScanner
+from scanner.lm_studio import LMStudioScanner
 from scanner.ollama import OllamaScanner
 from scanner.open_interpreter import OpenInterpreterScanner
 from scanner.openclaw import OpenClawScanner
@@ -155,6 +160,11 @@ def run_scan(args: argparse.Namespace) -> int:
         CopilotScanner(),
         OpenInterpreterScanner(),
         OpenClawScanner(),
+        AiderScanner(),
+        LMStudioScanner(),
+        ContinueScanner(),
+        GPTPilotScanner(),
+        ClineScanner(),
     ]
     total_events = 0
 

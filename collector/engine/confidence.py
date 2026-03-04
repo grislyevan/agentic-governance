@@ -52,12 +52,62 @@ OPENCLAW_WEIGHTS: dict[str, float] = {
     "behavior": 0.15,
 }
 
+# Continue: config file is the primary attribution mechanism (backend routing)
+CONTINUE_WEIGHTS: dict[str, float] = {
+    "process": 0.20,
+    "file": 0.35,
+    "network": 0.15,
+    "identity": 0.10,
+    "behavior": 0.20,
+}
+
+# LM Studio: similar to Ollama (local model runtime)
+LM_STUDIO_WEIGHTS: dict[str, float] = {
+    "process": 0.25,
+    "file": 0.30,
+    "network": 0.20,
+    "identity": 0.10,
+    "behavior": 0.15,
+}
+
+# Aider: named binary + repo artifacts are primary signals
+AIDER_WEIGHTS: dict[str, float] = {
+    "process": 0.30,
+    "file": 0.25,
+    "network": 0.15,
+    "identity": 0.15,
+    "behavior": 0.15,
+}
+
+# GPT-Pilot: behavior (mass generation) is the primary differentiator
+GPT_PILOT_WEIGHTS: dict[str, float] = {
+    "process": 0.25,
+    "file": 0.20,
+    "network": 0.15,
+    "identity": 0.10,
+    "behavior": 0.30,
+}
+
+# Cline: extension manifest + task history are primary anchors
+CLINE_WEIGHTS: dict[str, float] = {
+    "process": 0.20,
+    "file": 0.35,
+    "network": 0.15,
+    "identity": 0.10,
+    "behavior": 0.20,
+}
+
 TOOL_WEIGHTS: dict[str, dict[str, float]] = {
     "Ollama": OLLAMA_WEIGHTS,
     "Cursor": CURSOR_WEIGHTS,
     "GitHub Copilot": COPILOT_WEIGHTS,
     "Open Interpreter": OPEN_INTERPRETER_WEIGHTS,
     "OpenClaw": OPENCLAW_WEIGHTS,
+    "Continue": CONTINUE_WEIGHTS,
+    "LM Studio": LM_STUDIO_WEIGHTS,
+    "Aider": AIDER_WEIGHTS,
+    "GPT-Pilot": GPT_PILOT_WEIGHTS,
+    "Cline": CLINE_WEIGHTS,
 }
 
 
