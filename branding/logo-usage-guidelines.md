@@ -2,7 +2,8 @@
 
 ## Logo Assets
 
-- **Primary logo (horizontal):** `detec-logo-concept-v1.png` — mark + wordmark side by side
+- **Primary logo (horizontal):** `detec-logo-concept-v2.png` — mark + wordmark side by side
+- Previous concept: `detec-logo-concept-v1.png` (archived — replaced by v2)
 - Monochrome, dark-mode, and favicon variants: TBD (to be produced from this concept)
 
 ---
@@ -11,19 +12,21 @@
 
 The Detec logo has two components that can be used together or independently:
 
-### 1. The Mark (D icon)
+### 1. The Mark (aperture icon)
 
-A stylized "D" formed by three overlapping rounded shapes in teal, amber, and indigo. The shapes converge at the center, representing multi-signal detection — multiple layers combining into a single, clear picture.
+A circular aperture/iris formed by three swirling sections in teal, amber, and indigo that converge on a central focal point. The shape evokes a lens or scanner — signals spiraling inward to produce a single, clear finding.
 
 **Color mapping:**
-| Shape | Brand Role | Hex |
+| Section | Brand Role | Hex |
 |---|---|---|
 | Top-left (teal) | Secondary — detection, positive states | `#14b8a6` |
 | Top-right (amber) | Accent — attention, enforcement | `#f59e0b` |
 | Bottom (indigo) | Primary — brand anchor | `#6366f1` |
 
+**Central dot:** The focal point of detection — the moment signals converge into a confident finding.
+
 **Use the mark alone for:**
-- App icons and favicons
+- App icons and favicons (circular form scales well)
 - Social media profile images
 - Small-format contexts where the wordmark won't be legible
 - Watermarks
@@ -96,15 +99,15 @@ When color printing isn't available, use an all-indigo (`#6366f1`) or all-white 
 
 ---
 
-## Iteration Notes (v1)
+## Iteration Notes (v2)
 
-This is the first logo concept. The following items are flagged for iteration:
+v2 resolved the play-button read from v1 by switching to an aperture/iris motif. Remaining items:
 
-1. **Center convergence shape** reads as a "play button" — consider adjusting the interior geometry to feel more like a lens or focal point than a media control.
-2. **Three gradient colors** may not reduce cleanly to monochrome at small sizes. Produce and test a solid single-color version.
+1. **Fourth color** — a light blue appears between the teal and indigo sections, possibly from gradient blending. Decide whether to keep it or tighten to the three canonical brand colors.
+2. **Monochrome version** — the overlapping curves need to maintain visual separation without color. Produce and test a solid single-color version.
 3. **Wordmark color** (`~#2d2b7a`) is darker than the brand primary (`#6366f1`). Decide whether the wordmark should match the primary or maintain the darker navy for contrast/legibility.
 4. **Stacked variant** (mark above wordmark) should be designed for square contexts.
-5. **Animated variant** — the three shapes converging could make a compelling loading/splash animation for the dashboard.
+5. **Animated variant** — the swirling aperture opening/closing could make a compelling loading animation for the dashboard.
 
 ---
 
@@ -112,4 +115,5 @@ This is the first logo concept. The following items are flagged for iteration:
 
 | File | Description |
 |---|---|
-| `detec-logo-concept-v1.png` | Primary horizontal lockup, full color, light background |
+| `detec-logo-concept-v2.png` | Primary horizontal lockup, full color, light background (current) |
+| `detec-logo-concept-v1.png` | Archived — D-letterform concept, replaced due to play-button read |
