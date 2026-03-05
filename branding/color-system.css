@@ -1,0 +1,111 @@
+/*
+ * Detec — Color System
+ * Brand palette and semantic tokens for UI, marketing, and collateral.
+ *
+ * Personality: Modern & Approachable (Tailscale / Linear territory)
+ * Audience: SOC operators who use this daily
+ */
+
+:root {
+  /* ──────────────────────────────────────────────
+   * Brand Palette
+   * ────────────────────────────────────────────── */
+
+  /* Primary — Soft Indigo
+     Brand mark, headers, primary actions, navigation.
+     Chosen for modern/approachable feel over corporate navy. */
+  --detec-primary-50:  #eef2ff;
+  --detec-primary-100: #e0e7ff;
+  --detec-primary-200: #c7d2fe;
+  --detec-primary-300: #a5b4fc;
+  --detec-primary-400: #818cf8;
+  --detec-primary-500: #6366f1;  /* ← brand anchor */
+  --detec-primary-600: #4f46e5;
+  --detec-primary-700: #4338ca;
+  --detec-primary-800: #3730a3;
+  --detec-primary-900: #312e81;
+  --detec-primary-950: #1e1b4b;
+
+  /* Secondary — Teal
+     Data visualizations, detection indicators, healthy/positive states.
+     Warmer than cyan, works in both light and dark mode. */
+  --detec-teal-50:  #f0fdfa;
+  --detec-teal-100: #ccfbf1;
+  --detec-teal-200: #99f6e4;
+  --detec-teal-300: #5eead4;
+  --detec-teal-400: #2dd4bf;
+  --detec-teal-500: #14b8a6;  /* ← secondary anchor */
+  --detec-teal-600: #0d9488;
+  --detec-teal-700: #0f766e;
+  --detec-teal-800: #115e59;
+  --detec-teal-900: #134e4a;
+  --detec-teal-950: #042f2e;
+
+  /* Accent — Amber
+     Attention states, warnings, call-to-action highlights.
+     Higher contrast than yellow, natural "caution" association. */
+  --detec-amber-50:  #fffbeb;
+  --detec-amber-100: #fef3c7;
+  --detec-amber-200: #fde68a;
+  --detec-amber-300: #fcd34d;
+  --detec-amber-400: #fbbf24;
+  --detec-amber-500: #f59e0b;  /* ← accent anchor */
+  --detec-amber-600: #d97706;
+  --detec-amber-700: #b45309;
+  --detec-amber-800: #92400e;
+  --detec-amber-900: #78350f;
+  --detec-amber-950: #451a03;
+
+  /* ──────────────────────────────────────────────
+   * Neutral — Slate
+   * Body text, secondary UI, structural elements.
+   * ────────────────────────────────────────────── */
+  --detec-slate-50:  #f8fafc;
+  --detec-slate-100: #f1f5f9;
+  --detec-slate-200: #e2e8f0;
+  --detec-slate-300: #cbd5e1;
+  --detec-slate-400: #94a3b8;
+  --detec-slate-500: #64748b;  /* ← neutral anchor */
+  --detec-slate-600: #475569;
+  --detec-slate-700: #334155;
+  --detec-slate-800: #1e293b;
+  --detec-slate-900: #0f172a;  /* ← dark mode background */
+  --detec-slate-950: #020617;
+
+  /* ──────────────────────────────────────────────
+   * Enforcement Ladder
+   * Semantic colors mapped to the four policy states.
+   * SOC operators will internalize these quickly.
+   * ────────────────────────────────────────────── */
+  --detec-enforce-detect:   #6366f1;  /* Soft Indigo — informational, no friction */
+  --detec-enforce-warn:     #f59e0b;  /* Amber — attention, operator should be aware */
+  --detec-enforce-approval: #f97316;  /* Orange — action needed, someone must approve */
+  --detec-enforce-block:    #ef4444;  /* Coral Red — hard stop, enforcement applied */
+
+  /* ──────────────────────────────────────────────
+   * Confidence Bands
+   * Colors for visualizing confidence score ranges.
+   * ────────────────────────────────────────────── */
+  --detec-confidence-high:   #14b8a6;  /* Teal — high confidence (≥0.80) */
+  --detec-confidence-medium: #f59e0b;  /* Amber — medium confidence (0.50–0.79) */
+  --detec-confidence-low:    #94a3b8;  /* Slate 400 — low confidence (<0.50) */
+
+  /* ──────────────────────────────────────────────
+   * Surfaces
+   * Background and card colors for light and dark modes.
+   * ────────────────────────────────────────────── */
+  --detec-surface-light:      #f8fafc;  /* Slate 50 — light mode background */
+  --detec-surface-card-light: #ffffff;  /* White — light mode cards */
+  --detec-surface-dark:       #0f172a;  /* Slate 900 — dark mode background */
+  --detec-surface-card-dark:  #1e293b;  /* Slate 800 — dark mode cards */
+
+  /* ──────────────────────────────────────────────
+   * Typography
+   * ────────────────────────────────────────────── */
+  --detec-text-primary-light:   #0f172a;  /* Slate 900 */
+  --detec-text-secondary-light: #475569;  /* Slate 600 */
+  --detec-text-muted-light:     #94a3b8;  /* Slate 400 */
+  --detec-text-primary-dark:    #f1f5f9;  /* Slate 100 */
+  --detec-text-secondary-dark:  #94a3b8;  /* Slate 400 */
+  --detec-text-muted-dark:      #475569;  /* Slate 600 */
+}
