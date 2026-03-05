@@ -1,7 +1,7 @@
-"""GitHub Copilot detection module (Class A — Assistive IDE Extension).
+"""GitHub Copilot detection module (Class A -- Assistive IDE Extension).
 
 Copilot runs as a VS Code extension inside the shared extension host process.
-Process-layer detection alone cannot attribute activity to Copilot — cross-layer
+Process-layer detection alone cannot attribute activity to Copilot -- cross-layer
 correlation with file artifacts (extension directory) and identity (GitHub auth
 state) is required.
 """
@@ -12,15 +12,22 @@ import json
 import re
 from pathlib import Path
 
-from .base import BaseScanner, LayerSignals, ScanResult
+from compat import (
+    find_processes,
+    get_connections,
+    get_credential_store_entry,
+    get_tool_paths,
+    ToolPaths,
+)
 
-VSCODE_APP_PATH = "/Applications/Visual Studio Code.app"
-VSCODE_EXTENSIONS_DIR = Path.home() / ".vscode" / "extensions"
-APP_SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Code"
+from .base import BaseScanner, LayerSignals, ScanResult
 
 
 class CopilotScanner(BaseScanner):
     """Detects GitHub Copilot extension via five-layer signal model."""
+
+    def __init__(self) -> None:
+        self._paths: ToolPaths = get_tool_paths("vscode")
 
     @property
     def tool_name(self) -> str:
@@ -31,6 +38,7 @@ class CopilotScanner(BaseScanner):
         return "A"
 
     def scan(self, verbose: bool = False) -> ScanResult:
+        self._paths = get_tool_paths("vscode")
         result = ScanResult(
             detected=False,
             tool_name=self.tool_name,
@@ -85,37 +93,31 @@ class CopilotScanner(BaseScanner):
         self._log("Scanning process layer...", verbose)
         strength = 0.0
 
-        proc = self._run_cmd(["pgrep", "-fl", "Code"])
-        if not (proc and proc.returncode == 0 and proc.stdout.strip()):
+        procs = find_processes("Code")
+        procs = [
+            p for p in procs
+            if "collector" not in p.cmdline.lower()
+            and re.search(r"(Visual Studio Code|Code Helper|Electron.*Code)", p.cmdline)
+        ]
+
+        if not procs:
             self._log("No VS Code process found", verbose)
             return strength
 
-        vscode_pids: list[str] = []
         plugin_host_found = False
 
-        for line in proc.stdout.strip().splitlines():
-            parts = line.split(None, 1)
-            if len(parts) < 2:
-                continue
-            pid, cmdline = parts
-            if "pgrep" in cmdline.lower() or "collector" in cmdline.lower():
-                continue
-            if re.search(r'(Visual Studio Code|Code Helper|Electron.*Code)', cmdline):
-                vscode_pids.append(pid)
-                result.evidence_details.setdefault("process_entries", []).append({
-                    "pid": pid, "cmdline": cmdline,
-                })
-                if "Plugin" in cmdline or "extension-host" in cmdline.lower():
-                    plugin_host_found = True
+        for p in procs:
+            result.evidence_details.setdefault("process_entries", []).append({
+                "pid": p.pid, "cmdline": p.cmdline,
+            })
+            if "Plugin" in p.cmdline or "extension-host" in p.cmdline.lower():
+                plugin_host_found = True
 
-        if vscode_pids:
-            strength = 0.50
-            self._log(f"Found VS Code process(es): {len(vscode_pids)} total", verbose)
-            if plugin_host_found:
-                result.evidence_details["extension_host_found"] = True
-                self._log("  Code Helper (Plugin) extension host found", verbose)
-        else:
-            self._log("No VS Code process found", verbose)
+        strength = 0.50
+        self._log(f"Found VS Code process(es): {len(procs)} total", verbose)
+        if plugin_host_found:
+            result.evidence_details["extension_host_found"] = True
+            self._log("  Code Helper (Plugin) extension host found", verbose)
 
         return strength
 
@@ -137,17 +139,19 @@ class CopilotScanner(BaseScanner):
         else:
             self._log("  No Copilot extension directory found", verbose)
 
-        cached_vsix_dir = APP_SUPPORT_DIR / "CachedExtensionVSIXs"
-        if cached_vsix_dir.is_dir():
-            try:
-                for entry in cached_vsix_dir.iterdir():
-                    if entry.name.startswith("github.copilot-chat"):
-                        result.evidence_details["cached_vsix"] = str(entry)
-                        strength = max(strength, 0.70)
-                        self._log(f"  Cached Copilot VSIX: {entry.name}", verbose)
-                        break
-            except (PermissionError, OSError):
-                pass
+        config_dir = self._paths.config_dir
+        if config_dir:
+            cached_vsix_dir = config_dir / "CachedExtensionVSIXs"
+            if cached_vsix_dir.is_dir():
+                try:
+                    for entry in cached_vsix_dir.iterdir():
+                        if entry.name.startswith("github.copilot-chat"):
+                            result.evidence_details["cached_vsix"] = str(entry)
+                            strength = max(strength, 0.70)
+                            self._log(f"  Cached Copilot VSIX: {entry.name}", verbose)
+                            break
+                except (PermissionError, OSError):
+                    pass
 
         auth_log = self._find_github_auth_log()
         if auth_log:
@@ -173,11 +177,12 @@ class CopilotScanner(BaseScanner):
         return strength
 
     def _find_copilot_extension_dir(self) -> Path | None:
-        """Find the github.copilot-chat extension in ~/.vscode/extensions/."""
-        if not VSCODE_EXTENSIONS_DIR.is_dir():
+        """Find the github.copilot-chat extension in the VS Code extensions directory."""
+        ext_dir = self._paths.extensions_dir
+        if ext_dir is None or not ext_dir.is_dir():
             return None
         try:
-            for entry in VSCODE_EXTENSIONS_DIR.iterdir():
+            for entry in ext_dir.iterdir():
                 if entry.is_dir() and entry.name.startswith("github.copilot-chat"):
                     return entry
         except (PermissionError, OSError):
@@ -186,12 +191,12 @@ class CopilotScanner(BaseScanner):
 
     def _find_github_auth_log(self) -> Path | None:
         """Find the most recent GitHub Authentication log in VS Code logs."""
-        logs_dir = APP_SUPPORT_DIR / "logs"
-        if not logs_dir.is_dir():
+        log_dir = self._paths.log_dir
+        if log_dir is None or not log_dir.is_dir():
             return None
         try:
             session_dirs = sorted(
-                (d for d in logs_dir.iterdir() if d.is_dir()),
+                (d for d in log_dir.iterdir() if d.is_dir()),
                 key=lambda d: d.stat().st_mtime,
                 reverse=True,
             )
@@ -204,35 +209,26 @@ class CopilotScanner(BaseScanner):
         return None
 
     def _scan_network(self, result: ScanResult, verbose: bool) -> float:
-        """Check for VS Code network connections via the Network Service helper."""
+        """Check for VS Code network connections."""
         self._log("Scanning network layer...", verbose)
         strength = 0.0
 
-        vscode_pids = {
+        vscode_pids: set[int] = {
             e["pid"] for e in result.evidence_details.get("process_entries", [])
         }
         if not vscode_pids:
             return strength
 
-        lsof = self._run_cmd(["lsof", "-i", "-n", "-P"])
-        if not (lsof and lsof.returncode == 0):
-            self._log("  lsof failed or unavailable", verbose)
-            return strength
+        conns = get_connections(pids=vscode_pids)
+        https_conns = [
+            c for c in conns
+            if c.remote_port == 443 and c.status == "ESTABLISHED"
+        ]
 
-        https_count = 0
-        for line in lsof.stdout.splitlines():
-            parts = line.split()
-            if len(parts) < 2:
-                continue
-            if parts[1] not in vscode_pids:
-                continue
-            if ":443" in line and "ESTABLISHED" in line:
-                https_count += 1
-
-        if https_count > 0:
+        if https_conns:
             strength = 0.55
-            result.evidence_details["vscode_https_connections"] = https_count
-            self._log(f"  {https_count} HTTPS connection(s) from VS Code PIDs", verbose)
+            result.evidence_details["vscode_https_connections"] = len(https_conns)
+            self._log(f"  {len(https_conns)} HTTPS connection(s) from VS Code PIDs", verbose)
         else:
             strength = 0.30
             self._log("  VS Code running but no HTTPS connections captured", verbose)
@@ -240,25 +236,19 @@ class CopilotScanner(BaseScanner):
         return strength
 
     def _scan_identity(self, result: ScanResult, verbose: bool) -> float:
-        """Check macOS Keychain for GitHub auth and VS Code telemetry for entitlements."""
+        """Check credential store for GitHub auth and VS Code telemetry for entitlements."""
         self._log("Scanning identity layer...", verbose)
         strength = 0.0
 
-        keychain = self._run_cmd([
-            "security", "find-generic-password",
-            "-s", "vscodevscode.github-authentication",
-        ])
-        if keychain:
-            if keychain.returncode == 0:
-                strength = 0.80
-                result.evidence_details["github_keychain_found"] = True
-                self._log("  GitHub auth token found in macOS Keychain", verbose)
-            else:
-                stderr_text = keychain.stderr or ""
-                if "could not be found" in stderr_text:
-                    result.evidence_details["github_keychain_found"] = False
-                    strength = 0.30
-                    self._log("  No GitHub auth in Keychain (not authenticated)", verbose)
+        has_cred = get_credential_store_entry("vscodevscode.github-authentication")
+        if has_cred:
+            strength = 0.80
+            result.evidence_details["github_keychain_found"] = True
+            self._log("  GitHub auth token found in credential store", verbose)
+        else:
+            result.evidence_details["github_keychain_found"] = False
+            strength = 0.30
+            self._log("  No GitHub auth in credential store (not authenticated)", verbose)
 
         entitlement_info = self._check_chat_entitlement(verbose)
         if entitlement_info:
@@ -276,12 +266,12 @@ class CopilotScanner(BaseScanner):
 
     def _check_chat_entitlement(self, verbose: bool) -> dict[str, bool] | None:
         """Search recent VS Code telemetry logs for chatEntitlement/chatRegistered."""
-        logs_dir = APP_SUPPORT_DIR / "logs"
-        if not logs_dir.is_dir():
+        log_dir = self._paths.log_dir
+        if log_dir is None or not log_dir.is_dir():
             return None
         try:
             session_dirs = sorted(
-                (d for d in logs_dir.iterdir() if d.is_dir()),
+                (d for d in log_dir.iterdir() if d.is_dir()),
                 key=lambda d: d.stat().st_mtime,
                 reverse=True,
             )
@@ -320,18 +310,18 @@ class CopilotScanner(BaseScanner):
         auth_state = result.evidence_details.get("github_auth_state")
         if auth_state == "authenticated":
             strength = max(strength, 0.60)
-            self._log("  Authenticated — active behavioral signals expected", verbose)
+            self._log("  Authenticated -- active behavioral signals expected", verbose)
 
         return strength
 
     def _check_copilot_experiment_flags(self, verbose: bool) -> bool:
         """Check VS Code telemetry logs for Copilot-specific A/B experiment flags."""
-        logs_dir = APP_SUPPORT_DIR / "logs"
-        if not logs_dir.is_dir():
+        log_dir = self._paths.log_dir
+        if log_dir is None or not log_dir.is_dir():
             return False
         try:
             session_dirs = sorted(
-                (d for d in logs_dir.iterdir() if d.is_dir()),
+                (d for d in log_dir.iterdir() if d.is_dir()),
                 key=lambda d: d.stat().st_mtime,
                 reverse=True,
             )

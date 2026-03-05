@@ -1,30 +1,41 @@
-"""Cursor IDE detection module (Class A→C — Assistive to Autonomous Executor).
+"""Cursor IDE detection module (Class A->C -- Assistive to Autonomous Executor).
 
 Cursor is an Electron-based IDE (VS Code fork) that runs Class A assistive features
 by default and escalates to Class C when the agent-exec extension host spawns shell
-processes. The `extension-host (agent-exec)` process is the binary Class C indicator.
+processes. The ``extension-host (agent-exec)`` process is the binary Class C indicator.
 """
 
 from __future__ import annotations
 
-import os
-import plistlib
 import re
 import time
 from pathlib import Path
 
+from compat import (
+    find_processes,
+    get_app_version,
+    get_child_pids,
+    get_connections,
+    get_process_info,
+    get_tool_paths,
+    verify_code_signature,
+    ToolPaths,
+)
+
 from .base import BaseScanner, LayerSignals, ScanResult
 
 MAX_REPOS_TO_SCAN = 10
-APP_PATH = "/Applications/Cursor.app"
-CURSOR_DIR = Path.home() / ".cursor"
-APP_SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Cursor"
+
+_SHELL_NAMES = re.compile(r"(bash|zsh|sh|powershell|pwsh|cmd)(\b|\.exe)", re.IGNORECASE)
 
 
 class CursorScanner(BaseScanner):
     """Detects Cursor IDE presence and agent-mode escalation via five-layer signal model."""
 
     _dynamic_tool_class: str = "A"
+
+    def __init__(self) -> None:
+        self._paths: ToolPaths = get_tool_paths("cursor")
 
     @property
     def tool_name(self) -> str:
@@ -36,6 +47,7 @@ class CursorScanner(BaseScanner):
 
     def scan(self, verbose: bool = False) -> ScanResult:
         self._dynamic_tool_class = "A"
+        self._paths = get_tool_paths("cursor")
         result = ScanResult(
             detected=False,
             tool_name=self.tool_name,
@@ -69,48 +81,37 @@ class CursorScanner(BaseScanner):
         return result
 
     def _detect_version(self, verbose: bool) -> str | None:
-        """Detect Cursor app version from Info.plist."""
-        plist_path = Path(APP_PATH) / "Contents" / "Info.plist"
-        if not plist_path.is_file():
+        """Detect Cursor app version via platform abstraction."""
+        install_dir = self._paths.install_dir
+        if install_dir is None:
             return None
-        try:
-            with open(plist_path, "rb") as f:
-                plist = plistlib.load(f)
-            version = plist.get("CFBundleShortVersionString") or plist.get("CFBundleVersion")
-            if version:
-                self._log(f"Version from Info.plist: {version}", verbose)
-                return str(version)
-        except (OSError, plistlib.InvalidFileException):
-            pass
-        return None
+        version = get_app_version(install_dir)
+        if version:
+            self._log(f"Version: {version}", verbose)
+        return version
 
     def _scan_process(self, result: ScanResult, verbose: bool) -> float:
         """Check for Cursor Electron process tree and agent-exec extension host."""
         self._log("Scanning process layer...", verbose)
         strength = 0.0
 
-        proc = self._run_cmd(["pgrep", "-fl", "Cursor"])
-        if not (proc and proc.returncode == 0 and proc.stdout.strip()):
+        procs = find_processes("Cursor")
+        procs = [
+            p for p in procs
+            if "collector" not in p.cmdline.lower()
+            and re.search(r"Cursor", p.cmdline)
+        ]
+
+        if not procs:
             self._log("No Cursor process found", verbose)
             return strength
 
-        cursor_pids: list[str] = []
-        for line in proc.stdout.strip().splitlines():
-            parts = line.split(None, 1)
-            if len(parts) < 2:
-                continue
-            pid, cmdline = parts
-            if "pgrep" in cmdline.lower() or "collector" in cmdline.lower():
-                continue
-            if re.search(r'Cursor', cmdline):
-                cursor_pids.append(pid)
-                result.evidence_details.setdefault("process_entries", []).append({
-                    "pid": pid, "cmdline": cmdline,
-                })
-
-        if not cursor_pids:
-            self._log("No Cursor process found", verbose)
-            return strength
+        cursor_pids: list[int] = []
+        for p in procs:
+            cursor_pids.append(p.pid)
+            result.evidence_details.setdefault("process_entries", []).append({
+                "pid": p.pid, "cmdline": p.cmdline,
+            })
 
         strength = 0.70
         self._log(f"Found Cursor process(es): {cursor_pids}", verbose)
@@ -118,30 +119,23 @@ class CursorScanner(BaseScanner):
         agent_exec_found = False
         agent_exec_has_shells = False
 
-        for pid in cursor_pids[:10]:
-            detail = self._run_cmd(["ps", "-p", pid, "-o", "pid,ppid,user,command"])
-            if detail and detail.returncode == 0:
-                output = detail.stdout.strip()
-                if "agent-exec" in output:
-                    agent_exec_found = True
-                    result.evidence_details["agent_exec_pid"] = pid
-                    self._log(f"  agent-exec extension host found: PID {pid}", verbose)
+        for p in procs[:10]:
+            if "agent-exec" in p.cmdline:
+                agent_exec_found = True
+                result.evidence_details["agent_exec_pid"] = p.pid
+                self._log(f"  agent-exec extension host found: PID {p.pid}", verbose)
 
-                    children = self._run_cmd(["pgrep", "-P", pid])
-                    if children and children.returncode == 0 and children.stdout.strip():
-                        child_pids = children.stdout.strip().splitlines()
-                        for cpid in child_pids[:8]:
-                            child_info = self._run_cmd(["ps", "-p", cpid, "-o", "pid,command"])
-                            if child_info and child_info.returncode == 0:
-                                child_cmd = child_info.stdout.strip()
-                                if re.search(r'(/bin/zsh|/bin/bash|/bin/sh)', child_cmd):
-                                    agent_exec_has_shells = True
-                                    result.evidence_details.setdefault(
-                                        "agent_exec_shell_children", []
-                                    ).append(child_cmd)
+                child_pids = get_child_pids(p.pid)
+                for cpid in child_pids[:8]:
+                    child = get_process_info(cpid)
+                    if child and _SHELL_NAMES.search(child.name):
+                        agent_exec_has_shells = True
+                        result.evidence_details.setdefault(
+                            "agent_exec_shell_children", []
+                        ).append(child.cmdline)
 
-        cursorsan = self._run_cmd(["pgrep", "-fl", "cursorsan"])
-        if cursorsan and cursorsan.returncode == 0 and cursorsan.stdout.strip():
+        cursorsan_procs = find_processes("cursorsan")
+        if cursorsan_procs:
             result.evidence_details["cursorsan_detected"] = True
             self._log("  cursorsan sandbox process detected", verbose)
 
@@ -159,22 +153,23 @@ class CursorScanner(BaseScanner):
         return strength
 
     def _scan_file(self, result: ScanResult, verbose: bool) -> float:
-        """Check for ~/.cursor/ directory, ai-tracking DB, agent transcripts, and git trailers."""
+        """Check for Cursor data directory, ai-tracking DB, agent transcripts, and git trailers."""
         self._log("Scanning file layer...", verbose)
         strength = 0.0
 
-        if not CURSOR_DIR.is_dir():
-            self._log("No ~/.cursor/ directory found", verbose)
+        data_dir = self._paths.data_dir
+        if data_dir is None or not data_dir.is_dir():
+            self._log("No Cursor data directory found", verbose)
             return strength
 
         strength = 0.60
-        self._log(f"Found {CURSOR_DIR}", verbose)
+        self._log(f"Found {data_dir}", verbose)
 
         try:
-            file_count = sum(1 for f in CURSOR_DIR.rglob("*") if f.is_file())
-            total_size = sum(f.stat().st_size for f in CURSOR_DIR.rglob("*") if f.is_file())
+            file_count = sum(1 for f in data_dir.rglob("*") if f.is_file())
+            total_size = sum(f.stat().st_size for f in data_dir.rglob("*") if f.is_file())
             most_recent = max(
-                (f.stat().st_mtime for f in CURSOR_DIR.rglob("*") if f.is_file()),
+                (f.stat().st_mtime for f in data_dir.rglob("*") if f.is_file()),
                 default=0,
             )
             result.evidence_details["cursor_dir"] = {
@@ -186,7 +181,7 @@ class CursorScanner(BaseScanner):
         except (PermissionError, OSError) as exc:
             self._log(f"  Error reading directory: {exc}", verbose)
 
-        tracking_db = CURSOR_DIR / "ai-tracking" / "ai-code-tracking.db"
+        tracking_db = data_dir / "ai-tracking" / "ai-code-tracking.db"
         if tracking_db.is_file():
             strength = max(strength, 0.85)
             try:
@@ -199,7 +194,7 @@ class CursorScanner(BaseScanner):
             self._log("  ai-code-tracking.db found (attribution anchor)", verbose)
 
         transcript_count = 0
-        projects_dir = CURSOR_DIR / "projects"
+        projects_dir = data_dir / "projects"
         if projects_dir.is_dir():
             try:
                 for jsonl in projects_dir.rglob("agent-transcripts/*/*.jsonl"):
@@ -214,7 +209,7 @@ class CursorScanner(BaseScanner):
             result.evidence_details["agent_transcript_count"] = transcript_count
             self._log(f"  {transcript_count} agent transcript file(s) found", verbose)
 
-        plans_dir = CURSOR_DIR / "plans"
+        plans_dir = data_dir / "plans"
         if plans_dir.is_dir():
             try:
                 plan_files = list(plans_dir.glob("*.plan.md"))
@@ -229,7 +224,8 @@ class CursorScanner(BaseScanner):
             result.evidence_details["git_madewith_trailers"] = git_trailers
             self._log(f"  Made-with: Cursor trailers in {len(git_trailers)} repo(s)", verbose)
 
-        if APP_SUPPORT_DIR.is_dir():
+        config_dir = self._paths.config_dir
+        if config_dir and config_dir.is_dir():
             result.evidence_details["app_support_dir_exists"] = True
 
         return strength
@@ -280,30 +276,18 @@ class CursorScanner(BaseScanner):
         self._log("Scanning network layer...", verbose)
         strength = 0.0
 
-        cursor_pids = {
+        cursor_pids: set[int] = {
             e["pid"] for e in result.evidence_details.get("process_entries", [])
         }
         if not cursor_pids:
             self._log("  No Cursor PIDs to check for network connections", verbose)
             return strength
 
-        lsof = self._run_cmd(["lsof", "-i", "-n", "-P"])
-        if not (lsof and lsof.returncode == 0):
-            self._log("  lsof failed or unavailable", verbose)
-            return strength
-
-        tls_connections: list[str] = []
-        agent_exec_connections: list[str] = []
-
-        for line in lsof.stdout.splitlines():
-            parts = line.split()
-            if len(parts) < 2:
-                continue
-            line_pid = parts[1]
-            if line_pid not in cursor_pids:
-                continue
-            if ":443" in line and "ESTABLISHED" in line:
-                tls_connections.append(line.strip())
+        conns = get_connections(pids=cursor_pids)
+        tls_connections = [
+            c for c in conns
+            if c.remote_port == 443 and c.status == "ESTABLISHED"
+        ]
 
         if tls_connections:
             strength = 0.75
@@ -312,13 +296,11 @@ class CursorScanner(BaseScanner):
 
             agent_exec_pid = result.evidence_details.get("agent_exec_pid")
             if agent_exec_pid:
-                for conn in tls_connections:
-                    if conn.split()[1] == agent_exec_pid:
-                        agent_exec_connections.append(conn)
-                if agent_exec_connections:
-                    result.evidence_details["agent_exec_network"] = len(agent_exec_connections)
+                agent_exec_conns = [c for c in tls_connections if c.pid == agent_exec_pid]
+                if agent_exec_conns:
+                    result.evidence_details["agent_exec_network"] = len(agent_exec_conns)
                     self._log(
-                        f"  {len(agent_exec_connections)} connection(s) from agent-exec",
+                        f"  {len(agent_exec_conns)} connection(s) from agent-exec",
                         verbose,
                     )
         elif cursor_pids:
@@ -335,9 +317,9 @@ class CursorScanner(BaseScanner):
         process_entries = result.evidence_details.get("process_entries", [])
         if process_entries:
             first_pid = process_entries[0]["pid"]
-            detail = self._run_cmd(["ps", "-p", first_pid, "-o", "user="])
-            if detail and detail.returncode == 0 and detail.stdout.strip():
-                result.evidence_details["process_user"] = detail.stdout.strip()
+            info = get_process_info(first_pid)
+            if info and info.username:
+                result.evidence_details["process_user"] = info.username
                 strength = 0.30
 
         git_email = self._run_cmd(["git", "config", "--global", "user.email"])
@@ -345,16 +327,15 @@ class CursorScanner(BaseScanner):
             result.evidence_details["git_user_email"] = git_email.stdout.strip()
             strength = max(strength, 0.40)
 
-        codesign = self._run_cmd(
-            ["codesign", "-dv", APP_PATH],
-            timeout=5,
-        )
-        if codesign:
-            sign_output = (codesign.stdout or "") + (codesign.stderr or "")
-            if "Hilary Stout" in sign_output or "VDXQ22DGB9" in sign_output:
-                result.evidence_details["code_signature_valid"] = True
-                strength = max(strength, 0.55)
-                self._log("  Code signature verified (Cursor Inc.)", verbose)
+        install_dir = self._paths.install_dir
+        if install_dir:
+            sig = verify_code_signature(install_dir)
+            if sig and sig.signed:
+                subject = sig.subject or ""
+                if "Hilary Stout" in subject or "VDXQ22DGB9" in subject or "Cursor" in subject:
+                    result.evidence_details["code_signature_valid"] = True
+                    strength = max(strength, 0.55)
+                    self._log("  Code signature verified (Cursor Inc.)", verbose)
 
         return min(strength, 0.55)
 
@@ -369,17 +350,20 @@ class CursorScanner(BaseScanner):
 
         now = time.time()
         recent_threshold = 3600
-        projects_dir = CURSOR_DIR / "projects"
-        if projects_dir.is_dir():
-            try:
-                for jsonl in projects_dir.rglob("agent-transcripts/*/*.jsonl"):
-                    if (now - jsonl.stat().st_mtime) < recent_threshold:
-                        strength = max(strength, 0.85)
-                        result.evidence_details["recent_agent_transcripts"] = True
-                        self._log("  Recent agent transcript (modified within 1h)", verbose)
-                        break
-            except (PermissionError, OSError):
-                pass
+
+        data_dir = self._paths.data_dir
+        if data_dir:
+            projects_dir = data_dir / "projects"
+            if projects_dir.is_dir():
+                try:
+                    for jsonl in projects_dir.rglob("agent-transcripts/*/*.jsonl"):
+                        if (now - jsonl.stat().st_mtime) < recent_threshold:
+                            strength = max(strength, 0.85)
+                            result.evidence_details["recent_agent_transcripts"] = True
+                            self._log("  Recent agent transcript (modified within 1h)", verbose)
+                            break
+                except (PermissionError, OSError):
+                    pass
 
         if result.evidence_details.get("git_madewith_trailers"):
             strength = max(strength, 0.80)

@@ -1,6 +1,6 @@
 # Agentic AI Endpoint Detection & Governance Playbook
 
-**Version:** 0.3 — Lab-Validated Detection Profiles + Class D Taxonomy  
+**Version:** 0.3.1 — Lab-Validated Detection Profiles + Class D Taxonomy + Cross-Platform Collector  
 **Status:** Working Draft  
 **Source Issues:** INIT-13–27, INIT-38, INIT-39, INIT-43  
 **Shelved (pending running system):** INIT-28–37, INIT-40–42  
@@ -1087,6 +1087,37 @@ This section maps playbook components to the infrastructure and tools required f
 | Events → SIEM | Canonical event schema (JSON) via syslog/API push | Include all policy decision fields for correlation |
 | Alerts → SOC | Severity-routed alerts with evidence links | S2+ events should include one-click evidence drill-down |
 | Dashboards | Aggregated metrics by tool class, severity, decision state | Pre-built views for: tool inventory, policy efficacy, exception posture |
+
+### 11.5 Cross-Platform Collector Architecture
+
+The endpoint collector uses a platform abstraction layer (`collector/compat/`) that decouples scanner logic from OS-specific system calls. This enables the same scanner codebase to run on macOS, Linux, and Windows without per-scanner platform forks.
+
+**Abstraction modules:**
+
+| Module | Replaces | Backend |
+|---|---|---|
+| `compat/processes.py` | `pgrep`, `ps` | `psutil.process_iter()`, `psutil.Process()` |
+| `compat/network.py` | `lsof`, `netstat` | `psutil.net_connections()` |
+| `compat/services.py` | `brew services`, `systemctl`, `launchctl` | macOS: `launchctl`/`brew`; Linux: `systemctl`; Windows: `psutil.win_service_get()` |
+| `compat/identity.py` | `id`, `security find-generic-password`, `codesign` | macOS: `pwd`/`security`/`codesign`; Linux: `pwd`/`secret-tool`; Windows: `net user`/`cmdkey`/PowerShell `Get-AuthenticodeSignature` |
+| `compat/paths.py` | Hardcoded macOS paths | Platform-dispatched path registry (macOS/Linux/Windows) for each tool's install, config, data, extension, and log directories |
+
+**Platform coverage (psutil 7.x):**
+
+| Platform | Process enum | Network connections | Service detection | Code signature | Credential store |
+|---|---|---|---|---|---|
+| macOS | psutil | psutil | launchctl + brew | codesign CLI | security CLI |
+| Linux | psutil | psutil | systemctl | N/A | secret-tool |
+| Windows 11 | psutil | psutil | psutil (SCM) | PowerShell | cmdkey |
+| Windows Server 2019/2022/2025 | psutil | psutil | psutil (SCM) | PowerShell | cmdkey |
+
+**Privilege considerations:**
+
+- **Non-admin:** Process enumeration works but falls back to a slower code path on Windows (~10x slower). Network PID mapping may be incomplete. Sufficient for developer-workstation scanning where the agent runs as the same user as the tools it detects.
+- **Elevated / MDM-deployed:** Full-speed process enumeration, complete PID-to-connection mapping, cross-user process visibility. MDM deployment (Intune, JAMF, SCCM) runs the installer as SYSTEM/root, and the resulting service inherits elevation — the performance penalty disappears.
+- **Recommendation:** Require elevation for production deployments. This is consistent with the agent's role as a security monitoring tool.
+
+**Migrated scanners (proof of concept):** Cursor, Ollama, GitHub Copilot. Remaining 8 scanners (Claude Code, Aider, GPT-Pilot, Cline, Continue, LM Studio, Open Interpreter, OpenClaw) still use direct subprocess calls and will be migrated in a follow-on pass.
 
 ---
 

@@ -1,7 +1,8 @@
-"""Ollama detection module (Class B — Local Model Runtime)."""
+"""Ollama detection module (Class B -- Local Model Runtime)."""
 
 from __future__ import annotations
 
+import getpass
 import json
 import os
 import re
@@ -10,11 +11,23 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from compat import (
+    find_processes,
+    get_listeners,
+    get_service,
+    get_tool_paths,
+    user_exists,
+    ToolPaths,
+)
+
 from .base import BaseScanner, LayerSignals, ScanResult
 
 
 class OllamaScanner(BaseScanner):
     """Detects Ollama daemon, model storage, and API listener via five-layer signal model."""
+
+    def __init__(self) -> None:
+        self._paths: ToolPaths = get_tool_paths("ollama")
 
     @property
     def tool_name(self) -> str:
@@ -25,6 +38,7 @@ class OllamaScanner(BaseScanner):
         return "B"
 
     def scan(self, verbose: bool = False) -> ScanResult:
+        self._paths = get_tool_paths("ollama")
         result = ScanResult(
             detected=False,
             tool_name=self.tool_name,
@@ -63,7 +77,6 @@ class OllamaScanner(BaseScanner):
         combined = (proc.stdout or "").strip() + "\n" + (proc.stderr or "").strip()
         if not combined:
             return None
-        # Ollama may print "Warning: client version is 0.17.5" on stderr; extract semver.
         match = re.search(r"(\d+\.\d+\.\d+)", combined)
         if match:
             version = match.group(1)
@@ -80,43 +93,36 @@ class OllamaScanner(BaseScanner):
         self._log("Scanning process layer...", verbose)
         strength = 0.0
 
-        proc = self._run_cmd(["pgrep", "-fl", "ollama"])
-        if proc and proc.returncode == 0 and proc.stdout.strip():
-            for line in proc.stdout.strip().splitlines():
-                parts = line.split(None, 1)
-                if len(parts) >= 2:
-                    pid, cmdline = parts
-                    if re.search(r'\bollama\b', cmdline, re.IGNORECASE) and \
-                       "collector" not in cmdline.lower():
-                        result.evidence_details.setdefault("process_entries", []).append({
-                            "pid": pid, "cmdline": cmdline
-                        })
+        procs = find_processes(r"\bollama\b")
+        procs = [p for p in procs if "collector" not in p.cmdline.lower()]
 
-                        if "serve" in cmdline:
-                            strength = 0.85
-                            result.evidence_details["daemon_running"] = True
-                            self._log(f"  Daemon found: PID {pid}", verbose)
-                        else:
-                            strength = max(strength, 0.6)
-                            self._log(f"  CLI process found: PID {pid} ({cmdline})", verbose)
+        if procs:
+            for p in procs:
+                result.evidence_details.setdefault("process_entries", []).append({
+                    "pid": p.pid, "cmdline": p.cmdline,
+                })
 
-                        detail = self._run_cmd(["ps", "-p", pid, "-o", "pid,ppid,user,command"])
-                        if detail and detail.returncode == 0:
-                            result.evidence_details["process_detail"] = detail.stdout.strip()
-                            for dl in detail.stdout.splitlines()[1:]:
-                                fields = dl.split()
-                                if len(fields) >= 3:
-                                    result.evidence_details["process_user"] = fields[2]
+                if "serve" in p.cmdline:
+                    strength = 0.85
+                    result.evidence_details["daemon_running"] = True
+                    self._log(f"  Daemon found: PID {p.pid}", verbose)
+                else:
+                    strength = max(strength, 0.6)
+                    self._log(f"  CLI process found: PID {p.pid} ({p.cmdline})", verbose)
 
-        brew = self._run_cmd(["brew", "services", "list"])
-        if brew and brew.returncode == 0:
-            for line in brew.stdout.splitlines():
-                if "ollama" in line.lower():
-                    result.evidence_details["brew_service"] = line.strip()
-                    if strength == 0.0:
-                        strength = 0.3
-                    self._log(f"  Brew service: {line.strip()}", verbose)
-                    break
+                if p.username:
+                    result.evidence_details["process_user"] = p.username
+                result.evidence_details["process_detail"] = (
+                    f"PID={p.pid} PPID={p.ppid} USER={p.username} CMD={p.cmdline}"
+                )
+
+        svc = get_service("ollama")
+        if svc:
+            svc_desc = f"{svc.name} status={svc.status} start={svc.start_type}"
+            result.evidence_details["managed_service"] = svc_desc
+            if strength == 0.0:
+                strength = 0.3
+            self._log(f"  Managed service: {svc_desc}", verbose)
 
         if strength == 0.0:
             self._log("No ollama process found", verbose)
@@ -124,13 +130,13 @@ class OllamaScanner(BaseScanner):
         return strength
 
     def _scan_file(self, result: ScanResult, verbose: bool) -> float:
-        """Check for ~/.ollama/ directory, model storage, and keypair."""
+        """Check for Ollama data directory, model storage, and keypair."""
         self._log("Scanning file layer...", verbose)
         strength = 0.0
-        ollama_dir = Path.home() / ".ollama"
+        ollama_dir = self._paths.data_dir
 
-        if not ollama_dir.is_dir():
-            self._log("No ~/.ollama/ directory found", verbose)
+        if ollama_dir is None or not ollama_dir.is_dir():
+            self._log("No Ollama data directory found", verbose)
             return strength
 
         strength = 0.5
@@ -186,17 +192,16 @@ class OllamaScanner(BaseScanner):
         self._log("Scanning network layer...", verbose)
         strength = 0.0
 
-        lsof = self._run_cmd(["lsof", "-i", ":11434", "-n", "-P"])
-        if lsof and lsof.returncode == 0 and lsof.stdout.strip():
-            for line in lsof.stdout.splitlines():
-                if "LISTEN" in line:
-                    strength = 0.7
-                    result.evidence_details["port_11434_listener"] = line.strip()
-                    pid_match = re.search(r'^\S+\s+(\d+)', line)
-                    if pid_match:
-                        result.evidence_details["listener_pid"] = pid_match.group(1)
-                    self._log(f"  Port 11434 listener found", verbose)
-                    break
+        listeners = get_listeners(port=11434)
+        if listeners:
+            listener = listeners[0]
+            strength = 0.7
+            result.evidence_details["port_11434_listener"] = (
+                f"{listener.local_addr}:{listener.local_port} (PID {listener.pid})"
+            )
+            if listener.pid is not None:
+                result.evidence_details["listener_pid"] = listener.pid
+            self._log("  Port 11434 listener found", verbose)
 
         if strength > 0:
             health = self._query_api("http://localhost:11434/", verbose)
@@ -257,14 +262,13 @@ class OllamaScanner(BaseScanner):
             result.evidence_details["identity_user"] = process_user
             self._log(f"  Process owner: {process_user}", verbose)
 
-        id_check = self._run_cmd(["id", "ollama"])
-        if id_check and id_check.returncode == 0:
+        if user_exists("ollama"):
             result.evidence_details["dedicated_ollama_user"] = True
             strength = max(strength, 0.5)
             self._log("  Dedicated ollama system user exists", verbose)
 
-        if strength == 0 and (Path.home() / ".ollama").is_dir():
-            import getpass
+        data_dir = self._paths.data_dir
+        if strength == 0 and data_dir and data_dir.is_dir():
             result.evidence_details["identity_user"] = getpass.getuser()
             strength = 0.3
 
@@ -290,21 +294,23 @@ class OllamaScanner(BaseScanner):
             strength = 0.4
             self._log("  Models present but daemon not running", verbose)
 
-        models_dir = Path.home() / ".ollama" / "models"
-        if models_dir.is_dir():
-            now = time.time()
-            recent_threshold = 86400  # 24 hours
-            try:
-                recent = [
-                    f for f in models_dir.rglob("*")
-                    if f.is_file() and (now - f.stat().st_mtime) < recent_threshold
-                ]
-                if recent:
-                    result.evidence_details["recent_model_activity"] = len(recent)
-                    strength = max(strength, 0.6)
-                    self._log(f"  {len(recent)} model files modified in last 24h", verbose)
-            except (PermissionError, OSError):
-                pass
+        data_dir = self._paths.data_dir
+        if data_dir:
+            models_dir = data_dir / "models"
+            if models_dir.is_dir():
+                now = time.time()
+                recent_threshold = 86400  # 24 hours
+                try:
+                    recent = [
+                        f for f in models_dir.rglob("*")
+                        if f.is_file() and (now - f.stat().st_mtime) < recent_threshold
+                    ]
+                    if recent:
+                        result.evidence_details["recent_model_activity"] = len(recent)
+                        strength = max(strength, 0.6)
+                        self._log(f"  {len(recent)} model files modified in last 24h", verbose)
+                except (PermissionError, OSError):
+                    pass
 
         return strength
 
@@ -338,8 +344,8 @@ class OllamaScanner(BaseScanner):
             summaries.append("Ollama daemon running")
             result.action_type = "exec"
             result.action_risk = "R2"
-        elif result.evidence_details.get("brew_service"):
-            summaries.append("Ollama registered as brew service")
+        elif result.evidence_details.get("managed_service"):
+            summaries.append("Ollama registered as managed service")
             result.action_type = "exec"
 
         models_info = result.evidence_details.get("models_dir", {})

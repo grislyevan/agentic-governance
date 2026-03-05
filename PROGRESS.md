@@ -1,6 +1,6 @@
 # Agentic Governance — Progress Tracker
 
-**Last updated:** 2026-03-04  
+**Last updated:** 2026-03-05  
 **Current phase:** M1 — Prototype Complete  
 **Ultimate goal:** Production SaaS for agentic AI endpoint governance
 
@@ -10,11 +10,12 @@
 
 | Item | Status |
 |---|---|
-| Python collector (6 scanners) | Done |
+| Python collector (11 scanners) | Done |
+| Cross-platform abstraction layer (`collector/compat/`) | Done |
 | Confidence + policy engine | Done |
 | NDJSON event output | Done |
 | Canonical event schema v0.2.0 | Done |
-| Playbook v0.3 (Class D taxonomy) | Done |
+| Playbook v0.3.1 (Class D taxonomy + platform notes) | Done |
 | Lab runs (8 completed, 5 pending) | In progress |
 | React/Vite dashboard | In progress |
 | FastAPI backend (PostgreSQL, JWT, multi-tenancy) | Not started |
@@ -89,10 +90,13 @@ API Client ────────────────────▶│ Mu
 - [x] LocalBuffer — offline NDJSON queue flushed on reconnect (`collector/agent/buffer.py`)
 - [x] `POST /endpoints/heartbeat` — auto-registers endpoints, updates `last_seen_at`
 - [x] OS-level install scripts: macOS LaunchAgent + Linux systemd unit (`install/`)
+- [x] Cross-platform abstraction layer (`collector/compat/`) — psutil-backed process, network, service, identity, and path abstraction; macOS/Linux/Windows dispatch; Cursor, Ollama, and Copilot scanners migrated
 - [ ] Integration tests for API endpoints
 - [ ] Alembic migrations wired up
+- [ ] Migrate remaining 8 scanners to compat layer
+- [ ] Windows lab validation + Windows Service install script
 
-**Files:** `api/`, `collector/output/`, `collector/agent/`, `docker-compose.yml`, `install/`
+**Files:** `api/`, `collector/output/`, `collector/agent/`, `collector/compat/`, `docker-compose.yml`, `install/`
 
 ---
 
