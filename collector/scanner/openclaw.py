@@ -6,17 +6,20 @@ persistence with KeepAlive+RunAtLoad, (2) proactive/scheduled execution via
 cron/heartbeat, (3) external communication channels (WhatsApp/Telegram/Slack),
 and (4) self-modification via a live-reloaded skills system.
 
-Detection anchors (priority order from LAB-RUN-007):
+Detection anchors (priority order from LAB-RUN-007, updated by LAB-RUN-013):
   1. ~/.openclaw/ directory (215 MB, config/credentials/skills/sessions/logs)
   2. openclaw-gateway daemon process with LaunchAgent persistence
   3. Gateway WebSocket listener on localhost:18789
   4. Cleartext credentials in openclaw.json and LaunchAgent plist
   5. Self-authored skills in workspace/skills/
+  6. Ollama co-residency (gateway ↔ localhost:11434) — LAB-RUN-013
+  7. Model backend config in openclaw.json — LAB-RUN-013
 """
 
 from __future__ import annotations
 
 import getpass
+import json
 import os
 import plistlib
 import re
@@ -30,6 +33,7 @@ LAUNCH_AGENT_PLIST = (
     Path.home() / "Library" / "LaunchAgents" / "ai.openclaw.gateway.plist"
 )
 GATEWAY_PORT = 18789
+OLLAMA_PORT = 11434
 
 CREDENTIAL_ENV_NAMES = frozenset({
     "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY",
@@ -176,6 +180,34 @@ class OpenClawScanner(BaseScanner):
 
         return True
 
+    def _parse_model_backend(
+        self, config_path: Path, result: ScanResult, verbose: bool,
+    ) -> None:
+        """Extract model provider info from openclaw.json (LAB-RUN-013 IOC)."""
+        try:
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+            primary_model = (
+                data.get("agents", {})
+                .get("defaults", {})
+                .get("model", {})
+                .get("primary", "")
+            )
+            if primary_model:
+                result.evidence_details["model_primary"] = primary_model
+                is_local = primary_model.startswith("ollama/") or "localhost" in primary_model
+                result.evidence_details["model_is_local"] = is_local
+                self._log(
+                    f"  Primary model: {primary_model} ({'local' if is_local else 'cloud'})",
+                    verbose,
+                )
+
+            providers = data.get("models", {}).get("providers", {})
+            if providers:
+                result.evidence_details["model_providers"] = list(providers.keys())
+
+        except (OSError, json.JSONDecodeError, KeyError):
+            pass
+
     # ------------------------------------------------------------------
     # Layer 2 — File
     # ------------------------------------------------------------------
@@ -210,6 +242,7 @@ class OpenClawScanner(BaseScanner):
             strength = max(strength, 0.85)
             result.evidence_details["config_file"] = True
             self._log("  openclaw.json found (central config)", verbose)
+            self._parse_model_backend(config_file, result, verbose)
 
         creds_dir = OPENCLAW_DIR / "credentials"
         if creds_dir.is_dir():
@@ -291,10 +324,28 @@ class OpenClawScanner(BaseScanner):
                             verbose,
                         )
 
+        self._check_ollama_coresidency(result, verbose)
+
         if strength == 0.0:
             self._log(f"  No gateway listener on :{GATEWAY_PORT}", verbose)
 
         return strength
+
+    def _check_ollama_coresidency(self, result: ScanResult, verbose: bool) -> None:
+        """Detect OpenClaw ↔ Ollama loopback connections (LAB-RUN-013 pattern)."""
+        if not result.evidence_details.get("gateway_listener_pid"):
+            return
+        lsof = self._run_cmd(["lsof", "-i", f":{OLLAMA_PORT}", "-n", "-P"])
+        if not lsof or lsof.returncode != 0 or not lsof.stdout.strip():
+            return
+        for line in lsof.stdout.splitlines():
+            if "LISTEN" in line or "ESTABLISHED" in line:
+                result.evidence_details["ollama_coresidency"] = True
+                self._log(
+                    f"  Ollama co-residency detected (:{OLLAMA_PORT} active alongside gateway)",
+                    verbose,
+                )
+                break
 
     # ------------------------------------------------------------------
     # Layer 4 — Identity
@@ -474,5 +525,13 @@ class OpenClawScanner(BaseScanner):
         if result.evidence_details.get("api_keys_present"):
             keys = result.evidence_details["api_keys_present"]
             summaries.append(f"API keys in env: {', '.join(keys)}")
+
+        model = result.evidence_details.get("model_primary")
+        if model:
+            locality = "local" if result.evidence_details.get("model_is_local") else "cloud"
+            summaries.append(f"model: {model} ({locality})")
+
+        if result.evidence_details.get("ollama_coresidency"):
+            summaries.append(f"Ollama co-residency (:{OLLAMA_PORT} active)")
 
         result.action_summary = "; ".join(summaries) if summaries else "No OpenClaw signals detected"

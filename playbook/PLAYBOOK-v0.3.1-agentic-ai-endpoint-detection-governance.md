@@ -545,7 +545,7 @@ Open Interpreter installs **no active persistence mechanisms** and **no persiste
 
 **Class:** D (Persistent Autonomous Agent)  
 **Risk Posture:** Critical — always-on autonomous agent with full system access, self-modification capability, multi-channel external communication, and proactive/scheduled execution  
-**Lab Validated:** LAB-RUN-007 (2026-03-02, v2026.3.1, macOS ARM64)
+**Lab Validated:** LAB-RUN-007 (2026-03-02, v2026.3.1, macOS ARM64, cloud LLM: gpt-5.3-codex), LAB-RUN-013 (2026-03-05, v2026.3.1, macOS ARM64, local LLM: Qwen 3.5 0.8B via Ollama)
 
 > **Class D Reference Implementation.** OpenClaw is the first tool to satisfy all four Class D criteria: (1) daemon persistence via LaunchAgent with `KeepAlive + RunAtLoad`, (2) proactive/scheduled execution via cron/heartbeat infrastructure, (3) external communication channels (WhatsApp, Telegram, Slack), and (4) self-modification (agent writes and hot-reloads its own skills). See Section 5.1 for the Class D taxonomy definition.
 
@@ -565,7 +565,7 @@ Open Interpreter installs **no active persistence mechanisms** and **no persiste
 | **File** | LaunchAgent plist at `~/Library/LaunchAgents/` (macOS) or systemd unit (Linux). Installed by `openclaw onboard --install-daemon`. Enables auto-start on boot. | High (persistence marker) | ✓ Confirmed |
 | **File** | Workspace prompt injection files: `AGENTS.md`, `SOUL.md`, `TOOLS.md` in `~/.openclaw/workspace/`. Define agent persona and capabilities. | Medium | ✓ Confirmed |
 | **Network** | Gateway WebSocket listener on `ws://127.0.0.1:18789` (default). All clients, channels, and tools connect through this. Analogous to Ollama's `:11434` but WebSocket-based. | High | ✓ Confirmed |
-| **Network** | Model provider API traffic — destination varies by configuration: `api.anthropic.com`, `api.openai.com`, `api.deepseek.com`, `generativelanguage.googleapis.com`, or localhost (Ollama). Burst cadence matching prompt→response→action cycles. | Medium | ✓ Confirmed |
+| **Network** | Model provider API traffic — destination varies by configuration: `api.anthropic.com`, `api.openai.com`, `api.deepseek.com`, `generativelanguage.googleapis.com`, or localhost (Ollama). Burst cadence matching prompt→response→action cycles. **Local LLM variant (LAB-RUN-013):** with Ollama backend, inference traffic is entirely `127.0.0.1 → 127.0.0.1:11434`. Gateway still makes outbound `:443` connections for telemetry/channel keepalive even with a fully local model. Absence of cloud API traffic does NOT equal absence of network signals. | Medium | ✓ Confirmed (cloud + local variants) |
 | **Network** | Chat platform connections — WhatsApp Web (Baileys library, persistent WebSocket), Telegram Bot API, Discord gateway (WebSocket), Slack (Bolt WebSocket), Signal (signal-cli). These are persistent outbound connections that survive across sessions. **Novel IOC not present in any other profiled tool.** | High | △ Architecture confirmed; WhatsApp/Telegram not connected in lab |
 | **Network** | Browser automation traffic — CDP connections to managed Chrome/Chromium. Outbound HTTP/HTTPS from browser sessions to arbitrary destinations. | Medium | ✓ Confirmed (browser tool available) |
 | **Network** | Skill download traffic — ClawHub registry (`clawhub.com`) for managed skill acquisition. | Low–Medium | Not tested |
@@ -587,7 +587,7 @@ Open Interpreter installs **no active persistence mechanisms** and **no persiste
 | File | 0.20 | 0.30 | Stale artifact: −0.10; non-default paths: −0.10 | Richest file footprint of any tested tool. Config, credentials, skills, sessions, workspace, LaunchAgent. |
 | Network | 0.15 | 0.15 | Ambiguous proxy: −0.10; unresolved proc-net: −0.10 | Gateway listener is strong signal. Model provider traffic varies. Chat platform connections are novel. |
 | Identity | 0.15 | 0.15 | Weak identity: −0.10 | Strongest identity footprint of any tested tool: API keys + bot tokens + channel credentials in config. |
-| Behavior | 0.20 | 0.15 | No specific penalty | Behavioral signals are present but less dominant than file layer. Proactive/scheduled behavior is the novel signal. |
+| Behavior | 0.20 | 0.15 | No specific penalty | Behavioral signals are present but less dominant than file layer. Proactive/scheduled behavior is the novel signal. **Model-dependent:** LAB-RUN-013 showed that a 0.8B model could not trigger tool-use behavioral IOCs (shell execution, self-modification). Behavior signal dropped from 0.80 to 0.40 with a small model. Infrastructure IOCs (process, file, identity) are model-independent. |
 
 #### Persistence Posture
 
@@ -1183,7 +1183,7 @@ This section provides the framework for empirical validation. Each tool profile 
 | Aider | Single-module change + PR, multi-file refactor, formatting/test session | Alias/wrapper invocation, devcontainer execution | `SYNTHETIC VALIDATED` (4 scenarios) |
 | GPT-Pilot | Greenfield scaffold, iterative gen+test loop, controlled module expansion | Forked launcher, containerized execution | `SYNTHETIC VALIDATED` (4 scenarios) |
 | Cline | Approved backend + code-assist, multi-file edit, controlled tool-calling | Forked extension build, shared proxy route | `SYNTHETIC VALIDATED` (5 scenarios) |
-| OpenClaw | Standard install + onboard + agentic task + skill creation, multi-channel session, proactive/scheduled execution | Renamed binary, custom port, containerized gateway, local-only model backend | `IN PROGRESS` (1/3 positive) |
+| OpenClaw | Standard install + onboard + agentic task + skill creation, multi-channel session, proactive/scheduled execution, **local LLM backend (OC-POS-05)** | Renamed binary, custom port, containerized gateway, local-only model backend | `IN PROGRESS` (2/3 positive) |
 
 ### 12.2 Lab Run Evidence Template
 
@@ -1272,12 +1272,21 @@ Residual Risk:       [statement of remaining coverage gaps]
 26. **Config backup chain enables forensic reconstruction.** `openclaw.json.bak` through `.bak.4` (5 generations) preserve configuration history. Diffs reveal when channels were added, models changed, or security settings modified. Useful for incident timeline construction.
 27. **Class D taxonomy is now formalized with OpenClaw as the reference implementation.** OpenClaw satisfies all four Class D criteria: daemon persistence (`KeepAlive + RunAtLoad`), proactive/scheduled execution (cron/heartbeat infrastructure), external communication channels (WhatsApp/Telegram/Slack), and self-modification (agent writes and hot-reloads its own skills). See Section 5.1 for the full Class D definition and policy posture.
 
+**From LAB-RUN-013 (OpenClaw — local LLM variant):**
+
+28. **Model capability directly affects behavioral detection confidence.** The 0.8B Qwen 3.5 model could not perform tool use, shell execution, or self-modification. Behavioral IOCs that depend on agentic execution are only detectable when the model is capable enough. Detection must not rely solely on observed behavior — infrastructure IOCs (process, file, persistence) are model-independent and should be weighted as primary detection anchors.
+29. **Local LLM eliminates outbound model API traffic but NOT all outbound connections.** With Ollama as the model backend, inference traffic stayed on `127.0.0.1:11434`. However, the OpenClaw gateway still maintained an outbound `:443` connection (telemetry, update checks, or channel keepalive). Network detection cannot assume "local model = zero outbound traffic."
+30. **OpenClaw + Ollama co-residency creates a symbiotic detection pattern.** When OpenClaw uses Ollama, both tools run simultaneously: gateway on `:18789`, Ollama on `:11434`, with loopback connections between them. Detection of both together indicates a local autonomous agent configuration — a cross-tool IOC not seen with any other tool pair.
+31. **Model swap is a config-only change with no approval gate.** Changing from a cloud LLM to a local LLM (or vice versa) requires only editing `openclaw.json`. There is no audit trail beyond config backup files. A user could swap from a small, incapable model to a large, fully agentic model in seconds — behavioral risk is *latent*, not absent.
+32. **OpenClaw's own security audit flags small models as governance-relevant.** `openclaw status` reported "CRITICAL: Small models require sandboxing and web tools disabled" for the 0.8B model. The tool's built-in security diagnostics can be leveraged as governance signals.
+33. **A confidence floor for infrastructure-class tools prevents underscoring.** With a small model, OpenClaw's confidence dropped from 0.80 (High) to 0.725 (Medium) entirely due to the behavior layer. A confidence floor based on process + file layer strength (both ≥ 0.80) would prevent underscoring tools with capable infrastructure but temporarily incapable models.
+
 **From Synthetic Fixture Tests (Aider, LM Studio, Continue, GPT-Pilot, Cline):**
 
-28. **Synthetic fixtures can validate scanner parsing logic without tool installs.** For scanners that detect tools via file artifacts and subprocess output parsing, the detection logic can be tested deterministically by creating real files in temp directories (patching `HOME`) and mocking `_run_cmd` with canned subprocess output. This validated all five scanners for the 5 un-lab-run tools (Aider, GPT-Pilot, Cline, LM Studio, Continue) across 22 test scenarios without any tool installs, API keys, or GPU hardware. See Section 11.6 for architecture details.
-29. **Scanners with unconditional identity signals cannot report `detected=False` on a clean system.** The Continue and Cline scanners call `getpass.getuser()` unconditionally, returning identity strength >= 0.25 regardless of whether the tool is present. This means `detected=True` even when no tool is installed — clean-system tests must assert on per-layer signal strengths rather than the `detected` flag. This is a design consideration for scanners that embed IDE extensions: they cannot distinguish "IDE running, extension absent" from "nothing running" at the identity layer alone.
-30. **Canned network responses must be backend-aware for extension scanners.** The Continue scanner interprets connections to `:11434` (Ollama) or `:1234` (LM Studio) as evidence of unapproved local backends, independent of what `config.json` says. Canned response sets must match the intended scenario — an "approved backend active" scenario needs connections to cloud API endpoints (`:443`), not local model server ports. This subtlety was caught during test development.
-31. **Dynamic class assignment requires scenario-specific fixture data.** Cline's class escalation from A to C depends on the content of `ui_messages.json` in the most recent task directory. Tests must construct fixture data that exercises both sides of the classification boundary: entries with `type: "say"` (Class A) vs `type: "tool_use"` or `type: "write_to_file"` (Class C). This validates that the scanner's parsing logic correctly maps message types to governance classes.
+34. **Synthetic fixtures can validate scanner parsing logic without tool installs.** For scanners that detect tools via file artifacts and subprocess output parsing, the detection logic can be tested deterministically by creating real files in temp directories (patching `HOME`) and mocking `_run_cmd` with canned subprocess output. This validated all five scanners for the 5 un-lab-run tools (Aider, GPT-Pilot, Cline, LM Studio, Continue) across 22 test scenarios without any tool installs, API keys, or GPU hardware. See Section 11.6 for architecture details.
+35. **Scanners with unconditional identity signals cannot report `detected=False` on a clean system.** The Continue and Cline scanners call `getpass.getuser()` unconditionally, returning identity strength >= 0.25 regardless of whether the tool is present. This means `detected=True` even when no tool is installed — clean-system tests must assert on per-layer signal strengths rather than the `detected` flag. This is a design consideration for scanners that embed IDE extensions: they cannot distinguish "IDE running, extension absent" from "nothing running" at the identity layer alone.
+36. **Canned network responses must be backend-aware for extension scanners.** The Continue scanner interprets connections to `:11434` (Ollama) or `:1234` (LM Studio) as evidence of unapproved local backends, independent of what `config.json` says. Canned response sets must match the intended scenario — an "approved backend active" scenario needs connections to cloud API endpoints (`:443`), not local model server ports. This subtlety was caught during test development.
+37. **Dynamic class assignment requires scenario-specific fixture data.** Cline's class escalation from A to C depends on the content of `ui_messages.json` in the most recent task directory. Tests must construct fixture data that exercises both sides of the classification boundary: entries with `type: "say"` (Class A) vs `type: "tool_use"` or `type: "write_to_file"` (Class C). This validates that the scanner's parsing logic correctly maps message types to governance classes.
 
 ### 12.5 Lab Run Log
 
@@ -1291,6 +1300,7 @@ Residual Risk:       [statement of remaining coverage gaps]
 | LAB-RUN-004 | 2026-03-02 | Cursor v2.5.26 | CUR-POS-01: Standard IDE session + AI edit + agentic task | **Pass** | First Class A→C tool validated. **First High confidence score: 0.79.** First tool to reach High without sudo/EDR. 9/9 Section 4.2 IOCs confirmed. Key findings: (1) `extension-host (agent-exec)` is binary Class C escalation indicator in process tree, (2) agent transcript JSONL files provide complete session forensics, (3) `ai-code-tracking.db` is centralized AI activity tracker, (4) persistent TLS connections PID-attributable (inverts Claude Code's network gap), (5) `Made-with: Cursor` git trailer (one-way signal), (6) identity state in Electron user-data-dir not `~/.cursor/`, (7) code signing provides cryptographic provenance. 10 findings fed back. Proposed Cursor weight calibration (Network 0.15→0.20, Identity 0.15→0.10). Full results: `LAB-RUN-004-RESULTS.md` |
 | LAB-RUN-005 | 2026-03-02 | GitHub Copilot (github.copilot-chat v0.37.9) in VS Code 1.109.5 | CP-POS-01: Standard VS Code session + Copilot install + launch (unauthenticated) | **Conditional Pass** | **First Class A tool validated. Empirical data now exists for all three tool classes (A, B, C).** Confidence: 0.45 (Medium, barely) — depressed by unauthenticated scenario (projected ~0.74 with auth, ~0.80 with EDR). 4/11 IOCs confirmed, 2 partially observed, 5 not observed (all due to unauthenticated state). Key findings: (1) Extension installed as bundled `github.copilot-chat` (lowercase, single extension), (2) extension-host process shared by all extensions — requires cross-layer correlation, (3) VS Code `machineId` + `devDeviceId` provide persistent device identity, (4) `chatEntitlement`/`chatRegistered` distinguish installed/entitled/active states, (5) GitHub Authentication log records explicit auth state, (6) VS Code Network Service centralizes all connections in one attributable PID, (7) persistent HTTPS connections (not ephemeral like Claude Code), (8) A/B experiment flags enable Copilot version fingerprinting, (9) agent mode capabilities present but auth-gated (`edit_mode_hidden` flag), (10) identity layer is bimodal — strongest when authenticated, weakest when not. 10 findings fed back. Proposed Class A bimodal weight calibration (Identity 0.15→0.25 when authenticated). Full results: `LAB-RUN-005-RESULTS.md` |
 | LAB-RUN-007 | 2026-03-02 | OpenClaw v2026.3.1 | OC-POS-01: Standard install + onboard + agentic task + skill creation | **Conditional Pass** | **First Class D (Persistent Autonomous Agent) validated. New highest confidence score: 0.80 (High) — surpasses Cursor (0.79). First tool OUTSIDE original 10-tool scope.** 18/27 IOCs confirmed, 5 confirmed architecturally. Key findings: (1) `KeepAlive + RunAtLoad` LaunchAgent is strongest persistence of any tool, (2) LaunchAgent embeds external credentials (JIRA token) in world-readable plist, (3) self-modification confirmed — agent wrote own skill with zero approval gate, (4) 215 MB `~/.openclaw/` with config/credentials/skills/sessions/logs/memory — richest file footprint, (5) strongest identity footprint (multi-provider API keys + chat platform creds + external service tokens), (6) `openclaw status` is richest single-command diagnostic, (7) gateway WS on `:18789` is persistent PID-attributable signal, (8) CLI is thin client to daemon (like Ollama), (9) Class D taxonomy formalized — OpenClaw is reference implementation. Weights: File 0.30, Process 0.25, Behavior 0.15. Gaps: multi-channel messaging not tested, proactive/cron not exercised, browser automation not tested. Full results: `LAB-RUN-007-RESULTS.md` |
+| LAB-RUN-013 | 2026-03-05 | OpenClaw v2026.3.1 | OC-POS-05: Same protocol as OC-POS-01 with local LLM (Qwen 3.5 0.8B via Ollama) | **Conditional Pass** | **First local-LLM variant lab run. Confirms infrastructure IOCs are model-independent.** Confidence: 0.725 (Medium) — down from 0.80 (High) in LAB-RUN-007, delta −0.075 driven entirely by behavior layer. Key findings: (1) 0.8B model failed ALL tool-use tasks (shell exec, file creation, skill authoring) — behavioral IOCs are model-capability-dependent, (2) model inference traffic is entirely local (`127.0.0.1:11434`) but gateway still makes outbound `:443` (telemetry/channel), (3) OpenClaw + Ollama co-residency creates symbiotic detection pattern (`:18789` ↔ `:11434`), (4) model swap is config-only with no approval gate — behavioral risk is latent, (5) OpenClaw's own security audit flags small models as CRITICAL, (6) process/file/identity/persistence IOCs identical to LAB-RUN-007, (7) policy decision unchanged: Approval Required (driven by infrastructure, not model). Gaps: same as LAB-RUN-007 (multi-channel, browser, proactive not tested). Full results: `LAB-RUN-013-RESULTS.md` |
 
 ---
 
@@ -1594,16 +1604,35 @@ Classification:
 | Identity | 0.15 | 0.15 | No change — strongest identity layer tested, but high signal strength compensates without weight increase. |
 | Behavior | 0.20 | 0.15 | Less dominant than file layer. Self-modification and shell execution confirmed, but artifacts produced are the primary detection anchors. |
 
+### Empirical Calibration Data (from LAB-RUN-013)
+
+**OpenClaw v2026.3.1 with local LLM (Qwen 3.5 0.8B via Ollama) — five-layer observed signal strengths:**
+
+| Layer | Default Weight | Observed Signal | Weighted | Calibration Note | LAB-RUN-007 Δ |
+|---|---|---|---|---|---|
+| Process | 0.30 | 0.85 | 0.255 | Same named daemon + LaunchAgent persistence. Slightly lower than LAB-RUN-007 (0.90) because no child process chains observed (model too small for tool use). | −0.05 |
+| File | 0.20 | 0.95 | 0.190 | **Identical to LAB-RUN-007.** 216 MB `~/.openclaw/` with same structure. Config now points to `ollama/qwen3.5:0.8b`. Model-independent. | 0.00 |
+| Network | 0.15 | 0.65 | 0.0975 | Gateway `:18789` confirmed. Inference traffic is local (`:11434`). Gateway still makes one outbound `:443` connection. Lower than LAB-RUN-007 (0.70) because no outbound model API calls. | −0.05 |
+| Identity | 0.15 | 0.80 | 0.120 | Plist credentials, env API keys present. Active model uses placeholder key (`ollama-local`). Slightly lower (0.85 → 0.80) because active auth is a placeholder. | −0.05 |
+| Behavior | 0.20 | 0.40 | 0.080 | **KEY DIFFERENCE.** 0.8B model failed all tool-use tasks: shell execution, file creation, skill authoring. Simple Q&A succeeded. Behavioral risk is *latent*, not absent — a config-only model swap restores full capability. | −0.40 |
+
+**Computed scores:**
+- Five-layer default weights: **0.74 (Medium)**, penalty −0.05 (partial proc-net linkage) → **0.6925**
+- OpenClaw calibrated weights: **0.775 (Medium/High)**, penalty −0.05 → **0.725 (Medium)**
+- LAB-RUN-007 comparison: **0.80 (High)** — delta: **−0.075**, driven entirely by behavior layer
+
+**Key insight:** Infrastructure-based detection (process, file, persistence, network listeners) is **model-independent**. Behavioral detection is **model-capability-dependent**. A confidence floor for Class D tools with strong infrastructure signals would prevent underscoring when the model is temporarily incapable.
+
 ### Cross-Tool Calibration Comparison
 
-| Layer | Claude Code (Class C) | Ollama (Class B) | Cursor (Class A→C) | Copilot (Class A) | Open Interpreter (Class C) | OpenClaw (Class D) | Interpretation |
-|---|---|---|---|---|---|---|---|
-| Process | 0.85 | 0.90 | **0.95** | 0.80 | 0.70 | 0.90 | OI lowest (generic `python3`). OpenClaw matches Ollama — named daemon + LaunchAgent persistence. |
-| File | **0.95** | 0.90 | 0.90 | 0.85 | 0.65 | **0.95** | OpenClaw ties Claude Code as strongest. 215 MB with config/credentials/skills/sessions/logs. OI still weakest. |
-| Network | 0.30 | 0.70 | **0.75** | 0.55 | 0.55 | 0.70 | OpenClaw matches Ollama — persistent localhost listener on `:18789`. Both invertible vs CLI tools. |
-| Identity | **0.80** | 0.50 | 0.55 | 0.40* | 0.55 | **0.85** | **OpenClaw is now the strongest identity layer.** Multi-provider API keys + chat platform credentials + external service tokens. *Copilot bimodal. |
-| Behavior | 0.75 | 0.80 | 0.90 | 0.25* | **0.85** | 0.80 | OpenClaw has self-modification (novel). Proactive/multi-channel not exercised — would likely increase to 0.90+. |
-| **Final** | **0.71** | **0.69** | **0.79** | **0.45** | **0.525** | **0.80** | **OpenClaw is now the highest-confidence tool.** Also the highest-risk. |
+| Layer | Claude Code (Class C) | Ollama (Class B) | Cursor (Class A→C) | Copilot (Class A) | Open Interpreter (Class C) | OpenClaw cloud (Class D) | OpenClaw local (Class D) | Interpretation |
+|---|---|---|---|---|---|---|---|---|
+| Process | 0.85 | 0.90 | **0.95** | 0.80 | 0.70 | 0.90 | 0.85 | OI lowest (generic `python3`). OpenClaw local slightly lower (no child chains — model too small). |
+| File | **0.95** | 0.90 | 0.90 | 0.85 | 0.65 | **0.95** | **0.95** | File layer is model-independent. OpenClaw identical across cloud and local runs. |
+| Network | 0.30 | 0.70 | **0.75** | 0.55 | 0.55 | 0.70 | 0.65 | Local LLM drops network slightly — inference on `:11434` instead of `:443`, but gateway still makes outbound `:443`. |
+| Identity | **0.80** | 0.50 | 0.55 | 0.40* | 0.55 | **0.85** | 0.80 | Local LLM: active model key is a placeholder (`ollama-local`). Plist creds unchanged. |
+| Behavior | 0.75 | 0.80 | 0.90 | 0.25* | **0.85** | 0.80 | **0.40** | **KEY FINDING:** 0.8B model failed all tool-use tasks. Behavior is model-capability-dependent. |
+| **Final** | **0.71** | **0.69** | **0.79** | **0.45** | **0.525** | **0.80** | **0.725** | Local LLM drops from High to Medium. Delta driven entirely by behavior layer. |
 
 **Key insights:**
 
@@ -1621,9 +1650,15 @@ Classification:
 
 7. **Class D is now formalized with OpenClaw as the reference implementation.** OpenClaw's combination of Class C execution + Class B daemon persistence + novel capabilities (self-modification, multi-channel communication, proactive execution) satisfies all four Class D criteria. Future tools with persistent autonomous agent profiles (e.g., OpenAI agent platform, Anthropic agent infrastructure) should be evaluated against the Class D criteria in Section 5.1.
 
+8. **Behavioral detection is model-capability-dependent (LAB-RUN-013).** A 0.8B model on the same OpenClaw infrastructure could not perform any tool-use tasks (shell execution, file creation, self-modification), dropping the behavior signal from 0.80 to 0.40. Infrastructure-based IOCs (process, file, identity, persistence) were unchanged. Detection strategies must not rely solely on observed behavior — a tool with incapable model is still a tool with capable infrastructure.
+
+9. **Local LLM eliminates cloud model API traffic but creates co-residency detection patterns.** OpenClaw + Ollama running together (`:18789` ↔ `:11434`) is a new cross-tool IOC not seen with any other tool pair. Gateway-to-Ollama loopback connections provide positive evidence of a local autonomous agent configuration.
+
+10. **Model swap is a config-only change with zero audit trail.** Switching from a small, incapable local model to a large, fully agentic cloud model requires editing one JSON field in `openclaw.json`. There is no approval gate or audit mechanism. Behavioral risk is *latent* in infrastructure-class tools — a point-in-time confidence score may underrepresent true risk.
+
 ---
 
-*End of Playbook v0.3 — Updated 2026-03-03 with Class D taxonomy (OpenClaw reference implementation)*
+*End of Playbook v0.3.1 — Updated 2026-03-05 with LAB-RUN-013 findings (local LLM variant, model-dependent behavioral detection, co-residency patterns)*
 
 **Next actions:**
 1. ~~Execute first lab sprint (Section 12.3 priority order)~~ — **In progress.** Claude Code CC-POS-01 + CC-POS-02 complete. Ollama OL-POS-01 complete. Cursor CUR-POS-01 complete. Copilot CP-POS-01 complete. **Open Interpreter OI-POS-01 complete.**
@@ -1651,8 +1686,10 @@ Classification:
 23. **OC-EVA-01:** Renamed binary, custom port (`--port`), containerized gateway (Docker). Validates primary OpenClaw evasion scenarios.
 24. **~~Class D taxonomy discussion:~~** ~~Prepare a Class D definition~~ → **Complete.** Class D ("Persistent Autonomous Agents") is now formalized in Section 5.1. OpenClaw is the reference implementation. Monitor emerging tools against the four Class D criteria: OpenAI agent platform, Anthropic agent infrastructure, similar open-source persistent agents.
 25. **LaunchAgent credential exposure audit:** OpenClaw's plist embeds external service credentials (JIRA, gateway tokens) in world-readable mode. Audit all LaunchAgent plists across tested tools for credential exposure. Consider adding a plist credential scan to the standard lab protocol.
-26. **JSON Schema formalization** from event model — empirical data now available from 8 lab runs across all 3 classes + persistent agent.
-27. **Per-tool weight calibration formalization** — empirical data from 6 tools now supports per-tool weight profiles. **OpenClaw + Open Interpreter data proves per-tool (not per-class) calibration is needed.**
-28. ~~Synthetic fixture tests for 5 new scanners~~ → **Complete.** 22 tests across Aider, LM Studio, Continue, GPT-Pilot, and Cline validate scanner detection logic without tool installs. See Section 11.6 for architecture, Section 12.4 for methodology findings. Scanner parsing, class escalation, risk assignment, and unapproved-backend detection all confirmed. Live lab runs still needed for runtime behavior validation.
-29. Reactivate shelved items per dependency triggers (Section 13)
-30. Iterate this document based on lab findings
+26. **JSON Schema formalization** from event model — empirical data now available from **9 lab runs** across all 3 classes + persistent agent (cloud + local LLM variants).
+27. **Per-tool weight calibration formalization** — empirical data from 6 tools now supports per-tool weight profiles. **OpenClaw + Open Interpreter data proves per-tool (not per-class) calibration is needed.** LAB-RUN-013 adds model-dependent behavioral weight dimension.
+28. **OC-POS-05 (LAB-RUN-013):** ~~OpenClaw with local LLM (Qwen 3.5 0.8B via Ollama).~~ — **Complete.** Confirms infrastructure IOCs are model-independent. Behavioral IOCs model-capability-dependent. Confidence: 0.725 (Medium). Policy: Approval Required (same as cloud variant). See `LAB-RUN-013-RESULTS.md`.
+29. ~~Synthetic fixture tests for 5 new scanners~~ → **Complete.** 22 tests across Aider, LM Studio, Continue, GPT-Pilot, and Cline validate scanner detection logic without tool installs. See Section 11.6 for architecture, Section 12.4 for methodology findings. Scanner parsing, class escalation, risk assignment, and unapproved-backend detection all confirmed. Live lab runs still needed for runtime behavior validation.
+30. **Confidence floor for infrastructure-class tools** — LAB-RUN-013 suggests a floor based on process + file signal strength (both ≥ 0.80) to prevent underscoring tools with capable infrastructure but temporarily incapable models. Design and implement.
+31. Reactivate shelved items per dependency triggers (Section 13)
+32. Iterate this document based on lab findings

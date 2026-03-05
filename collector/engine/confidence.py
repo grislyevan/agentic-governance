@@ -127,6 +127,16 @@ def get_weights(tool_name: str | None) -> dict[str, float]:
     return DEFAULT_WEIGHTS
 
 
+# Tools with strong infrastructure signals (daemon + rich file footprint) that
+# should not be underscored when the model is temporarily incapable.  The floor
+# is applied when both process and file signals exceed the thresholds below.
+# Rationale: LAB-RUN-013 showed that a small model dropped OpenClaw from 0.80
+# to 0.725 entirely due to the behavior layer, while infrastructure was unchanged.
+INFRASTRUCTURE_FLOOR_TOOLS: frozenset[str] = frozenset({"OpenClaw"})
+INFRASTRUCTURE_FLOOR_THRESHOLD = 0.80
+INFRASTRUCTURE_FLOOR_VALUE = 0.70
+
+
 def compute_confidence(scan: ScanResult) -> float:
     """Compute final confidence score per Appendix B formula.
 
@@ -134,6 +144,9 @@ def compute_confidence(scan: ScanResult) -> float:
     penalties  = sum(applicable penalty values)
     evasion_boost = sum(evasion boosts from scanner)
     final = max(0, base_score - penalties + evasion_boost)
+
+    An infrastructure floor prevents underscoring Class D tools whose process
+    and file signals are both strong (LAB-RUN-013 finding).
     """
     weights = get_weights(scan.tool_name)
     signals = scan.signals
@@ -151,6 +164,14 @@ def compute_confidence(scan: ScanResult) -> float:
     evasion_boost = scan.evasion_boost
 
     final = max(0.0, min(1.0, base_score - penalty_total + evasion_boost))
+
+    if (
+        scan.tool_name in INFRASTRUCTURE_FLOOR_TOOLS
+        and signals.process >= INFRASTRUCTURE_FLOOR_THRESHOLD
+        and signals.file >= INFRASTRUCTURE_FLOOR_THRESHOLD
+    ):
+        final = max(final, INFRASTRUCTURE_FLOOR_VALUE)
+
     return round(final, 4)
 
 

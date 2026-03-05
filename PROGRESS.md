@@ -17,7 +17,7 @@
 | Canonical event schema v0.2.0 | Done |
 | Playbook v0.3.1 (Class D taxonomy + platform notes) | Done |
 | Synthetic scanner fixture tests (22 tests, 5 scanners) | Done |
-| Lab runs (8 completed, 5 pending live validation) | In progress |
+| Lab runs (9 completed, 5 pending live validation) | In progress |
 | React/Vite dashboard | In progress |
 | FastAPI backend (PostgreSQL, JWT, multi-tenancy) | Not started |
 | SaaS frontend (auth, org management) | Not started |
@@ -56,7 +56,7 @@ API Client ────────────────────▶│ Mu
 - [x] Cursor scanner (LAB-RUN-004)
 - [x] GitHub Copilot scanner (LAB-RUN-005)
 - [x] Open Interpreter scanner (LAB-RUN-006)
-- [x] OpenClaw scanner — Class D reference implementation (LAB-RUN-007)
+- [x] OpenClaw scanner — Class D reference implementation (LAB-RUN-007, LAB-RUN-013 local LLM)
 - [x] Confidence scoring engine (Appendix B formula)
 - [x] Policy engine (ENFORCE-001 through ENFORCE-D03)
 - [x] NDJSON emitter + schema validator
@@ -175,3 +175,4 @@ Items that are valuable but not yet scheduled:
 | Privacy review | INIT-41 | Data minimization + retention; required before M4 |
 | MITRE tactics mapping | INIT-40 | Map signals to ATT&CK for enterprise buyers |
 | Lab runs 008–012 (live) | — | Aider, GPT-Pilot, Cline, LM Studio, Continue — synthetic validation complete, live runs pending hardware |
+| LAB-RUN-013 findings | — | Local LLM variant: confidence floor for infrastructure-class tools, co-residency detection, model-dependent behavioral weights |

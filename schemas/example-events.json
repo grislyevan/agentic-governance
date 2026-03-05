@@ -367,5 +367,74 @@
     "severity": {
       "level": "S0"
     }
+  },
+
+  {
+    "event_id": "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f80",
+    "event_type": "detection.observed",
+    "event_version": "0.2.0",
+    "observed_at": "2026-03-05T14:22:10.000Z",
+    "ingested_at": "2026-03-05T14:22:11.203Z",
+    "session_id": "oc-pos-05-lab-run-013",
+    "trace_id": "trace-lab-run-013-oc-pos-05",
+    "parent_event_id": null,
+    "actor": {
+      "id": "echance@magnite.com",
+      "type": "human",
+      "trust_tier": "T2",
+      "identity_confidence": 0.80,
+      "org_context": "org"
+    },
+    "endpoint": {
+      "id": "MAGNITE-M2-001",
+      "os": "macOS 26.3 Darwin 25.3.0 ARM64",
+      "posture": "managed"
+    },
+    "tool": {
+      "name": "OpenClaw",
+      "class": "D",
+      "version": "2026.3.1",
+      "attribution_confidence": 0.725,
+      "attribution_sources": ["process", "file", "network", "identity", "behavior"]
+    },
+    "action": {
+      "type": "exec",
+      "risk_class": "R3",
+      "summary": "OpenClaw gateway daemon running with KeepAlive + RunAtLoad persistence. Local LLM backend (ollama/qwen3.5:0.8b via localhost:11434). Ollama co-residency detected. Model swap is config-only — behavioral risk is latent. 216 MB ~/.openclaw/ with config, credentials, skills, sessions.",
+      "raw_ref": "evidence://lab-run-013/phase2-agentic/process-list.txt"
+    },
+    "target": {
+      "type": "host",
+      "id": "MAGNITE-M2-001",
+      "scope": "full system — persistent daemon with shell execution capability",
+      "sensitivity_tier": "Tier2"
+    },
+    "policy": {
+      "decision_state": "approval_required",
+      "rule_id": "ENFORCE-D01",
+      "rule_version": "0.3.1",
+      "reason_codes": ["class_d_persistent_agent", "daemon_persistence", "self_modification_capable", "local_llm_coresidency"],
+      "decision_confidence": 0.725
+    },
+    "evidence": {
+      "ids": [
+        "ev-013-process-list",
+        "ev-013-openclaw-config",
+        "ev-013-launchagent-plist",
+        "ev-013-network-connections",
+        "ev-013-ollama-coresidency"
+      ],
+      "integrity_status": "valid",
+      "hash_refs": [
+        "sha256:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8091011121314",
+        "sha256:b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f80910111213141516",
+        "sha256:c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8091011121314151617",
+        "sha256:d4e5f6a7b8c9d0e1f2a3b4c5d6e7f809101112131415161718",
+        "sha256:e5f6a7b8c9d0e1f2a3b4c5d6e7f80910111213141516171819"
+      ]
+    },
+    "severity": {
+      "level": "S3"
+    }
   }
 ]
