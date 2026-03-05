@@ -2,6 +2,59 @@
 
 Endpoint telemetry collector for agentic AI tool detection. Scans for tools (Claude Code, Ollama, Cursor, Copilot, Open Interpreter), computes confidence, evaluates policy, and emits NDJSON events.
 
+## Configuration
+
+The collector supports three layers of configuration, applied in order of
+increasing priority:
+
+1. **Config file** — `collector/config/collector.json` (optional)
+2. **Environment variables** — prefixed with `AGENTIC_GOV_`
+3. **CLI flags** — e.g. `--sensitivity Tier2`
+
+If no config file exists, the collector falls back to its built-in code
+defaults — the same behaviour as before this feature was added.
+
+### Config file
+
+Copy the example and edit to taste:
+
+```bash
+cp collector/config/collector.example.json collector/config/collector.json
+```
+
+See [`collector/config/collector.example.json`](config/collector.example.json)
+for all supported keys and their defaults.  Keys set to `null` are resolved at
+runtime (e.g. `endpoint_id` defaults to the hostname).
+
+### Environment variables
+
+Every config key can be overridden with an `AGENTIC_GOV_`-prefixed variable:
+
+| Config key               | Environment variable                 | Type    |
+|--------------------------|--------------------------------------|---------|
+| `output`                 | `AGENTIC_GOV_OUTPUT`                 | string  |
+| `endpoint_id`            | `AGENTIC_GOV_ENDPOINT_ID`            | string  |
+| `actor_id`               | `AGENTIC_GOV_ACTOR_ID`               | string  |
+| `sensitivity`            | `AGENTIC_GOV_SENSITIVITY`            | string  |
+| `network_allowlist_path` | `AGENTIC_GOV_NETWORK_ALLOWLIST_PATH` | string  |
+| `interval`               | `AGENTIC_GOV_INTERVAL`               | integer |
+| `api_url`                | `AGENTIC_GOV_API_URL`                | string  |
+| `api_key`                | `AGENTIC_GOV_API_KEY`                | string  |
+| `report_all`             | `AGENTIC_GOV_REPORT_ALL`             | boolean |
+| `verbose`                | `AGENTIC_GOV_VERBOSE`                | boolean |
+| `dry_run`                | `AGENTIC_GOV_DRY_RUN`                | boolean |
+
+Booleans accept `1`, `true`, `yes`, or `on` (case-insensitive) as truthy.
+
+### CLI flags
+
+All existing CLI flags continue to work unchanged.  They take the highest
+priority and override both the config file and environment variables.
+
+```bash
+cd collector && python main.py --sensitivity Tier2 --dry-run
+```
+
 ## Running tests
 
 From the **repository root** (with `collector` on the Python path):

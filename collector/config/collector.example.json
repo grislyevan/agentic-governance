@@ -1,0 +1,19 @@
+{
+    "_comment": "Collector configuration. Values here serve as defaults; override with AGENTIC_GOV_* env vars or CLI flags. Precedence: CLI > env > this file > code defaults.",
+    "config_version": 1,
+
+    "output": "./scan-results.ndjson",
+    "endpoint_id": null,
+    "actor_id": null,
+    "sensitivity": "Tier0",
+
+    "network_allowlist_path": null,
+
+    "interval": 0,
+    "api_url": null,
+    "api_key": null,
+    "report_all": false,
+
+    "verbose": false,
+    "dry_run": false
+}

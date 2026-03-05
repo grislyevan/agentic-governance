@@ -26,6 +26,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Union
 
+from config_loader import argparse_defaults
 from engine.confidence import classify_confidence, compute_confidence
 from engine.policy import PolicyDecision, evaluate_policy
 from output.emitter import EventEmitter
@@ -456,47 +457,50 @@ def main() -> None:
         description="Endpoint telemetry collector for agentic AI tool detection",
     )
     parser.add_argument(
-        "--output", default="./scan-results.ndjson",
+        "--output",
         help="Output file for NDJSON events (default: ./scan-results.ndjson)",
     )
     parser.add_argument(
-        "--endpoint-id", default=socket.gethostname(),
+        "--endpoint-id",
         help="Endpoint identifier (default: hostname)",
     )
     parser.add_argument(
-        "--actor-id", default=getpass.getuser(),
+        "--actor-id",
         help="Actor/user identifier (default: current OS user)",
     )
     parser.add_argument(
-        "--sensitivity", default="Tier0",
+        "--sensitivity",
         choices=["Tier0", "Tier1", "Tier2", "Tier3"],
         help="Asset sensitivity tier (default: Tier0)",
     )
     parser.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run", action="store_true", default=None,
         help="Print events to stdout instead of writing to file",
     )
     parser.add_argument(
-        "--verbose", action="store_true",
+        "--verbose", action="store_true", default=None,
         help="Print detailed scan progress",
     )
-    # Daemon / agent mode flags
     parser.add_argument(
-        "--interval", type=int, default=0, metavar="SECONDS",
+        "--interval", type=int, metavar="SECONDS",
         help="Run as persistent daemon, scanning every N seconds (0 = one-shot)",
     )
     parser.add_argument(
-        "--api-url", default=None, metavar="URL",
+        "--api-url", metavar="URL",
         help="Central API base URL, e.g. http://localhost:8000",
     )
     parser.add_argument(
-        "--api-key", default=None, metavar="KEY",
+        "--api-key", metavar="KEY",
         help="API key for authenticating with the central server",
     )
     parser.add_argument(
-        "--report-all", action="store_true",
+        "--report-all", action="store_true", default=None,
         help="Report all detections every cycle (default: changes only)",
     )
+
+    # Centralized config: code defaults < config file < env vars < CLI
+    parser.set_defaults(**argparse_defaults())
+
     args = parser.parse_args()
 
     logging.basicConfig(
