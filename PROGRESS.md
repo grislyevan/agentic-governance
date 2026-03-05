@@ -16,7 +16,8 @@
 | NDJSON event output | Done |
 | Canonical event schema v0.2.0 | Done |
 | Playbook v0.3.1 (Class D taxonomy + platform notes) | Done |
-| Lab runs (8 completed, 5 pending) | In progress |
+| Synthetic scanner fixture tests (22 tests, 5 scanners) | Done |
+| Lab runs (8 completed, 5 pending live validation) | In progress |
 | React/Vite dashboard | In progress |
 | FastAPI backend (PostgreSQL, JWT, multi-tenancy) | Not started |
 | SaaS frontend (auth, org management) | Not started |
@@ -64,12 +65,13 @@ API Client ────────────────────▶│ Mu
 - [x] Playbook v0.3 with Class D taxonomy
 - [x] React/Vite dashboard (WIP → fixed)
 - [x] 5 new scanner modules: Aider, GPT-Pilot, Cline, LM Studio, Continue
-- [ ] Lab-validate all 5 new scanners (lab run per tool)
+- [x] Synthetic fixture tests for 5 new scanners (22 tests: Aider, LM Studio, Continue, GPT-Pilot, Cline)
+- [ ] Live lab-validate all 5 new scanners (lab run per tool — synthetic validation complete, live runs pending hardware)
 - [ ] Schema v0.3.0: add `enforcement.applied` example, finalize enum values
 - [ ] Integration tests for `main.py` end-to-end + scanner stubs
 - [ ] Playbook v0.4: integrate findings from new lab runs
 
-**Files:** `collector/scanner/`, `dashboard/src/`, `schemas/`, `playbook/`
+**Files:** `collector/scanner/`, `collector/tests/`, `dashboard/src/`, `schemas/`, `playbook/`
 
 ---
 
@@ -172,4 +174,4 @@ Items that are valuable but not yet scheduled:
 | Metrics pipeline | INIT-30 | Detection rate, FP%, policy coverage KPIs |
 | Privacy review | INIT-41 | Data minimization + retention; required before M4 |
 | MITRE tactics mapping | INIT-40 | Map signals to ATT&CK for enterprise buyers |
-| Lab runs 008–012 | — | Aider, GPT-Pilot, Cline, LM Studio, Continue |
+| Lab runs 008–012 (live) | — | Aider, GPT-Pilot, Cline, LM Studio, Continue — synthetic validation complete, live runs pending hardware |

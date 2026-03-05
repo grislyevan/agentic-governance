@@ -1119,6 +1119,50 @@ The endpoint collector uses a platform abstraction layer (`collector/compat/`) t
 
 **Migrated scanners (proof of concept):** Cursor, Ollama, GitHub Copilot. Remaining 8 scanners (Claude Code, Aider, GPT-Pilot, Cline, Continue, LM Studio, Open Interpreter, OpenClaw) still use direct subprocess calls and will be migrated in a follow-on pass.
 
+### 11.6 Synthetic Scanner Test Infrastructure
+
+To validate scanner detection logic without requiring the target tools to be installed or running, a synthetic fixture test suite provides deterministic, CI-friendly coverage across all five detection layers.
+
+**Architecture:**
+
+| Component | File | Purpose |
+|---|---|---|
+| File fixtures | `collector/tests/fixtures/file_fixtures.py` | Creates realistic file/directory footprints in a temp directory for each tool (config files, extension manifests, model files, task histories, etc.) |
+| Canned responses | `collector/tests/fixtures/canned_responses.py` | Pre-built `CompletedProcess` objects that mock `_run_cmd` output for `pgrep`, `ps`, `lsof`, `pip show`, and other subprocess calls |
+| Dispatcher | `make_dispatcher()` in `canned_responses.py` | Routes mocked `_run_cmd` calls to the correct canned response by matching command argument tuples |
+| Per-scanner tests | `collector/tests/test_scanner_<tool>.py` | Integration tests that combine file fixtures (real temp files) with mocked subprocesses to exercise each scanner end-to-end |
+
+**Patching strategy:** Each test patches the scanner module's `HOME` constant to point to a `tempfile.TemporaryDirectory`, so file-layer checks hit real (fixture) files while process/network checks use mocked output. For LM Studio, `APP_PATH` is also patched since it references an absolute `/Applications/` path. Environment variables (`OPENAI_API_KEY`, etc.) are patched out in clean-system tests to prevent host-environment leakage.
+
+**Scanner coverage (22 tests across 5 scanners):**
+
+| Scanner | Class | Scenarios | Key validations |
+|---|---|---|---|
+| Aider | C | Clean, installed-not-running, fully-active, git-commit-detection | Prompt-edit-commit loop (child process tree), `.aider*` artifact aging, git commit attribution pattern matching |
+| LM Studio | B | Clean, installed-not-running, fully-active, server-without-API | App bundle detection, model file enumeration (`.gguf`), `:1234` listener, `/v1/models` API response parsing |
+| Continue | A | Clean, installed, approved-backend-active, unapproved-ollama, mixed-backends | `config.json` backend parsing, unapproved provider detection (`ollama`, `lmstudio`), evasion boost, extension manifest in `.cursor/extensions/` |
+| GPT-Pilot | C | Clean, state-dirs-only, generation-loop-active, high-file-churn | `.gpt-pilot/` state directory scanning, child process tree (node + python children), high file churn (>20 files in 1 hour) |
+| Cline | A/C | Clean, extension-installed, task-history-class-A, tool-calls-class-C, write-ops-class-C-R3 | Dynamic class escalation (A→C) based on `ui_messages.json` content, `tool_use` vs `write_to_file`/`execute_command` type detection, `globalStorage` task directory inspection |
+
+**What this validates vs. what it does not:**
+
+| Validated by synthetic tests | Requires live lab runs |
+|---|---|
+| File-layer artifact path detection (config files, extensions, models, state dirs) | Actual tool process behavior under real workloads |
+| Process-layer output parsing (PID extraction, child process identification, cmdline regex matching) | Real process tree structures and timing |
+| Network-layer output parsing (lsof LISTEN/ESTABLISHED detection, port matching) | Actual network traffic patterns and connection timing |
+| Identity-layer logic (user extraction, API key environment detection) | Real account/credential states |
+| Behavior-layer logic (file churn counting, artifact recency, tool-call classification) | Real behavioral sequences and temporal patterns |
+| Confidence penalty application | Calibrated penalty thresholds against real data |
+| Class escalation logic (Cline A→C, Continue unapproved backend) | Edge cases in class boundary behavior |
+| Risk and action assignment (`action_risk`, `action_type`) | Policy decision accuracy under production conditions |
+
+**Running:**
+
+```
+PYTHONPATH=collector python -m pytest collector/tests/test_scanner_*.py -v
+```
+
 ---
 
 ## 12. Lab Validation Runs
@@ -1133,12 +1177,12 @@ This section provides the framework for empirical validation. Each tool profile 
 | Cursor | Standard editing, AI-assisted refactor, terminal workflow | Wrapped launch path, proxy attribution | `IN PROGRESS` (1/3 positive) |
 | Copilot | Org account normal use, chat-assisted edit, full-layer session | Personal account on managed endpoint, proxy route | `IN PROGRESS` (1/3 positive — unauthenticated baseline) |
 | Ollama | Approved model pull+run, inference session, local API automation | Custom port/container, side-loaded models | `IN PROGRESS` (1/3 positive) |
-| LM Studio | Approved model load, model switch + prompts, identity-mapped use | Non-default path + renamed artifacts, non-default port | `NOT STARTED` |
-| Continue | Approved backend workflow, config-defined backend switch, multi-file edit | Forked config to unsanctioned endpoint, proxy gateway | `NOT STARTED` |
+| LM Studio | Approved model load, model switch + prompts, identity-mapped use | Non-default path + renamed artifacts, non-default port | `SYNTHETIC VALIDATED` (4 scenarios) |
+| Continue | Approved backend workflow, config-defined backend switch, multi-file edit | Forked config to unsanctioned endpoint, proxy gateway | `SYNTHETIC VALIDATED` (5 scenarios) |
 | Open Interpreter | Benign command session, multi-step automation, policy-compliant repo task | Wrapped launch, ephemeral venv/container | `IN PROGRESS` (1/3 positive) |
-| Aider | Single-module change + PR, multi-file refactor, formatting/test session | Alias/wrapper invocation, devcontainer execution | `NOT STARTED` |
-| GPT-Pilot | Greenfield scaffold, iterative gen+test loop, controlled module expansion | Forked launcher, containerized execution | `NOT STARTED` |
-| Cline | Approved backend + code-assist, multi-file edit, controlled tool-calling | Forked extension build, shared proxy route | `NOT STARTED` |
+| Aider | Single-module change + PR, multi-file refactor, formatting/test session | Alias/wrapper invocation, devcontainer execution | `SYNTHETIC VALIDATED` (4 scenarios) |
+| GPT-Pilot | Greenfield scaffold, iterative gen+test loop, controlled module expansion | Forked launcher, containerized execution | `SYNTHETIC VALIDATED` (4 scenarios) |
+| Cline | Approved backend + code-assist, multi-file edit, controlled tool-calling | Forked extension build, shared proxy route | `SYNTHETIC VALIDATED` (5 scenarios) |
 | OpenClaw | Standard install + onboard + agentic task + skill creation, multi-channel session, proactive/scheduled execution | Renamed binary, custom port, containerized gateway, local-only model backend | `IN PROGRESS` (1/3 positive) |
 
 ### 12.2 Lab Run Evidence Template
@@ -1227,6 +1271,13 @@ Residual Risk:       [statement of remaining coverage gaps]
 25. **OpenClaw CLI is a thin client — all intelligence runs in the daemon.** `openclaw agent --agent main --message "..."` sends a message to the gateway via WebSocket. The daemon handles the agent turn. Detection should focus on the daemon process, not the transient CLI invocations — same client-server pattern as Ollama.
 26. **Config backup chain enables forensic reconstruction.** `openclaw.json.bak` through `.bak.4` (5 generations) preserve configuration history. Diffs reveal when channels were added, models changed, or security settings modified. Useful for incident timeline construction.
 27. **Class D taxonomy is now formalized with OpenClaw as the reference implementation.** OpenClaw satisfies all four Class D criteria: daemon persistence (`KeepAlive + RunAtLoad`), proactive/scheduled execution (cron/heartbeat infrastructure), external communication channels (WhatsApp/Telegram/Slack), and self-modification (agent writes and hot-reloads its own skills). See Section 5.1 for the full Class D definition and policy posture.
+
+**From Synthetic Fixture Tests (Aider, LM Studio, Continue, GPT-Pilot, Cline):**
+
+28. **Synthetic fixtures can validate scanner parsing logic without tool installs.** For scanners that detect tools via file artifacts and subprocess output parsing, the detection logic can be tested deterministically by creating real files in temp directories (patching `HOME`) and mocking `_run_cmd` with canned subprocess output. This validated all five scanners for the 5 un-lab-run tools (Aider, GPT-Pilot, Cline, LM Studio, Continue) across 22 test scenarios without any tool installs, API keys, or GPU hardware. See Section 11.6 for architecture details.
+29. **Scanners with unconditional identity signals cannot report `detected=False` on a clean system.** The Continue and Cline scanners call `getpass.getuser()` unconditionally, returning identity strength >= 0.25 regardless of whether the tool is present. This means `detected=True` even when no tool is installed — clean-system tests must assert on per-layer signal strengths rather than the `detected` flag. This is a design consideration for scanners that embed IDE extensions: they cannot distinguish "IDE running, extension absent" from "nothing running" at the identity layer alone.
+30. **Canned network responses must be backend-aware for extension scanners.** The Continue scanner interprets connections to `:11434` (Ollama) or `:1234` (LM Studio) as evidence of unapproved local backends, independent of what `config.json` says. Canned response sets must match the intended scenario — an "approved backend active" scenario needs connections to cloud API endpoints (`:443`), not local model server ports. This subtlety was caught during test development.
+31. **Dynamic class assignment requires scenario-specific fixture data.** Cline's class escalation from A to C depends on the content of `ui_messages.json` in the most recent task directory. Tests must construct fixture data that exercises both sides of the classification boundary: entries with `type: "say"` (Class A) vs `type: "tool_use"` or `type: "write_to_file"` (Class C). This validates that the scanner's parsing logic correctly maps message types to governance classes.
 
 ### 12.5 Lab Run Log
 
@@ -1602,5 +1653,6 @@ Classification:
 25. **LaunchAgent credential exposure audit:** OpenClaw's plist embeds external service credentials (JIRA, gateway tokens) in world-readable mode. Audit all LaunchAgent plists across tested tools for credential exposure. Consider adding a plist credential scan to the standard lab protocol.
 26. **JSON Schema formalization** from event model — empirical data now available from 8 lab runs across all 3 classes + persistent agent.
 27. **Per-tool weight calibration formalization** — empirical data from 6 tools now supports per-tool weight profiles. **OpenClaw + Open Interpreter data proves per-tool (not per-class) calibration is needed.**
-28. Reactivate shelved items per dependency triggers (Section 13)
-29. Iterate this document based on lab findings
+28. ~~Synthetic fixture tests for 5 new scanners~~ → **Complete.** 22 tests across Aider, LM Studio, Continue, GPT-Pilot, and Cline validate scanner detection logic without tool installs. See Section 11.6 for architecture, Section 12.4 for methodology findings. Scanner parsing, class escalation, risk assignment, and unapproved-backend detection all confirmed. Live lab runs still needed for runtime behavior validation.
+29. Reactivate shelved items per dependency triggers (Section 13)
+30. Iterate this document based on lab findings
