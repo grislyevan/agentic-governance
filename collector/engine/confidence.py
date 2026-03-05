@@ -106,6 +106,15 @@ CLINE_WEIGHTS: dict[str, float] = {
     "binary_hash": 0.20,
 }
 
+CLAUDE_COWORK_WEIGHTS: dict[str, float] = {
+    "process": 0.25,
+    "file": 0.20,
+    "network": 0.10,
+    "identity": 0.15,
+    "behavior": 0.10,
+    "binary_hash": 0.20,
+}
+
 TOOL_WEIGHTS: dict[str, dict[str, float]] = {
     "Ollama": OLLAMA_WEIGHTS,
     "Cursor": CURSOR_WEIGHTS,
@@ -117,6 +126,7 @@ TOOL_WEIGHTS: dict[str, dict[str, float]] = {
     "Aider": AIDER_WEIGHTS,
     "GPT-Pilot": GPT_PILOT_WEIGHTS,
     "Cline": CLINE_WEIGHTS,
+    "Claude Cowork": CLAUDE_COWORK_WEIGHTS,
 }
 
 

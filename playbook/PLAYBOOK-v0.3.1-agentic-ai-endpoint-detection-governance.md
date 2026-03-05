@@ -186,6 +186,66 @@ Signals that suggest active evasion (add confidence when detected alongside tool
 
 ---
 
+### 4.1b Claude Cowork
+
+**Class:** C (Autonomous Executor) in Cowork mode; A (Assistive) in chat-only mode. Exhibits Class D indicators (scheduled tasks via `schedule` skill, self-modification via `skill-creator`, plugin extensibility) but lacks daemon persistence — proactive execution requires app to be running ("soft proactive").  
+**Risk Posture:** Medium baseline, High in Cowork mode with MCP connectors and scheduled tasks  
+**Lab Validated:** LAB-RUN-014 (2026-03-05, v1.1.4498, macOS ARM64)
+
+#### Concrete IOCs
+
+| Layer | Indicator | Confidence Weight | Lab Status |
+|---|---|---|---|
+| **Process** | Signed Claude Desktop app process from `/Applications/Claude.app`. macOS: code-signed by `Developer ID Application: Anthropic PBC (Q6L2SF6YDW)`, notarized. Bundle ID: `com.anthropic.claudefordesktop`. Mach-O universal (x86_64 + ARM64). | High | ✓ Confirmed |
+| **Process** | Multi-process Electron architecture: main process → GPU helper, Network utility, 2× Plugin helpers (`node.mojom.NodeService` for DXT/MCP extension hosts), 3× Renderers, Crashpad handler. Observed: 12 processes (excl. VM), ~546 MB aggregate RSS. | High | ✓ Confirmed |
+| **Process** | Apple `com.apple.Virtualization.VirtualMachine` XPC service running full Linux VM. Spawned by Claude Desktop. 51 MB RSS. **Novel IOC — no other profiled tool runs a VM.** Presence indicates Cowork feature is active. | High | ✓ Confirmed (new) |
+| **Process** | `ShipIt` auto-updater (Squirrel.framework) runs as **root**. Privilege escalation vector — update mechanism has higher privileges than the app. | Medium | ✓ Confirmed (new) |
+| **File** | `~/Library/Application Support/Claude/` Electron user-data-dir. 10 GB total. Contains: `vm_bundles/` (9.6 GB — VM root filesystem), `local-agent-mode-sessions/`, `Claude Extensions/`, `Cache/`, Cookies, Preferences. **Largest file footprint of any profiled tool.** | High | ✓ Confirmed |
+| **File** | VM bundle at `vm_bundles/claudevm.bundle/`: `rootfs.img` (10 GB Linux filesystem), `rootfs.img.zst` (2.1 GB compressed), `efivars.fd` (EFI boot), `macAddress`, `machineIdentifier`, `vmIP`, `sessiondata.img`. Persists after quit. **Pathognomonic for Cowork.** | High | ✓ Confirmed (new) |
+| **File** | `claude_desktop_config.json` with Cowork-specific keys: `coworkWebSearchEnabled`, `coworkScheduledTasksEnabled`, `localAgentModeTrustedFolders`, `sidebarMode`. Distinguishes Cowork from Claude Code CLI. | High | ✓ Confirmed |
+| **File** | Local agent mode session directories at `local-agent-mode-sessions/<folder-uuid>/<vm-uuid>/local_<session-uuid>.json`. Each session JSON (110–114 KB) contains: `sessionId`, `processName`, `vmProcessName`, `model`, `title`, `initialMessage`, `accountName`, `emailAddress`, `slashCommands`, `remoteMcpServersConfig`, `egressAllowedDomains` (22 domains), `systemPrompt` (42 KB). | High | ✓ Confirmed (new) |
+| **File** | Per-session `audit.jsonl` with event types: `assistant`, `user`, `system`, `tool_use_summary`, `rate_limit_event`, `result`. Tool use summaries include natural-language action descriptions. 6–56 events per session. Complete forensic audit trail. | High | ✓ Confirmed (new) |
+| **File** | `.claude/` state tree inside each session mirroring Claude Code structure: `.claude.json`, `backups/`, `debug/`, `projects/<path>/session.jsonl`, `shell-snapshots/`, `todos/`. Symlinks point to VM mount paths (`/sessions/<name>/mnt/.claude/`). | Medium–High | ✓ Confirmed (new) |
+| **File** | Desktop Extensions (DXT) with MCP servers: `chrome-control` v0.1.5 (browser automation via AppleScript), `notes` v0.1.7 (Apple Notes CRUD). Each has `manifest.json` and Node.js MCP server entry point. | Medium–High | ✓ Confirmed (new) |
+| **File** | Skills plugin directory with 6 Anthropic skills: `skill-creator`, `xlsx`, `pptx`, `pdf`, `docx`, `schedule`. Includes full Office XML schemas (ISO-IEC29500), Python scripts, evaluation framework. | Medium–High | ✓ Confirmed (new) |
+| **File** | Plugin marketplace git clone from `anthropics/knowledge-work-plugins`. 19+ enterprise plugins (sales, finance, legal, marketing, engineering, HR, etc.) plus partner-built (Slack/Salesforce, Apollo.io, Common Room). | Medium | ✓ Confirmed (new) |
+| **Network** | Outbound TLS connections from Network utility process. 15 connections observed: Anthropic API (160.79.104.10), AWS EC2, Google Cloud, `fbcdn.net`. Mix of TCP and UDP (QUIC). **Persistent connections** — PID-attributable at any polling interval (unlike Claude Code CLI's ephemeral bursts). | Medium–High | ✓ Confirmed |
+| **Network** | VM egress allowlist in session JSON (`egressAllowedDomains`): 22 domains including package registries (npm, pypi, crates.io), github.com, Ubuntu repos, `*.anthropic.com`, `*.claude.com`. **Novel compliance signal — tool self-reports its own network boundary.** | Medium | ✓ Confirmed (new) |
+| **Network** | VM has dedicated IP (`192.168.64.11`) and MAC (`fa:2d:c5:58:59:86`) on Apple Virtualization host-only network. | Low–Medium | ✓ Confirmed (new) |
+| **Identity** | `accountName` and `emailAddress` in cleartext in every session JSON. Observed: `"Evan"`, `"evanlewischance@gmail.com"`. **Strongest identity signal of any profiled tool** — top-level JSON field, zero extraction effort. | High | ✓ Confirmed (new) |
+| **Identity** | Code signing: `Anthropic PBC (Q6L2SF6YDW)`, same authority as Claude Code CLI. Cryptographic binary attribution via Apple notarization chain. | High | ✓ Confirmed |
+| **Identity** | VM `machineIdentifier` (binary plist with UUID). Persists across sessions — device-level identity anchor. Session UUIDs: `sessionId`, `cliSessionId`, `vmProcessName` enable cross-artifact correlation. | Medium–High | ✓ Confirmed (new) |
+| **Behavior** | Multi-step agentic execution via MCP connectors. Observed: Google Calendar CRUD (9 tools), Indeed integration (4 tools). 56 audit events in calendar session with 5 tool_use_summary entries. | High | ✓ Confirmed |
+| **Behavior** | Shell command execution within VM. Observed via audit trail: architecture check, package installation attempts, file operations. Shell snapshots captured at `shell-snapshots/snapshot-bash-*.sh`. | High | ✓ Confirmed |
+| **Behavior** | Scheduled task creation capability. `schedule` skill creates autonomous recurring tasks with cron expressions. Config `coworkScheduledTasksEnabled: true` enables proactive execution while app is running. | Medium–High | ✓ Architecture confirmed |
+| **Behavior** | Self-modification via `skill-creator` skill. Creates, modifies, and benchmarks new skills including evaluation framework. No approval gate for skill creation. | Medium–High | ✓ Architecture confirmed |
+| **Behavior** | Cross-app automation via DXT extensions. `chrome-control` executes JavaScript in Chrome tabs, reads page content. `notes` accesses Apple Notes. Both run on host via AppleScript (outside VM sandbox). | Medium | ✓ Architecture confirmed |
+| **Behavior** | Feature flags in `--desktop-features` process argument JSON: `ccdPlugins`, `chillingSlothFeat`, `yukonSilver`, `plushRaccoon` (unavailable), `quietPenguin` (unavailable). Version fingerprinting and capability prediction. | Low–Medium | ✓ Confirmed (new) |
+
+#### Signal Quality Weights (from LAB-RUN-014, calibration notes)
+
+| Layer | Default Weight | Proposed Weight | Key Penalty Conditions | Lab Calibration Notes |
+|---|---|---|---|---|
+| Process | 0.25 | 0.25 | Missing parent chain: −0.15; wrapper/renamed binary: −0.15 | Multi-process Electron + VM XPC service is strong and unique. No other tool has a VM process. |
+| File | 0.15 | 0.20 | Stale artifact only: −0.10; non-default paths: −0.10 | 10 GB footprint is largest of any tool. VM bundle is pathognomonic. Session JSONs with audit trails are forensically rich. |
+| Network | 0.15 | 0.10 | Ambiguous proxy route: −0.10; unresolved proc-net link: −0.10 | Persistent TLS easily attributed (Network utility centralizes all connections). VM egress allowlist is novel compliance signal. |
+| Identity | 0.10 | 0.15 | Weak/missing identity: −0.10 | Cleartext email in session JSON is strongest identity signal of any tool. Upgrade weight. |
+| Behavior | 0.15 | 0.10 | No change | Audit trail is strong but app-dependent. Scheduled tasks and self-modification architecturally confirmed but not exercised in this run. |
+| Binary Hash | 0.20 | 0.20 | No change | Signed binary is definitive anchor. Same Anthropic authority as Claude Code. |
+
+#### Persistence Posture
+
+Claude Cowork installs **no active persistence mechanisms** — zero LaunchAgents, zero crontab entries, zero shell profile modifications. State is passive (10 GB in `~/Library/Application Support/Claude/`). Scheduled tasks via the `schedule` skill run only while the app is open and do not survive app quit. This distinguishes Cowork from OpenClaw (Class D, LaunchAgent with KeepAlive) but its "soft proactive" capability is unique among non-daemon tools.
+
+#### Evasion Vectors
+- Non-standard install path or portable app bundle
+- Containerized/remote execution of Claude Desktop
+- VPN/proxy obscuring outbound Anthropic API traffic
+- Disabling DXT extensions to reduce host-level detection surface
+- Using Cowork in VM-only mode without MCP connectors to reduce network signals
+
+---
+
 ### 4.2 Cursor (INIT-14)
 
 **Class:** A (SaaS Copilot / Assistive IDE); escalates to C when terminal agent workflows execute  
@@ -1184,6 +1244,7 @@ This section provides the framework for empirical validation. Each tool profile 
 | GPT-Pilot | Greenfield scaffold, iterative gen+test loop, controlled module expansion | Forked launcher, containerized execution | `SYNTHETIC VALIDATED` (4 scenarios) |
 | Cline | Approved backend + code-assist, multi-file edit, controlled tool-calling | Forked extension build, shared proxy route | `SYNTHETIC VALIDATED` (5 scenarios) |
 | OpenClaw | Standard install + onboard + agentic task + skill creation, multi-channel session, proactive/scheduled execution, **local LLM backend (OC-POS-05)** | Renamed binary, custom port, containerized gateway, local-only model backend | `IN PROGRESS` (2/3 positive) |
+| Claude Cowork | **Standard install + launch + session analysis + teardown (CW-POS-01)**, MCP connector agentic task, scheduled task exercise | Non-standard install, VPN-routed API, DXT extension modification | `IN PROGRESS` (1/3 positive) |
 
 ### 12.2 Lab Run Evidence Template
 
@@ -1288,6 +1349,15 @@ Residual Risk:       [statement of remaining coverage gaps]
 36. **Canned network responses must be backend-aware for extension scanners.** The Continue scanner interprets connections to `:11434` (Ollama) or `:1234` (LM Studio) as evidence of unapproved local backends, independent of what `config.json` says. Canned response sets must match the intended scenario — an "approved backend active" scenario needs connections to cloud API endpoints (`:443`), not local model server ports. This subtlety was caught during test development.
 37. **Dynamic class assignment requires scenario-specific fixture data.** Cline's class escalation from A to C depends on the content of `ui_messages.json` in the most recent task directory. Tests must construct fixture data that exercises both sides of the classification boundary: entries with `type: "say"` (Class A) vs `type: "tool_use"` or `type: "write_to_file"` (Class C). This validates that the scanner's parsing logic correctly maps message types to governance classes.
 
+**From LAB-RUN-014 (Claude Cowork):**
+
+38. **VM-based sandboxed execution is a fundamentally different threat model.** Claude Cowork runs a full Linux VM via Apple Virtualization framework (`com.apple.security.virtualization` entitlement). File operations happen inside the VM, not on the host. Detection must identify both the Electron app processes AND the `com.apple.Virtualization.VirtualMachine` XPC service. The VM process is the strongest single indicator that Cowork (not just Claude chat) is active.
+39. **Cowork's split attack surface requires dual monitoring.** File operations are VM-isolated (sandboxed). However, DXT extensions (chrome-control, notes) and MCP connectors (Google Calendar, Indeed) operate on the host outside the VM. Governance must monitor both the VM-sandboxed session activity and the host-level DXT/MCP activity. This split is unique among profiled tools.
+40. **Session JSON files are the richest single forensic artifact of any tool.** Each `local_*.json` file (110–114 KB) contains: account identity (name + email in cleartext), model selection, initial message, full system prompt (42 KB), MCP connector inventory, VM egress allowlist (22 domains), session UUIDs, and slash command inventory. A single file provides identity, capability, network boundary, and behavioral context.
+41. **VM egress allowlist is a novel compliance-as-code artifact.** The `egressAllowedDomains` array in session JSON self-reports the VM's outbound network boundary. Monitoring changes to this allowlist across app versions would detect capability expansion. This is a governance signal where the tool itself declares its network constraints.
+42. **"Soft proactive" execution bridges Class C and Class D.** Cowork's `schedule` skill creates recurring tasks with cron expressions, and `coworkScheduledTasksEnabled: true` enables them. However, scheduled tasks only run while the app is open — no daemon persistence. This represents a new capability category between Class C (user-triggered) and Class D (always-on). Classification framework should account for this intermediate state.
+43. **10 GB passive footprint enables trivial disk-based detection.** The VM `rootfs.img` alone is 10 GB — orders of magnitude larger than any other tool's artifacts. Disk space monitoring or file system surveys will detect Cowork with near-zero false positive rate. The `vm_bundles/claudevm.bundle/` path is pathognomonic.
+
 ### 12.5 Lab Run Log
 
 | Run ID | Date | Tool | Scenario | Result | Notes |
@@ -1301,6 +1371,7 @@ Residual Risk:       [statement of remaining coverage gaps]
 | LAB-RUN-005 | 2026-03-02 | GitHub Copilot (github.copilot-chat v0.37.9) in VS Code 1.109.5 | CP-POS-01: Standard VS Code session + Copilot install + launch (unauthenticated) | **Conditional Pass** | **First Class A tool validated. Empirical data now exists for all three tool classes (A, B, C).** Confidence: 0.45 (Medium, barely) — depressed by unauthenticated scenario (projected ~0.74 with auth, ~0.80 with EDR). 4/11 IOCs confirmed, 2 partially observed, 5 not observed (all due to unauthenticated state). Key findings: (1) Extension installed as bundled `github.copilot-chat` (lowercase, single extension), (2) extension-host process shared by all extensions — requires cross-layer correlation, (3) VS Code `machineId` + `devDeviceId` provide persistent device identity, (4) `chatEntitlement`/`chatRegistered` distinguish installed/entitled/active states, (5) GitHub Authentication log records explicit auth state, (6) VS Code Network Service centralizes all connections in one attributable PID, (7) persistent HTTPS connections (not ephemeral like Claude Code), (8) A/B experiment flags enable Copilot version fingerprinting, (9) agent mode capabilities present but auth-gated (`edit_mode_hidden` flag), (10) identity layer is bimodal — strongest when authenticated, weakest when not. 10 findings fed back. Proposed Class A bimodal weight calibration (Identity 0.15→0.25 when authenticated). Full results: `LAB-RUN-005-RESULTS.md` |
 | LAB-RUN-007 | 2026-03-02 | OpenClaw v2026.3.1 | OC-POS-01: Standard install + onboard + agentic task + skill creation | **Conditional Pass** | **First Class D (Persistent Autonomous Agent) validated. New highest confidence score: 0.80 (High) — surpasses Cursor (0.79). First tool OUTSIDE original 10-tool scope.** 18/27 IOCs confirmed, 5 confirmed architecturally. Key findings: (1) `KeepAlive + RunAtLoad` LaunchAgent is strongest persistence of any tool, (2) LaunchAgent embeds external credentials (JIRA token) in world-readable plist, (3) self-modification confirmed — agent wrote own skill with zero approval gate, (4) 215 MB `~/.openclaw/` with config/credentials/skills/sessions/logs/memory — richest file footprint, (5) strongest identity footprint (multi-provider API keys + chat platform creds + external service tokens), (6) `openclaw status` is richest single-command diagnostic, (7) gateway WS on `:18789` is persistent PID-attributable signal, (8) CLI is thin client to daemon (like Ollama), (9) Class D taxonomy formalized — OpenClaw is reference implementation. Weights: File 0.30, Process 0.25, Behavior 0.15. Gaps: multi-channel messaging not tested, proactive/cron not exercised, browser automation not tested. Full results: `LAB-RUN-007-RESULTS.md` |
 | LAB-RUN-013 | 2026-03-05 | OpenClaw v2026.3.1 | OC-POS-05: Same protocol as OC-POS-01 with local LLM (Qwen 3.5 0.8B via Ollama) | **Conditional Pass** | **First local-LLM variant lab run. Confirms infrastructure IOCs are model-independent.** Confidence: 0.725 (Medium) — down from 0.80 (High) in LAB-RUN-007, delta −0.075 driven entirely by behavior layer. Key findings: (1) 0.8B model failed ALL tool-use tasks (shell exec, file creation, skill authoring) — behavioral IOCs are model-capability-dependent, (2) model inference traffic is entirely local (`127.0.0.1:11434`) but gateway still makes outbound `:443` (telemetry/channel), (3) OpenClaw + Ollama co-residency creates symbiotic detection pattern (`:18789` ↔ `:11434`), (4) model swap is config-only with no approval gate — behavioral risk is latent, (5) OpenClaw's own security audit flags small models as CRITICAL, (6) process/file/identity/persistence IOCs identical to LAB-RUN-007, (7) policy decision unchanged: Approval Required (driven by infrastructure, not model). Gaps: same as LAB-RUN-007 (multi-channel, browser, proactive not tested). Full results: `LAB-RUN-013-RESULTS.md` |
+| LAB-RUN-014 | 2026-03-05 | Claude Cowork v1.1.4498 (Claude Desktop) | CW-POS-01: Standard install + launch + session analysis + teardown | **Pass** | **First Claude Cowork validation. New highest confidence score: 0.905 (High) — surpasses OpenClaw (0.80). First tool with VM-based execution.** 12 processes (+ VM XPC), ~546 MB RSS. Key findings: (1) Full Linux VM via Apple Virtualization framework — 10 GB `rootfs.img` is largest artifact of any tool, (2) cleartext `accountName` + `emailAddress` in every session JSON — strongest identity signal, (3) `coworkScheduledTasksEnabled` + `schedule` skill = "soft proactive" execution (Class D-adjacent), (4) DXT extensions enable cross-app automation (Chrome, Apple Notes) on host outside VM sandbox, (5) plugin marketplace with 19+ enterprise plugins, (6) `skill-creator` enables self-modification, (7) ShipIt auto-updater runs as root, (8) VM egress allowlist (22 domains) is novel compliance signal, (9) persistent TLS PID-attributable (like Cursor), (10) feature flags in process args enable version fingerprinting. New Section 4.1b created. Full results: `LAB-RUN-014-RESULTS.md` |
 
 ---
 
@@ -1623,20 +1694,48 @@ Classification:
 
 **Key insight:** Infrastructure-based detection (process, file, persistence, network listeners) is **model-independent**. Behavioral detection is **model-capability-dependent**. A confidence floor for Class D tools with strong infrastructure signals would prevent underscoring when the model is temporarily incapable.
 
+### Empirical Calibration Data (from LAB-RUN-014)
+
+**Claude Cowork v1.1.4498 (Claude Desktop) — five-layer observed signal strengths:**
+
+| Layer | Default Weight | Observed Signal | Weighted | Calibration Note |
+|---|---|---|---|---|
+| Process | 0.25 | 0.90 | 0.225 | Multi-process Electron (12 processes) + Apple Virtualization.VirtualMachine XPC service. VM process is unique IOC — no other tool has this. ShipIt auto-updater runs as root. |
+| File | 0.15 | 0.95 | 0.1425 | **Largest footprint of any tool: 10 GB.** VM bundle (9.6 GB rootfs.img), session JSONs with audit.jsonl, DXT extensions, skills plugin, marketplace clone. Pathognomonic `vm_bundles/claudevm.bundle/`. |
+| Network | 0.15 | 0.80 | 0.120 | 15 persistent TLS connections from Network utility. PID-attributable at any polling interval (like Cursor). VM egress allowlist (22 domains) is novel compliance signal. VM has dedicated IP/MAC. |
+| Identity | 0.10 | 0.90 | 0.090 | **Strongest identity signal of any tool.** Cleartext `accountName` + `emailAddress` in every session JSON. Code signing: Anthropic PBC. VM machineIdentifier persists across sessions. |
+| Behavior | 0.15 | 0.85 | 0.1275 | Multi-step agentic execution confirmed via audit.jsonl (56 events). Shell execution in VM. MCP connector CRUD. Scheduled tasks and self-modification architecturally confirmed. |
+| Binary Hash | 0.20 | 1.00 | 0.200 | Signed app at known path with Anthropic code signing. Highest-confidence binary attribution. |
+
+**Computed scores:**
+- Six-layer default weights (incl. binary hash): **0.905 (High)**, zero penalties — new highest
+- Proposed calibrated weights (File 0.20, Identity 0.15, Network 0.10, Behavior 0.10): **0.915 (High)**
+
+**Recommended weight adjustment for Claude Cowork:**
+
+| Layer | Current | Proposed | Justification |
+|---|---|---|---|
+| Process | 0.25 | 0.25 | No change — VM XPC service is unique. Multi-process Electron is distinctive. |
+| File | 0.15 | 0.20 | 10 GB footprint is unmistakable. VM bundle is pathognomonic. |
+| Network | 0.15 | 0.10 | Persistent but centralized in one Network utility process. |
+| Identity | 0.10 | 0.15 | Cleartext email is strongest identity signal of any tool. |
+| Behavior | 0.15 | 0.10 | Audit trail strong but app-dependent. Scheduled tasks not exercised. |
+| Binary Hash | 0.20 | 0.20 | Signed binary is definitive anchor. |
+
 ### Cross-Tool Calibration Comparison
 
-| Layer | Claude Code (Class C) | Ollama (Class B) | Cursor (Class A→C) | Copilot (Class A) | Open Interpreter (Class C) | OpenClaw cloud (Class D) | OpenClaw local (Class D) | Interpretation |
-|---|---|---|---|---|---|---|---|---|
-| Process | 0.85 | 0.90 | **0.95** | 0.80 | 0.70 | 0.90 | 0.85 | OI lowest (generic `python3`). OpenClaw local slightly lower (no child chains — model too small). |
-| File | **0.95** | 0.90 | 0.90 | 0.85 | 0.65 | **0.95** | **0.95** | File layer is model-independent. OpenClaw identical across cloud and local runs. |
-| Network | 0.30 | 0.70 | **0.75** | 0.55 | 0.55 | 0.70 | 0.65 | Local LLM drops network slightly — inference on `:11434` instead of `:443`, but gateway still makes outbound `:443`. |
-| Identity | **0.80** | 0.50 | 0.55 | 0.40* | 0.55 | **0.85** | 0.80 | Local LLM: active model key is a placeholder (`ollama-local`). Plist creds unchanged. |
-| Behavior | 0.75 | 0.80 | 0.90 | 0.25* | **0.85** | 0.80 | **0.40** | **KEY FINDING:** 0.8B model failed all tool-use tasks. Behavior is model-capability-dependent. |
-| **Final** | **0.71** | **0.69** | **0.79** | **0.45** | **0.525** | **0.80** | **0.725** | Local LLM drops from High to Medium. Delta driven entirely by behavior layer. |
+| Layer | Claude Code (C) | Ollama (B) | Cursor (A→C) | Copilot (A) | Open Interpreter (C) | OpenClaw cloud (D) | OpenClaw local (D) | Claude Cowork (C+) | Interpretation |
+|---|---|---|---|---|---|---|---|---|---|
+| Process | 0.85 | 0.90 | **0.95** | 0.80 | 0.70 | 0.90 | 0.85 | 0.90 | Cowork VM XPC service is unique. |
+| File | **0.95** | 0.90 | 0.90 | 0.85 | 0.65 | **0.95** | **0.95** | **0.95** | Cowork's 10 GB = 50× OpenClaw. |
+| Network | 0.30 | 0.70 | **0.75** | 0.55 | 0.55 | 0.70 | 0.65 | **0.80** | Persistent TLS + VM egress allowlist. |
+| Identity | **0.80** | 0.50 | 0.55 | 0.40* | 0.55 | **0.85** | 0.80 | **0.90** | **Strongest.** Cleartext email. |
+| Behavior | 0.75 | 0.80 | 0.90 | 0.25* | **0.85** | 0.80 | **0.40** | 0.85 | Audit trail + MCP connectors. |
+| **Final** | **0.71** | **0.69** | **0.79** | **0.45** | **0.525** | **0.80** | **0.725** | **0.905** | **New highest.** VM + identity. |
 
 **Key insights:**
 
-1. **OpenClaw achieves the highest confidence score (0.80) of any tested tool.** This is driven by the richest file and identity footprints in the playbook. The combination of persistent daemon, rich config directory, embedded credentials, and self-modification creates an exceptionally detectable tool — which is also the highest-risk.
+1. **Claude Cowork achieves the highest confidence score (0.905) of any tested tool**, surpassing OpenClaw (0.80). This is driven by the richest file and identity footprints in the playbook. The combination of persistent daemon, rich config directory, embedded credentials, and self-modification creates an exceptionally detectable tool — which is also the highest-risk.
 
 2. **Cursor's multi-process Electron architecture is a governance advantage.** Labeled extension-host types provide process-level class indicators unique to IDE-class tools. Combined with persistent network connections (unlike CLI tools) and complete agent transcripts (unlike daemon tools), Cursor achieves the second-highest confidence.
 
@@ -1658,7 +1757,7 @@ Classification:
 
 ---
 
-*End of Playbook v0.3.1 — Updated 2026-03-05 with LAB-RUN-013 findings (local LLM variant, model-dependent behavioral detection, co-residency patterns)*
+*End of Playbook v0.3.1 — Updated 2026-03-05 with LAB-RUN-014 findings (Claude Cowork: VM-based execution, 10 GB footprint, cleartext identity, "soft proactive" scheduled tasks, DXT cross-app automation, 0.905 confidence — new highest)*
 
 **Next actions:**
 1. ~~Execute first lab sprint (Section 12.3 priority order)~~ — **In progress.** Claude Code CC-POS-01 + CC-POS-02 complete. Ollama OL-POS-01 complete. Cursor CUR-POS-01 complete. Copilot CP-POS-01 complete. **Open Interpreter OI-POS-01 complete.**
@@ -1693,3 +1792,8 @@ Classification:
 30. **Confidence floor for infrastructure-class tools** — LAB-RUN-013 suggests a floor based on process + file signal strength (both ≥ 0.80) to prevent underscoring tools with capable infrastructure but temporarily incapable models. Design and implement.
 31. Reactivate shelved items per dependency triggers (Section 13)
 32. Iterate this document based on lab findings
+33. **~~CW-POS-01 (LAB-RUN-014):~~** ~~Claude Cowork standard install + launch + session analysis + teardown.~~ — **Complete.** First Cowork validation. **New highest confidence: 0.905 (High).** VM-based execution model is unique. 10 GB footprint is largest. Cleartext email is strongest identity. Scheduled tasks = "soft proactive." Section 4.1b created. See `LAB-RUN-014-RESULTS.md`.
+34. **CW-POS-02:** Exercise Claude Cowork scheduled task creation and execution. Validate the `schedule` skill runtime behavior with a recurring cron task. Confirm whether scheduled tasks actually execute while app is idle.
+35. **CW-POS-03:** Exercise DXT browser automation (`chrome-control`). Validate Chrome tab management, JavaScript execution, and page content retrieval via AppleScript. Capture host-side process spawning for AppleScript.
+36. **CW-EVA-01:** Non-standard install path, VPN-routed API traffic. Test detection when Claude Desktop is installed outside `/Applications/`.
+37. **"Soft proactive" classification formalization:** Define the intermediate state between Class C (user-triggered) and Class D (always-on) for tools with scheduled task capability but no daemon persistence. Claude Cowork is the reference implementation for this category.

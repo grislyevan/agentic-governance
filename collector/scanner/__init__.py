@@ -1,5 +1,6 @@
 from .aider import AiderScanner
 from .claude_code import ClaudeCodeScanner
+from .claude_cowork import ClaudeCoworkScanner
 from .cline import ClineScanner
 from .continue_ext import ContinueScanner
 from .copilot import CopilotScanner
@@ -13,6 +14,7 @@ from .openclaw import OpenClawScanner
 __all__ = [
     "AiderScanner",
     "ClaudeCodeScanner",
+    "ClaudeCoworkScanner",
     "ClineScanner",
     "ContinueScanner",
     "CopilotScanner",

@@ -10,14 +10,14 @@
 
 | Item | Status |
 |---|---|
-| Python collector (11 scanners) | Done |
+| Python collector (12 scanners) | Done |
 | Cross-platform abstraction layer (`collector/compat/`) | Done |
 | Confidence + policy engine | Done |
 | NDJSON event output | Done |
 | Canonical event schema v0.2.0 | Done |
 | Playbook v0.3.1 (Class D taxonomy + platform notes) | Done |
 | Synthetic scanner fixture tests (22 tests, 5 scanners) | Done |
-| Lab runs (9 completed, 5 pending live validation) | In progress |
+| Lab runs (10 completed, 5 pending live validation) | In progress |
 | React/Vite dashboard | In progress |
 | FastAPI backend (PostgreSQL, JWT, multi-tenancy) | Not started |
 | SaaS frontend (auth, org management) | Not started |
@@ -65,6 +65,7 @@ API Client ────────────────────▶│ Mu
 - [x] Playbook v0.3 with Class D taxonomy
 - [x] React/Vite dashboard (WIP → fixed)
 - [x] 5 new scanner modules: Aider, GPT-Pilot, Cline, LM Studio, Continue
+- [x] Claude Cowork scanner module (LAB-RUN-014 — VM-based execution, 0.905 confidence)
 - [x] Synthetic fixture tests for 5 new scanners (22 tests: Aider, LM Studio, Continue, GPT-Pilot, Cline)
 - [ ] Live lab-validate all 5 new scanners (lab run per tool — synthetic validation complete, live runs pending hardware)
 - [ ] Schema v0.3.0: add `enforcement.applied` example, finalize enum values
@@ -176,3 +177,4 @@ Items that are valuable but not yet scheduled:
 | MITRE tactics mapping | INIT-40 | Map signals to ATT&CK for enterprise buyers |
 | Lab runs 008–012 (live) | — | Aider, GPT-Pilot, Cline, LM Studio, Continue — synthetic validation complete, live runs pending hardware |
 | LAB-RUN-013 findings | — | Local LLM variant: confidence floor for infrastructure-class tools, co-residency detection, model-dependent behavioral weights |
+| LAB-RUN-014 findings | — | Claude Cowork: VM-based execution model, 10 GB footprint, cleartext identity, "soft proactive" scheduled tasks, DXT cross-app automation, 0.905 confidence (new highest) |
