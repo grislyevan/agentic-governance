@@ -47,8 +47,8 @@ def _get_service_macos(name: str) -> ServiceInfo | None:
                 if name.lower() in line.lower():
                     status = "running" if line.split()[0] != "-" else "stopped"
                     return ServiceInfo(name=name, status=status, start_type="auto")
-    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
-        pass
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError) as exc:
+        logger.debug("launchctl list failed for %s: %s", name, exc)
 
     try:
         proc = subprocess.run(
@@ -60,8 +60,8 @@ def _get_service_macos(name: str) -> ServiceInfo | None:
                 if name.lower() in line.lower():
                     status = "running" if "started" in line.lower() else "stopped"
                     return ServiceInfo(name=name, status=status, start_type="auto")
-    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
-        pass
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError) as exc:
+        logger.debug("Could not list brew services for %s: %s", name, exc)
 
     return None
 

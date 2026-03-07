@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import uuid
 from datetime import datetime, timezone
 
@@ -11,13 +12,13 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from core.auth import is_valid_token
+from core.config import settings
 from core.database import get_db
+from core.tenant import get_tenant_id as _get_tenant_id
 from models.endpoint import (
     ENDPOINT_STATUS_ACTIVE,
     Endpoint,
 )
-from models.user import User
 from schemas.endpoints import (
     EndpointCreate,
     EndpointListResponse,
@@ -25,19 +26,9 @@ from schemas.endpoints import (
     EndpointStatusResponse,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/endpoints", tags=["endpoints"])
-
-
-def _get_tenant_id(authorization: str | None, x_api_key: str | None, db: Session) -> str:
-    if authorization and authorization.startswith("Bearer "):
-        payload = is_valid_token(authorization.removeprefix("Bearer ").strip())
-        if payload:
-            return payload["tenant_id"]
-    if x_api_key:
-        user = db.query(User).filter(User.api_key == x_api_key, User.is_active.is_(True)).first()
-        if user:
-            return user.tenant_id
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
 
 
 @router.post("", response_model=EndpointResponse, status_code=status.HTTP_201_CREATED)
@@ -53,6 +44,7 @@ def create_endpoint(
         Endpoint.tenant_id == tenant_id, Endpoint.hostname == body.hostname
     ).first()
     if existing:
+        logger.warning("Duplicate endpoint registration: %s (tenant %s)", body.hostname, tenant_id)
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Endpoint already registered")
 
     endpoint = Endpoint(
@@ -111,7 +103,7 @@ def endpoint_status(
 
 class HeartbeatRequest(BaseModel):
     hostname: str
-    interval_seconds: int = 300
+    interval_seconds: int = settings.default_heartbeat_interval
 
 
 class HeartbeatResponse(BaseModel):
@@ -185,6 +177,7 @@ def get_endpoint(
         Endpoint.id == endpoint_id, Endpoint.tenant_id == tenant_id
     ).first()
     if not endpoint:
+        logger.warning("Endpoint %s not found for tenant %s", endpoint_id, tenant_id)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
     return EndpointResponse.model_validate(endpoint)
 

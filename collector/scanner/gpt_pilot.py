@@ -15,6 +15,7 @@ Detection anchors (priority order from Playbook Section 4.9):
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import time
@@ -22,6 +23,7 @@ from pathlib import Path
 
 from .base import BaseScanner, LayerSignals, ScanResult
 
+logger = logging.getLogger(__name__)
 HOME = Path.home()
 MAX_WORKSPACES_TO_SCAN = 8
 GPT_PILOT_STATE_DIR_NAME = ".gpt-pilot"
@@ -177,8 +179,8 @@ class GPTPilotScanner(BaseScanner):
                         )
                         strength = max(strength, 0.60)
                         self._log(f"  Workspace dir: {workspace} ({dir_count} projects)", verbose)
-                except (PermissionError, OSError):
-                    pass
+                except (PermissionError, OSError) as exc:
+                    logger.debug("Could not read workspace dir %s: %s", workspace, exc)
 
         return strength
 
@@ -213,8 +215,8 @@ class GPTPilotScanner(BaseScanner):
             file_count = sum(1 for f in files if f.is_file())
             result.evidence_details["state_dir_file_count"] = file_count
             self._log(f"  State dir {state_dir}: {file_count} files", verbose)
-        except (PermissionError, OSError):
-            pass
+        except (PermissionError, OSError) as exc:
+            logger.debug("Could not inspect state dir %s: %s", state_dir, exc)
 
     def _scan_network(self, result: ScanResult, verbose: bool) -> float:
         """Check for LLM API connections from gpt-pilot processes."""
@@ -305,8 +307,8 @@ class GPTPilotScanner(BaseScanner):
                     self._log(
                         f"  High file churn: {len(recent_files)} files in last hour", verbose
                     )
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not check recent files in workspace %s: %s", workspace_path, exc)
 
         if result.evidence_details.get("state_dirs"):
             strength = max(strength, 0.60)
@@ -315,14 +317,12 @@ class GPTPilotScanner(BaseScanner):
 
     def _apply_penalties(self, result: ScanResult) -> None:
         """Apply confidence penalties per Appendix B."""
-        if result.signals.file > 0 and result.signals.process == 0:
-            result.penalties.append(("non_default_artifact_paths", 0.05))
+        self._penalize_stale_artifacts(result, amount=0.05)
 
         if result.signals.process > 0 and not result.evidence_details.get("llm_connections"):
             result.penalties.append(("unresolved_process_network_linkage", 0.05))
 
-        if result.signals.identity < 0.4:
-            result.penalties.append(("weak_identity_correlation", 0.10))
+        self._penalize_weak_identity(result, threshold=0.4, amount=0.10)
 
     def _determine_action(self, result: ScanResult) -> None:
         """Set action type, risk class, and summary based on findings."""

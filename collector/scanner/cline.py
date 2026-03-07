@@ -14,6 +14,7 @@ execution, browser automation). Detection anchors (priority order):
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import time
@@ -21,6 +22,7 @@ from pathlib import Path
 
 from .base import BaseScanner, LayerSignals, ScanResult
 
+logger = logging.getLogger(__name__)
 HOME = Path.home()
 
 VSCODE_EXT_BASE = HOME / "Library" / "Application Support" / "Code" / "User"
@@ -94,8 +96,8 @@ class ClineScanner(BaseScanner):
                             if version:
                                 self._log(f"Version from manifest: {version}", verbose)
                                 return str(version)
-                        except (json.JSONDecodeError, OSError):
-                            pass
+                        except (json.JSONDecodeError, OSError) as exc:
+                            logger.debug("Could not read Cline package.json %s: %s", pkg, exc)
             except (PermissionError, OSError):
                 continue
         return None
@@ -207,8 +209,8 @@ class ClineScanner(BaseScanner):
                         reverse=True,
                     )
                     self._inspect_task(sorted_tasks[0], result, verbose)
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not inspect Cline tasks dir %s: %s", tasks_dir, exc)
 
         # Check api_conversation_history (indicates actual LLM usage)
         for api_log in storage_dir.rglob("api_conversation_history.json"):
@@ -218,8 +220,8 @@ class ClineScanner(BaseScanner):
                     result.evidence_details["api_conversation_count"] = len(data)
                     self._log(f"  API conversation log: {len(data)} messages", verbose)
                 break
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.debug("Could not read Cline api_conversation_history.json %s: %s", api_log, exc)
 
     def _inspect_task(self, task_dir: Path, result: ScanResult, verbose: bool) -> None:
         """Examine a Cline task directory for tool-call activity."""
@@ -250,8 +252,8 @@ class ClineScanner(BaseScanner):
                     if write_ops:
                         result.evidence_details["write_ops_in_last_task"] = len(write_ops)
                         self._dynamic_tool_class = "C"
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.debug("Could not read Cline ui_messages.json %s: %s", ui_messages, exc)
 
     def _scan_network(self, result: ScanResult, verbose: bool) -> float:
         """Check for API traffic from extension host PIDs."""
@@ -350,8 +352,8 @@ class ClineScanner(BaseScanner):
                         strength = max(strength, 0.70)
                         self._log("  Recent Cline task (modified within 1h)", verbose)
                         break
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not iterate Cline task dirs for recency check: %s", exc)
 
         if result.evidence_details.get("api_conversation_count", 0) > 10:
             strength = max(strength, 0.65)
@@ -360,11 +362,8 @@ class ClineScanner(BaseScanner):
 
     def _apply_penalties(self, result: ScanResult) -> None:
         """Apply confidence penalties per Appendix B."""
-        if result.signals.file > 0 and result.signals.process == 0:
-            result.penalties.append(("non_default_artifact_paths", 0.05))
-
-        if result.signals.identity < 0.4:
-            result.penalties.append(("weak_identity_correlation", 0.05))
+        self._penalize_stale_artifacts(result, amount=0.05)
+        self._penalize_weak_identity(result, threshold=0.4, amount=0.05)
 
     def _determine_action(self, result: ScanResult) -> None:
         """Set action type, risk class, and summary based on findings."""

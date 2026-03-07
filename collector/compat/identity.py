@@ -79,8 +79,8 @@ def _credential_windows(service: str) -> bool:
         )
         if proc.returncode == 0 and service.lower() in proc.stdout.lower():
             return True
-    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
-        pass
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError) as exc:
+        logger.debug("Windows credential check for %s failed: %s", service, exc)
     return False
 
 
@@ -201,6 +201,6 @@ def _version_windows(path: str) -> str | None:
         )
         if proc.returncode == 0 and proc.stdout.strip():
             return proc.stdout.strip()
-    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
-        pass
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError) as exc:
+        logger.debug("PowerShell version query for %s failed: %s", path, exc)
     return None

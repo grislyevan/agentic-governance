@@ -13,11 +13,10 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
-from core.auth import is_valid_token
 from core.database import get_db
+from core.tenant import get_tenant_id as _get_tenant_id
 from models.endpoint import Endpoint
 from models.event import Event
-from models.user import User
 from schemas.events import EventIngest, EventListResponse, EventResponse
 
 logger = logging.getLogger(__name__)
@@ -30,22 +29,6 @@ except ImportError:
     _HAS_CRYPTO = False
 
 router = APIRouter(prefix="/events", tags=["events"])
-
-
-def _get_tenant_id(authorization: str | None, x_api_key: str | None, db: Session) -> str:
-    """Resolve tenant_id from JWT or API key. Raises 401 on failure."""
-    if authorization and authorization.startswith("Bearer "):
-        token = authorization.removeprefix("Bearer ").strip()
-        payload = is_valid_token(token)
-        if payload:
-            return payload["tenant_id"]
-
-    if x_api_key:
-        user = db.query(User).filter(User.api_key == x_api_key, User.is_active.is_(True)).first()
-        if user:
-            return user.tenant_id
-
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
 
 
 def _get_or_create_endpoint(
@@ -126,6 +109,7 @@ def ingest_event(
 
     sig_verified = _verify_signature(body, db, tenant_id)
     if sig_verified is False:
+        logger.warning("Rejected event %s: signature verification failed", body.event_id)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Event signature verification failed",

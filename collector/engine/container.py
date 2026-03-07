@@ -62,16 +62,16 @@ def _check_linux_cgroup(pid: int | None) -> bool:
             content = f.read()
         markers = ("docker", "containerd", "lxc", "kubepods", "crio")
         return any(m in content for m in markers)
-    except (OSError, PermissionError):
-        pass
+    except (OSError, PermissionError) as exc:
+        logger.debug("Could not read cgroup file %s: %s", cgroup_path, exc)
 
     mountinfo_path = f"/proc/{target_pid}/mountinfo"
     try:
         with open(mountinfo_path) as f:
             content = f.read()
         return "docker" in content or "overlay" in content
-    except (OSError, PermissionError):
-        pass
+    except (OSError, PermissionError) as exc:
+        logger.debug("Could not read mountinfo file %s: %s", mountinfo_path, exc)
 
     return False
 
@@ -106,7 +106,7 @@ def _check_macos_docker(pid: int | None) -> bool:
                 current = int(ppid_str)
             except ValueError:
                 break
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        pass
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
+        logger.debug("Docker ancestry check via ps failed: %s", exc)
 
     return os.path.exists("/var/run/docker.sock")

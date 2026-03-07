@@ -14,15 +14,17 @@ Detection anchors (priority order from Playbook Section 4.8):
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import time
 from pathlib import Path
 
 from .base import BaseScanner, LayerSignals, ScanResult
+from .constants import MAX_REPOS_TO_SCAN
 
+logger = logging.getLogger(__name__)
 HOME = Path.home()
-MAX_REPOS_TO_SCAN = 10
 AIDER_ARTIFACTS = frozenset({
     ".aider.conf.yml",
     ".aider.chat.history.md",
@@ -188,8 +190,8 @@ class AiderScanner(BaseScanner):
                 result.evidence_details["aider_cache_dir"] = {"file_count": file_count}
                 strength = max(strength, 0.60)
                 self._log(f"  ~/.aider/ found ({file_count} files)", verbose)
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not count files in ~/.aider/ cache dir: %s", exc)
 
         return strength
 
@@ -318,8 +320,8 @@ class AiderScanner(BaseScanner):
                         if artifact.exists() and (now - artifact.stat().st_mtime) < 86400:
                             recent_repos += 1
                             break
-                    except OSError:
-                        pass
+                    except OSError as exc:
+                        logger.debug("Could not stat aider artifact %s for recency check: %s", artifact, exc)
 
             if recent_repos > 0:
                 strength = max(strength, 0.75)
@@ -372,14 +374,12 @@ class AiderScanner(BaseScanner):
 
     def _apply_penalties(self, result: ScanResult) -> None:
         """Apply confidence penalties per Appendix B."""
-        if result.signals.file > 0 and result.signals.process == 0:
-            result.penalties.append(("non_default_artifact_paths", 0.05))
+        self._penalize_stale_artifacts(result, amount=0.05)
 
         if result.signals.process > 0 and not result.evidence_details.get("llm_connections"):
             result.penalties.append(("unresolved_process_network_linkage", 0.05))
 
-        if result.signals.identity < 0.4:
-            result.penalties.append(("weak_identity_correlation", 0.10))
+        self._penalize_weak_identity(result, threshold=0.4, amount=0.10)
 
     def _determine_action(self, result: ScanResult) -> None:
         """Set action type, risk class, and summary based on findings."""

@@ -100,8 +100,8 @@ def _get_active_network_service() -> str | None:
                 if line and not line.startswith("*") and not line.startswith("An asterisk"):
                     if "Wi-Fi" in line or "Ethernet" in line:
                         return line
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
+    except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+        logger.debug("Could not list network services via networksetup: %s", exc)
     return None
 
 
@@ -111,6 +111,6 @@ def _parse_proxy_url(url: str) -> tuple[str, int]:
         parts = url.rsplit(":", 1)
         try:
             return parts[0], int(parts[1].rstrip("/"))
-        except ValueError:
-            pass
+        except ValueError as exc:
+            logger.debug("Could not parse proxy URL port from %s: %s", url, exc)
     return url.rstrip("/"), 8080

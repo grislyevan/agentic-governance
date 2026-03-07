@@ -7,6 +7,7 @@ processes. The ``extension-host (agent-exec)`` process is the binary Class C ind
 
 from __future__ import annotations
 
+import logging
 import re
 import time
 from pathlib import Path
@@ -23,8 +24,9 @@ from compat import (
 )
 
 from .base import BaseScanner, LayerSignals, ScanResult
+from .constants import MAX_REPOS_TO_SCAN
 
-MAX_REPOS_TO_SCAN = 10
+logger = logging.getLogger(__name__)
 
 _SHELL_NAMES = re.compile(r"(bash|zsh|sh|powershell|pwsh|cmd)(\b|\.exe)", re.IGNORECASE)
 
@@ -189,8 +191,8 @@ class CursorScanner(BaseScanner):
                     "size_bytes": tracking_db.stat().st_size,
                     "mtime": tracking_db.stat().st_mtime,
                 }
-            except OSError:
-                pass
+            except OSError as exc:
+                logger.debug("Could not stat ai-tracking.db %s: %s", tracking_db, exc)
             self._log("  ai-code-tracking.db found (attribution anchor)", verbose)
 
         transcript_count = 0
@@ -201,8 +203,8 @@ class CursorScanner(BaseScanner):
                     transcript_count += 1
                     if transcript_count >= 50:
                         break
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not count agent transcripts in projects dir %s: %s", projects_dir, exc)
 
         if transcript_count > 0:
             strength = max(strength, 0.90)
@@ -215,8 +217,8 @@ class CursorScanner(BaseScanner):
                 plan_files = list(plans_dir.glob("*.plan.md"))
                 if plan_files:
                     result.evidence_details["plan_file_count"] = len(plan_files)
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not glob plan files in plans dir %s: %s", plans_dir, exc)
 
         git_trailers = self._find_madewith_trailers(verbose)
         if git_trailers:
@@ -362,8 +364,8 @@ class CursorScanner(BaseScanner):
                             result.evidence_details["recent_agent_transcripts"] = True
                             self._log("  Recent agent transcript (modified within 1h)", verbose)
                             break
-                except (PermissionError, OSError):
-                    pass
+                except (PermissionError, OSError) as exc:
+                    logger.debug("Could not check recent agent transcripts in projects dir %s: %s", projects_dir, exc)
 
         if result.evidence_details.get("git_madewith_trailers"):
             strength = max(strength, 0.80)
@@ -378,8 +380,7 @@ class CursorScanner(BaseScanner):
 
     def _apply_penalties(self, result: ScanResult) -> None:
         """Apply confidence penalties per Appendix B."""
-        if result.signals.identity < 0.55:
-            result.penalties.append(("weak_identity_correlation", 0.05))
+        self._penalize_weak_identity(result, threshold=0.55, amount=0.05)
 
     def _determine_action(self, result: ScanResult) -> None:
         """Set action type, risk class, and summary based on findings."""

@@ -97,5 +97,5 @@ class LocalBuffer:
                 )
                 with open(self._path, "w", encoding="utf-8") as f:
                     f.writelines(lines[dropped:])
-        except OSError:
-            pass
+        except OSError as exc:
+            logger.debug("Could not trim buffer file %s: %s", self._path, exc)

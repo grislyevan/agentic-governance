@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
     debug: bool = False
 
+    # Heartbeat
+    default_heartbeat_interval: int = 300
+
     # Seed data (created on first startup if DB is empty)
     seed_admin_email: str = "admin@example.com"
     seed_admin_password: str = "change-me"

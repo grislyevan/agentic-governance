@@ -17,11 +17,14 @@ Key IOCs validated in LAB-RUN-014:
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from pathlib import Path
 
 from .base import BaseScanner, LayerSignals, ScanResult
+
+logger = logging.getLogger(__name__)
 
 
 class ClaudeCoworkScanner(BaseScanner):
@@ -184,8 +187,8 @@ class ClaudeCoworkScanner(BaseScanner):
                     strength = max(strength, 0.80)
                     result.evidence_details["cowork_config"] = cowork_keys
                     self._log(f"Cowork config keys: {cowork_keys}", verbose)
-            except (json.JSONDecodeError, PermissionError, OSError):
-                pass
+            except (json.JSONDecodeError, PermissionError, OSError) as exc:
+                logger.debug("Could not read cowork config from %s: %s", self._CONFIG, exc)
 
         if self._EXTENSIONS.is_dir():
             extensions = [
@@ -224,8 +227,8 @@ class ClaudeCoworkScanner(BaseScanner):
                 vm_ip = vm_ip_path.read_text().strip()
                 result.evidence_details["vm_ip"] = vm_ip
                 self._log(f"VM IP: {vm_ip}", verbose)
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not read VM IP from %s: %s", vm_ip_path, exc)
 
         vm_mac_path = self._VM_BUNDLES / "claudevm.bundle" / "macAddress"
         if vm_mac_path.is_file():
@@ -233,8 +236,8 @@ class ClaudeCoworkScanner(BaseScanner):
                 vm_mac = vm_mac_path.read_text().strip()
                 result.evidence_details["vm_mac"] = vm_mac
                 strength = max(strength, 0.50)
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not read VM MAC from %s: %s", vm_mac_path, exc)
 
         if self._CONFIG.is_file():
             try:
@@ -242,8 +245,8 @@ class ClaudeCoworkScanner(BaseScanner):
                 prefs = config.get("preferences", {})
                 if prefs.get("coworkWebSearchEnabled"):
                     result.evidence_details["web_search_enabled"] = True
-            except (json.JSONDecodeError, PermissionError, OSError):
-                pass
+            except (json.JSONDecodeError, PermissionError, OSError) as exc:
+                logger.debug("Could not read config for web search preference: %s", exc)
 
         return strength
 
@@ -325,8 +328,8 @@ class ClaudeCoworkScanner(BaseScanner):
                     strength = max(strength, 0.70)
                     result.evidence_details["scheduled_tasks_enabled"] = True
                     self._log("Scheduled tasks enabled", verbose)
-            except (json.JSONDecodeError, PermissionError, OSError):
-                pass
+            except (json.JSONDecodeError, PermissionError, OSError) as exc:
+                logger.debug("Could not read config for scheduled tasks preference: %s", exc)
 
         session_jsons = sorted(
             self._SESSIONS.rglob("local_*.json"),
@@ -360,8 +363,7 @@ class ClaudeCoworkScanner(BaseScanner):
             result.action_summary += " Class D-adjacent: scheduled tasks or self-modification capability detected."
 
     def _apply_penalties(self, result: ScanResult) -> None:
-        signals = result.signals
-        if signals.process == 0.0 and (signals.file > 0.0 or signals.identity > 0.0):
+        if result.signals.process == 0.0 and (result.signals.file > 0.0 or result.signals.identity > 0.0):
             result.penalties.append(("stale_artifact_only", 0.10))
 
     def _determine_action(self, result: ScanResult) -> None:

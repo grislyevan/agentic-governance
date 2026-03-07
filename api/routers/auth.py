@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import uuid
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from core.auth import (
     create_access_token,
@@ -32,9 +35,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 def _get_current_user(token: str, db: Session) -> User:
     payload = is_valid_token(token)
     if not payload:
+        logger.warning("Token validation failed (invalid or expired)")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
     user = db.query(User).filter(User.id == payload["sub"]).first()
     if not user or not user.is_active:
+        logger.warning("Token valid but user %s not found or inactive", payload["sub"])
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
     return user
 
@@ -48,6 +53,7 @@ def _slugify(name: str) -> str:
 def register(body: RegisterRequest, db: Session = Depends(get_db)) -> TokenResponse:
     existing = db.query(User).filter(User.email == body.email).first()
     if existing:
+        logger.warning("Registration attempt with existing email %s", body.email)
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
     tenant_name = (body.tenant_name or body.email.split("@")[0]).strip() or "My Org"
@@ -82,8 +88,10 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)) -> TokenRespo
 def login(body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
     user = db.query(User).filter(User.email == body.email).first()
     if not user or not verify_password(body.password, user.hashed_password):
+        logger.warning("Failed login attempt for %s", body.email)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if not user.is_active:
+        logger.warning("Login attempt for disabled account %s", body.email)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
 
     return TokenResponse(
@@ -96,10 +104,12 @@ def login(body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
 def refresh_token(body: RefreshRequest, db: Session = Depends(get_db)) -> TokenResponse:
     payload = is_valid_token(body.refresh_token, token_type="refresh")
     if not payload:
+        logger.warning("Invalid refresh token submitted")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
     user = db.query(User).filter(User.id == payload["sub"]).first()
     if not user or not user.is_active:
+        logger.warning("Refresh token valid but user %s not found or inactive", payload["sub"])
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
     return TokenResponse(
@@ -114,6 +124,7 @@ def get_me(
     db: Session = Depends(get_db),
 ) -> UserResponse:
     if not authorization or not authorization.startswith("Bearer "):
+        logger.warning("GET /auth/me called without Authorization header")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
     token = authorization.removeprefix("Bearer ").strip()
     user = _get_current_user(token, db)

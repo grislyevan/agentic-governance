@@ -13,6 +13,7 @@ compatible API server on port 1234. Detection anchors (priority order):
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 import urllib.error
@@ -20,12 +21,14 @@ import urllib.request
 from pathlib import Path
 
 from .base import BaseScanner, LayerSignals, ScanResult
+from .constants import LM_STUDIO_API_PORT
 
+logger = logging.getLogger(__name__)
 HOME = Path.home()
 APP_PATH = Path("/Applications/LM Studio.app")
 APP_SUPPORT_DIR = HOME / "Library" / "Application Support" / "LM Studio"
 CACHE_DIR = HOME / "Library" / "Caches" / "LM Studio"
-LOCAL_API_PORT = 1234
+LOCAL_API_PORT = LM_STUDIO_API_PORT
 
 MODEL_EXTENSIONS = frozenset({".gguf", ".safetensors", ".bin", ".ggml"})
 
@@ -84,8 +87,8 @@ class LMStudioScanner(BaseScanner):
                 if version:
                     self._log(f"Version from Info.plist: {version}", verbose)
                     return str(version)
-            except (OSError, plistlib.InvalidFileException):
-                pass
+            except (OSError, plistlib.InvalidFileException) as exc:
+                logger.debug("Could not read LM Studio Info.plist %s: %s", plist_path, exc)
 
         # Fallback: version file in app support dir
         version_file = APP_SUPPORT_DIR / "version.json"
@@ -94,8 +97,8 @@ class LMStudioScanner(BaseScanner):
                 data = json.loads(version_file.read_text())
                 if isinstance(data, dict) and "version" in data:
                     return str(data["version"])
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.debug("Could not read LM Studio version file %s: %s", version_file, exc)
 
         return None
 
@@ -163,8 +166,8 @@ class LMStudioScanner(BaseScanner):
                     "total_size_bytes": total_size,
                 }
                 self._log(f"  {file_count} files, {total_size:,} bytes in app support", verbose)
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not count files in LM Studio app support dir %s: %s", APP_SUPPORT_DIR, exc)
 
             # Look for model configuration to find model storage path
             settings_candidates = [
@@ -182,8 +185,8 @@ class LMStudioScanner(BaseScanner):
                                 result.evidence_details["configured_model_path"] = model_path
                                 self._log(f"  Configured model path: {model_path}", verbose)
                                 self._scan_model_dir(Path(model_path), result, verbose)
-                    except (json.JSONDecodeError, OSError):
-                        pass
+                    except (json.JSONDecodeError, OSError) as exc:
+                        logger.debug("Could not read LM Studio settings %s: %s", settings_path, exc)
                     break
 
         # Default model storage paths
@@ -256,8 +259,8 @@ class LMStudioScanner(BaseScanner):
                         ]
                         strength = 0.85
                         self._log(f"  API reports {len(models)} loaded model(s)", verbose)
-                except (json.JSONDecodeError, KeyError):
-                    pass
+                except (json.JSONDecodeError, KeyError) as exc:
+                    logger.debug("Could not parse LM Studio API models response: %s", exc)
 
         if strength == 0.0:
             self._log(f"  No listener on :{LOCAL_API_PORT}", verbose)
@@ -326,21 +329,16 @@ class LMStudioScanner(BaseScanner):
                     result.evidence_details["recent_model_access"] = len(recent)
                     strength = max(strength, 0.60)
                     self._log(f"  {len(recent)} model file(s) accessed in last 24h", verbose)
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not check recent model file access in %s: %s", model_path, exc)
 
         return strength
 
     def _apply_penalties(self, result: ScanResult) -> None:
         """Apply confidence penalties per Appendix B."""
-        if result.signals.process > 0 and not result.evidence_details.get("app_running"):
-            result.penalties.append(("missing_parent_child_chain", 0.10))
-
-        if result.signals.file > 0 and result.signals.process == 0 and result.signals.network == 0:
-            result.penalties.append(("stale_artifact_only", 0.10))
-
-        if result.signals.identity < 0.4:
-            result.penalties.append(("weak_identity_correlation", 0.10))
+        self._penalize_missing_process_chain(result, "app_running", amount=0.10)
+        self._penalize_stale_artifacts(result, amount=0.10, require_no_network=True)
+        self._penalize_weak_identity(result, threshold=0.4, amount=0.10)
 
     def _determine_action(self, result: ScanResult) -> None:
         """Set action type, risk class, and summary based on findings."""

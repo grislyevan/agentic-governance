@@ -7,7 +7,9 @@ Endpoint telemetry and policy for agentic AI tool detection. This repo defines d
 ## Repo layout
 
 - **playbook/** — Governance playbook and detection profiles
-- **collector/** — Endpoint telemetry collector
+- **collector/** — Endpoint telemetry collector (5-dimension confidence model, 12 scanners)
+- **api/** — Multi-tenant FastAPI backend (auth, endpoints, events, policies)
+- **dashboard/** — Web UI for viewing detection results
 - **schemas/** — Event and config schemas
 - **lab-runs/** — Lab run outputs and findings
 - **init-issues/** — Initial issue write-ups and references
@@ -19,6 +21,23 @@ cd collector && python main.py --dry-run --verbose
 ```
 
 Without `--dry-run`, the collector writes NDJSON to `collector/scan-results.ndjson`. For running tests, see [collector/README.md](collector/README.md).
+
+## Running the API
+
+```bash
+cd api && pip install -r requirements.txt && uvicorn main:app --reload
+```
+
+The API requires a PostgreSQL database. Set `DATABASE_URL`, `JWT_SECRET`, and `SEED_ADMIN_PASSWORD` via environment variables or `.env` file. See `api/core/config.py` for all settings.
+
+## Running tests
+
+```bash
+python -m pytest collector/tests/ -v    # 58 collector tests
+python -m pytest api/tests/ -v          # 42 API tests
+```
+
+Note: Run these separately (not in a single pytest invocation) to avoid `tests` package name conflicts.
 
 ## Dashboard
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import getpass
+import logging
 import json
 import os
 import re
@@ -21,6 +22,9 @@ from compat import (
 )
 
 from .base import BaseScanner, LayerSignals, ScanResult
+from .constants import OLLAMA_API_PORT
+
+logger = logging.getLogger(__name__)
 
 
 class OllamaScanner(BaseScanner):
@@ -188,28 +192,28 @@ class OllamaScanner(BaseScanner):
         return names
 
     def _scan_network(self, result: ScanResult, verbose: bool) -> float:
-        """Check for localhost:11434 listener and query the API."""
+        """Check for localhost listener and query the Ollama API."""
         self._log("Scanning network layer...", verbose)
         strength = 0.0
 
-        listeners = get_listeners(port=11434)
+        listeners = get_listeners(port=OLLAMA_API_PORT)
         if listeners:
             listener = listeners[0]
             strength = 0.7
-            result.evidence_details["port_11434_listener"] = (
+            result.evidence_details[f"port_{OLLAMA_API_PORT}_listener"] = (
                 f"{listener.local_addr}:{listener.local_port} (PID {listener.pid})"
             )
             if listener.pid is not None:
                 result.evidence_details["listener_pid"] = listener.pid
-            self._log("  Port 11434 listener found", verbose)
+            self._log(f"  Port {OLLAMA_API_PORT} listener found", verbose)
 
         if strength > 0:
-            health = self._query_api("http://localhost:11434/", verbose)
+            health = self._query_api(f"http://localhost:{OLLAMA_API_PORT}/", verbose)
             if health:
                 result.evidence_details["api_health"] = health
                 strength = max(strength, 0.75)
 
-            tags = self._query_api("http://localhost:11434/api/tags", verbose)
+            tags = self._query_api(f"http://localhost:{OLLAMA_API_PORT}/api/tags", verbose)
             if tags:
                 try:
                     tag_data = json.loads(tags)
@@ -225,8 +229,8 @@ class OllamaScanner(BaseScanner):
                     self._log(f"  API reports {len(models)} model(s)", verbose)
                     if models:
                         strength = 0.85
-                except (json.JSONDecodeError, KeyError):
-                    pass
+                except (json.JSONDecodeError, KeyError) as exc:
+                    logger.debug("Could not parse Ollama API tags response: %s", exc)
 
         ollama_host = os.environ.get("OLLAMA_HOST", "")
         if "0.0.0.0" in ollama_host:
@@ -236,7 +240,7 @@ class OllamaScanner(BaseScanner):
             self._log("  WARNING: OLLAMA_HOST bound to 0.0.0.0 (network-exposed)", verbose)
 
         if strength == 0.0:
-            self._log("  No port 11434 listener found", verbose)
+            self._log(f"  No port {OLLAMA_API_PORT} listener found", verbose)
 
         return strength
 
@@ -309,15 +313,14 @@ class OllamaScanner(BaseScanner):
                         result.evidence_details["recent_model_activity"] = len(recent)
                         strength = max(strength, 0.6)
                         self._log(f"  {len(recent)} model files modified in last 24h", verbose)
-                except (PermissionError, OSError):
-                    pass
+                except (PermissionError, OSError) as exc:
+                    logger.debug("Could not check recent model files in %s: %s", models_dir, exc)
 
         return strength
 
     def _apply_penalties(self, result: ScanResult) -> None:
         """Apply confidence penalty conditions from Appendix B."""
-        if result.signals.process > 0 and not result.evidence_details.get("daemon_running"):
-            result.penalties.append(("missing_parent_child_chain", 0.15))
+        self._penalize_missing_process_chain(result, "daemon_running", amount=0.15)
 
         if result.signals.network > 0 and result.signals.process > 0:
             listener_pid = result.evidence_details.get("listener_pid")
@@ -327,11 +330,8 @@ class OllamaScanner(BaseScanner):
             if listener_pid and listener_pid not in process_pids:
                 result.penalties.append(("unresolved_process_network_linkage", 0.10))
 
-        if result.signals.file > 0 and result.signals.process == 0 and result.signals.network == 0:
-            result.penalties.append(("stale_artifact_only", 0.10))
-
-        if result.signals.identity < 0.4:
-            result.penalties.append(("weak_identity_correlation", 0.10))
+        self._penalize_stale_artifacts(result, amount=0.10, require_no_network=True)
+        self._penalize_weak_identity(result, threshold=0.4, amount=0.10)
 
         if result.evidence_details.get("network_exposed"):
             result.action_risk = "R3"
@@ -363,8 +363,8 @@ class OllamaScanner(BaseScanner):
         if result.evidence_details.get("ed25519_keypair"):
             summaries.append("ed25519 keypair present (tool has been run)")
 
-        if result.evidence_details.get("port_11434_listener"):
-            summaries.append("localhost:11434 listener (unauthenticated API)")
+        if result.evidence_details.get(f"port_{OLLAMA_API_PORT}_listener"):
+            summaries.append(f"localhost:{OLLAMA_API_PORT} listener (unauthenticated API)")
 
         if result.evidence_details.get("network_exposed"):
             summaries.append("WARNING: API bound to 0.0.0.0 (network-exposed)")

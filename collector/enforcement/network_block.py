@@ -89,8 +89,8 @@ def _unblock_linux(pids: set[int]) -> bool:
                 capture_output=True, text=True, timeout=10,
             )
             success = success or result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError):
-            pass
+        except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError) as exc:
+            logger.debug("Could not remove iptables block rule for PID %d: %s", pid, exc)
     return success
 
 
@@ -100,8 +100,8 @@ def _get_uid_linux(pid: int) -> int | None:
             for line in f:
                 if line.startswith("Uid:"):
                     return int(line.split()[1])
-    except (OSError, ValueError, IndexError):
-        pass
+    except (OSError, ValueError, IndexError) as exc:
+        logger.debug("Could not read UID from /proc/%d/status: %s", pid, exc)
     return None
 
 
@@ -157,6 +157,6 @@ def _get_user_macos(pid: int) -> str | None:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
+    except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+        logger.debug("Could not get user for PID %d via ps: %s", pid, exc)
     return None

@@ -372,8 +372,7 @@ class OpenInterpreterScanner(BaseScanner):
         if interpreter_pids and not result.evidence_details.get("llm_endpoint_connections"):
             result.penalties.append(("unresolved_process_network_linkage", 0.05))
 
-        if result.signals.identity < 0.5:
-            result.penalties.append(("weak_identity_correlation", 0.05))
+        self._penalize_weak_identity(result, threshold=0.5, amount=0.05)
 
     def _determine_action(self, result: ScanResult) -> None:
         """Set action type, risk class, and summary based on findings."""

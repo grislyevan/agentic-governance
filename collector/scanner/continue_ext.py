@@ -14,12 +14,14 @@ unapproved backend or when the extension is used with sensitive repository conte
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 from pathlib import Path
 
 from .base import BaseScanner, LayerSignals, ScanResult
 
+logger = logging.getLogger(__name__)
 HOME = Path.home()
 CONTINUE_DIR = HOME / ".continue"
 
@@ -102,8 +104,8 @@ class ContinueScanner(BaseScanner):
                                 if version:
                                     self._log(f"Version from extension manifest: {version}", verbose)
                                     return str(version)
-                            except (json.JSONDecodeError, OSError):
-                                pass
+                            except (json.JSONDecodeError, OSError) as exc:
+                                logger.debug("Could not read Continue package.json %s: %s", pkg, exc)
             except (PermissionError, OSError):
                 continue
         return None
@@ -150,8 +152,8 @@ class ContinueScanner(BaseScanner):
                 file_count = sum(1 for f in CONTINUE_DIR.rglob("*") if f.is_file())
                 result.evidence_details["continue_dir"] = {"file_count": file_count}
                 self._log(f"  {file_count} files in ~/.continue/", verbose)
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not count files in ~/.continue/: %s", exc)
 
             for config_name in ("config.json", "config.yaml", "config.yml"):
                 config_path = CONTINUE_DIR / config_name
@@ -193,8 +195,8 @@ class ContinueScanner(BaseScanner):
                     result.evidence_details["global_storage_dir"] = str(storage)
                     strength = max(strength, 0.75)
                     self._log(f"  GlobalStorage found: {storage}", verbose)
-                except (PermissionError, OSError):
-                    pass
+                except (PermissionError, OSError) as exc:
+                    logger.debug("Could not list Continue globalStorage %s: %s", storage, exc)
 
         if task_counts > 0:
             result.evidence_details["task_file_count"] = task_counts
@@ -315,8 +317,8 @@ class ContinueScanner(BaseScanner):
                     strength = max(strength, 0.55)
                     result.evidence_details["recent_continue_files"] = len(recent)
                     self._log(f"  {len(recent)} file(s) modified in last hour", verbose)
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not list recent files in ~/.continue/ for behavior scan: %s", exc)
 
         if result.evidence_details.get("unapproved_backends"):
             strength = max(strength, 0.65)
@@ -333,11 +335,8 @@ class ContinueScanner(BaseScanner):
 
     def _apply_penalties(self, result: ScanResult) -> None:
         """Apply confidence penalties per Appendix B."""
-        if result.signals.file > 0 and result.signals.process == 0:
-            result.penalties.append(("non_default_artifact_paths", 0.05))
-
-        if result.signals.identity < 0.4:
-            result.penalties.append(("weak_identity_correlation", 0.05))
+        self._penalize_stale_artifacts(result, amount=0.05)
+        self._penalize_weak_identity(result, threshold=0.4, amount=0.05)
 
         if not result.evidence_details.get("config_file"):
             result.penalties.append(("missing_config_anchor", 0.10))

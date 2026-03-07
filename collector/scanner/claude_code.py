@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import time
 from pathlib import Path
 
 from .base import BaseScanner, LayerSignals, ScanResult
+from .constants import MAX_REPOS_TO_SCAN
 
-MAX_REPOS_TO_SCAN = 10
+logger = logging.getLogger(__name__)
 
 
 class ClaudeCodeScanner(BaseScanner):
@@ -349,8 +351,8 @@ class ClaudeCodeScanner(BaseScanner):
                     self._log(f"  {len(recent_files)} files modified in last hour", verbose)
                     if len(recent_files) > 20:
                         strength = max(strength, 0.9)
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not list recent files in ~/.claude/ for behavior scan: %s", exc)
 
         if result.evidence_details.get("git_coauthored_trailers"):
             strength = max(strength, 0.8)
@@ -359,8 +361,7 @@ class ClaudeCodeScanner(BaseScanner):
 
     def _apply_penalties(self, result: ScanResult) -> None:
         """Apply confidence penalty conditions from Appendix B."""
-        if result.signals.process > 0 and not result.evidence_details.get("child_pids"):
-            result.penalties.append(("missing_parent_child_chain", 0.15))
+        self._penalize_missing_process_chain(result, "child_pids", amount=0.15)
 
         if result.signals.network > 0 and result.signals.process > 0:
             has_attribution = any(
@@ -378,8 +379,7 @@ class ClaudeCodeScanner(BaseScanner):
             if mtime > 0 and (time.time() - mtime) > 86400:
                 result.penalties.append(("stale_artifact_only", 0.10))
 
-        if result.signals.identity == 0 or result.signals.identity < 0.3:
-            result.penalties.append(("weak_identity_correlation", 0.10))
+        self._penalize_weak_identity(result, threshold=0.3, amount=0.10)
 
     def _determine_action(self, result: ScanResult) -> None:
         """Set action type, risk class, and summary based on findings."""

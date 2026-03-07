@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import getpass
 import json
+import logging
 import os
 import plistlib
 import re
@@ -28,12 +29,15 @@ from pathlib import Path
 
 from .base import BaseScanner, LayerSignals, ScanResult
 
+logger = logging.getLogger(__name__)
 OPENCLAW_DIR = Path.home() / ".openclaw"
 LAUNCH_AGENT_PLIST = (
     Path.home() / "Library" / "LaunchAgents" / "ai.openclaw.gateway.plist"
 )
+from .constants import OLLAMA_API_PORT
+
 GATEWAY_PORT = 18789
-OLLAMA_PORT = 11434
+OLLAMA_PORT = OLLAMA_API_PORT
 
 CREDENTIAL_ENV_NAMES = frozenset({
     "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY",
@@ -175,8 +179,8 @@ class OpenClawScanner(BaseScanner):
                     f"  Plist embeds credentials: {', '.join(embedded_creds)}", verbose,
                 )
 
-        except (OSError, plistlib.InvalidFileException, Exception):
-            pass
+        except (OSError, plistlib.InvalidFileException, Exception) as exc:
+            logger.debug("Could not read LaunchAgent plist %s: %s", LAUNCH_AGENT_PLIST, exc)
 
         return True
 
@@ -205,8 +209,8 @@ class OpenClawScanner(BaseScanner):
             if providers:
                 result.evidence_details["model_providers"] = list(providers.keys())
 
-        except (OSError, json.JSONDecodeError, KeyError):
-            pass
+        except (OSError, json.JSONDecodeError, KeyError) as exc:
+            logger.debug("Could not parse model backend from %s: %s", config_path, exc)
 
     # ------------------------------------------------------------------
     # Layer 2 — File
@@ -258,8 +262,8 @@ class OpenClawScanner(BaseScanner):
                     result.evidence_details["skill_names"] = [d.name for d in skill_dirs[:20]]
                     strength = max(strength, 0.90)
                     self._log(f"  {len(skill_dirs)} skill(s) in workspace", verbose)
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not list skill dirs in %s: %s", skills_dir, exc)
 
         for subdir_name in ("agents", "memory", "logs", "browser", "devices"):
             subdir = OPENCLAW_DIR / subdir_name
@@ -426,8 +430,8 @@ class OpenClawScanner(BaseScanner):
                         strength = max(strength, 0.65)
                         self._log("  Recent gateway log activity (modified within 1h)", verbose)
                         break
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not check recent log activity in %s: %s", logs_dir, exc)
 
         cron_jobs = OPENCLAW_DIR / "cron" / "jobs.json"
         if cron_jobs.is_file():
@@ -438,8 +442,8 @@ class OpenClawScanner(BaseScanner):
                     strength = max(strength, 0.85)
                     result.evidence_details["active_cron_jobs"] = True
                     self._log("  Active cron jobs configured (proactive execution)", verbose)
-            except (OSError, UnicodeDecodeError):
-                pass
+            except (OSError, UnicodeDecodeError) as exc:
+                logger.debug("Could not read cron jobs file %s: %s", cron_jobs, exc)
 
         if result.evidence_details.get("exec_approvals"):
             strength = max(strength, 0.55)
@@ -467,11 +471,8 @@ class OpenClawScanner(BaseScanner):
             if listener_pid and listener_pid not in process_pids:
                 result.penalties.append(("unresolved_process_network_linkage", 0.05))
 
-        if result.signals.file > 0 and result.signals.process == 0 and result.signals.network == 0:
-            result.penalties.append(("stale_artifact_only", 0.10))
-
-        if result.signals.identity < 0.4:
-            result.penalties.append(("weak_identity_correlation", 0.05))
+        self._penalize_stale_artifacts(result, amount=0.10, require_no_network=True)
+        self._penalize_weak_identity(result, threshold=0.4, amount=0.05)
 
     # ------------------------------------------------------------------
     # Action determination

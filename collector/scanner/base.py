@@ -78,3 +78,32 @@ class BaseScanner(ABC):
         if verbose:
             print(f"  [{self.tool_name}] {msg}")
         logger.debug("[%s] %s", self.tool_name, msg)
+
+    # -- Common penalty helpers (Appendix B) --------------------------------
+
+    @staticmethod
+    def _penalize_weak_identity(
+        result: "ScanResult", threshold: float = 0.4, amount: float = 0.10
+    ) -> None:
+        if result.signals.identity < threshold:
+            result.penalties.append(("weak_identity_correlation", amount))
+
+    @staticmethod
+    def _penalize_stale_artifacts(
+        result: "ScanResult",
+        amount: float = 0.10,
+        require_no_network: bool = False,
+    ) -> None:
+        if result.signals.file > 0 and result.signals.process == 0:
+            if require_no_network and result.signals.network > 0:
+                return
+            result.penalties.append(("stale_artifact_only", amount))
+
+    @staticmethod
+    def _penalize_missing_process_chain(
+        result: "ScanResult",
+        evidence_key: str,
+        amount: float = 0.15,
+    ) -> None:
+        if result.signals.process > 0 and not result.evidence_details.get(evidence_key):
+            result.penalties.append(("missing_parent_child_chain", amount))

@@ -9,6 +9,7 @@ state) is required.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from pathlib import Path
 
@@ -21,6 +22,8 @@ from compat import (
 )
 
 from .base import BaseScanner, LayerSignals, ScanResult
+
+logger = logging.getLogger(__name__)
 
 
 class CopilotScanner(BaseScanner):
@@ -84,8 +87,8 @@ class CopilotScanner(BaseScanner):
                 if version:
                     self._log(f"Version from extension manifest: {version}", verbose)
                     return version
-        except (json.JSONDecodeError, PermissionError, OSError):
-            pass
+        except (json.JSONDecodeError, PermissionError, OSError) as exc:
+            logger.debug("Could not read Copilot extension manifest %s: %s", package_json, exc)
         return None
 
     def _scan_process(self, result: ScanResult, verbose: bool) -> float:
@@ -133,8 +136,8 @@ class CopilotScanner(BaseScanner):
             try:
                 file_count = sum(1 for f in copilot_ext_dir.rglob("*") if f.is_file())
                 result.evidence_details["copilot_extension_files"] = file_count
-            except (PermissionError, OSError):
-                pass
+            except (PermissionError, OSError) as exc:
+                logger.debug("Could not count files in Copilot extension dir %s: %s", copilot_ext_dir, exc)
             self._log(f"  Copilot extension found: {copilot_ext_dir.name}", verbose)
         else:
             self._log("  No Copilot extension directory found", verbose)
@@ -150,8 +153,8 @@ class CopilotScanner(BaseScanner):
                             strength = max(strength, 0.70)
                             self._log(f"  Cached Copilot VSIX: {entry.name}", verbose)
                             break
-                except (PermissionError, OSError):
-                    pass
+                except (PermissionError, OSError) as exc:
+                    logger.debug("Could not iterate CachedExtensionVSIXs dir %s: %s", cached_vsix_dir, exc)
 
         auth_log = self._find_github_auth_log()
         if auth_log:
@@ -185,8 +188,8 @@ class CopilotScanner(BaseScanner):
             for entry in ext_dir.iterdir():
                 if entry.is_dir() and entry.name.startswith("github.copilot-chat"):
                     return entry
-        except (PermissionError, OSError):
-            pass
+        except (PermissionError, OSError) as exc:
+            logger.debug("Could not iterate extensions dir %s: %s", ext_dir, exc)
         return None
 
     def _find_github_auth_log(self) -> Path | None:
@@ -204,8 +207,8 @@ class CopilotScanner(BaseScanner):
                 auth_log = session_dir / "vscode.github-authentication" / "GitHub Authentication.log"
                 if auth_log.is_file():
                     return auth_log
-        except (PermissionError, OSError):
-            pass
+        except (PermissionError, OSError) as exc:
+            logger.debug("Could not find GitHub auth log in log dir %s: %s", log_dir, exc)
         return None
 
     def _scan_network(self, result: ScanResult, verbose: bool) -> float:
@@ -292,8 +295,8 @@ class CopilotScanner(BaseScanner):
                             }
                 except (PermissionError, OSError):
                     continue
-        except (PermissionError, OSError):
-            pass
+        except (PermissionError, OSError) as exc:
+            logger.debug("Could not iterate log dir for chat entitlement %s: %s", log_dir, exc)
         return None
 
     def _scan_behavior(self, result: ScanResult, verbose: bool) -> float:
@@ -333,8 +336,8 @@ class CopilotScanner(BaseScanner):
                             return True
                 except (PermissionError, OSError):
                     continue
-        except (PermissionError, OSError):
-            pass
+        except (PermissionError, OSError) as exc:
+            logger.debug("Could not iterate log dir for Copilot experiment flags %s: %s", log_dir, exc)
         return False
 
     def _apply_penalties(self, result: ScanResult) -> None:
