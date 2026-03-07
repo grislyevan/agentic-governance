@@ -1,6 +1,6 @@
 # Agentic AI Endpoint Detection & Governance Playbook
 
-**Version:** 0.3.1 — Lab-Validated Detection Profiles + Class D Taxonomy + Cross-Platform Collector  
+**Version:** 0.4 — Rule ID Catalog + Enforcement Pipeline + Weight Alignment  
 **Status:** Working Draft  
 **Source Issues:** INIT-13–27, INIT-38, INIT-39, INIT-43  
 **Shelved (pending running system):** INIT-28–37, INIT-40–42  
@@ -824,12 +824,43 @@ The enforcement ladder is the deterministic decision spine converting detection 
 
 Rules D1–D3 take precedence over general rules 1–7 when `tool_class == "D"`. Each rule has a stable `rule_id`, version, and explainability payload.
 
+#### Rule ID Catalog
+
+The collector policy engine (`engine/policy.py`) assigns the following stable `rule_id` values. The first column maps each ID back to the numbered rules above.
+
+| Rule ID | Maps to | Condition | Decision |
+|---|---|---|---|
+| ENFORCE-001 | Rule 1 | Low confidence + Tier 0/1 + R1 | detect |
+| ENFORCE-002 | Rule 2 | Medium confidence + Tier 1+ + R2+ | warn |
+| ENFORCE-003 | Rule 3 | Medium confidence + Tier 2+ + R3+ | approval_required |
+| ENFORCE-004 | Rule 4 | High confidence + R4 | block |
+| ENFORCE-005 | Rule 5 | Explicit deny + Tier 3 | block |
+| ENFORCE-006 | (new) | Class C + Medium/High confidence + R3+ | approval_required |
+| ENFORCE-D01 | Rule D1 | Class D + R3+ action | block |
+| ENFORCE-D02 | Rule D2 | Class D + Medium/High confidence + R2 | approval_required |
+| ENFORCE-D03 | Rule D3 | Class D (any) | warn |
+| ENFORCE-001-F | Fallback | Low confidence, no specific rule match | detect |
+| ENFORCE-002-F | Fallback | Medium/High confidence, no specific rule match | warn |
+| ENFORCE-003-F | Fallback | High confidence + R3+ action, no specific rule match | approval_required |
+
+**Overlay rules** (evaluated after base rules; can only escalate, never downgrade):
+
+| Rule ID | Condition | Decision |
+|---|---|---|
+| NET-001 | Class C/D + unknown outbound connections | approval_required |
+| NET-002 | Class C/D + unknown outbound + high volume (>=3) | block |
+| ISO-001 | Class C + not running inside a container | block |
+
+NET rules require a `NetworkContext` with allowlist-checked connections. ISO-001 uses `engine/container.py` to detect Docker/OCI containerization.
+
 ### 6.4 Session-Level Escalation
 
 The ladder is stateful within session context:
 - First medium-risk event → Warn
 - Repeated medium-risk events → Approval Required
 - Repeated denied attempts → Block + incident flag
+
+**Current implementation:** `evaluate_policy()` accepts `prior_violations` (count of recent warnings) and escalates `warn` to `approval_required` when violations exceed 2. Actor trust tier T0 (unknown) escalates `detect` to `warn`. Full session-history persistence is planned for M3.
 
 ### 6.5 Explainability Contract
 

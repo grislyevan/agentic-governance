@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-RULE_VERSION = "0.2.0"
+RULE_VERSION = "0.4.0"
 
 
 @dataclass
@@ -121,17 +121,34 @@ def evaluate_policy(
     explicit_deny: bool = False,
     net_ctx: NetworkContext | None = None,
     is_containerized: bool | None = None,
+    actor_trust_tier: str = "T1",
+    prior_violations: int = 0,
 ) -> PolicyDecision:
     """Evaluate deterministic escalation rules from Playbook Section 6.3.
 
     Returns the highest-severity matching rule.  Network and container
-    rules are evaluated as overlays — they can only *escalate*, never
+    rules are evaluated as overlays; they can only *escalate*, never
     downgrade the base decision.
+
+    ``actor_trust_tier`` (T0-T3) and ``prior_violations`` are decision
+    inputs from Playbook Section 6.2.  Full session-history tracking is
+    planned for M3; for now, repeat violations escalate warn to
+    approval_required (Section 6.4).
     """
     base = _evaluate_base_rules(
         confidence, confidence_class, tool_class, sensitivity,
         action_risk, explicit_deny,
     )
+
+    # Session-level escalation (Section 6.4): repeated violations step up
+    if prior_violations > 2 and base.decision_state == "warn":
+        base.decision_state = "approval_required"
+        base.reason_codes.append("repeated_violations_escalation")
+
+    # Untrusted actor escalation: T0 (unknown) actors get stricter treatment
+    if actor_trust_tier == "T0" and base.decision_state == "detect":
+        base.decision_state = "warn"
+        base.reason_codes.append("untrusted_actor_t0_escalation")
 
     # Network overlay: escalate if connections to unknown destinations
     if net_ctx is not None:

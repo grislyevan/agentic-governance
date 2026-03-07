@@ -60,7 +60,11 @@ def clear_proxy_env() -> None:
 def configure_system_proxy_macos(config: ProxyConfig) -> bool:
     """Set the macOS system HTTP proxy via networksetup.
 
-    Affects all applications on the active network service.
+    WARNING: This is a system-wide change.  It affects ALL applications
+    on the active network service (not just the target tool).  Use
+    ``inject_proxy_env`` for scoped, process-level proxy injection
+    when possible.
+
     Requires admin privileges.
     """
     if platform.system() != "Darwin":
@@ -70,6 +74,13 @@ def configure_system_proxy_macos(config: ProxyConfig) -> bool:
     if not service:
         logger.warning("Could not determine active network service")
         return False
+
+    logger.warning(
+        "Setting system-wide proxy on '%s'. This affects ALL "
+        "applications using this network service, not just the "
+        "target tool. Use inject_proxy_env() for scoped enforcement.",
+        service,
+    )
 
     success = True
     if config.https_proxy:

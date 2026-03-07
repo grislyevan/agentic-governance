@@ -4,16 +4,15 @@ from __future__ import annotations
 
 from scanner.base import LayerSignals, ScanResult
 
-# 5-layer confidence model.  Binary hash was removed in M2 because only 1 of
-# 12 scanners implemented it; the unused weight has been redistributed
-# proportionally.  Binary hash is planned for M3 once fingerprints.py is
-# integrated across all scanners.
+# 5-layer confidence model aligned with Playbook Appendix B "Layer Weight
+# Defaults".  Tool-specific weights below may diverge from these defaults
+# based on lab-run calibration (see per-tool comments).
 
 DEFAULT_WEIGHTS: dict[str, float] = {
     "process": 0.30,
     "file": 0.20,
-    "network": 0.20,
-    "identity": 0.10,
+    "network": 0.15,
+    "identity": 0.15,
     "behavior": 0.20,
 }
 
@@ -28,8 +27,8 @@ OLLAMA_WEIGHTS: dict[str, float] = {
 CURSOR_WEIGHTS: dict[str, float] = {
     "process": 0.30,
     "file": 0.20,
-    "network": 0.20,
-    "identity": 0.10,
+    "network": 0.15,
+    "identity": 0.15,
     "behavior": 0.20,
 }
 

@@ -28,7 +28,9 @@ from typing import Any, Union
 
 from config_loader import argparse_defaults
 from engine.confidence import classify_confidence, compute_confidence
+from engine.container import is_containerized as check_containerized
 from engine.policy import PolicyDecision, evaluate_policy
+from enforcement.enforcer import Enforcer, EnforcementResult
 from output.emitter import EventEmitter
 from output.http_emitter import HttpEmitter
 from agent.state import StateDiffer
@@ -47,7 +49,24 @@ from scanner.openclaw import OpenClawScanner
 
 AnyEmitter = Union[EventEmitter, HttpEmitter]
 
-EVENT_VERSION = "0.2.0"
+# Version map — keeps collector artifacts aligned with the Playbook.
+#   Playbook  0.4   →  RULE_VERSION 0.4.0, EVENT_VERSION 0.4.0
+#   API               has its own versioning cadence (currently 0.1.0)
+EVENT_VERSION = "0.4.0"
+
+
+def _extract_pids(scan: ScanResult) -> set[int]:
+    """Pull process IDs from scan evidence for enforcement targeting."""
+    pids: set[int] = set()
+    for entry in scan.evidence_details.get("process_entries", []):
+        pid = entry.get("pid")
+        if isinstance(pid, int) and pid > 1:
+            pids.add(pid)
+    for key in ("listener_pid", "ipykernel_pid"):
+        pid = scan.evidence_details.get(key)
+        if isinstance(pid, int) and pid > 1:
+            pids.add(pid)
+    return pids
 
 
 def build_event(
@@ -61,6 +80,7 @@ def build_event(
     sensitivity: str,
     parent_event_id: str | None = None,
     policy: PolicyDecision | None = None,
+    enforcement: EnforcementResult | None = None,
 ) -> dict[str, Any]:
     """Construct a canonical event dict conforming to the JSON Schema."""
     now = datetime.now(timezone.utc).isoformat()
@@ -117,6 +137,13 @@ def build_event(
             "rule_version": policy.rule_version,
             "reason_codes": policy.reason_codes,
             "decision_confidence": policy.decision_confidence,
+        }
+
+    if enforcement:
+        event["enforcement"] = {
+            "tactic": enforcement.tactic,
+            "success": enforcement.success,
+            "detail": enforcement.detail,
         }
 
     severity_level = _compute_severity(confidence, scan.action_risk, sensitivity, policy)
@@ -176,6 +203,10 @@ def run_scan(
     if own_emitter:
         emitter = EventEmitter(output_path=args.output, dry_run=args.dry_run)
 
+    enforcer: Enforcer | None = None
+    if getattr(args, "enforce", False):
+        enforcer = Enforcer(dry_run=args.dry_run)
+
     if args.verbose:
         print(f"Collector session: {session_id}")
         print(f"Endpoint: {endpoint_id}  Actor: {actor_id}  Sensitivity: {sensitivity}")
@@ -211,12 +242,17 @@ def run_scan(
         detected_tools.add(scan.tool_name)
         confidence = compute_confidence(scan)
         conf_class = classify_confidence(confidence)
+
+        pids = _extract_pids(scan)
+        containerized = check_containerized(next(iter(pids))) if pids else None
+
         policy_decision = evaluate_policy(
             confidence=confidence,
             confidence_class=conf_class,
             tool_class=scan.tool_class or "A",
             sensitivity=sensitivity,
             action_risk=scan.action_risk,
+            is_containerized=containerized,
         )
 
         # In daemon mode, skip if nothing material changed
@@ -290,6 +326,38 @@ def run_scan(
             print(f"  Emitting policy.evaluated event...")
         if emitter.emit(policy_event):
             total_events += 1
+
+        if enforcer and policy_decision.decision_state in ("block", "approval_required"):
+            network_elevated = "NET" in (policy_decision.rule_id or "")
+            enf_result = enforcer.enforce(
+                decision=policy_decision,
+                tool_name=scan.tool_name or "unknown",
+                tool_class=scan.tool_class or "A",
+                pids=pids or None,
+                network_elevated=network_elevated,
+            )
+            if args.verbose:
+                print(f"  Enforcement: {enf_result.tactic} "
+                      f"({'OK' if enf_result.success else 'FAILED'}) "
+                      f"- {enf_result.detail}")
+
+            enforcement_event = build_event(
+                event_type="enforcement.executed",
+                endpoint_id=endpoint_id,
+                actor_id=actor_id,
+                session_id=session_id,
+                trace_id=trace_id,
+                scan=scan,
+                confidence=confidence,
+                sensitivity=sensitivity,
+                parent_event_id=policy_event["event_id"],
+                policy=policy_decision,
+                enforcement=enf_result,
+            )
+            if args.verbose:
+                print(f"  Emitting enforcement.executed event...")
+            if emitter.emit(enforcement_event):
+                total_events += 1
 
     # Emit detection.cleared for tools that vanished since last cycle
     if state_differ is not None:
@@ -496,6 +564,10 @@ def main() -> None:
     parser.add_argument(
         "--report-all", action="store_true", default=None,
         help="Report all detections every cycle (default: changes only)",
+    )
+    parser.add_argument(
+        "--enforce", action="store_true", default=False,
+        help="Execute enforcement actions (process kill, network block) for block/approval_required decisions",
     )
 
     # Centralized config: code defaults < config file < env vars < CLI

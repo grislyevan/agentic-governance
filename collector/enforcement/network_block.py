@@ -5,6 +5,12 @@ rules.  Uses ``pfctl`` on macOS and ``iptables`` on Linux.
 
 IMPORTANT: Requires root/admin privileges.  Falls back to logging
 if permissions are insufficient.
+
+LIMITATION (Linux): Modern kernels removed iptables --pid-owner, so
+blocking falls back to --uid-owner.  This affects ALL processes owned
+by that UID, not just the target PID.  If the target tool runs under
+a shared user account, other processes (browser, IDE, shell) will also
+lose outbound connectivity until the rule is removed.
 """
 
 from __future__ import annotations
@@ -45,13 +51,19 @@ def _block_linux(pids: set[int]) -> bool:
 
     Note: iptables --pid-owner was removed in newer kernels.  We fall
     back to blocking by UID if the process owner can be determined via
-    /proc/{pid}/status.
+    /proc/{pid}/status.  This means ALL outbound traffic for the UID
+    is blocked, not just the target process.
     """
     success = False
     for pid in pids:
         uid = _get_uid_linux(pid)
         if uid is None:
             continue
+        logger.warning(
+            "Blocking UID %d (from PID %d). This affects ALL processes "
+            "owned by this UID, not just the target tool.",
+            uid, pid,
+        )
         try:
             result = subprocess.run(
                 [
