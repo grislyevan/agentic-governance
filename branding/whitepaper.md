@@ -10,7 +10,7 @@ Agentic AI tools have moved beyond autocomplete. They execute shell commands, wr
 
 Detec is an endpoint agent that detects agentic AI tools by capability, not product name. It classifies each tool into one of four governance classes based on what the tool can do, not what it is called, and applies confidence-scored, policy-driven enforcement that scales from visibility-only detection to hard blocking.
 
-The detection model scores six signal dimensions per tool, applies per-tool calibrated weights, and produces an explainable confidence score. The policy engine evaluates that score against deterministic, versioned rules that map tool class, asset sensitivity, and action risk to one of four enforcement states: Detect, Warn, Approval Required, or Block. Every decision carries a stable rule ID, contributing signal evidence, and a full audit trail.
+The detection model scores five signal dimensions per tool, applies per-tool calibrated weights, and produces an explainable confidence score. The policy engine evaluates that score against deterministic, versioned rules that map tool class, asset sensitivity, and action risk to one of four enforcement states: Detect, Warn, Approval Required, or Block. Every decision carries a stable rule ID, contributing signal evidence, and a full audit trail.
 
 This whitepaper explains the governance gap that agentic AI tools create, how Detec's detection model works at a technical level, how confidence scoring and policy evaluation produce defensible decisions, and how the system deploys into existing endpoint infrastructure.
 
@@ -46,13 +46,13 @@ The consequence for security operations is a growing fleet of ungoverned executi
 
 ---
 
-## 2. Detection Model: Six Signal Dimensions, Four Classes
+## 2. Detection Model: Five Signal Dimensions, Four Classes
 
-Detec's detection model is built on two foundations: a multi-dimensional signal model that captures tool behavior across six evidence categories, and a class-based taxonomy that maps tool capability to governance posture.
+Detec's detection model is built on two foundations: a multi-dimensional signal model that captures tool behavior across five evidence categories, and a class-based taxonomy that maps tool capability to governance posture.
 
 ### Signal dimensions
 
-The confidence engine scores six signal dimensions for each tool. Five are primary telemetry layers collected by the endpoint agent:
+The confidence engine scores five signal dimensions for each tool:
 
 **Process.** Binary identity, parent-child lineage, and session shape. For Claude Code, this means identifying the `claude` CLI process and its child shells (bash, git, python). For Cursor, it means detecting the agent-exec extension host and its shell children as the binary indicator of Class C behavior. For Ollama, it is the long-lived `ollama serve` daemon process. Process telemetry provides the strongest attribution anchor for most tools.
 
@@ -64,7 +64,7 @@ The confidence engine scores six signal dimensions for each tool. Five are prima
 
 **Behavior.** Temporal action sequences, prompt-edit-commit loops, fan-out writes, and inference bursts. Claude Code's agentic pattern is rapid multi-file read/write loops followed by shell command orchestration. Cursor's pattern is prompt-to-multi-file-write fan-out followed by shell execution via the agent-exec sandbox. Ollama's behavioral signal is inference burst cadence on the localhost API, with distinctive short-interval request clusters that differ from typical application traffic.
 
-The sixth dimension is **binary hash verification**: SHA-256 hashing of the tool's entry-point binary. This is a high-signal, hard-to-spoof layer that provides cryptographic identity verification independent of process names or file paths. Binary hash verification is being rolled out across scanners, with all weight vectors allocating 0.20 to 0.25 of the confidence budget to this dimension.
+A future sixth dimension, **binary hash verification** (SHA-256 hashing of the tool's entry-point binary), is planned for M3. It will provide cryptographic identity verification independent of process names or file paths.
 
 ### Tool classes
 
@@ -94,7 +94,7 @@ The confidence engine converts raw signal strengths into a single explainable sc
 ### Computation
 
 ```
-base_score     = sum(layer_weight * layer_signal_strength)  for all six dimensions
+base_score     = sum(layer_weight * layer_signal_strength)  for all five dimensions
 penalty_total  = sum(applicable penalty values)
 evasion_boost  = sum(evasion indicator boosts)
 final          = clamp(base_score - penalty_total + evasion_boost, 0.0, 1.0)
@@ -277,7 +277,7 @@ Detec publishes its known limits because trust is earned through transparency, n
 
 **Containerized and remote development environments** reduce host-level telemetry. When a tool runs inside a container or remote dev session, process and file signals on the host may be partial or absent. Detection relies more heavily on network and behavior layers in these configurations.
 
-**Renamed binaries and custom forks** require behavior-layer correlation for detection. Process-layer identification based on binary name or path will not match non-standard installs. Binary hash verification addresses this for tools where it is active, but the rollout is incremental.
+**Renamed binaries and custom forks** require behavior-layer correlation for detection. Process-layer identification based on binary name or path will not match non-standard installs. Binary hash verification (planned for M3) will address this by matching against known SHA-256 hashes regardless of binary name or path.
 
 **Short-lived network connections** (sub-second HTTPS bursts typical of CLI tools like Claude Code) cannot be reliably attributed to a specific process using polling-based network capture. Reliable process-to-socket attribution for these connections requires EDR integration or endpoint security framework telemetry.
 

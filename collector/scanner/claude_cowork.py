@@ -144,7 +144,6 @@ class ClaudeCoworkScanner(BaseScanner):
                 hash_proc = self._run_cmd(["shasum", "-a", "256", str(binary)])
                 if hash_proc and hash_proc.returncode == 0:
                     sha = hash_proc.stdout.strip().split()[0]
-                    result.signals.binary_hash = 1.0
                     result.evidence_details["binary_sha256"] = sha
                     self._log(f"Binary hash: {sha}", verbose)
 

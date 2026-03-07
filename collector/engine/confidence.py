@@ -4,115 +4,105 @@ from __future__ import annotations
 
 from scanner.base import LayerSignals, ScanResult
 
-# All weight dicts now include ``binary_hash`` — a high-signal, hard-to-spoof
-# layer derived from SHA-256 hashing the tool's entry-point binary.
+# 5-layer confidence model.  Binary hash was removed in M2 because only 1 of
+# 12 scanners implemented it; the unused weight has been redistributed
+# proportionally.  Binary hash is planned for M3 once fingerprints.py is
+# integrated across all scanners.
 
 DEFAULT_WEIGHTS: dict[str, float] = {
-    "process": 0.25,
-    "file": 0.15,
-    "network": 0.15,
+    "process": 0.30,
+    "file": 0.20,
+    "network": 0.20,
     "identity": 0.10,
-    "behavior": 0.15,
-    "binary_hash": 0.20,
+    "behavior": 0.20,
 }
 
 OLLAMA_WEIGHTS: dict[str, float] = {
-    "process": 0.20,
-    "file": 0.20,
-    "network": 0.20,
+    "process": 0.25,
+    "file": 0.25,
+    "network": 0.25,
     "identity": 0.05,
-    "behavior": 0.15,
-    "binary_hash": 0.20,
+    "behavior": 0.20,
 }
 
 CURSOR_WEIGHTS: dict[str, float] = {
-    "process": 0.25,
-    "file": 0.15,
-    "network": 0.15,
+    "process": 0.30,
+    "file": 0.20,
+    "network": 0.20,
     "identity": 0.10,
-    "behavior": 0.15,
-    "binary_hash": 0.20,
+    "behavior": 0.20,
 }
 
 COPILOT_WEIGHTS: dict[str, float] = {
-    "process": 0.20,
-    "file": 0.20,
-    "network": 0.15,
+    "process": 0.25,
+    "file": 0.25,
+    "network": 0.20,
     "identity": 0.10,
-    "behavior": 0.15,
-    "binary_hash": 0.20,
+    "behavior": 0.20,
 }
 
 OPEN_INTERPRETER_WEIGHTS: dict[str, float] = {
-    "process": 0.20,
-    "file": 0.10,
-    "network": 0.10,
-    "identity": 0.10,
-    "behavior": 0.30,
-    "binary_hash": 0.20,
-}
-
-OPENCLAW_WEIGHTS: dict[str, float] = {
-    "process": 0.20,
-    "file": 0.25,
-    "network": 0.10,
-    "identity": 0.10,
-    "behavior": 0.10,
-    "binary_hash": 0.25,
-}
-
-CONTINUE_WEIGHTS: dict[str, float] = {
-    "process": 0.15,
-    "file": 0.30,
-    "network": 0.10,
-    "identity": 0.10,
-    "behavior": 0.15,
-    "binary_hash": 0.20,
-}
-
-LM_STUDIO_WEIGHTS: dict[str, float] = {
-    "process": 0.20,
-    "file": 0.25,
-    "network": 0.15,
-    "identity": 0.05,
-    "behavior": 0.10,
-    "binary_hash": 0.25,
-}
-
-AIDER_WEIGHTS: dict[str, float] = {
     "process": 0.25,
-    "file": 0.20,
-    "network": 0.10,
-    "identity": 0.10,
-    "behavior": 0.10,
-    "binary_hash": 0.25,
-}
-
-GPT_PILOT_WEIGHTS: dict[str, float] = {
-    "process": 0.20,
     "file": 0.15,
     "network": 0.10,
     "identity": 0.10,
-    "behavior": 0.25,
-    "binary_hash": 0.20,
+    "behavior": 0.40,
 }
 
-CLINE_WEIGHTS: dict[str, float] = {
-    "process": 0.15,
-    "file": 0.30,
-    "network": 0.10,
+OPENCLAW_WEIGHTS: dict[str, float] = {
+    "process": 0.25,
+    "file": 0.35,
+    "network": 0.15,
     "identity": 0.10,
     "behavior": 0.15,
-    "binary_hash": 0.20,
 }
 
-CLAUDE_COWORK_WEIGHTS: dict[str, float] = {
+CONTINUE_WEIGHTS: dict[str, float] = {
+    "process": 0.20,
+    "file": 0.35,
+    "network": 0.15,
+    "identity": 0.10,
+    "behavior": 0.20,
+}
+
+LM_STUDIO_WEIGHTS: dict[str, float] = {
+    "process": 0.25,
+    "file": 0.35,
+    "network": 0.20,
+    "identity": 0.05,
+    "behavior": 0.15,
+}
+
+AIDER_WEIGHTS: dict[str, float] = {
+    "process": 0.35,
+    "file": 0.25,
+    "network": 0.15,
+    "identity": 0.10,
+    "behavior": 0.15,
+}
+
+GPT_PILOT_WEIGHTS: dict[str, float] = {
     "process": 0.25,
     "file": 0.20,
     "network": 0.10,
+    "identity": 0.10,
+    "behavior": 0.35,
+}
+
+CLINE_WEIGHTS: dict[str, float] = {
+    "process": 0.20,
+    "file": 0.35,
+    "network": 0.15,
+    "identity": 0.10,
+    "behavior": 0.20,
+}
+
+CLAUDE_COWORK_WEIGHTS: dict[str, float] = {
+    "process": 0.30,
+    "file": 0.25,
+    "network": 0.15,
     "identity": 0.15,
-    "behavior": 0.10,
-    "binary_hash": 0.20,
+    "behavior": 0.15,
 }
 
 TOOL_WEIGHTS: dict[str, dict[str, float]] = {
@@ -167,7 +157,6 @@ def compute_confidence(scan: ScanResult) -> float:
         + weights["network"] * signals.network
         + weights["identity"] * signals.identity
         + weights["behavior"] * signals.behavior
-        + weights.get("binary_hash", 0.0) * signals.binary_hash
     )
 
     penalty_total = sum(val for _, val in scan.penalties)

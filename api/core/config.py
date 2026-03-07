@@ -2,7 +2,19 @@
 
 from __future__ import annotations
 
+import logging
+import os
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
+
+_UNSAFE_DEFAULTS = frozenset({
+    "dev-secret-change-in-production",
+    "change-me",
+    "change-me-use-openssl-rand-hex-32",
+})
 
 
 class Settings(BaseSettings):
@@ -27,6 +39,27 @@ class Settings(BaseSettings):
     seed_admin_email: str = "admin@example.com"
     seed_admin_password: str = "change-me"
     seed_tenant_name: str = "Default"
+
+    @model_validator(mode="after")
+    def _reject_unsafe_defaults_in_production(self) -> "Settings":
+        env = os.getenv("ENV", "development").lower()
+        if env in ("production", "staging"):
+            if self.jwt_secret in _UNSAFE_DEFAULTS:
+                raise ValueError(
+                    "JWT_SECRET must be set to a strong secret in "
+                    f"{env} (generate one with: openssl rand -hex 32)"
+                )
+            if self.seed_admin_password in _UNSAFE_DEFAULTS:
+                raise ValueError(
+                    "SEED_ADMIN_PASSWORD must be changed from its "
+                    f"default value in {env}"
+                )
+        elif self.jwt_secret in _UNSAFE_DEFAULTS:
+            logger.warning(
+                "Running with default JWT_SECRET. This is fine for "
+                "local development but must be changed before deployment."
+            )
+        return self
 
 
 settings = Settings()

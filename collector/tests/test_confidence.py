@@ -71,7 +71,7 @@ class TestComputeConfidence(unittest.TestCase):
         self.assertEqual(compute_confidence(scan), 1.0)
 
     def test_ollama_weights_known_signals(self):
-        # Ollama: process 0.25, file 0.25, network 0.20, identity 0.10, behavior 0.20
+        # Ollama: process 0.25, file 0.25, network 0.25, identity 0.05, behavior 0.20
         # process=1, file=1, rest=0 => 0.25 + 0.25 = 0.5
         scan = ScanResult(
             detected=True,
@@ -88,7 +88,7 @@ class TestComputeConfidence(unittest.TestCase):
             detected=True,
             tool_name="Cursor",
             tool_class="C",
-            signals=LayerSignals(1.0, 1.0, 0, 0, 0),  # Cursor: 0.30 + 0.20 = 0.5
+            signals=LayerSignals(1.0, 1.0, 0, 0, 0),  # Cursor: process 0.30 + file 0.20 = 0.5
             penalties=[("some_penalty", 0.1)],
             evasion_boost=0.0,
         )

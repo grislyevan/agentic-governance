@@ -8,10 +8,10 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from ..core.auth import is_valid_token
-from ..core.database import get_db
-from ..models.policy import Policy
-from ..models.user import User
+from core.auth import is_valid_token
+from core.database import get_db
+from models.policy import Policy
+from models.user import User
 
 router = APIRouter(prefix="/policies", tags=["policies"])
 

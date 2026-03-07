@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from sqlalchemy import DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..core.database import Base
+from core.database import Base
 
 
 class Tenant(Base):

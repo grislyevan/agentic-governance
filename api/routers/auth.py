@@ -5,20 +5,20 @@ from __future__ import annotations
 import re
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
-from ..core.auth import (
+from core.auth import (
     create_access_token,
     create_refresh_token,
     hash_password,
     is_valid_token,
     verify_password,
 )
-from ..core.database import get_db
-from ..models.tenant import Tenant
-from ..models.user import User
-from ..schemas.auth import (
+from core.database import get_db
+from models.tenant import Tenant
+from models.user import User
+from schemas.auth import (
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
@@ -110,7 +110,7 @@ def refresh_token(body: RefreshRequest, db: Session = Depends(get_db)) -> TokenR
 
 @router.get("/me", response_model=UserResponse)
 def get_me(
-    authorization: str | None = None,
+    authorization: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ) -> UserResponse:
     if not authorization or not authorization.startswith("Bearer "):

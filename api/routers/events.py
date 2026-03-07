@@ -13,12 +13,12 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
-from ..core.auth import is_valid_token
-from ..core.database import get_db
-from ..models.endpoint import Endpoint
-from ..models.event import Event
-from ..models.user import User
-from ..schemas.events import EventIngest, EventListResponse, EventResponse
+from core.auth import is_valid_token
+from core.database import get_db
+from models.endpoint import Endpoint
+from models.event import Event
+from models.user import User
+from schemas.events import EventIngest, EventListResponse, EventResponse
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +161,7 @@ def ingest_event(
         rule_id=policy.get("rule_id"),
         severity_level=severity.get("level"),
         signature_verified=sig_verified,
-        payload=body.model_dump(),
+        payload=body.model_dump(mode="json"),
     )
     db.add(event)
     db.commit()

@@ -8,7 +8,7 @@ from datetime import datetime, timezone as tz
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..core.database import Base
+from core.database import Base
 
 ENDPOINT_STATUS_ACTIVE = "active"
 ENDPOINT_STATUS_STALE = "stale"
@@ -47,7 +47,10 @@ class Endpoint(Base):
             return ENDPOINT_STATUS_UNGOVERNED
 
         now = datetime.now(tz.utc)
-        elapsed = (now - self.last_seen_at).total_seconds()
+        last = self.last_seen_at
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=tz.utc)
+        elapsed = (now - last).total_seconds()
         threshold = self.heartbeat_interval * 1.5
 
         if elapsed <= threshold:

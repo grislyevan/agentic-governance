@@ -11,14 +11,14 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..core.auth import is_valid_token
-from ..core.database import get_db
-from ..models.endpoint import (
+from core.auth import is_valid_token
+from core.database import get_db
+from models.endpoint import (
     ENDPOINT_STATUS_ACTIVE,
     Endpoint,
 )
-from ..models.user import User
-from ..schemas.endpoints import (
+from models.user import User
+from schemas.endpoints import (
     EndpointCreate,
     EndpointListResponse,
     EndpointResponse,
@@ -94,7 +94,10 @@ def endpoint_status(
     results: list[EndpointStatusResponse] = []
     for ep in endpoints:
         computed = ep.compute_status()
-        elapsed = (now - ep.last_seen_at).total_seconds() if ep.last_seen_at else None
+        last = ep.last_seen_at
+        if last is not None and last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        elapsed = (now - last).total_seconds() if last else None
         results.append(EndpointStatusResponse(
             id=ep.id,
             hostname=ep.hostname,
