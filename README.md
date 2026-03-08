@@ -50,7 +50,7 @@ Without `--dry-run`, the collector writes NDJSON to `collector/scan-results.ndjs
 cd api && pip install -r requirements.txt && uvicorn main:app --reload
 ```
 
-The API requires a PostgreSQL database. Set `DATABASE_URL`, `JWT_SECRET`, and `SEED_ADMIN_PASSWORD` via environment variables or `.env` file. See `api/core/config.py` for all settings.
+The API requires a PostgreSQL database. Set `DATABASE_URL`, `JWT_SECRET`, and `SEED_ADMIN_PASSWORD` via environment variables or `.env` file. For production deployment, environment variable reference, and schema migrations, see [SERVER.md](SERVER.md).
 
 ## Running tests
 

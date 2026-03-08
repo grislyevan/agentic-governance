@@ -1,0 +1,256 @@
+# Central Server Runbook
+
+This document covers deploying and operating the **Detec central server**: the FastAPI API and its PostgreSQL database. Endpoint agents (`detec-agent`) call the API at `POST /events` and `POST /endpoints/heartbeat`. The dashboard is a separate web app that reads from this same API.
+
+For agent deployment, see [DEPLOY.md](DEPLOY.md).
+
+---
+
+## Architecture overview
+
+```
+┌─────────────┐        ┌──────────────┐        ┌────────────┐
+│ detec-agent  │──POST──▶  FastAPI API  │──SQL──▶│ PostgreSQL │
+│  (endpoint)  │        │  :8000       │        │            │
+└─────────────┘        └──────┬───────┘        └────────────┘
+                              │
+                       ┌──────▼───────┐
+                       │  Dashboard   │
+                       │  (separate)  │
+                       └──────────────┘
+```
+
+- **API** (`api/`): FastAPI application providing auth, event ingestion, endpoint tracking, and policy management.
+- **Database**: PostgreSQL 16+. The API creates tables on first startup or via Alembic migrations.
+- **Dashboard** (`dashboard/`): Separate Vite/React app. It connects to the API URL; it is not covered in this runbook. See `dashboard/README.md`.
+
+---
+
+## Option A: Docker (recommended for evaluation)
+
+The repo root contains a `docker-compose.yml` that runs both the database and API.
+
+```bash
+docker compose up -d
+```
+
+This starts:
+- **db** (PostgreSQL 16 on port 5432)
+- **api** (FastAPI on port 8000, with `--reload` for development)
+
+The default compose file uses development credentials. For production, override environment variables as described in [Production environment variables](#production-environment-variables) below. Example:
+
+```bash
+JWT_SECRET=$(openssl rand -hex 32)
+SEED_ADMIN_PASSWORD=$(openssl rand -base64 18)
+
+docker compose up -d \
+  -e ENV=production \
+  -e JWT_SECRET="$JWT_SECRET" \
+  -e SEED_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD"
+```
+
+Or create a `.env` file alongside `docker-compose.yml`:
+
+```dotenv
+ENV=production
+JWT_SECRET=<output of openssl rand -hex 32>
+SEED_ADMIN_PASSWORD=<strong password>
+SEED_ADMIN_EMAIL=admin@yourorg.com
+```
+
+The API container runs Alembic migrations automatically before starting (see `api/entrypoint.sh`). Set `RUN_MIGRATIONS=false` to skip this if you prefer manual migration control.
+
+---
+
+## Option B: Bare metal / VM
+
+### Prerequisites
+
+- Python 3.11+
+- PostgreSQL 16+ (running and accessible)
+
+### 1. Create the database
+
+```bash
+createdb agentic_governance
+# Or via psql:
+# psql -U postgres -c "CREATE DATABASE agentic_governance;"
+```
+
+### 2. Set environment variables
+
+At minimum:
+
+```bash
+export DATABASE_URL="postgresql://postgres:yourpassword@localhost:5432/agentic_governance"
+export JWT_SECRET="$(openssl rand -hex 32)"
+export SEED_ADMIN_PASSWORD="change-me-to-something-strong"
+```
+
+See [Production environment variables](#production-environment-variables) for the full list.
+
+### 3. Install dependencies
+
+```bash
+cd api
+pip install -r requirements.txt
+```
+
+### 4. Run migrations (recommended)
+
+```bash
+cd api
+alembic upgrade head
+```
+
+This creates all tables in the database. If you skip this step, the API will still create tables on first startup via `create_all`, but the schema will not be tracked by Alembic.
+
+### 5. Start the API
+
+```bash
+cd api
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+For development, add `--reload`. For production, use a process manager (systemd, supervisord) or a container.
+
+---
+
+## Production checklist
+
+### TLS
+
+In production, run the API behind a TLS-terminating reverse proxy or load balancer (nginx, Caddy, AWS ALB, etc.). The API itself serves plain HTTP on port 8000; HTTPS termination happens at the proxy layer.
+
+### Environment enforcement
+
+When `ENV=production` or `ENV=staging`, the API rejects startup if `JWT_SECRET` or `SEED_ADMIN_PASSWORD` are still set to their insecure defaults. This is enforced in `api/core/config.py`.
+
+### Migrations
+
+For production, run `alembic upgrade head` before starting the API (or use the Docker entrypoint, which does this automatically). The `create_all` call on startup is a convenience for development; it is a no-op when the tables already exist but cannot track schema changes over time.
+
+### Process management
+
+Run the API under a process manager that restarts on failure:
+- **Docker**: `restart: unless-stopped` (already set in `docker-compose.yml`)
+- **systemd**: create a unit file similar to the agent's (see `deploy/linux/`)
+- **Cloud**: use your platform's container service (ECS, Cloud Run, etc.)
+
+---
+
+## Production environment variables
+
+All settings are defined in `api/core/config.py` (pydantic-settings). Field names map to uppercase environment variables (e.g., `database_url` reads `DATABASE_URL`). The API also reads from an `.env` file in the `api/` working directory.
+
+### Required
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string. Example: `postgresql://user:pass@host:5432/agentic_governance` |
+| `JWT_SECRET` | Secret key for signing JWTs. Generate with `openssl rand -hex 32`. Must not be a default value when `ENV` is `production` or `staging`. |
+| `SEED_ADMIN_PASSWORD` | Password for the seed admin user created on first startup. Must not be `change-me` when `ENV` is `production` or `staging`. |
+
+### Optional
+
+| Variable | Default | Description |
+|---|---|---|
+| `ENV` | `development` | Environment name. Set to `production` or `staging` to enable security guards. |
+| `SEED_ADMIN_EMAIL` | `admin@example.com` | Email for the seed admin user. |
+| `SEED_TENANT_NAME` | `Default` | Name of the seed tenant. |
+| `CORS_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Comma-separated list of allowed CORS origins. Set to your dashboard URL in production. |
+| `API_HOST` | `0.0.0.0` | Bind address for uvicorn. |
+| `API_PORT` | `8000` | Bind port for uvicorn. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | JWT access token lifetime. |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | `30` | JWT refresh token lifetime. |
+| `DEFAULT_HEARTBEAT_INTERVAL` | `300` | Default heartbeat interval in seconds for new endpoints. |
+| `DEBUG` | `false` | Enable debug mode. Do not use in production. |
+| `RUN_MIGRATIONS` | `true` | (Docker only) Set to `false` to skip automatic Alembic migrations on container start. |
+
+---
+
+## First API key
+
+On first startup, the API seeds one tenant and one admin user with a randomly generated `api_key`. Agents use this key (or another user's key) as the `X-Api-Key` header.
+
+### Retrieve the seeded API key
+
+**Option 1: Check startup logs.** The seed function prints the admin email on creation. The API key is not logged for security, so use one of the options below to retrieve it.
+
+**Option 2: SQL query.** Connect to the database and run:
+
+```sql
+SELECT email, api_key FROM users WHERE role = 'admin' ORDER BY created_at LIMIT 1;
+```
+
+**Option 3: Helper script.** From the `api/` directory:
+
+```bash
+python scripts/print_admin_key.py
+```
+
+This prints the first admin user's email and API key.
+
+### Using the key
+
+Pass the key in the `X-Api-Key` header for agent and API requests:
+
+```bash
+curl -H "X-Api-Key: <key>" http://localhost:8000/endpoints
+```
+
+Configure agents with this key via `--api-key`, `AGENTIC_GOV_API_KEY`, or the config file. See [DEPLOY.md](DEPLOY.md) for agent configuration.
+
+---
+
+## Schema migrations with Alembic
+
+The `api/` directory contains an Alembic setup for versioned schema migrations.
+
+### Running migrations
+
+```bash
+cd api
+alembic upgrade head
+```
+
+### Creating a new migration
+
+After modifying models in `api/models/`, generate a migration:
+
+```bash
+cd api
+alembic revision --autogenerate -m "describe the change"
+```
+
+Review the generated file in `api/alembic/versions/` before applying it.
+
+### Existing databases
+
+If you have an existing database created by `create_all` (before Alembic was added), stamp it to mark the initial migration as applied without re-running it:
+
+```bash
+cd api
+alembic stamp 0001
+```
+
+Then future migrations will apply cleanly on top.
+
+---
+
+## Health check
+
+The API exposes `GET /health` which returns `{"status": "ok", "version": "0.1.0"}`. Use this for load balancer health checks and monitoring.
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| API refuses to start with "JWT_SECRET must be set" | `ENV=production` but using default secret | Set `JWT_SECRET` to output of `openssl rand -hex 32` |
+| API refuses to start with "SEED_ADMIN_PASSWORD must be changed" | `ENV=production` but using default password | Set `SEED_ADMIN_PASSWORD` to a strong value |
+| `Connection refused` on database | PostgreSQL not running or wrong `DATABASE_URL` | Verify PostgreSQL is running; check host/port/credentials |
+| Tables exist but Alembic says "Target database is not up to date" | Database was created by `create_all`, not Alembic | Run `alembic stamp 0001` to mark the baseline |
+| Agent gets 401 / 403 | Wrong or missing API key | Retrieve the key (see [First API key](#first-api-key)); verify `X-Api-Key` header |

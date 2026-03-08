@@ -82,8 +82,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 def _create_tables() -> None:
+    """Ensure all tables exist.
+
+    In production, run ``alembic upgrade head`` before starting the API
+    so the schema is versioned.  create_all is kept as a dev convenience;
+    it is a no-op when the tables already exist.
+    """
     from core.database import Base
-    import models  # noqa: F401 — ensure all models are registered
+    import models  # noqa: F401
     Base.metadata.create_all(bind=engine)
 
 
