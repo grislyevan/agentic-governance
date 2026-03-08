@@ -28,26 +28,26 @@ For agent deployment, see [DEPLOY.md](DEPLOY.md).
 
 ## Option A: Docker (recommended for evaluation)
 
-The repo root contains a `docker-compose.yml` that runs both the database and API.
+The repo root contains a `docker-compose.yml` that runs the database, API, and dashboard.
 
 ```bash
 docker compose up -d
 ```
 
 This starts:
-- **db** (PostgreSQL 16 on port 5432)
-- **api** (FastAPI on port 8000, with `--reload` for development)
+- **db** (PostgreSQL 16 on an internal network, not exposed to the host by default)
+- **api** (FastAPI on port 8000)
+- **dashboard** (on port 3001)
 
-The default compose file uses development credentials. For production, override environment variables as described in [Production environment variables](#production-environment-variables) below. Example:
+A `docker-compose.override.yml` is included for development convenience (adds `--reload`, volume mount, and exposes the DB port). Remove or rename this file for production.
+
+The default compose file uses development credentials. For production, set environment variables before starting:
 
 ```bash
-JWT_SECRET=$(openssl rand -hex 32)
-SEED_ADMIN_PASSWORD=$(openssl rand -base64 18)
-
-docker compose up -d \
-  -e ENV=production \
-  -e JWT_SECRET="$JWT_SECRET" \
-  -e SEED_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD"
+export JWT_SECRET=$(openssl rand -hex 32)
+export SEED_ADMIN_PASSWORD=$(openssl rand -base64 18)
+export ENV=production
+docker compose up -d
 ```
 
 Or create a `.env` file alongside `docker-compose.yml`:
@@ -140,6 +140,43 @@ Run the API under a process manager that restarts on failure:
 
 ---
 
+## Security hardening
+
+The API includes several hardening measures for production use.
+
+### API key hashing
+
+API keys are hashed (SHA-256) before storage. The raw key is displayed **once** at creation time (in the seed log on first startup, or in the registration API response). It cannot be recovered from the database. If you lose the key, delete the user row and restart the API to re-seed, or register a new user.
+
+### Rate limiting
+
+Auth endpoints (`/auth/login`, `/auth/register`, `/auth/refresh`) are rate-limited to prevent brute-force attacks:
+- Login and register: 5 requests per minute per IP
+- Token refresh: 10 requests per minute per IP
+
+Rate limiting is provided by `slowapi`. Clients that exceed the limit receive HTTP 429 (Too Many Requests).
+
+### Tenant isolation
+
+All data queries are scoped by `tenant_id`. Event deduplication checks are tenant-scoped to prevent cross-tenant data leakage. Endpoint creation uses a unique constraint on `(tenant_id, hostname)` to prevent duplicates.
+
+### Docker security
+
+- **Non-root containers**: Both the API and dashboard containers run as an unprivileged `appuser`.
+- **Network segmentation**: The database is on an internal-only `backend` network (not exposed to the host by default). The API bridges `backend` and `frontend` networks. The dashboard is on `frontend` only and cannot reach the database directly.
+- **Dev overrides**: Development settings (volume mounts, `--reload`, DB port exposure, `DEBUG=true`) live in `docker-compose.override.yml` and should be removed in production.
+- **Health checks**: The API service has a Docker health check that calls `GET /health`, which verifies database connectivity and returns 503 if the DB is unreachable.
+
+### JWT tokens
+
+Access and refresh tokens include `iat` (issued-at) and `jti` (unique token ID) claims for audit trails and future revocation support.
+
+### Input validation
+
+All user-facing inputs have length limits enforced at the schema level (passwords capped at 128 characters, hostnames at 255, etc.) to prevent oversized payloads.
+
+---
+
 ## Production environment variables
 
 All settings are defined in `api/core/config.py` (pydantic-settings). Field names map to uppercase environment variables (e.g., `database_url` reads `DATABASE_URL`). The API also reads from an `.env` file in the `api/` working directory.
@@ -159,7 +196,7 @@ All settings are defined in `api/core/config.py` (pydantic-settings). Field name
 | `ENV` | `development` | Environment name. Set to `production` or `staging` to enable security guards. |
 | `SEED_ADMIN_EMAIL` | `admin@example.com` | Email for the seed admin user. |
 | `SEED_TENANT_NAME` | `Default` | Name of the seed tenant. |
-| `CORS_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Comma-separated list of allowed CORS origins. Set to your dashboard URL in production. |
+| `CORS_ORIGINS` | `http://localhost:5173,http://localhost:3000,http://localhost:3001` | Comma-separated list of allowed CORS origins. Set to your dashboard URL in production. |
 | `API_HOST` | `0.0.0.0` | Bind address for uvicorn. |
 | `API_PORT` | `8000` | Bind port for uvicorn. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | JWT access token lifetime. |
@@ -172,25 +209,21 @@ All settings are defined in `api/core/config.py` (pydantic-settings). Field name
 
 ## First API key
 
-On first startup, the API seeds one tenant and one admin user with a randomly generated `api_key`. Agents use this key (or another user's key) as the `X-Api-Key` header.
+On first startup, the API seeds one tenant and one admin user with a randomly generated API key. The **raw key is printed once in the server log** and cannot be recovered from the database afterward (it is stored as a SHA-256 hash).
 
 ### Retrieve the seeded API key
 
-**Option 1: Check startup logs.** The seed function prints the admin email on creation. The API key is not logged for security, so use one of the options below to retrieve it.
+**Option 1: Check startup logs.** Look for the line:
 
-**Option 2: SQL query.** Connect to the database and run:
-
-```sql
-SELECT email, api_key FROM users WHERE role = 'admin' ORDER BY created_at LIMIT 1;
+```
+[seed] Admin API key (save this, it will not be shown again): <key>
 ```
 
-**Option 3: Helper script.** From the `api/` directory:
+Copy this key immediately.
 
-```bash
-python scripts/print_admin_key.py
-```
+**Option 2: Re-seed.** If you lost the key, delete the admin user row and restart the API. A new key will be generated and printed.
 
-This prints the first admin user's email and API key.
+**Option 3: Register a new user.** `POST /auth/register` returns the raw API key in the response body. This is the only time the key is visible.
 
 ### Using the key
 
@@ -241,7 +274,12 @@ Then future migrations will apply cleanly on top.
 
 ## Health check
 
-The API exposes `GET /health` which returns `{"status": "ok", "version": "0.1.0"}`. Use this for load balancer health checks and monitoring.
+The API exposes `GET /health` which verifies database connectivity and returns:
+
+- `{"status": "ok", "version": "0.1.0", "db": "ok"}` (HTTP 200) when healthy
+- `{"status": "degraded", "version": "0.1.0", "db": "unreachable"}` (HTTP 503) when the database is down
+
+Use this for load balancer health checks and container orchestrator probes. The Docker compose file includes an API health check that uses this endpoint.
 
 ---
 
@@ -253,4 +291,7 @@ The API exposes `GET /health` which returns `{"status": "ok", "version": "0.1.0"
 | API refuses to start with "SEED_ADMIN_PASSWORD must be changed" | `ENV=production` but using default password | Set `SEED_ADMIN_PASSWORD` to a strong value |
 | `Connection refused` on database | PostgreSQL not running or wrong `DATABASE_URL` | Verify PostgreSQL is running; check host/port/credentials |
 | Tables exist but Alembic says "Target database is not up to date" | Database was created by `create_all`, not Alembic | Run `alembic stamp 0001` to mark the baseline |
-| Agent gets 401 / 403 | Wrong or missing API key | Retrieve the key (see [First API key](#first-api-key)); verify `X-Api-Key` header |
+| Agent gets 401 / 403 | Wrong or missing API key | Check the seed log for the raw key; verify `X-Api-Key` header |
+| HTTP 429 on login | Rate limit exceeded | Wait 60 seconds and retry; limit is 5 requests/minute per IP |
+| Health check returns 503 | Database unreachable | Check `DATABASE_URL` and PostgreSQL status |
+| Lost the admin API key | Keys are hashed and not recoverable | Delete the admin user row and restart the API, or register a new user |

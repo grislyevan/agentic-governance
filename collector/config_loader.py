@@ -123,6 +123,16 @@ def load_collector_config(config_path: Path | None = None) -> dict[str, Any]:
         if k in merged:
             merged[k] = v
 
+    # If api_key still missing, try platform credential store (keychain, Credential Manager, etc.)
+    if not merged.get("api_key"):
+        try:
+            from agent.credentials import get_api_key
+            key = get_api_key()
+            if key:
+                merged["api_key"] = key
+        except Exception as e:
+            logger.debug("Credential store lookup skipped: %s", e)
+
     if merged["endpoint_id"] is None:
         merged["endpoint_id"] = socket.gethostname()
     if merged["actor_id"] is None:

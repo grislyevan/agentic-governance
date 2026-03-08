@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class EndpointCreate(BaseModel):
-    hostname: str
-    os_info: str | None = None
-    posture: str = "unmanaged"
+    hostname: str = Field(max_length=255)
+    os_info: str | None = Field(default=None, max_length=512)
+    posture: str = Field(default="unmanaged", max_length=32)
 
 
 class EndpointResponse(BaseModel):
@@ -28,6 +28,8 @@ class EndpointResponse(BaseModel):
 
 class EndpointListResponse(BaseModel):
     total: int
+    page: int
+    page_size: int
     items: list[EndpointResponse]
 
 

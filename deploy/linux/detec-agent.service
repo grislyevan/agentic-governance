@@ -1,0 +1,15 @@
+[Unit]
+Description=Detec Agent — endpoint governance for agentic AI tools
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Set AGENTIC_GOV_API_URL and AGENTIC_GOV_API_KEY in the env file (see DEPLOY.md).
+EnvironmentFile=-%h/.config/detec/agent.env
+ExecStart=/usr/bin/env detec-agent --interval 300
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

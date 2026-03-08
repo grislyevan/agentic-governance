@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from core.database import get_db
@@ -36,15 +37,29 @@ class PolicyCreate(BaseModel):
     parameters: dict = Field(default_factory=dict)
 
 
-@router.get("", response_model=list[PolicyResponse])
+class PolicyListResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: list[PolicyResponse]
+
+
+@router.get("", response_model=PolicyListResponse)
 def list_policies(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
-) -> list[PolicyResponse]:
+) -> PolicyListResponse:
     tenant_id = _get_tenant_id(authorization, x_api_key, db)
-    items = db.query(Policy).filter(Policy.tenant_id == tenant_id).all()
-    return [PolicyResponse.model_validate(p) for p in items]
+    q = db.query(Policy).filter(Policy.tenant_id == tenant_id)
+    total = q.with_entities(func.count()).scalar() or 0
+    items = q.order_by(Policy.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    return PolicyListResponse(
+        total=total, page=page, page_size=page_size,
+        items=[PolicyResponse.model_validate(p) for p in items],
+    )
 
 
 @router.post("", response_model=PolicyResponse, status_code=status.HTTP_201_CREATED)

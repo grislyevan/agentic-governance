@@ -1,6 +1,10 @@
 # Agentic-governance collector
 
-Endpoint telemetry collector for agentic AI tool detection. Scans for tools (Claude Code, Ollama, Cursor, Copilot, Open Interpreter), computes confidence, evaluates policy, and emits NDJSON events.
+Endpoint telemetry collector for agentic AI tool detection (Detec Agent). Scans for tools (Claude Code, Ollama, Cursor, Copilot, Open Interpreter), computes confidence, evaluates policy, and emits NDJSON events.
+
+## Install
+
+From the **repository root**: `pip install -e .` installs the **detec-agent** console script. Use `detec-agent` for one-shot or daemon mode. See the root [README](../README.md) and [DEPLOY.md](../DEPLOY.md) for deployment and auto-start.
 
 ## Configuration
 

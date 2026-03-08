@@ -7,3 +7,8 @@ dashboard/dist/
 node_modules/
 .venv/
 *.egg-info/
+
+# Agency-agents Cursor rules (generic, not project-specific)
+.cursor/rules/*.mdc
+!.cursor/rules/writing-and-accuracy.mdc
+!.cursor/rules/git-and-versioning.mdc

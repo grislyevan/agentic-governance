@@ -7,9 +7,10 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.config import settings
@@ -62,25 +63,40 @@ def create_endpoint(
 
 @router.get("", response_model=EndpointListResponse)
 def list_endpoints(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ) -> EndpointListResponse:
     tenant_id = _get_tenant_id(authorization, x_api_key, db)
-    items = db.query(Endpoint).filter(Endpoint.tenant_id == tenant_id).all()
-    total = db.query(func.count()).select_from(Endpoint).filter(Endpoint.tenant_id == tenant_id).scalar() or 0
-    return EndpointListResponse(total=total, items=[EndpointResponse.model_validate(e) for e in items])
+    q = db.query(Endpoint).filter(Endpoint.tenant_id == tenant_id)
+    total = q.with_entities(func.count()).scalar() or 0
+    items = q.order_by(Endpoint.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    return EndpointListResponse(
+        total=total, page=page, page_size=page_size,
+        items=[EndpointResponse.model_validate(e) for e in items],
+    )
 
 
 @router.get("/status", response_model=list[EndpointStatusResponse], tags=["heartbeat"])
 def endpoint_status(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=200, ge=1, le=500),
     db: Session = Depends(get_db),
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ) -> list[EndpointStatusResponse]:
-    """Return computed liveness status for every endpoint in the tenant."""
+    """Return computed liveness status for endpoints in the tenant."""
     tenant_id = _get_tenant_id(authorization, x_api_key, db)
-    endpoints = db.query(Endpoint).filter(Endpoint.tenant_id == tenant_id).all()
+    endpoints = (
+        db.query(Endpoint)
+        .filter(Endpoint.tenant_id == tenant_id)
+        .order_by(Endpoint.hostname)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     now = datetime.now(timezone.utc)
     results: list[EndpointStatusResponse] = []
@@ -149,6 +165,14 @@ def heartbeat(
             last_seen_at=now,
         )
         db.add(endpoint)
+        try:
+            db.flush()
+        except IntegrityError:
+            db.rollback()
+            endpoint = db.query(Endpoint).filter(
+                Endpoint.tenant_id == tenant_id,
+                Endpoint.hostname == body.hostname,
+            ).first()
     else:
         endpoint.last_seen_at = now
         endpoint.heartbeat_interval = body.interval_seconds
@@ -233,6 +257,14 @@ def enroll_endpoint(
             status=ENDPOINT_STATUS_ACTIVE,
         )
         db.add(endpoint)
+        try:
+            db.flush()
+        except IntegrityError:
+            db.rollback()
+            endpoint = db.query(Endpoint).filter(
+                Endpoint.tenant_id == tenant_id,
+                Endpoint.hostname == body.hostname,
+            ).first()
     else:
         endpoint.signing_public_key = body.public_key_pem
         endpoint.key_fingerprint = fingerprint

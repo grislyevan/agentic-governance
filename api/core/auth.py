@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -22,11 +23,14 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def create_access_token(subject: str, tenant_id: str, extra: dict[str, Any] | None = None) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=settings.access_token_expire_minutes)
     payload: dict[str, Any] = {
         "sub": subject,
         "tenant_id": tenant_id,
         "exp": expire,
+        "iat": now,
+        "jti": uuid.uuid4().hex,
         "type": "access",
         **(extra or {}),
     }
@@ -34,11 +38,14 @@ def create_access_token(subject: str, tenant_id: str, extra: dict[str, Any] | No
 
 
 def create_refresh_token(subject: str, tenant_id: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(days=settings.refresh_token_expire_days)
     payload: dict[str, Any] = {
         "sub": subject,
         "tenant_id": tenant_id,
         "exp": expire,
+        "iat": now,
+        "jti": uuid.uuid4().hex,
         "type": "refresh",
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)

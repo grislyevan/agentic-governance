@@ -11,6 +11,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy import desc, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.database import get_db
@@ -49,6 +50,13 @@ def _get_or_create_endpoint(
             posture=endpoint_data.get("posture", "unmanaged"),
         )
         db.add(ep)
+        try:
+            db.flush()
+        except IntegrityError:
+            db.rollback()
+            ep = db.query(Endpoint).filter(
+                Endpoint.tenant_id == tenant_id, Endpoint.hostname == hostname
+            ).first()
     ep.last_seen_at = datetime.now(timezone.utc)
     return ep.id
 
@@ -103,7 +111,10 @@ def ingest_event(
     """
     tenant_id = _get_tenant_id(authorization, x_api_key, db)
 
-    existing = db.query(Event).filter(Event.event_id == body.event_id).first()
+    existing = db.query(Event).filter(
+        Event.event_id == body.event_id,
+        Event.tenant_id == tenant_id,
+    ).first()
     if existing:
         return EventResponse.model_validate(existing)
 
@@ -148,7 +159,17 @@ def ingest_event(
         payload=body.model_dump(mode="json"),
     )
     db.add(event)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing = db.query(Event).filter(
+            Event.event_id == body.event_id,
+            Event.tenant_id == tenant_id,
+        ).first()
+        if existing:
+            return EventResponse.model_validate(existing)
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Duplicate event_id")
     db.refresh(event)
     return EventResponse.model_validate(event)
 

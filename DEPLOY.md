@@ -5,7 +5,7 @@ This guide covers installing and running the **Detec Agent** (endpoint collector
 ## Prerequisites
 
 - **Python 3.11+** and **pip**
-- **API URL** and **API key** from your central Detec API or dashboard. The API key is tied to a tenant; use the same key for all agents in that tenant.
+- **API URL** and **API key** from your central Detec API or dashboard. The API key is tied to a tenant; use the same key for all agents in that tenant. API keys are shown only once at creation (seed log or registration response) and stored as a hash; save the key when it is first displayed.
 
 ## Install
 

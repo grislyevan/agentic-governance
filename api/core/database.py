@@ -16,7 +16,7 @@ class Base(DeclarativeBase):
 
 _engine_kwargs: dict = {"pool_pre_ping": True}
 if not settings.database_url.startswith("sqlite"):
-    _engine_kwargs.update(pool_size=10, max_overflow=20)
+    _engine_kwargs.update(pool_size=10, max_overflow=20, pool_recycle=1800)
 
 engine = create_engine(settings.database_url, **_engine_kwargs)
 

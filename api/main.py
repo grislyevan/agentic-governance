@@ -21,13 +21,20 @@ from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+
+from sqlalchemy import text as sa_text
 
 from core.auth import hash_password
 from core.config import settings
 from core.database import SessionLocal, engine
 from models import Tenant, User
+from models.user import generate_api_key
 from models.audit import AuditLog
 from models.endpoint import Endpoint
 from models.event import Event
@@ -110,6 +117,7 @@ def _seed() -> None:
         db.add(tenant)
         db.flush()
 
+        raw_key, prefix, key_hash = generate_api_key()
         admin = User(
             id=str(uuid.uuid4()),
             tenant_id=tenant.id,
@@ -117,11 +125,13 @@ def _seed() -> None:
             hashed_password=hash_password(settings.seed_admin_password),
             full_name="Admin",
             role="admin",
-            api_key=uuid.uuid4().hex,
+            api_key_prefix=prefix,
+            api_key_hash=key_hash,
         )
         db.add(admin)
         db.commit()
         print(f"[seed] Created tenant '{tenant.name}' and admin '{admin.email}'")
+        print(f"[seed] Admin API key (save this, it will not be shown again): {raw_key}")
     except Exception as exc:
         db.rollback()
         print(f"[seed] Seed skipped: {exc}")
@@ -129,12 +139,17 @@ def _seed() -> None:
         db.close()
 
 
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(
     title="Agentic Governance API",
     description="Endpoint telemetry and policy engine for agentic AI tool governance",
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -151,5 +166,18 @@ app.include_router(policies.router)
 
 
 @app.get("/health", tags=["meta"])
-def health() -> dict[str, str]:
-    return {"status": "ok", "version": app.version}
+def health() -> JSONResponse:
+    db_ok = True
+    try:
+        db = SessionLocal()
+        db.execute(sa_text("SELECT 1"))
+        db.close()
+    except Exception:
+        db_ok = False
+
+    if db_ok:
+        return JSONResponse({"status": "ok", "version": app.version, "db": "ok"})
+    return JSONResponse(
+        {"status": "degraded", "version": app.version, "db": "unreachable"},
+        status_code=503,
+    )

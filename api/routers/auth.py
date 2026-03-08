@@ -6,10 +6,14 @@ import logging
 import re
 import uuid
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
+
+limiter = Limiter(key_func=get_remote_address)
 
 from core.auth import (
     create_access_token,
@@ -20,11 +24,12 @@ from core.auth import (
 )
 from core.database import get_db
 from models.tenant import Tenant
-from models.user import User
+from models.user import User, generate_api_key
 from schemas.auth import (
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
+    RegisterResponse,
     TokenResponse,
     UserResponse,
 )
@@ -49,8 +54,9 @@ def _slugify(name: str) -> str:
     return slug[:64] or "tenant"
 
 
-@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def register(body: RegisterRequest, db: Session = Depends(get_db)) -> TokenResponse:
+@router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/minute")
+def register(request: Request, body: RegisterRequest, db: Session = Depends(get_db)) -> RegisterResponse:
     existing = db.query(User).filter(User.email == body.email).first()
     if existing:
         logger.warning("Registration attempt with existing email %s", body.email)
@@ -66,6 +72,7 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)) -> TokenRespo
     db.add(tenant)
     db.flush()
 
+    raw_key, prefix, key_hash = generate_api_key()
     user = User(
         id=str(uuid.uuid4()),
         tenant_id=tenant.id,
@@ -73,19 +80,22 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)) -> TokenRespo
         hashed_password=hash_password(body.password),
         full_name=body.full_name,
         role="admin",
-        api_key=uuid.uuid4().hex,
+        api_key_prefix=prefix,
+        api_key_hash=key_hash,
     )
     db.add(user)
     db.commit()
 
-    return TokenResponse(
+    return RegisterResponse(
         access_token=create_access_token(user.id, tenant.id),
         refresh_token=create_refresh_token(user.id, tenant.id),
+        api_key=raw_key,
     )
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+@limiter.limit("5/minute")
+def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
     user = db.query(User).filter(User.email == body.email).first()
     if not user or not verify_password(body.password, user.hashed_password):
         logger.warning("Failed login attempt for %s", body.email)
@@ -101,7 +111,8 @@ def login(body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
 
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh_token(body: RefreshRequest, db: Session = Depends(get_db)) -> TokenResponse:
+@limiter.limit("10/minute")
+def refresh_token(request: Request, body: RefreshRequest, db: Session = Depends(get_db)) -> TokenResponse:
     payload = is_valid_token(body.refresh_token, token_type="refresh")
     if not payload:
         logger.warning("Invalid refresh token submitted")

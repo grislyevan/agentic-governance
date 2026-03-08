@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone as tz
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.config import settings
@@ -19,6 +19,9 @@ ENDPOINT_STATUS_DECOMMISSIONED = "decommissioned"
 
 class Endpoint(Base):
     __tablename__ = "endpoints"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "hostname", name="uq_endpoints_tenant_hostname"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False, index=True)
