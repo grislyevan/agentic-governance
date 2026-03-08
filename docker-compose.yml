@@ -29,13 +29,25 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/agentic_governance
       JWT_SECRET: dev-secret-change-in-production
       DEBUG: "true"
-      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000"
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000,http://localhost:3001"
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - ./api:/app
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: "3001"
+    depends_on:
+      - api
 
 volumes:
   pgdata:

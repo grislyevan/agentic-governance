@@ -348,7 +348,7 @@ def _process_detection(
                   f"- {enf_result.detail}")
 
         enforcement_event = build_event(
-            event_type="enforcement.executed",
+            event_type="enforcement.applied",
             endpoint_id=endpoint_id,
             actor_id=actor_id,
             session_id=session_id,
@@ -361,7 +361,7 @@ def _process_detection(
             enforcement=enf_result,
         )
         if verbose:
-            print(f"  Emitting enforcement.executed event...")
+            print(f"  Emitting enforcement.applied event...")
         if emitter.emit(enforcement_event):
             events_emitted += 1
 

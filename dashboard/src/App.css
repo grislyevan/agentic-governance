@@ -394,3 +394,72 @@
   font-size: 0.8em;
   opacity: 0.7;
 }
+
+/* Active source button */
+.btn-active {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+/* API config panel */
+.api-config {
+  margin-bottom: 1rem;
+}
+
+.api-config-toggle {
+  padding: 0.35rem 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.api-config-toggle:hover {
+  color: var(--text);
+  border-color: #3d4f6a;
+}
+
+.api-config-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.api-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.api-config-field span {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.api-config-field input {
+  padding: 0.4rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  outline: none;
+}
+
+.api-config-field input:focus {
+  border-color: var(--accent);
+}

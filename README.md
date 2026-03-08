@@ -44,6 +44,15 @@ python -m collector.main --dry-run --verbose
 
 Without `--dry-run`, the collector writes NDJSON to `collector/scan-results.ndjson`. For running tests, see [collector/README.md](collector/README.md).
 
+## Quick start (full stack)
+
+```bash
+cp .env.example .env          # edit secrets for production
+docker compose up -d           # starts db + api + dashboard
+```
+
+Open http://localhost:3001 (dashboard). Click **API config**, enter `http://localhost:8000` and the seeded admin API key (see [SERVER.md](SERVER.md#first-api-key)), then click **Load from API**.
+
 ## Running the API
 
 ```bash
@@ -66,4 +75,9 @@ Note: Run collector and API tests separately (not in a single pytest invocation)
 
 ## Dashboard
 
-A minimal web UI shows detected tools, confidence, and policy decisions for a single endpoint. Run the collector (to produce `scan-results.ndjson`), then from the repo root: `cd dashboard && npm install && npm run dev` and open http://localhost:5173. Use **Load from server** to view results. See [dashboard/README.md](dashboard/README.md).
+A web UI showing detected tools, confidence, and policy decisions. Two data modes:
+
+- **Load from API** (recommended): connects to the FastAPI backend with your API key. Shows live events ingested by agents.
+- **Load NDJSON / Load file**: reads raw NDJSON from the collector server or a local file (for offline inspection).
+
+Dev mode: `cd dashboard && npm install && npm run dev` (opens http://localhost:5173). Docker: included in `docker compose up` on http://localhost:3001. See [dashboard/README.md](dashboard/README.md).

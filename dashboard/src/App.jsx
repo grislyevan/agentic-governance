@@ -1,6 +1,13 @@
 import { useState, useCallback } from 'react';
-import { parseNdjson, buildEndpointSummary } from './parseNdjson';
+import { parseNdjson, fetchAllApiEvents, buildEndpointSummary } from './parseNdjson';
 import './App.css';
+
+const STORAGE_KEY_API_URL = 'detec_api_url';
+const STORAGE_KEY_API_KEY = 'detec_api_key';
+
+function getStored(key, fallback) {
+  try { return localStorage.getItem(key) || fallback; } catch { return fallback; }
+}
 
 function useEvents() {
   const [events, setEvents] = useState([]);
@@ -9,16 +16,29 @@ function useEvents() {
   const [source, setSource] = useState(null);
   const [lastFile, setLastFile] = useState(null);
 
-  const loadFromApi = useCallback(async () => {
+  const [apiUrl, setApiUrlState] = useState(() => getStored(STORAGE_KEY_API_URL, 'http://localhost:8000'));
+  const [apiKey, setApiKeyState] = useState(() => getStored(STORAGE_KEY_API_KEY, ''));
+
+  const setApiUrl = useCallback((v) => {
+    setApiUrlState(v);
+    try { localStorage.setItem(STORAGE_KEY_API_URL, v); } catch {}
+  }, []);
+
+  const setApiKey = useCallback((v) => {
+    setApiKeyState(v);
+    try { localStorage.setItem(STORAGE_KEY_API_KEY, v); } catch {}
+  }, []);
+
+  const loadFromNdjson = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setSource('api');
+    setSource('ndjson');
     setLastFile(null);
     try {
       const res = await fetch('/api/events', { cache: 'no-store' });
       if (!res.ok) throw new Error(
         res.status === 404
-          ? 'No NDJSON file served. Start the API server or run the collector first.'
+          ? 'No NDJSON file served. Start the NDJSON server or run the collector first.'
           : `Server returned ${res.status}`
       );
       const text = await res.text();
@@ -30,6 +50,26 @@ function useEvents() {
       setLoading(false);
     }
   }, []);
+
+  const loadFromLiveApi = useCallback(async () => {
+    if (!apiKey) {
+      setError('Enter an API key to load from the live API.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setSource('live');
+    setLastFile(null);
+    try {
+      const evts = await fetchAllApiEvents(apiUrl.replace(/\/+$/, ''), apiKey);
+      setEvents(evts);
+    } catch (e) {
+      setError(e.message);
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiUrl, apiKey]);
 
   const loadFromFile = useCallback((file) => {
     setError(null);
@@ -49,7 +89,7 @@ function useEvents() {
   }, []);
 
   const refresh = useCallback(() => {
-    if (source === 'api') {
+    if (source === 'ndjson') {
       setLoading(true);
       setError(null);
       fetch(`/api/events?_=${Date.now()}`, { cache: 'no-store' })
@@ -65,6 +105,8 @@ function useEvents() {
           setEvents([]);
         })
         .finally(() => setLoading(false));
+    } else if (source === 'live') {
+      loadFromLiveApi();
     } else if (source === 'file' && lastFile) {
       setError(null);
       setLoading(true);
@@ -77,11 +119,16 @@ function useEvents() {
       reader.onerror = () => { setError('Failed to read file'); setLoading(false); };
       reader.readAsText(lastFile);
     }
-  }, [source, lastFile]);
+  }, [source, lastFile, loadFromLiveApi]);
 
-  const canRefresh = events.length > 0 && (source === 'api' || lastFile);
+  const canRefresh = events.length > 0 && (source === 'ndjson' || source === 'live' || lastFile);
 
-  return { events, loading, error, loadFromApi, loadFromFile, refresh, canRefresh };
+  return {
+    events, loading, error, source,
+    loadFromNdjson, loadFromLiveApi, loadFromFile,
+    refresh, canRefresh,
+    apiUrl, setApiUrl, apiKey, setApiKey,
+  };
 }
 
 function endpointLiveness(lastObserved, intervalMs = 300_000) {
@@ -285,8 +332,49 @@ function Dashboard({ summary }) {
   );
 }
 
+function ApiConfig({ apiUrl, setApiUrl, apiKey, setApiKey }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="api-config">
+      <button type="button" className="api-config-toggle" onClick={() => setOpen(!open)} title="API settings">
+        {open ? 'Hide config' : 'API config'}
+      </button>
+      {open && (
+        <div className="api-config-panel">
+          <label className="api-config-field">
+            <span>API URL</span>
+            <input
+              type="text"
+              value={apiUrl}
+              onChange={(e) => setApiUrl(e.target.value)}
+              placeholder="http://localhost:8000"
+              spellCheck={false}
+            />
+          </label>
+          <label className="api-config-field">
+            <span>API Key</span>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="X-Api-Key"
+              spellCheck={false}
+            />
+          </label>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
-  const { events, loading, error, loadFromApi, loadFromFile, refresh, canRefresh } = useEvents();
+  const {
+    events, loading, error, source,
+    loadFromNdjson, loadFromLiveApi, loadFromFile,
+    refresh, canRefresh,
+    apiUrl, setApiUrl, apiKey, setApiKey,
+  } = useEvents();
   const summary = buildEndpointSummary(events);
 
   return (
@@ -297,8 +385,23 @@ export default function App() {
           <span className="app-subtitle">Endpoint AI telemetry</span>
         </div>
         <div className="actions">
-          <button type="button" onClick={loadFromApi} disabled={loading}>
-            {loading ? 'Loading…' : 'Load from server'}
+          <button
+            type="button"
+            onClick={loadFromLiveApi}
+            disabled={loading}
+            className={source === 'live' ? 'btn-active' : ''}
+            title="Fetch events from the FastAPI backend"
+          >
+            {loading && source === 'live' ? 'Loading…' : 'Load from API'}
+          </button>
+          <button
+            type="button"
+            onClick={loadFromNdjson}
+            disabled={loading}
+            className={source === 'ndjson' ? 'btn-active' : ''}
+            title="Load NDJSON from the local collector server"
+          >
+            {loading && source === 'ndjson' ? 'Loading…' : 'Load NDJSON'}
           </button>
           <label className="file-label">
             <input
@@ -317,19 +420,22 @@ export default function App() {
         </div>
       </div>
 
+      <ApiConfig apiUrl={apiUrl} setApiUrl={setApiUrl} apiKey={apiKey} setApiKey={setApiKey} />
+
       {error && <div className="banner error">{error}</div>}
 
       {events.length > 0 ? (
         <Dashboard summary={summary} />
       ) : !loading && !error ? (
         <div className="empty-state">
-          <p>Load NDJSON from the server or choose a local file to inspect scan results.</p>
+          <p>Load events from the live API, or use NDJSON from the collector server or a local file.</p>
           <p>
-            Run the collector:{' '}
-            <code>cd collector &amp;&amp; python main.py --dry-run --verbose</code>
-            {' '}(stdout) or without <code>--dry-run</code> to write <code>scan-results.ndjson</code>.
+            <strong>Live API:</strong> Set your API URL and key above, then click <strong>Load from API</strong>.
           </p>
-          <p>Then start the server: <code>cd dashboard &amp;&amp; npm run dev</code></p>
+          <p>
+            <strong>NDJSON:</strong> Run the collector (<code>detec-agent --dry-run --verbose</code>),
+            then click <strong>Load NDJSON</strong> or choose a local file.
+          </p>
         </div>
       ) : null}
     </div>
