@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -39,8 +38,6 @@ class EventEmitter:
                 len(errors),
                 "; ".join(errors),
             )
-            for err in errors:
-                print(f"  VALIDATION ERROR: {err}", file=sys.stderr)
             return False
 
         line = json.dumps(event, separators=(",", ":"))

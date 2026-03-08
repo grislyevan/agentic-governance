@@ -157,12 +157,21 @@ class StateDiffer:
         )
         self._save()
 
-    def cleared_tools(self, currently_detected: set[str]) -> list[str]:
-        """Return names of tools that were previously detected but are now absent."""
+    def cleared_tools(
+        self,
+        currently_detected: set[str],
+        scan_failures: set[str] | None = None,
+    ) -> list[str]:
+        """Return names of tools that were previously detected but are now absent.
+
+        Tools in *scan_failures* are excluded: a scanner error is not the
+        same as the tool being genuinely gone.
+        """
+        excluded = currently_detected | (scan_failures or set())
         return [
             name
             for name, state in self._states.items()
-            if state.detected and name not in currently_detected
+            if state.detected and name not in excluded
         ]
 
     def get_last_class(self, tool_name: str) -> str:

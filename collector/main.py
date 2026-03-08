@@ -24,7 +24,14 @@ import threading
 import time
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Union
+
+# Ensure collector sub-packages are importable regardless of invocation method
+# (python main.py from collector/, python -m collector.main from project root, etc.)
+_COLLECTOR_DIR = str(Path(__file__).resolve().parent)
+if _COLLECTOR_DIR not in sys.path:
+    sys.path.insert(0, _COLLECTOR_DIR)
 
 from config_loader import argparse_defaults
 from engine.confidence import classify_confidence, compute_confidence
@@ -46,6 +53,8 @@ from scanner.lm_studio import LMStudioScanner
 from scanner.ollama import OllamaScanner
 from scanner.open_interpreter import OpenInterpreterScanner
 from scanner.openclaw import OpenClawScanner
+
+logger = logging.getLogger(__name__)
 
 AnyEmitter = Union[EventEmitter, HttpEmitter]
 
@@ -181,12 +190,241 @@ def _compute_severity(
     return "S0"
 
 
+def _collect_scan_results(
+    scanners: list[Any],
+    verbose: bool,
+) -> tuple[list[ScanResult], set[str], set[str]]:
+    """Run all scanners and partition results into detections vs failures.
+
+    Returns (detected_scans, detected_tool_names, scan_failure_names).
+    """
+    detected: list[ScanResult] = []
+    detected_names: set[str] = set()
+    failures: set[str] = set()
+
+    for scanner in scanners:
+        if verbose:
+            print(f"\n--- Scanning for {scanner.tool_name} ---")
+
+        try:
+            scan = scanner.scan(verbose=verbose)
+        except Exception:
+            logger.warning(
+                "Scanner %s raised an exception; treating as inconclusive",
+                scanner.tool_name,
+                exc_info=True,
+            )
+            failures.add(scanner.tool_name)
+            continue
+
+        if not scan.detected:
+            if verbose:
+                print(f"  {scanner.tool_name}: Not detected")
+            continue
+
+        detected.append(scan)
+        detected_names.add(scan.tool_name)
+
+    return detected, detected_names, failures
+
+
+def _process_detection(
+    scan: ScanResult,
+    *,
+    sensitivity: str,
+    endpoint_id: str,
+    actor_id: str,
+    session_id: str,
+    trace_id: str,
+    emitter: AnyEmitter,
+    enforcer: Enforcer | None,
+    state_differ: StateDiffer | None,
+    verbose: bool,
+) -> int:
+    """Score, evaluate policy, enforce, and emit events for one detection.
+
+    Returns the number of events successfully emitted.
+    """
+    events_emitted = 0
+
+    confidence = compute_confidence(scan)
+    conf_class = classify_confidence(confidence)
+
+    pids = _extract_pids(scan)
+    containerized = check_containerized(next(iter(pids))) if pids else None
+
+    policy_decision = evaluate_policy(
+        confidence=confidence,
+        confidence_class=conf_class,
+        tool_class=scan.tool_class or "A",
+        sensitivity=sensitivity,
+        action_risk=scan.action_risk,
+        is_containerized=containerized,
+    )
+
+    if state_differ is not None:
+        changed, reasons = state_differ.is_changed(
+            tool_name=scan.tool_name,
+            tool_class=scan.tool_class or "A",
+            confidence=confidence,
+            decision_state=policy_decision.decision_state,
+            detected=True,
+        )
+        if not changed:
+            if verbose:
+                print(f"  {scan.tool_name}: state unchanged — skipping")
+            return 0
+        if verbose and reasons:
+            print(f"  {scan.tool_name}: change detected — {', '.join(reasons)}")
+
+    if verbose:
+        print(f"\n  Confidence: {confidence:.4f} ({conf_class})")
+        print(f"  Signals — P:{scan.signals.process:.2f} F:{scan.signals.file:.2f} "
+              f"N:{scan.signals.network:.2f} I:{scan.signals.identity:.2f} "
+              f"B:{scan.signals.behavior:.2f}")
+        if scan.penalties:
+            print(f"  Penalties: {scan.penalties}")
+        if scan.evasion_boost > 0:
+            print(f"  Evasion boost: +{scan.evasion_boost:.2f}")
+
+    detection_event = build_event(
+        event_type="detection.observed",
+        endpoint_id=endpoint_id,
+        actor_id=actor_id,
+        session_id=session_id,
+        trace_id=trace_id,
+        scan=scan,
+        confidence=confidence,
+        sensitivity=sensitivity,
+    )
+
+    if verbose:
+        print(f"  Emitting detection.observed event...")
+    if emitter.emit(detection_event):
+        events_emitted += 1
+        if state_differ is not None:
+            state_differ.update(
+                tool_name=scan.tool_name,
+                tool_class=scan.tool_class or "A",
+                confidence=confidence,
+                decision_state=policy_decision.decision_state,
+                detected=True,
+            )
+
+    if verbose:
+        print(f"  Policy: {policy_decision.decision_state} "
+              f"(rule={policy_decision.rule_id})")
+
+    policy_event = build_event(
+        event_type="policy.evaluated",
+        endpoint_id=endpoint_id,
+        actor_id=actor_id,
+        session_id=session_id,
+        trace_id=trace_id,
+        scan=scan,
+        confidence=confidence,
+        sensitivity=sensitivity,
+        parent_event_id=detection_event["event_id"],
+        policy=policy_decision,
+    )
+
+    if verbose:
+        print(f"  Emitting policy.evaluated event...")
+    if emitter.emit(policy_event):
+        events_emitted += 1
+
+    if enforcer and policy_decision.decision_state in ("block", "approval_required"):
+        network_elevated = "NET" in (policy_decision.rule_id or "")
+        enf_result = enforcer.enforce(
+            decision=policy_decision,
+            tool_name=scan.tool_name or "unknown",
+            tool_class=scan.tool_class or "A",
+            pids=pids or None,
+            network_elevated=network_elevated,
+        )
+        if verbose:
+            print(f"  Enforcement: {enf_result.tactic} "
+                  f"({'OK' if enf_result.success else 'FAILED'}) "
+                  f"- {enf_result.detail}")
+
+        enforcement_event = build_event(
+            event_type="enforcement.executed",
+            endpoint_id=endpoint_id,
+            actor_id=actor_id,
+            session_id=session_id,
+            trace_id=trace_id,
+            scan=scan,
+            confidence=confidence,
+            sensitivity=sensitivity,
+            parent_event_id=policy_event["event_id"],
+            policy=policy_decision,
+            enforcement=enf_result,
+        )
+        if verbose:
+            print(f"  Emitting enforcement.executed event...")
+        if emitter.emit(enforcement_event):
+            events_emitted += 1
+
+    return events_emitted
+
+
+def _emit_cleared_events(
+    state_differ: StateDiffer,
+    detected_tools: set[str],
+    scan_failures: set[str],
+    *,
+    endpoint_id: str,
+    actor_id: str,
+    session_id: str,
+    trace_id: str,
+    sensitivity: str,
+    emitter: AnyEmitter,
+    verbose: bool,
+) -> int:
+    """Emit detection.cleared for tools that vanished since the last cycle.
+
+    Tools whose scanners failed are excluded: a crash is not "cleared."
+    """
+    events_emitted = 0
+    for tool_name in state_differ.cleared_tools(detected_tools, scan_failures):
+        if verbose:
+            print(f"\n  {tool_name}: no longer detected — emitting detection.cleared")
+        cleared_scan = ScanResult(
+            tool_name=tool_name,
+            detected=False,
+            tool_class=state_differ.get_last_class(tool_name),
+            tool_version=None,
+            action_type="removal",
+            action_risk="R1",
+            action_summary=f"{tool_name} is no longer detected on this endpoint",
+        )
+        cleared_event = build_event(
+            event_type="detection.cleared",
+            endpoint_id=endpoint_id,
+            actor_id=actor_id,
+            session_id=session_id,
+            trace_id=trace_id,
+            scan=cleared_scan,
+            confidence=0.0,
+            sensitivity=sensitivity,
+        )
+        if emitter.emit(cleared_event):
+            events_emitted += 1
+        state_differ.mark_cleared(tool_name)
+    return events_emitted
+
+
 def run_scan(
     args: argparse.Namespace,
     emitter: AnyEmitter | None = None,
     state_differ: StateDiffer | None = None,
 ) -> int:
     """Execute the full scan pipeline.
+
+    Stages:
+      1. _collect_scan_results  - run scanners, partition into detections/failures
+      2. _process_detection     - score, evaluate, enforce, emit per detection
+      3. _emit_cleared_events   - handle tools that vanished since the last cycle
 
     When *emitter* is None the function creates a local EventEmitter
     (one-shot mode).  When provided (daemon mode) it uses the caller-
@@ -225,167 +463,42 @@ def run_scan(
         GPTPilotScanner(),
         ClineScanner(),
     ]
+
+    # Stage 1: collect
+    detected_scans, detected_tools, scan_failures = _collect_scan_results(
+        scanners, args.verbose,
+    )
+
+    # Stage 2: process each detection
     total_events = 0
-    detected_tools: set[str] = set()
-
-    for scanner in scanners:
-        if args.verbose:
-            print(f"\n--- Scanning for {scanner.tool_name} ---")
-
-        scan = scanner.scan(verbose=args.verbose)
-
-        if not scan.detected:
-            if args.verbose:
-                print(f"  {scanner.tool_name}: Not detected")
-            continue
-
-        detected_tools.add(scan.tool_name)
-        confidence = compute_confidence(scan)
-        conf_class = classify_confidence(confidence)
-
-        pids = _extract_pids(scan)
-        containerized = check_containerized(next(iter(pids))) if pids else None
-
-        policy_decision = evaluate_policy(
-            confidence=confidence,
-            confidence_class=conf_class,
-            tool_class=scan.tool_class or "A",
+    for scan in detected_scans:
+        total_events += _process_detection(
+            scan,
             sensitivity=sensitivity,
-            action_risk=scan.action_risk,
-            is_containerized=containerized,
-        )
-
-        # In daemon mode, skip if nothing material changed
-        if state_differ is not None:
-            changed, reasons = state_differ.is_changed(
-                tool_name=scan.tool_name,
-                tool_class=scan.tool_class or "A",
-                confidence=confidence,
-                decision_state=policy_decision.decision_state,
-                detected=True,
-            )
-            if not changed:
-                if args.verbose:
-                    print(f"  {scanner.tool_name}: state unchanged — skipping")
-                continue
-            if args.verbose and reasons:
-                print(f"  {scanner.tool_name}: change detected — {', '.join(reasons)}")
-
-        if args.verbose:
-            print(f"\n  Confidence: {confidence:.4f} ({conf_class})")
-            print(f"  Signals — P:{scan.signals.process:.2f} F:{scan.signals.file:.2f} "
-                  f"N:{scan.signals.network:.2f} I:{scan.signals.identity:.2f} "
-                  f"B:{scan.signals.behavior:.2f}")
-            if scan.penalties:
-                print(f"  Penalties: {scan.penalties}")
-            if scan.evasion_boost > 0:
-                print(f"  Evasion boost: +{scan.evasion_boost:.2f}")
-
-        detection_event = build_event(
-            event_type="detection.observed",
             endpoint_id=endpoint_id,
             actor_id=actor_id,
             session_id=session_id,
             trace_id=trace_id,
-            scan=scan,
-            confidence=confidence,
-            sensitivity=sensitivity,
+            emitter=emitter,
+            enforcer=enforcer,
+            state_differ=state_differ,
+            verbose=args.verbose,
         )
 
-        if args.verbose:
-            print(f"  Emitting detection.observed event...")
-        if emitter.emit(detection_event):
-            total_events += 1
-            if state_differ is not None:
-                state_differ.update(
-                    tool_name=scan.tool_name,
-                    tool_class=scan.tool_class or "A",
-                    confidence=confidence,
-                    decision_state=policy_decision.decision_state,
-                    detected=True,
-                )
-
-        if args.verbose:
-            print(f"  Policy: {policy_decision.decision_state} "
-                  f"(rule={policy_decision.rule_id})")
-
-        policy_event = build_event(
-            event_type="policy.evaluated",
-            endpoint_id=endpoint_id,
-            actor_id=actor_id,
-            session_id=session_id,
-            trace_id=trace_id,
-            scan=scan,
-            confidence=confidence,
-            sensitivity=sensitivity,
-            parent_event_id=detection_event["event_id"],
-            policy=policy_decision,
-        )
-
-        if args.verbose:
-            print(f"  Emitting policy.evaluated event...")
-        if emitter.emit(policy_event):
-            total_events += 1
-
-        if enforcer and policy_decision.decision_state in ("block", "approval_required"):
-            network_elevated = "NET" in (policy_decision.rule_id or "")
-            enf_result = enforcer.enforce(
-                decision=policy_decision,
-                tool_name=scan.tool_name or "unknown",
-                tool_class=scan.tool_class or "A",
-                pids=pids or None,
-                network_elevated=network_elevated,
-            )
-            if args.verbose:
-                print(f"  Enforcement: {enf_result.tactic} "
-                      f"({'OK' if enf_result.success else 'FAILED'}) "
-                      f"- {enf_result.detail}")
-
-            enforcement_event = build_event(
-                event_type="enforcement.executed",
-                endpoint_id=endpoint_id,
-                actor_id=actor_id,
-                session_id=session_id,
-                trace_id=trace_id,
-                scan=scan,
-                confidence=confidence,
-                sensitivity=sensitivity,
-                parent_event_id=policy_event["event_id"],
-                policy=policy_decision,
-                enforcement=enf_result,
-            )
-            if args.verbose:
-                print(f"  Emitting enforcement.executed event...")
-            if emitter.emit(enforcement_event):
-                total_events += 1
-
-    # Emit detection.cleared for tools that vanished since last cycle
+    # Stage 3: cleared events
     if state_differ is not None:
-        for tool_name in state_differ.cleared_tools(detected_tools):
-            if args.verbose:
-                print(f"\n  {tool_name}: no longer detected — emitting detection.cleared")
-            cleared_scan = ScanResult(
-                tool_name=tool_name,
-                detected=False,
-                tool_class=state_differ.get_last_class(tool_name),
-                tool_version=None,
-                action_type="removal",
-                action_risk="R1",
-                action_summary=f"{tool_name} is no longer detected on this endpoint",
-            )
-            cleared_event = build_event(
-                event_type="detection.cleared",
-                endpoint_id=endpoint_id,
-                actor_id=actor_id,
-                session_id=session_id,
-                trace_id=trace_id,
-                scan=cleared_scan,
-                confidence=0.0,
-                sensitivity=sensitivity,
-            )
-            if emitter.emit(cleared_event):
-                total_events += 1
-            state_differ.mark_cleared(tool_name)
+        total_events += _emit_cleared_events(
+            state_differ,
+            detected_tools,
+            scan_failures,
+            endpoint_id=endpoint_id,
+            actor_id=actor_id,
+            session_id=session_id,
+            trace_id=trace_id,
+            sensitivity=sensitivity,
+            emitter=emitter,
+            verbose=args.verbose,
+        )
 
     stats = emitter.stats
     if args.verbose:

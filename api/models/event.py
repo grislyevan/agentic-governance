@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -35,7 +35,7 @@ class Event(Base):
     tool_name: Mapped[str | None] = mapped_column(String(128))
     tool_class: Mapped[str | None] = mapped_column(String(4))
     tool_version: Mapped[str | None] = mapped_column(String(64))
-    attribution_confidence: Mapped[float | None]
+    attribution_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     attribution_sources: Mapped[str | None] = mapped_column(Text)
 
     # Policy decision

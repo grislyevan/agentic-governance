@@ -6,7 +6,7 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.database import get_db
@@ -33,7 +33,7 @@ class PolicyCreate(BaseModel):
     rule_id: str
     rule_version: str = "0.1.0"
     description: str | None = None
-    parameters: dict = {}
+    parameters: dict = Field(default_factory=dict)
 
 
 @router.get("", response_model=list[PolicyResponse])

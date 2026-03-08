@@ -14,10 +14,32 @@ Endpoint telemetry and policy for agentic AI tool detection. This repo defines d
 - **lab-runs/** — Lab run outputs and findings
 - **init-issues/** — Initial issue write-ups and references
 
+## Install (Detec Agent)
+
+From the repo root, install the package so the agent is available as a single command:
+
+```bash
+pip install -e .
+```
+
+This installs the **detec-agent** console script (Detec endpoint agent). Use it for daemon mode or one-shot scans; see [DEPLOY.md](DEPLOY.md) for auto-start and deployment.
+
 ## Running the collector
 
 ```bash
+detec-agent --dry-run --verbose
+```
+
+Or without installing (from repo root):
+
+```bash
 cd collector && python main.py --dry-run --verbose
+```
+
+Or:
+
+```bash
+python -m collector.main --dry-run --verbose
 ```
 
 Without `--dry-run`, the collector writes NDJSON to `collector/scan-results.ndjson`. For running tests, see [collector/README.md](collector/README.md).
@@ -33,11 +55,14 @@ The API requires a PostgreSQL database. Set `DATABASE_URL`, `JWT_SECRET`, and `S
 ## Running tests
 
 ```bash
-python -m pytest collector/tests/ -v    # 58 collector tests
-python -m pytest api/tests/ -v          # 42 API tests
+python -m pytest collector/tests/ -v                           # 58 collector unit tests
+python -m pytest collector/tests/test_scanner_consistency.py -v # 108 scanner consistency tests
+python -m pytest api/tests/ -v                                 # 42 API tests
 ```
 
-Note: Run these separately (not in a single pytest invocation) to avoid `tests` package name conflicts.
+The scanner consistency tests verify that all 12 scanners populate `action_type`, `action_risk`, `action_summary`, `tool_class`, and `tool_name` correctly. They run actual scans so take ~2 minutes.
+
+Note: Run collector and API tests separately (not in a single pytest invocation) to avoid `tests` package name conflicts.
 
 ## Dashboard
 

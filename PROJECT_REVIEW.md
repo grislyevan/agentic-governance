@@ -3,7 +3,7 @@
 **Date:** March 7, 2026
 **Scope:** Comprehensive codebase review for issues, contradictions, and "AI slop"
 **Status:** M1 (Prototype) → M2 (Production API)
-**Last updated:** March 7, 2026 (post-remediation)
+**Last updated:** March 8, 2026 (post-Codex audit)
 
 ---
 
@@ -121,7 +121,7 @@ Create `/api/tests/` with:
 
 **Estimated Effort:** 5–8 hours (focused integration tests)
 
-> **RESOLVED:** Created `api/tests/` with 42 tests across 5 files: `test_auth.py` (14 tests), `test_endpoints.py` (12), `test_events.py` (7), `test_policies.py` (5), `test_tenant_isolation.py` (4). Uses in-memory SQLite with JSONB compatibility patches. Also fixed pre-existing bugs: relative imports converted to absolute, `Header()` annotation on `/auth/me`, datetime timezone handling, JSON serialization for event payloads, `passlib`/`bcrypt` version compatibility.
+> **RESOLVED:** Created `api/tests/` with 42 tests across 5 files: `test_auth.py` (14 tests), `test_endpoints.py` (12), `test_events.py` (7), `test_policies.py` (5), `test_tenant_isolation.py` (4). Uses in-memory SQLite with JSONB compatibility patches. Also fixed pre-existing bugs: relative imports converted to absolute, `Header()` annotation on `/auth/me`, datetime timezone handling, JSON serialization for event payloads, `passlib`/`bcrypt` version compatibility, `Event.attribution_confidence` missing `mapped_column()`, `PolicyCreate.parameters` mutable default.
 
 ---
 
@@ -607,13 +607,34 @@ Update all test comments to match actual weight structure.
 
 ---
 
+## Post-Review Fixes (Codex Audit)
+
+A follow-up code audit surfaced additional issues. Findings verified and addressed:
+
+| Finding | Verdict | Fix |
+|---------|---------|-----|
+| `Event.attribution_confidence` missing `mapped_column()` | **TRUE (bug)** | Added `mapped_column(Float, nullable=True)` |
+| `PolicyCreate.parameters: dict = {}` mutable default | **TRUE** | Changed to `Field(default_factory=dict)` |
+| False "cleared" events when a scanner crashes | **TRUE** | Scanner exceptions now caught; failures excluded from cleared-tool logic |
+| `EventEmitter.emit()` duplicate stderr output | **TRUE** | Removed per-error `print()` loop; structured `logger.error` is sufficient |
+| Bare imports fail with `python -m collector.main` | **TRUE** | Added `sys.path` setup and `collector/__init__.py` |
+| `run_scan()` monolithic (scan + score + enforce + emit) | **TRUE** | Decomposed into `_collect_scan_results()`, `_process_detection()`, `_emit_cleared_events()` |
+| No scanner consistency checks | **TRUE** | Added 108 parametrized tests across 12 scanners |
+
+Several audit claims were verified as **false** (docker-compose.yml "invalid", one-line model files, signature field mismatch, broken server.js string, missing Vite proxy config).
+
+---
+
 ## Conclusion
 
-All critical and high-priority issues (1-9) have been resolved. The codebase now has:
+All critical and high-priority issues (1-9) have been resolved, plus seven additional findings from a follow-up audit. The codebase now has:
 - A correct 5-dimension confidence model with proportionally redistributed weights
-- 100 passing tests (58 collector + 42 API) covering auth, multi-tenancy, endpoints, events, policies, and tenant isolation
+- 208 passing tests (58 collector unit + 108 scanner consistency + 42 API) covering auth, multi-tenancy, endpoints, events, policies, tenant isolation, and scanner output contracts
 - Structured logging throughout (57 exception handlers + 15 API error sites)
 - No duplicate auth logic, centralized constants, and reusable penalty helpers in `BaseScanner`
 - Runtime validation blocking unsafe default secrets in production/staging
+- Resilient scan pipeline (scanner failures don't trigger false "cleared" events)
+- `run_scan()` decomposed into testable stages (collect, process, emit-cleared)
+- Collector importable both as `cd collector && python main.py` and `python -m collector.main`
 
 **Remaining work:** Phase 3 (Issues 10-15) covers documentation cleanup and style consistency. These are non-blocking for M2 release.
