@@ -60,14 +60,15 @@ export async function loginRequest(email, password) {
   return data;
 }
 
-export async function registerRequest(email, password, fullName, tenantName) {
+export async function registerRequest(email, password, firstName, lastName, tenantName) {
   const res = await fetch(`${apiBase()}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       email,
       password,
-      full_name: fullName || undefined,
+      first_name: firstName || undefined,
+      last_name: lastName || undefined,
       tenant_name: tenantName || undefined,
     }),
   });

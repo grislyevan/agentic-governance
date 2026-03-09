@@ -101,3 +101,41 @@ export async function fetchAuditLog(config, { page = 1, pageSize = 50, action, r
 export async function fetchPolicies(config, { page = 1, pageSize = 50 } = {}) {
   return apiFetch(`/policies?page=${page}&page_size=${pageSize}`, config);
 }
+
+async function apiMutate(method, path, body) {
+  const config = getApiConfig();
+  const url = `${config.apiUrl.replace(/\/+$/, '')}${path}`;
+  const headers = { ...buildAuthHeaders(), 'Content-Type': 'application/json' };
+  const res = await fetch(url, {
+    method,
+    headers,
+    body: body != null ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 401 || res.status === 403) {
+    throw new Error('Authentication failed. Check your credentials.');
+  }
+  if (res.status === 204) return null;
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `API returned ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function fetchUsers({ page = 1, perPage = 50, search } = {}) {
+  const params = new URLSearchParams({ page, per_page: perPage });
+  if (search) params.set('search', search);
+  return apiFetch(`/users?${params}`);
+}
+
+export async function createUser(data) {
+  return apiMutate('POST', '/users', data);
+}
+
+export async function updateUser(id, data) {
+  return apiMutate('PATCH', `/users/${id}`, data);
+}
+
+export async function deleteUser(id) {
+  return apiMutate('DELETE', `/users/${id}`);
+}

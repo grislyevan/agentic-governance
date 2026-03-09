@@ -7,7 +7,8 @@ export default function LoginPage() {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [tenantName, setTenantName] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -20,7 +21,7 @@ export default function LoginPage() {
       if (mode === 'login') {
         await login(email, password);
       } else {
-        await register(email, password, fullName, tenantName);
+        await register(email, password, firstName, lastName, tenantName);
       }
     } catch (err) {
       setError(err.message);
@@ -51,16 +52,28 @@ export default function LoginPage() {
 
             {mode === 'register' && (
               <>
-                <label className="block space-y-1.5">
-                  <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">Full Name</span>
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Jane Smith"
-                    className="w-full bg-detec-slate-900 border border-detec-slate-700 rounded-lg px-3 py-2 text-sm text-detec-slate-200 placeholder:text-detec-slate-600 focus:outline-none focus:border-detec-primary-500/50 transition-colors"
-                  />
-                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block space-y-1.5">
+                    <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">First name</span>
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="Jane"
+                      className="w-full bg-detec-slate-900 border border-detec-slate-700 rounded-lg px-3 py-2 text-sm text-detec-slate-200 placeholder:text-detec-slate-600 focus:outline-none focus:border-detec-primary-500/50 transition-colors"
+                    />
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">Last name</span>
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="Smith"
+                      className="w-full bg-detec-slate-900 border border-detec-slate-700 rounded-lg px-3 py-2 text-sm text-detec-slate-200 placeholder:text-detec-slate-600 focus:outline-none focus:border-detec-primary-500/50 transition-colors"
+                    />
+                  </label>
+                </div>
                 <label className="block space-y-1.5">
                   <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">Organization</span>
                   <input

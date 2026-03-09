@@ -66,8 +66,8 @@ export function AuthProvider({ children }) {
     return { tokens, user: userData };
   }, [startRefreshTimer]);
 
-  const register = useCallback(async (email, password, fullName, tenantName) => {
-    const tokens = await registerRequest(email, password, fullName, tenantName);
+  const register = useCallback(async (email, password, firstName, lastName, tenantName) => {
+    const tokens = await registerRequest(email, password, firstName, lastName, tenantName);
     const userData = await fetchCurrentUser();
     setUser(userData);
     startRefreshTimer();

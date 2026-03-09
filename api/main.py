@@ -125,8 +125,8 @@ def _seed() -> None:
             tenant_id=tenant.id,
             email=settings.seed_admin_email,
             hashed_password=hash_password(settings.seed_admin_password),
-            full_name="Admin",
-            role="admin",
+            first_name="Admin",
+            role="owner",
             api_key_prefix=prefix,
             api_key_hash=key_hash,
         )

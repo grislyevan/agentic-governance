@@ -78,8 +78,9 @@ Note: Run collector and API tests separately (not in a single pytest invocation)
 
 SOC operator console for monitoring detected AI tools, confidence scoring, and policy enforcement. The dashboard requires authentication (JWT login or API key).
 
-- **Login/Register**: email + password, JWT with auto-refresh. User profile (name, role) shown in the top bar.
+- **Login/Register**: email + password, JWT with auto-refresh. User profile (first/last name, role) shown in the top bar.
 - **API key fallback**: configure in Settings when JWT is unavailable (headless access).
 - **Live pages**: Endpoints dashboard (filterable by endpoint, time range, searchable), Policies list, Audit log (paginated).
+- **User management**: Admin page for creating, editing, and deactivating users. Four roles: owner, admin, analyst, viewer. Gated to owner/admin.
 
 Dev mode: `cd dashboard && npm install && npm run dev` (opens http://localhost:5173). See [dashboard/README.md](dashboard/README.md).

@@ -79,8 +79,9 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
         tenant_id=tenant.id,
         email=body.email,
         hashed_password=hash_password(body.password),
-        full_name=body.full_name,
-        role="admin",
+        first_name=body.first_name,
+        last_name=body.last_name,
+        role="owner",
         api_key_prefix=prefix,
         api_key_hash=key_hash,
     )

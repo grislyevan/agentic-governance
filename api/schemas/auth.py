@@ -8,7 +8,8 @@ from pydantic import BaseModel, EmailStr, field_validator
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
-    full_name: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
     tenant_name: str | None = None
 
     @field_validator("password")
@@ -20,11 +21,18 @@ class RegisterRequest(BaseModel):
             raise ValueError("Password must be at most 128 characters")
         return v
 
-    @field_validator("full_name")
+    @field_validator("first_name")
     @classmethod
-    def full_name_length(cls, v: str | None) -> str | None:
-        if v is not None and len(v) > 255:
-            raise ValueError("Full name must be at most 255 characters")
+    def first_name_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 128:
+            raise ValueError("First name must be at most 128 characters")
+        return v
+
+    @field_validator("last_name")
+    @classmethod
+    def last_name_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 128:
+            raise ValueError("Last name must be at most 128 characters")
         return v
 
     @field_validator("tenant_name")
@@ -65,8 +73,10 @@ class RefreshRequest(BaseModel):
 class UserResponse(BaseModel):
     id: str
     email: str
-    full_name: str | None
+    first_name: str | None
+    last_name: str | None
     role: str
     tenant_id: str
+    auth_provider: str
 
     model_config = {"from_attributes": True}

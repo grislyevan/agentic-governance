@@ -163,19 +163,32 @@ Rate limiting is provided by `slowapi`. Clients that exceed the limit receive HT
 
 ### Role-based access control
 
-Users have a `role` field (`admin` or `analyst`). Sensitive endpoints enforce role checks:
+Users have a `role` field with four possible values:
 
-- **Admin only**: `POST /policies`, `PATCH /policies/{id}`, `POST /endpoints/enroll`
-- **Admin or analyst**: `GET /audit-log`
+| Role | Description |
+|------|-------------|
+| `owner` | Tenant creator. Full access. Cannot be demoted or deactivated by other users. |
+| `admin` | Full access. Can manage users (create, update, deactivate) but cannot modify the owner. |
+| `analyst` | Read/write access to events and endpoints. Read-only for policies. |
+| `viewer` | Read-only access everywhere. |
+
+Sensitive endpoints enforce role checks:
+
+- **Owner only**: `DELETE /users/{id}` (deactivate user)
+- **Owner or admin**: `GET /users`, `POST /users`, `PATCH /users/{id}`, `POST /policies`, `PATCH /policies/{id}`, `POST /endpoints/enroll`
+- **Owner, admin, or analyst**: `GET /audit-log`
 - **Any authenticated user**: read endpoints, read events, heartbeat
 
 Users with insufficient privileges receive HTTP 403.
+
+The seed user and self-registered users receive the `owner` role (they are tenant creators). New users created via the admin panel can be assigned `admin`, `analyst`, or `viewer`.
 
 ### Audit log
 
 All security-relevant actions are recorded in the `audit_log` table with actor, tenant, action, resource, IP address, and timestamp. Audited actions include:
 
 - `user.registered`, `user.login` (auth events)
+- `user.created`, `user.updated`, `user.deactivated` (user management)
 - `policy.created`, `policy.updated` (policy changes)
 - `endpoint.enrolled`, `endpoint.key_rotated` (enrollment events)
 

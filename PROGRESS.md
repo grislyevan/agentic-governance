@@ -1,6 +1,6 @@
 # Agentic Governance — Progress Tracker
 
-**Last updated:** 2026-03-08  
+**Last updated:** 2026-03-09  
 **Current phase:** M2 — Backend API + Dashboard  
 **Ultimate goal:** Production SaaS for agentic AI endpoint governance
 
@@ -109,7 +109,8 @@ API Client ────────────────────▶│ Mu
 
 - [x] Auth flows: login, register (JWT with auto-refresh, API key fallback)
 - [ ] Auth flows: invite, password reset
-- [ ] Org/tenant management: create org, invite members, roles (admin, analyst, viewer)
+- [x] User management: CRUD for tenant users, four-role model (owner/admin/analyst/viewer), Admin page UI
+- [ ] Org/tenant management: create org, invite members
 - [x] Endpoint management: multi-endpoint view with filter, status, signal bars
 - [x] Events dashboard: filterable table, confidence bands, enforcement state, time range
 - [x] Policy list (read-only, from API)
@@ -141,7 +142,7 @@ API Client ────────────────────▶│ Mu
 
 **Goal:** Features needed for SOC/enterprise procurement.
 
-- [ ] SSO / SAML 2.0 / OIDC support
+- [ ] SSO / SAML 2.0 / OIDC support (auth_provider column and password_reset_required flag in place)
 - [ ] SIEM integrations: Splunk HEC, Elastic Beats, Microsoft Sentinel (aligns with INIT-28)
 - [ ] Compliance reporting: downloadable audit reports (PDF/CSV)
 - [ ] Evasion detection suite (aligns with INIT-29, builds on LAB-RUN-EVASION-001)

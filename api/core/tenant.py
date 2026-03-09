@@ -9,7 +9,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from core.auth import is_valid_token
-from models.user import User, verify_api_key, API_KEY_PREFIX_LEN
+from models.user import VALID_ROLES, User, verify_api_key, API_KEY_PREFIX_LEN
 
 logger = logging.getLogger(__name__)
 

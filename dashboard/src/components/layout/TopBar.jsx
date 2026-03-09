@@ -38,9 +38,8 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
     }, 250);
   };
 
-  const initials = user?.full_name
-    ? user.full_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-    : '?';
+  const displayName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email || 'User';
+  const initials = [user?.first_name?.[0], user?.last_name?.[0]].filter(Boolean).join('').toUpperCase() || '?';
 
   return (
     <header className="h-14 bg-detec-slate-900 border-b border-detec-slate-700/50 flex items-center justify-between px-6 shrink-0">
@@ -114,7 +113,7 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
             </div>
             <div className="text-right">
               <div className="text-sm font-medium text-detec-slate-200 leading-tight">
-                {user?.full_name || 'User'}
+                {displayName}
               </div>
               <div className="text-xs text-detec-slate-500 leading-tight">
                 {user?.role || 'analyst'}

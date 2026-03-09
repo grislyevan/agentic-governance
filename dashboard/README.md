@@ -28,7 +28,7 @@ dashboard/src/
   index.css                 Tailwind directives + base overrides
   parseNdjson.js            NDJSON parsing and event helpers
   lib/
-    api.js                  API client (endpoints, events, policies, audit log)
+    api.js                  API client (endpoints, events, policies, audit log, users)
     auth.js                 Token management (login, register, refresh, logout)
   hooks/
     useAuth.jsx             React auth context (user, login, logout, auto-refresh)
@@ -51,7 +51,7 @@ dashboard/src/
     EventsPage.jsx          Placeholder (events feed)
     PoliciesPage.jsx        Live policy list from API
     AuditLogPage.jsx        Live audit log table from API
-    AdminPage.jsx           Placeholder (administration)
+    AdminPage.jsx           User management (table, search, add/edit/deactivate)
     SettingsPage.jsx        API URL and key configuration
 ```
 
@@ -62,7 +62,7 @@ The dashboard supports two auth methods:
 1. **JWT login** (primary): email + password via `POST /auth/login`. Tokens are stored in localStorage and auto-refreshed.
 2. **API key** (fallback): configured in Settings. Used when no JWT is available.
 
-User profile (name, role) is pulled from `GET /auth/me` and displayed in the top bar. Logout clears tokens and returns to the login page.
+User profile (first name, last name, role) is pulled from `GET /auth/me` and displayed in the top bar. The Admin page (visible to owner and admin roles) provides user management: listing, creating, editing, and deactivating users within the tenant. Logout clears tokens and returns to the login page.
 
 ## Data flow
 

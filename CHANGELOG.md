@@ -8,6 +8,37 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **User management system**: backend CRUD for tenant users at `/users` (list,
+  create, get, update, deactivate). Enforces a four-role model: owner, admin,
+  analyst, viewer. Owner cannot be modified or deactivated. Soft-delete via
+  `is_active=false`. All actions write to the audit log (`user.created`,
+  `user.updated`, `user.deactivated`).
+- **Admin page (dashboard)**: replaces the placeholder with a full users table,
+  search, pagination, "Add user" modal, inline edit, deactivate/reactivate
+  toggle, and color-coded role badges (gold/blue/teal/slate). Page is gated to
+  owner and admin roles.
+- **Split name fields**: `full_name` column replaced by `first_name` and
+  `last_name` (migration 0005). TopBar, LoginPage registration form, and
+  `/auth/me` response all use the new fields.
+- **SSO/SAML groundwork**: `auth_provider` column (`local`, `saml`, `oidc`) and
+  `password_reset_required` flag added to the users table. Only `local` users
+  can be created today; the columns prepare for future SSO integration.
+- **User schemas** (`api/schemas/users.py`): `UserCreate`, `UserUpdate`,
+  `UserOut`, `UserListResponse` with field validation.
+- **Frontend API client**: `fetchUsers`, `createUser`, `updateUser`,
+  `deleteUser` functions and shared `apiMutate` helper.
+
+### Changed
+
+- Seed user and self-registered users now get role `owner` instead of `admin`
+  (they are tenant creators).
+- `VALID_ROLES` constant defined in `api/models/user.py` and imported by
+  `api/core/tenant.py` for RBAC checks.
+- Registration form uses separate first name / last name fields instead of a
+  single full name input.
+- TopBar displays `first_name last_name` and derives initials from split fields.
+- `UserResponse` schema includes `first_name`, `last_name`, and `auth_provider`.
+
 - **Dashboard UI redesign**: full SOC operator console with sidebar navigation,
   top bar, multi-endpoint dashboard, tabbed tool filtering, and dark theme
   matching the Detec design tokens.

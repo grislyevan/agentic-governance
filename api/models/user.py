@@ -15,6 +15,8 @@ from core.database import Base
 
 API_KEY_PREFIX_LEN = 8
 
+VALID_ROLES = ("owner", "admin", "analyst", "viewer")
+
 
 def hash_api_key(raw_key: str) -> str:
     """SHA-256 hash of the raw API key for storage."""
@@ -39,8 +41,11 @@ class User(Base):
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False, index=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
-    full_name: Mapped[str | None] = mapped_column(String(255))
+    first_name: Mapped[str | None] = mapped_column(String(128))
+    last_name: Mapped[str | None] = mapped_column(String(128))
     role: Mapped[str] = mapped_column(String(32), nullable=False, default="analyst")
+    auth_provider: Mapped[str] = mapped_column(String(32), nullable=False, default="local")
+    password_reset_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     api_key_prefix: Mapped[str | None] = mapped_column(String(8), index=True)
     api_key_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
     refresh_jti: Mapped[str | None] = mapped_column(String(32))
@@ -50,3 +55,8 @@ class User(Base):
     )
 
     tenant: Mapped["Tenant"] = relationship("Tenant", back_populates="users")  # noqa: F821
+
+    @property
+    def display_name(self) -> str:
+        parts = [p for p in (self.first_name, self.last_name) if p]
+        return " ".join(parts) or self.email
