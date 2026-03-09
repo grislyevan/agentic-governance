@@ -4,8 +4,9 @@
 
 - **Primary logo (horizontal):** `detec-logo-concept-v2.png` — mark + wordmark side by side
 - Previous concept: `detec-logo-concept-v1.png` (archived — replaced by v2)
-- **Isolated mark:** `Icon.png` — aperture mark only, high-res source (1192x1183)
-- **Favicon (.ico):** `detec-icon.ico` — multi-size (16/32/48px), generated from `Icon.png`
+- **Master icon source:** `Icon.icns` — macOS icon container with sizes from 16x16 to 1024x1024. This is the canonical source for all icon generation (web favicons, macOS app icon, PWA icons).
+- **Isolated mark (PNG):** `Icon.png` — aperture mark only, high-res PNG (1192x1183)
+- **Favicon (.ico):** `detec-icon.ico` — multi-size (16/32/48px), generated from `Icon.icns`
 - Monochrome and dark-mode variants: TBD
 
 ---
@@ -117,13 +118,16 @@ v2 resolved the play-button read from v1 by switching to an aperture/iris motif.
 
 | File | Description |
 |---|---|
+| **`Icon.icns`** | **Master icon source** — macOS icon container, 16px to 1024px. All other icons are derived from this. |
+| `Icon.png` | Isolated aperture mark, high-res PNG (1192x1183) |
 | `detec-logo-concept-v2.png` | Primary horizontal lockup, full color, light background (current) |
-| `Icon.png` | Isolated aperture mark, high-res source (1192x1183) |
 | `Logo-N-I.png` | Logo variant (name + icon) |
 | `Detec_Logo_300.png` | Logo at 300px |
-| `Agent-V1.png` / `.psd` | Agent illustration concept v1 |
-| `detec-icon.ico` | Multi-size favicon (16/32/48px), generated from `Icon.png` |
+| `Agent-V1.png` | Agent illustration concept v1 |
+| `detec-icon.ico` | Multi-size favicon (16/32/48px), generated from `Icon.icns` |
 | `detec-logo-concept-v1.png` | Archived — D-letterform concept, replaced due to play-button read |
+
+All web and app icons are generated from `Icon.icns`. To regenerate after updating the master: run `python packaging/macos/generate-icons.py` for macOS app assets, or the Pillow extraction script for web assets (see commit history).
 
 ### Dashboard Icon Assets (`dashboard/public/`)
 

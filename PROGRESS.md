@@ -100,7 +100,7 @@ API Client ────────────────────▶│ Mu
 - [x] Cross-platform abstraction layer (`collector/compat/`) — psutil-backed process, network, service, identity, and path abstraction; macOS/Linux/Windows dispatch; Cursor, Ollama, and Copilot scanners migrated
 - [x] User management API — CRUD endpoints for tenant users (first_name, last_name, email, role), owner/admin/analyst/viewer roles, auth_provider placeholder for future SSO/SAML, password_reset_required for email provisioning (`api/routers/users.py`, `api/schemas/users.py`)
 - [x] macOS agent GUI — rumps-based menu bar app with status window matching Detec branding, PyObjC NSWindow, aperture mark drawn from SVG path data (`collector/gui/`)
-- [x] macOS .app bundle — PyInstaller spec, build script, icon generation from SVG, entitlements plist (`packaging/macos/`)
+- [x] macOS .app bundle — PyInstaller spec, build script, icon from `branding/Icon.icns`, entitlements plist (`packaging/macos/`)
 - [x] macOS .pkg installer — pkgbuild/productbuild, pre/postinstall scripts, distribution XML, LaunchAgent configuration (`packaging/macos/`)
 - [x] MDM deployment documentation — Jamf Pro, Endpoint Central, generic MDM; PPPC profile template for Full Disk Access (`docs/mdm-deployment.md`, `docs/macos-permissions.md`)
 - [ ] Integration tests for API endpoints

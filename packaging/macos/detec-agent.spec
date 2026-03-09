@@ -127,8 +127,10 @@ coll = COLLECT(
     name='Detec Agent',
 )
 
-# Resolve .icns path: prefer generated, fall back to placeholder
-icns_path = os.path.join(SPECPATH, 'icons', 'DetecAgent.icns')
+# Resolve .icns path: prefer branding master, fall back to generated, then None
+icns_path = os.path.join(PROJECT_ROOT, 'branding', 'Icon.icns')
+if not os.path.exists(icns_path):
+    icns_path = os.path.join(SPECPATH, 'icons', 'DetecAgent.icns')
 if not os.path.exists(icns_path):
     icns_path = None
 

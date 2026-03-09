@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
-"""Generate macOS icon assets from the Detec aperture SVG.
+"""Generate macOS icon assets for the Detec Agent app bundle.
 
-Produces:
-  - AppIcon.iconset/ with all required sizes for iconutil
-  - DetecAgent.icns (via iconutil)
+Uses branding/Icon.icns as the master icon source. Generates:
+  - DetecAgent.icns (copied from branding master)
+  - AppIcon.iconset/ (extracted from .icns for reference)
   - menubar-template.png (22x22 monochrome template image)
   - menubar-template@2x.png (44x44 retina)
 
-Requirements: Pillow, cairosvg (or just Pillow with the SVG rendered via
-the collector.gui.assets module which uses PyObjC).
+Menubar templates are rendered programmatically via collector.gui.assets
+because they need monochrome treatment that isn't in the color .icns.
 
 Usage:
     python packaging/macos/generate-icons.py
 
-The script must be run on macOS (uses iconutil and PyObjC).
+The script must be run on macOS (uses iconutil and PyObjC for menubar icons).
 """
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -27,19 +28,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "collector"))
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "icons"
-
-ICONSET_SIZES = [
-    (16, 1),
-    (16, 2),
-    (32, 1),
-    (32, 2),
-    (128, 1),
-    (128, 2),
-    (256, 1),
-    (256, 2),
-    (512, 1),
-    (512, 2),
-]
+MASTER_ICNS = PROJECT_ROOT / "branding" / "Icon.icns"
 
 
 def _save_nsimage_as_png(image, path: Path, pixel_size: int) -> None:
@@ -72,42 +61,41 @@ def _save_nsimage_as_png(image, path: Path, pixel_size: int) -> None:
     png_data.writeToFile_atomically_(str(path), True)
 
 
-def generate_iconset() -> Path:
-    """Generate the .iconset directory with all required PNG sizes."""
-    from collector.gui.assets import create_aperture_image
+def copy_master_icns() -> Path:
+    """Copy the branding master .icns into the build output directory."""
+    if not MASTER_ICNS.exists():
+        print(f"  ERROR: Master .icns not found at {MASTER_ICNS}")
+        sys.exit(1)
 
+    icns_path = OUTPUT_DIR / "DetecAgent.icns"
+    shutil.copy2(MASTER_ICNS, icns_path)
+    print(f"  Copied {MASTER_ICNS.name} -> {icns_path.name}")
+    return icns_path
+
+
+def extract_iconset(icns_path: Path) -> Path:
+    """Extract .icns to .iconset for reference and verification."""
     iconset_dir = OUTPUT_DIR / "AppIcon.iconset"
-    iconset_dir.mkdir(parents=True, exist_ok=True)
+    if iconset_dir.exists():
+        shutil.rmtree(iconset_dir)
 
-    for base_size, scale in ICONSET_SIZES:
-        pixel_size = base_size * scale
-        image = create_aperture_image(pixel_size)
+    subprocess.run(
+        ["iconutil", "--convert", "iconset", "--output", str(iconset_dir), str(icns_path)],
+        check=True,
+    )
 
-        if scale == 1:
-            filename = f"icon_{base_size}x{base_size}.png"
-        else:
-            filename = f"icon_{base_size}x{base_size}@{scale}x.png"
-
-        out_path = iconset_dir / filename
-        _save_nsimage_as_png(image, out_path, pixel_size)
-        print(f"  {filename} ({pixel_size}x{pixel_size}px)")
+    for f in sorted(iconset_dir.iterdir()):
+        print(f"  {f.name}")
 
     return iconset_dir
 
 
-def generate_icns(iconset_dir: Path) -> Path:
-    """Convert .iconset to .icns using macOS iconutil."""
-    icns_path = OUTPUT_DIR / "DetecAgent.icns"
-    subprocess.run(
-        ["iconutil", "--convert", "icns", "--output", str(icns_path), str(iconset_dir)],
-        check=True,
-    )
-    print(f"  {icns_path.name}")
-    return icns_path
-
-
 def generate_menubar_icons() -> None:
-    """Generate menu bar template images (monochrome, 22x22 and 44x44)."""
+    """Generate menu bar template images (monochrome, 22x22 and 44x44).
+
+    These are rendered programmatically because macOS template images
+    need to be monochrome black — the OS applies light/dark mode coloring.
+    """
     from collector.gui.assets import create_aperture_image
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -122,13 +110,14 @@ def generate_menubar_icons() -> None:
 
 def main() -> None:
     print("Generating Detec Agent icon assets...")
+    print(f"Master source: {MASTER_ICNS}")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("\n[1/3] App icon (.iconset):")
-    iconset_dir = generate_iconset()
+    print("\n[1/3] App icon (.icns):")
+    icns_path = copy_master_icns()
 
-    print("\n[2/3] App icon (.icns):")
-    icns_path = generate_icns(iconset_dir)
+    print("\n[2/3] Extract .iconset (for reference):")
+    extract_iconset(icns_path)
 
     print("\n[3/3] Menu bar template icons:")
     generate_menubar_icons()
