@@ -68,6 +68,9 @@ class DetecAgentService(win32serviceutil.ServiceFramework):
         "Agentic AI endpoint telemetry collector. "
         "Scans for AI tools and reports to the Detec central server."
     )
+    _exe_name_ = sys.executable
+    _svc_deps_ = None
+    _svc_start_type_ = win32service.SERVICE_AUTO_START
 
     def __init__(self, args: list[str]) -> None:
         super().__init__(args)
