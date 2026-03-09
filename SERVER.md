@@ -256,10 +256,10 @@ Users have a `role` field with four possible values:
 
 | Role | Description |
 |------|-------------|
-| `owner` | Tenant creator. Full access. Cannot be demoted or deactivated by other users. |
-| `admin` | Full access. Can manage users (create, update, deactivate) but cannot modify the owner. |
-| `analyst` | Read/write access to events and endpoints. Read-only for policies. |
-| `viewer` | Read-only access everywhere. |
+| `owner` | Tenant creator. Full access. Cross-tenant read visibility. Cannot be demoted or deactivated by other users. |
+| `admin` | Full access. Cross-tenant read visibility. Can manage users (create, update, deactivate) but cannot modify the owner. |
+| `analyst` | Read/write access to events and endpoints. Read-only for policies. Scoped to own tenant. |
+| `viewer` | Read-only access everywhere. Scoped to own tenant. |
 
 Sensitive endpoints enforce role checks:
 
@@ -271,6 +271,10 @@ Sensitive endpoints enforce role checks:
 Users with insufficient privileges receive HTTP 403.
 
 The seed user and self-registered users receive the `owner` role (they are tenant creators). New users created via the admin panel can be assigned `admin`, `analyst`, or `viewer`.
+
+#### Cross-tenant read visibility
+
+Owner and admin roles can read data across all tenants on query endpoints (events, endpoints, endpoint status, audit log, policies, users). This is read-only visibility for operational oversight; write and ingest endpoints remain strictly tenant-scoped so agents can only write to their own tenant. Analyst and viewer roles see only their own tenant's data. The logic is centralized in `get_tenant_filter()` in `api/core/tenant.py`.
 
 ### Audit log
 
@@ -285,7 +289,9 @@ Query the audit log via `GET /audit-log` (requires admin or analyst role).
 
 ### Tenant isolation
 
-All data queries are scoped by `tenant_id`. Event deduplication checks are tenant-scoped to prevent cross-tenant data leakage. Endpoint creation uses a unique constraint on `(tenant_id, hostname)` to prevent duplicates.
+Write operations and event ingestion are strictly scoped by `tenant_id`. Event deduplication checks are tenant-scoped to prevent cross-tenant data leakage. Endpoint creation uses a unique constraint on `(tenant_id, hostname)` to prevent duplicates.
+
+Read-only query endpoints allow owner and admin roles to see data across all tenants for operational oversight. Analyst and viewer roles remain scoped to their own tenant on all endpoints. See [Cross-tenant read visibility](#cross-tenant-read-visibility) above for details.
 
 ### Docker security
 

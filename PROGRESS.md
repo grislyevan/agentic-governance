@@ -90,7 +90,7 @@ API Client ────────────────────▶│ Mu
 - [x] SQLite default database (zero-config, platform-aware path); PostgreSQL supported via `DATABASE_URL`
 - [x] Database schema: `events`, `endpoints`, `tenants`, `users`, `policies`, `audit_log`
 - [x] JWT authentication: register, login, token refresh
-- [x] Per-tenant data isolation (row-level filter on `tenant_id`)
+- [x] Per-tenant data isolation (row-level filter on `tenant_id`; owner/admin get cross-tenant read visibility)
 - [x] API key support for headless collector agents
 - [x] Docker Compose for local dev (API + DB)
 - [x] OpenAPI spec auto-generated from FastAPI routes

@@ -71,7 +71,7 @@ The API defaults to a local **SQLite** database (zero setup, stored at a platfor
 ```bash
 python -m pytest collector/tests/ -v                           # 58 collector unit tests
 python -m pytest collector/tests/test_scanner_consistency.py -v # 108 scanner consistency tests
-python -m pytest api/tests/ -v                                 # 42 API tests
+python -m pytest api/tests/ -v                                 # 45 API tests
 ```
 
 The scanner consistency tests verify that all 12 scanners populate `action_type`, `action_risk`, `action_summary`, `tool_class`, and `tool_name` correctly. They run actual scans so take ~2 minutes.

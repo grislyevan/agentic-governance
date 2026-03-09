@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.tenant import get_tenant_id as _get_tenant_id
+from core.tenant import get_tenant_id as _get_tenant_id, resolve_auth, get_tenant_filter
 from models.endpoint import Endpoint
 from models.event import Event
 from schemas.events import EventIngest, EventListResponse, EventResponse
@@ -215,10 +215,10 @@ def list_events(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ) -> EventListResponse:
-    """List events for the authenticated tenant with optional filtering."""
-    tenant_id = _get_tenant_id(authorization, x_api_key, db)
+    """List events for the authenticated user with optional filtering."""
+    auth = resolve_auth(authorization, x_api_key, db)
 
-    q = db.query(Event).filter(Event.tenant_id == tenant_id)
+    q = db.query(Event).filter(get_tenant_filter(auth, Event))
 
     if event_type:
         q = q.filter(Event.event_type == event_type)

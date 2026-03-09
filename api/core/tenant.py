@@ -13,6 +13,8 @@ from models.user import VALID_ROLES, User, verify_api_key, API_KEY_PREFIX_LEN
 
 logger = logging.getLogger(__name__)
 
+CROSS_TENANT_ROLES = ("owner", "admin")
+
 
 @dataclass(frozen=True)
 class AuthContext:
@@ -62,6 +64,21 @@ def get_tenant_id(authorization: str | None, x_api_key: str | None, db: Session)
     need the tenant_id.
     """
     return resolve_auth(authorization, x_api_key, db).tenant_id
+
+
+def get_tenant_filter(auth: AuthContext, model):
+    """Return a SQLAlchemy filter expression for tenant scoping.
+
+    Owner and admin roles see data across all tenants (read-only
+    cross-tenant visibility).  Analyst and viewer remain scoped to
+    their own tenant.
+    """
+    if auth.role in CROSS_TENANT_ROLES:
+        # Use a column reference (always true for non-nullable tenant_id)
+        # instead of sa.true() so that with_entities(func.count()) keeps
+        # the FROM clause when no other column is selected.
+        return model.tenant_id.isnot(None)
+    return model.tenant_id == auth.tenant_id
 
 
 def require_role(

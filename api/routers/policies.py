@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from core.audit_logger import record as audit_record
 from core.database import get_db
-from core.tenant import resolve_auth, require_role
+from core.tenant import resolve_auth, require_role, get_tenant_filter
 from models.policy import Policy
 
 logger = logging.getLogger(__name__)
@@ -58,8 +58,7 @@ def list_policies(
     x_api_key: str | None = Header(default=None),
 ) -> PolicyListResponse:
     auth = resolve_auth(authorization, x_api_key, db)
-    tenant_id = auth.tenant_id
-    q = db.query(Policy).filter(Policy.tenant_id == tenant_id)
+    q = db.query(Policy).filter(get_tenant_filter(auth, Policy))
     total = q.with_entities(func.count()).scalar() or 0
     items = q.order_by(Policy.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
     return PolicyListResponse(

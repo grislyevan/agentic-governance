@@ -121,7 +121,7 @@ Create `/api/tests/` with:
 
 **Estimated Effort:** 5–8 hours (focused integration tests)
 
-> **RESOLVED:** Created `api/tests/` with 42 tests across 5 files: `test_auth.py` (14 tests), `test_endpoints.py` (12), `test_events.py` (7), `test_policies.py` (5), `test_tenant_isolation.py` (4). Uses in-memory SQLite with JSONB compatibility patches. Also fixed pre-existing bugs: relative imports converted to absolute, `Header()` annotation on `/auth/me`, datetime timezone handling, JSON serialization for event payloads, `passlib`/`bcrypt` version compatibility, `Event.attribution_confidence` missing `mapped_column()`, `PolicyCreate.parameters` mutable default.
+> **RESOLVED:** Created `api/tests/` with 45 tests across 5 files: `test_auth.py` (14 tests), `test_endpoints.py` (12), `test_events.py` (7), `test_policies.py` (5), `test_tenant_isolation.py` (7). Uses in-memory SQLite with JSONB compatibility patches. Also fixed pre-existing bugs: relative imports converted to absolute, `Header()` annotation on `/auth/me`, datetime timezone handling, JSON serialization for event payloads, `passlib`/`bcrypt` version compatibility, `Event.attribution_confidence` missing `mapped_column()`, `PolicyCreate.parameters` mutable default. Tenant isolation tests cover both cross-tenant visibility (owner/admin see all tenants) and tenant scoping (analyst restricted to own tenant).
 
 ---
 
@@ -629,7 +629,7 @@ Several audit claims were verified as **false** (docker-compose.yml "invalid", o
 
 All critical and high-priority issues (1-9) have been resolved, plus seven additional findings from a follow-up audit. The codebase now has:
 - A correct 5-dimension confidence model with proportionally redistributed weights
-- 208 passing tests (58 collector unit + 108 scanner consistency + 42 API) covering auth, multi-tenancy, endpoints, events, policies, tenant isolation, and scanner output contracts
+- 211 passing tests (58 collector unit + 108 scanner consistency + 45 API) covering auth, multi-tenancy, endpoints, events, policies, tenant isolation (cross-tenant visibility for owner/admin, scoping for analyst), and scanner output contracts
 - Structured logging throughout (57 exception handlers + 15 API error sites)
 - No duplicate auth logic, centralized constants, and reusable penalty helpers in `BaseScanner`
 - Runtime validation blocking unsafe default secrets in production/staging

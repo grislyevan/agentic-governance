@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from core.auth import hash_password
 from core.database import get_db
-from core.tenant import resolve_auth, require_role
+from core.tenant import resolve_auth, require_role, get_tenant_filter
 from models.audit import AuditLog
 from models.user import User
 from schemas.users import UserCreate, UserListResponse, UserOut, UserUpdate
@@ -47,7 +47,7 @@ def list_users(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
 
-    q = db.query(User).filter(User.tenant_id == auth.tenant_id)
+    q = db.query(User).filter(get_tenant_filter(auth, User))
 
     if search:
         pattern = f"%{search}%"

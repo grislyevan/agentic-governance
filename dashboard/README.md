@@ -62,7 +62,7 @@ The dashboard supports two auth methods:
 1. **JWT login** (primary): email + password via `POST /auth/login`. Tokens are stored in localStorage and auto-refreshed.
 2. **API key** (fallback): configured in Settings. Used when no JWT is available.
 
-User profile (first name, last name, role) is pulled from `GET /auth/me` and displayed in the top bar. The Admin page (visible to owner and admin roles) provides user management: listing, creating, editing, and deactivating users within the tenant. Logout clears tokens and returns to the login page.
+User profile (first name, last name, role) is pulled from `GET /auth/me` and displayed in the top bar. The Admin page (visible to owner and admin roles) provides user management: listing, creating, editing, and deactivating users. Owner and admin roles see data across all tenants on read endpoints; analyst and viewer roles see only their own tenant's data. Logout clears tokens and returns to the login page.
 
 ## Data flow
 

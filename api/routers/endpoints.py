@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from core.audit_logger import record as audit_record
 from core.config import settings
 from core.database import get_db
-from core.tenant import get_tenant_id as _get_tenant_id, resolve_auth, require_role
+from core.tenant import get_tenant_id as _get_tenant_id, resolve_auth, require_role, get_tenant_filter
 from models.endpoint import (
     ENDPOINT_STATUS_ACTIVE,
     Endpoint,
@@ -76,8 +76,8 @@ def list_endpoints(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ) -> EndpointListResponse:
-    tenant_id = _get_tenant_id(authorization, x_api_key, db)
-    q = db.query(Endpoint).filter(Endpoint.tenant_id == tenant_id)
+    auth = resolve_auth(authorization, x_api_key, db)
+    q = db.query(Endpoint).filter(get_tenant_filter(auth, Endpoint))
     total = q.with_entities(func.count()).scalar() or 0
     items = q.order_by(Endpoint.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
     return EndpointListResponse(
@@ -94,11 +94,11 @@ def endpoint_status(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ) -> list[EndpointStatusResponse]:
-    """Return computed liveness status for endpoints in the tenant."""
-    tenant_id = _get_tenant_id(authorization, x_api_key, db)
+    """Return computed liveness status for visible endpoints."""
+    auth = resolve_auth(authorization, x_api_key, db)
     endpoints = (
         db.query(Endpoint)
-        .filter(Endpoint.tenant_id == tenant_id)
+        .filter(get_tenant_filter(auth, Endpoint))
         .order_by(Endpoint.hostname)
         .offset((page - 1) * page_size)
         .limit(page_size)
@@ -205,12 +205,12 @@ def get_endpoint(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ) -> EndpointResponse:
-    tenant_id = _get_tenant_id(authorization, x_api_key, db)
+    auth = resolve_auth(authorization, x_api_key, db)
     endpoint = db.query(Endpoint).filter(
-        Endpoint.id == endpoint_id, Endpoint.tenant_id == tenant_id
+        Endpoint.id == endpoint_id, get_tenant_filter(auth, Endpoint)
     ).first()
     if not endpoint:
-        logger.warning("Endpoint %s not found for tenant %s", endpoint_id, tenant_id)
+        logger.warning("Endpoint %s not found for user %s", endpoint_id, auth.user_id)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
     return EndpointResponse.model_validate(endpoint)
 
