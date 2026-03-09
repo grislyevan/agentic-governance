@@ -2,6 +2,34 @@
 
 Build and install Detec components as Windows Services.
 
+## GUI Installer (recommended for clients)
+
+Ship a single `DetecServerSetup.exe` to clients. They double-click it and follow a branded wizard; no PowerShell required.
+
+### Building the installer
+
+On your build machine (requires Python 3.11+, Node.js 22+, and [Inno Setup 6](https://jrsoftware.org/isdl.php)):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File packaging\windows\build-installer.ps1
+```
+
+This runs the full pipeline: dashboard build, PyInstaller bundle, branding asset generation, and Inno Setup compilation. Output: `packaging/windows/dist/DetecServerSetup-0.1.0.exe`.
+
+### What the installer does
+
+1. Extracts the pre-built server bundle to `C:\Program Files\Detec\Server\`
+2. Asks for an admin email address
+3. Generates secrets and configuration
+4. Installs and starts the Detec Server Windows Service
+5. Configures Windows Firewall (TCP 8000 inbound)
+6. Creates a "Detec Dashboard" desktop shortcut
+7. Shows the generated admin credentials (password displayed once)
+
+The installer also registers an uninstaller in Add/Remove Programs that stops the service, removes the service, cleans up the firewall rule, and deletes files.
+
+---
+
 ## One-Command Deploy (Fresh VM)
 
 On a brand-new Windows Server with nothing installed, open an elevated PowerShell and run:

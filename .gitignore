@@ -20,6 +20,13 @@ collector/config/collector.json
 *.p12
 *.pfx
 
+# Generated installer assets (built by generate-assets.py)
+packaging/windows/installer/*.bmp
+
+# PyInstaller build artifacts
+packaging/windows/build/
+packaging/windows/dist/
+
 # Agency-agents Cursor rules (generic, not project-specific)
 .cursor/rules/*.mdc
 !.cursor/rules/writing-and-accuracy.mdc
