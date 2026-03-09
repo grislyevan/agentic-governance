@@ -13,9 +13,9 @@ export default function EndpointContextBar({ endpointCount, endpoints, endpointS
     : 'N/A';
 
   const config = getApiConfig();
-  const apiKeyDisplay = config.apiKey
+  const apiKeyDisplay = config.apiKey && config.apiKey.length >= 4
     ? `${config.apiKey.slice(0, 4)}${'*'.repeat(4)}`
-    : 'Not configured';
+    : config.apiKey ? '****' : 'Not configured';
 
   const statusCounts = computeStatusCounts(endpointStatuses, endpoints);
 

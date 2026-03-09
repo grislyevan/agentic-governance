@@ -440,3 +440,11 @@ Each finding was verified by reading source code and graded by exploitability, i
 | L-16 | Low | Fixed | TopBar debounce timeout cleanup |
 | L-26/L-27 | Low | Fixed | AuditLogPage null guards |
 | M-14 | Medium | Fixed | SettingsPage timeout cleanup |
+| H-3 | High | Fixed | Refresh token rotation with JTI tracking |
+| H-8 | High | Fixed | Documented UID-scoped network block limitation in DEPLOY.md |
+| H-13 | High | Fixed | Added CI workflow for tests and Docker builds |
+| M-6 | Medium | Fixed | CORS restricted to specific methods and headers |
+| M-22 | Medium | Fixed | PID file for daemon mode (prevents duplicate instances) |
+| L-25 | Low | Fixed | EndpointContextBar API key length guard |
+| L-33 | Low | Fixed | EventEmitter output file explicit 0o600 permissions |
+| L-42 | Low | Fixed | Public key file explicit 0o644 permissions |

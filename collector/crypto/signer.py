@@ -52,6 +52,7 @@ def generate_keypair(key_dir: Path | None = None) -> tuple[Ed25519PrivateKey, by
 
     pub_path = d / PUBLIC_KEY_FILE
     pub_path.write_bytes(pub_pem)
+    os.chmod(str(pub_path), 0o644)
 
     logger.info("Generated new signing keypair at %s", d)
     return private_key, pub_pem

@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  collector-tests:
+    name: Collector Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install collector dependencies
+        run: pip install -e ".[dev]" 2>/dev/null || pip install -e .
+      - name: Run collector tests
+        run: python -m pytest collector/tests/ -x -q
+
+  api-tests:
+    name: API Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: agentic_governance_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install API dependencies
+        run: pip install -r api/requirements.txt
+        working-directory: .
+      - name: Run API tests
+        working-directory: api
+        env:
+          DATABASE_URL: postgresql://postgres:testpassword@localhost:5432/agentic_governance_test
+          JWT_SECRET: ci-test-secret-not-for-production
+          SEED_ADMIN_PASSWORD: ci-test-password
+        run: python -m pytest tests/ -x -q
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -t detec-api:ci ./api
+      - name: Build Dashboard image
+        run: docker build -t detec-dashboard:ci ./dashboard

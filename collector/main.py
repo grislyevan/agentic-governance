@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import logging
+import os
 import platform
 import signal
 import socket
@@ -593,8 +594,39 @@ def _build_lifecycle_event(
     }
 
 
+_PID_DIR = Path.home() / ".agentic-gov"
+_PID_FILE = _PID_DIR / "agent.pid"
+
+
+def _write_pid_file() -> None:
+    _PID_DIR.mkdir(parents=True, exist_ok=True)
+    _PID_FILE.write_text(str(os.getpid()))
+
+
+def _remove_pid_file() -> None:
+    try:
+        _PID_FILE.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 def _run_daemon(args: argparse.Namespace) -> None:
     """Run the collector as a persistent daemon until SIGINT/SIGTERM."""
+    if _PID_FILE.exists():
+        try:
+            old_pid = int(_PID_FILE.read_text().strip())
+            os.kill(old_pid, 0)
+            print(
+                f"Another agent instance appears to be running (PID {old_pid}). "
+                f"Remove {_PID_FILE} if this is stale.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        except (ProcessLookupError, ValueError, OSError):
+            pass
+
+    _write_pid_file()
+
     hostname = args.endpoint_id
     emitter = HttpEmitter(api_url=args.api_url, api_key=args.api_key)
     differ = StateDiffer(report_all=args.report_all)
@@ -644,6 +676,7 @@ def _run_daemon(args: argparse.Namespace) -> None:
     emitter.emit(shutdown_event)
 
     stop_event.set()
+    _remove_pid_file()
     print("Agentic-gov endpoint agent stopped.", file=sys.stderr)
 
 

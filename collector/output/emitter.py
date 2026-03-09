@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -53,8 +54,15 @@ class EventEmitter:
         if self._dry_run:
             print(json.dumps(event, indent=2))
         else:
-            with open(self._output_path, "a") as f:
-                f.write(line + "\n")
+            fd = os.open(
+                str(self._output_path),
+                os.O_WRONLY | os.O_CREAT | os.O_APPEND,
+                0o600,
+            )
+            try:
+                os.write(fd, (line + "\n").encode())
+            finally:
+                os.close(fd)
 
         self._emitted += 1
         return True

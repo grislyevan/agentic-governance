@@ -131,3 +131,18 @@ For production, store the API key in the OS credential store and do not pass it 
 - **Linux:** `secret-tool` (libsecret) — store with: `secret-tool store service detec-agent account api-key` (then paste the key). Or create `~/.config/detec/api_key` with mode `600` and the key as contents.
 
 If no key is found in the store, the agent falls back to environment variable or config file.
+
+## Enforcement caveats
+
+### Network blocking on Linux
+
+When a policy triggers `network_block` enforcement, the agent uses `iptables --uid-owner` to drop outbound packets. Modern Linux kernels no longer support `--pid-owner`, so this blocks **all** processes owned by the target UID, not just the target tool. If the tool runs under a shared user account, this will affect the user's browser, IDE, shell, and everything else until the rule is removed.
+
+Mitigations:
+- Run high-risk tools under a dedicated service account so UID-scoped blocking is isolated.
+- Use `dry_run: true` when evaluating network enforcement to observe what would be blocked.
+- The agent logs a WARNING when UID-scoped blocking is applied.
+
+### Process kill and PID reuse
+
+When a policy triggers `process_kill`, the agent verifies the process command line matches the expected tool pattern before sending signals. This prevents accidental kills from PID reuse. If the command line cannot be read (e.g., on macOS without Full Disk Access), the kill is skipped and logged.
