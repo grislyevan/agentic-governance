@@ -108,9 +108,10 @@ API Client ────────────────────▶│ Mu
 - [ ] Integration tests for API endpoints
 - [ ] Alembic migrations wired up
 - [ ] Migrate remaining 8 scanners to compat layer
-- [ ] Windows lab validation + Windows Service install script
+- [x] Windows Service packaging — `detec-server` CLI with setup/run/install/start/stop/remove commands, pywin32 service wrapper, PyInstaller spec
+- [ ] Windows lab validation on Windows Server VM
 
-**Files:** `api/`, `collector/output/`, `collector/agent/`, `collector/gui/`, `collector/compat/`, `packaging/macos/`, `docs/`, `docker-compose.yml`
+**Files:** `api/`, `collector/output/`, `collector/agent/`, `collector/gui/`, `collector/compat/`, `packaging/macos/`, `packaging/windows/`, `docs/`, `docker-compose.yml`
 
 ---
 

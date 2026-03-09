@@ -8,6 +8,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Windows Service packaging**: Added `detec-server` CLI with `setup`, `run`,
+  `install`, `start`, `stop`, `remove`, and `status` subcommands. On Windows,
+  the server registers as a Windows Service ("Detec Server") via pywin32.
+  Includes a PyInstaller spec (`packaging/windows/detec-server.spec`) that
+  bundles the API, dashboard, and all dependencies into a single distributable
+  directory. First-run `setup` command auto-generates JWT secret and seed admin
+  password, writing config to `C:\ProgramData\Detec\server.env`.
 - **Dashboard served from FastAPI**: The React dashboard is now served as static
   files directly from FastAPI (`dashboard/dist/`). Build with
   `cd dashboard && npm run build`, then start the API. No separate Node.js

@@ -80,7 +80,57 @@ The API container runs Alembic migrations automatically before starting (see `ap
 
 ---
 
-## Option B: Bare metal / VM (SQLite)
+## Option B: Windows Service (recommended for Windows)
+
+Run the Detec server as a Windows Service with SQLite. No database or container runtime needed.
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+ (for building the dashboard)
+
+### 1. Build the server
+
+```powershell
+powershell -ExecutionPolicy Bypass -File packaging/windows/build.ps1
+```
+
+Or build manually (see [packaging/windows/README.md](packaging/windows/README.md)).
+
+### 2. First-run setup
+
+```powershell
+cd packaging\windows\dist\detec-server
+.\detec-server.exe setup --admin-email admin@yourorg.com
+```
+
+This generates secrets and writes config to `C:\ProgramData\Detec\server.env`. Save the admin password shown on screen.
+
+### 3. Install and start the service
+
+From an **elevated** (Administrator) command prompt:
+
+```powershell
+.\detec-server.exe install
+.\detec-server.exe start
+```
+
+The service runs in the background, survives logoff, and starts automatically on boot. Open http://localhost:8000 to access the dashboard.
+
+### Service management
+
+```powershell
+.\detec-server.exe status    # show config, DB size, service state
+.\detec-server.exe stop      # stop the service
+.\detec-server.exe start     # start the service
+.\detec-server.exe remove    # unregister the service
+```
+
+For full details, see [packaging/windows/README.md](packaging/windows/README.md).
+
+---
+
+## Option C: Bare metal / VM (SQLite)
 
 The fastest way to get the server running. No database install required.
 
@@ -115,7 +165,7 @@ For development, add `--reload`. For production, use a process manager (systemd,
 
 ---
 
-## Option C: Bare metal / VM (PostgreSQL)
+## Option D: Bare metal / VM (PostgreSQL)
 
 Use this option when you need higher concurrency or are managing 100+ endpoints.
 
