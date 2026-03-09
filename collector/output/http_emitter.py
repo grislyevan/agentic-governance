@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import ssl
 import time
 import urllib.error
 import urllib.request
@@ -61,6 +62,7 @@ class HttpEmitter:
         self._api_key = api_key
         self._timeout = timeout
         self._buffer = buffer or LocalBuffer()
+        self._ssl_ctx = ssl.create_default_context()
         self._sent = 0
         self._buffered = 0
 
@@ -102,7 +104,7 @@ class HttpEmitter:
                         "X-Api-Key": self._api_key,
                     },
                 )
-                with urllib.request.urlopen(req, timeout=self._timeout) as resp:
+                with urllib.request.urlopen(req, timeout=self._timeout, context=self._ssl_ctx) as resp:
                     if resp.status in (200, 201, 202):
                         self._sent += 1
                         logger.debug(
@@ -208,7 +210,7 @@ class HttpEmitter:
                     "X-Api-Key": self._api_key,
                 },
             )
-            with urllib.request.urlopen(req, timeout=self._timeout) as resp:
+            with urllib.request.urlopen(req, timeout=self._timeout, context=self._ssl_ctx) as resp:
                 ok = resp.status in (200, 201, 202)
                 if not ok:
                     logger.warning("HttpEmitter: heartbeat returned HTTP %d", resp.status)

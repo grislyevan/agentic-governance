@@ -39,7 +39,7 @@ This starts:
 - **api** (FastAPI on port 8000)
 - **dashboard** (on port 3001)
 
-A `docker-compose.override.yml` is included for development convenience (adds `--reload`, volume mount, and exposes the DB port). Remove or rename this file for production.
+A `docker-compose.dev.yml` is included for development convenience (adds `--reload`, volume mount, and exposes the DB port). It is not auto-loaded; use `docker compose -f docker-compose.yml -f docker-compose.dev.yml up` for development.
 
 The compose file reads credentials from a `.env` file (via variable substitution) and will refuse to start if required secrets are missing. Copy the template and fill in real values:
 
@@ -190,7 +190,7 @@ All data queries are scoped by `tenant_id`. Event deduplication checks are tenan
 - **No secrets in compose**: `docker-compose.yml` uses `${VARIABLE}` substitution from `.env`. Required variables (`POSTGRES_PASSWORD`, `JWT_SECRET`) use the `:?` syntax so Docker Compose fails immediately with a clear error if they are not set.
 - **Non-root containers**: Both the API and dashboard containers run as an unprivileged `appuser`.
 - **Network segmentation**: The database is on an internal-only `backend` network (not exposed to the host by default). The API bridges `backend` and `frontend` networks. The dashboard is on `frontend` only and cannot reach the database directly.
-- **Dev overrides**: Development settings (volume mounts, `--reload`, DB port exposure, `DEBUG=true`) live in `docker-compose.override.yml` and should be removed in production.
+- **Dev overrides**: Development settings (volume mounts, `--reload`, DB port exposure, `DEBUG=true`) live in `docker-compose.dev.yml`. Use `docker compose -f docker-compose.yml -f docker-compose.dev.yml up` to apply them. They are not auto-loaded.
 - **Health checks**: The API service has a Docker health check that calls `GET /health`, which verifies database connectivity and returns 503 if the DB is unreachable.
 
 ### JWT tokens

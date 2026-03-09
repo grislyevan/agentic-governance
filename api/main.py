@@ -133,19 +133,10 @@ def _seed() -> None:
         db.add(admin)
         db.commit()
         logger.info("Seed: created tenant '%s' and admin '%s'", tenant.name, admin.email)
-        key_hint = f"{raw_key[:8]}...{raw_key[-4:]}"
         logger.info(
-            "Seed: admin API key starts with %s (full key written to /tmp/detec-seed-key.txt)",
-            key_hint,
+            "[seed] Admin API key (save this, it will not be shown again): %s",
+            raw_key,
         )
-        try:
-            import stat
-            key_file = Path("/tmp/detec-seed-key.txt")
-            key_file.write_text(raw_key + "\n")
-            key_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
-        except OSError:
-            logger.warning("Could not write seed key file; printing to stdout as fallback")
-            print(f"[seed] Admin API key: {raw_key}")
     except Exception:
         db.rollback()
         logger.warning("Seed skipped (set DEBUG=true for details)")
@@ -173,7 +164,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

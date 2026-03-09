@@ -132,6 +132,25 @@ def ingest_event(
             detail="Event signature verification failed",
         )
 
+    # Enrolled endpoints must sign their events
+    ep_data = body.endpoint or {}
+    ep_hostname = ep_data.get("id") or ep_data.get("hostname")
+    if sig_verified is None and ep_hostname and _HAS_CRYPTO:
+        enrolled_ep = db.query(Endpoint).filter(
+            Endpoint.tenant_id == tenant_id,
+            Endpoint.hostname == ep_hostname,
+            Endpoint.signing_public_key.isnot(None),
+        ).first()
+        if enrolled_ep is not None:
+            logger.warning(
+                "Rejected unsigned event %s from enrolled endpoint %s",
+                body.event_id, ep_hostname,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Enrolled endpoints must sign events",
+            )
+
     endpoint_id = _get_or_create_endpoint(tenant_id, body.endpoint, db)
 
     tool = body.tool or {}

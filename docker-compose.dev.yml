@@ -1,5 +1,5 @@
-# Development overrides (loaded automatically by docker compose).
-# Remove or rename this file in production deployments.
+# Development overrides. Use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# NOT auto-loaded (renamed from override.yml to prevent accidental production use).
 
 services:
   db:

@@ -16,14 +16,21 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const refreshTimer = useRef(null);
+  const refreshing = useRef(false);
 
   const startRefreshTimer = useCallback(() => {
     if (refreshTimer.current) clearInterval(refreshTimer.current);
     refreshTimer.current = setInterval(async () => {
-      const result = await refreshAccessToken();
-      if (!result) {
-        setUser(null);
-        clearInterval(refreshTimer.current);
+      if (refreshing.current) return;
+      refreshing.current = true;
+      try {
+        const result = await refreshAccessToken();
+        if (!result) {
+          setUser(null);
+          clearInterval(refreshTimer.current);
+        }
+      } finally {
+        refreshing.current = false;
       }
     }, TOKEN_REFRESH_INTERVAL);
   }, []);
