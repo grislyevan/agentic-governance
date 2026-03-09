@@ -27,6 +27,13 @@ packaging/windows/installer/*.bmp
 packaging/windows/build/
 packaging/windows/dist/
 
+# Root build and distributable output
+build/
+dist/
+
+# Pytest cache
+.pytest_cache/
+
 # Agency-agents Cursor rules (generic, not project-specific)
 .cursor/rules/*.mdc
 !.cursor/rules/writing-and-accuracy.mdc

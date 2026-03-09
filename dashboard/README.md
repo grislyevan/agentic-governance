@@ -48,7 +48,7 @@ dashboard/src/
   pages/
     LoginPage.jsx           Email/password login with registration toggle
     DashboardPage.jsx       Full implementation with search, filters, refresh
-    EventsPage.jsx          Placeholder (events feed)
+    EventsPage.jsx          Full SOC event browser (filters, pagination, detail panel)
     PoliciesPage.jsx        Live policy list from API
     AuditLogPage.jsx        Live audit log table from API
     AdminPage.jsx           User management (table, search, add/edit/deactivate)

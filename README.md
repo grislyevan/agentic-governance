@@ -13,6 +13,12 @@ Endpoint telemetry and policy for agentic AI tool detection. This repo defines d
 - **schemas/** — Event and config schemas
 - **lab-runs/** — Lab run outputs and findings
 - **init-issues/** — Initial issue write-ups and references
+- **deploy/** — Platform templates for agent auto-start (LaunchAgent, systemd, Windows Task)
+- **packaging/** — Installer builds (macOS .app/.pkg, Windows agent/server)
+- **docs/** — Deployment guides (MDM, macOS permissions)
+- **diagrams/** — Architecture diagrams
+- **branding/** — Brand assets and guidelines
+- **install/** — Legacy; prefer `deploy/` and `packaging/` for new use
 
 ## Install (Detec Agent)
 
@@ -69,7 +75,7 @@ The API defaults to a local **SQLite** database (zero setup, stored at a platfor
 ## Running tests
 
 ```bash
-python -m pytest collector/tests/ -v                           # 58 collector unit tests
+python -m pytest collector/tests/ -v                           # 186 collector tests (includes 108 scanner consistency tests)
 python -m pytest collector/tests/test_scanner_consistency.py -v # 108 scanner consistency tests
 python -m pytest api/tests/ -v                                 # 45 API tests
 ```

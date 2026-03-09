@@ -15,7 +15,7 @@
 | Confidence + policy engine | Done |
 | NDJSON event output | Done |
 | Canonical event schema v0.3.0 | Done |
-| Playbook v0.3.1 (Class D taxonomy + platform notes) | Done |
+| Playbook v0.4 (Rule ID Catalog, enforcement pipeline, weight alignment) | Done |
 | Synthetic scanner fixture tests (22 tests, 5 scanners) | Done |
 | Scan pipeline integration tests (20 tests) | Done |
 | Alembic auto-migration on API startup | Done |
@@ -99,7 +99,7 @@ API Client ────────────────────▶│ Mu
 - [x] StateDiffer — change-only reporting with JSON persistence (`collector/agent/state.py`)
 - [x] LocalBuffer — offline NDJSON queue flushed on reconnect (`collector/agent/buffer.py`)
 - [x] `POST /endpoints/heartbeat` — auto-registers endpoints, updates `last_seen_at`
-- [x] OS-level install scripts: macOS LaunchAgent + Linux systemd unit (`install/`)
+- [x] OS-level install scripts: macOS LaunchAgent, Linux systemd, Windows Task (`deploy/`); installer builds in `packaging/`
 - [x] Cross-platform abstraction layer (`collector/compat/`) — psutil-backed process, network, service, identity, and path abstraction; macOS/Linux/Windows dispatch; Cursor, Ollama, and Copilot scanners migrated
 - [x] User management API — CRUD endpoints for tenant users (first_name, last_name, email, role), owner/admin/analyst/viewer roles, auth_provider placeholder for future SSO/SAML, password_reset_required for email provisioning (`api/routers/users.py`, `api/schemas/users.py`)
 - [x] macOS agent GUI — rumps-based menu bar app with status window matching Detec branding, PyObjC NSWindow, Icon.icns from app bundle with programmatic fallback (`collector/gui/`)
@@ -111,7 +111,7 @@ API Client ────────────────────▶│ Mu
 - [x] Events page — full SOC event browser with filters, pagination, detail panel
 - [x] M-28 fix: `approval_required` no longer triggers enforcement
 - [ ] Integration tests for API endpoints
-- [ ] Alembic migrations wired up
+- [x] Alembic migrations wired up
 - [x] Windows Service packaging — `detec-server` CLI with setup/run/install/start/stop/remove commands, pywin32 service wrapper, PyInstaller spec
 - [x] Windows collector agent packaging — `detec-agent` CLI with setup/scan/run/install/start/stop/remove commands, pywin32 service wrapper, PyInstaller spec
 - [x] Windows lab validation on Windows Server VM (deployed, service running, health OK)
@@ -177,7 +177,7 @@ API Client ────────────────────▶│ Mu
 - [x] `.env.example` added to `collector/` and `api/`
 - [x] `CONTRIBUTING.md` added
 - [x] `docker-compose.yml` added at repo root
-- [ ] Push 5 unpushed commits to `origin/main`
+- [ ] Push unpushed commits to `origin/main` when ready
 - [ ] Triage INIT-28 through INIT-42 shelved issues
 - [ ] Add integration tests before M2 merge
 

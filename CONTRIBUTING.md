@@ -3,7 +3,7 @@
 ## Development Setup
 
 ### Prerequisites
-- Python 3.12+
+- Python 3.11+
 - Node.js 20+
 - Docker + Docker Compose (for the API + database)
 
@@ -56,12 +56,17 @@ OpenAPI docs: http://localhost:8000/docs (available when `DEBUG=true`)
 agentic-governance/
 ├── collector/          Python endpoint collector (scanners, engine, schema)
 ├── dashboard/          React/Vite SOC dashboard (auth, live data, Tailwind)
-├── api/                FastAPI backend (PostgreSQL, JWT, multi-tenancy)
+├── api/                FastAPI backend (SQLite/PostgreSQL, JWT, multi-tenancy)
 ├── playbook/           Governance playbook (Markdown, versioned)
 ├── schemas/            Canonical event JSON Schema
 ├── lab-runs/           Lab run evidence and results
 ├── init-issues/        Backlog issue tracking docs
 ├── diagrams/           Architecture diagrams
+├── deploy/             Agent auto-start templates (LaunchAgent, systemd, Windows Task)
+├── packaging/          Installer builds (macOS .app/.pkg, Windows agent/server)
+├── docs/               Deployment guides (MDM, macOS permissions)
+├── branding/           Brand assets and guidelines
+├── install/            Legacy; prefer deploy/ and packaging/
 └── docker-compose.yml  Dev environment (API + DB)
 ```
 

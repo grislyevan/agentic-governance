@@ -20,6 +20,8 @@ For agent deployment, see [DEPLOY.md](DEPLOY.md).
                        └──────────────┘
 ```
 
+**Note:** In Docker Compose the dashboard runs as a separate service (e.g. port 3001). When running the API bare metal, FastAPI serves the pre-built dashboard at the root URL (no separate process).
+
 - **API** (`api/`): FastAPI application providing auth, event ingestion, endpoint tracking, and policy management.
 - **Database**: SQLite (default, zero configuration) or PostgreSQL 16+. The API runs Alembic migrations automatically on startup (falling back to `create_all` if Alembic is unavailable).
 - **Dashboard** (`dashboard/dist/`): Pre-built React SPA, served by FastAPI at the root URL. Build with `cd dashboard && npm run build`. API routes live under `/api/`, dashboard assets under `/assets/`, and all other paths fall through to `index.html` for client-side routing.
