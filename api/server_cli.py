@@ -243,7 +243,32 @@ def _require_pywin32() -> None:
 # Argument parser
 # -------------------------------------------------------------------
 
+def _enter_service_mode() -> None:
+    """Called when the exe is started by the Windows SCM (no arguments).
+
+    This is the entry path when the service starts on boot or via
+    ``net start DetecServer``.  We must register with the SCM dispatcher
+    immediately or Windows will report Error 1053.
+    """
+    import servicemanager  # type: ignore[import-untyped]
+    from win_service import DetecService
+
+    _load_env()
+    servicemanager.Initialize()
+    servicemanager.PrepareToHostSingle(DetecService)
+    servicemanager.StartServiceCtrlDispatcher()
+
+
 def main() -> None:
+    # When launched by the Windows SCM with no arguments, enter service mode
+    # immediately instead of falling through to argparse.
+    if _IS_WINDOWS and len(sys.argv) == 1:
+        try:
+            _enter_service_mode()
+            return
+        except Exception:
+            pass
+
     parser = argparse.ArgumentParser(
         prog="detec-server",
         description="Detec Server: endpoint telemetry and policy engine",

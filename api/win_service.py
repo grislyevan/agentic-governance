@@ -74,7 +74,7 @@ class DetecService(win32serviceutil.ServiceFramework):
         "Provides the API and dashboard at http://localhost:8000."
     )
     _exe_name_ = sys.executable
-    _svc_deps_ = None
+    _exe_args_ = ""
     _svc_start_type_ = win32service.SERVICE_AUTO_START
 
     def __init__(self, args: list[str]) -> None:

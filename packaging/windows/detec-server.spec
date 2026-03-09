@@ -52,6 +52,7 @@ hiddenimports = [
     "servicemanager",
     "pywintypes",
     "sqlalchemy.dialects.sqlite",
+    "win_service",
 ]
 
 a = Analysis(

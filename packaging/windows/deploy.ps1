@@ -39,7 +39,7 @@ Write-Host "╚═════════════════════�
 Write-Host ""
 
 # ── Step 0: Check prerequisites ───────────────────────────────────────────
-Write-Host "[0/8] Checking prerequisites..." -ForegroundColor Yellow
+Write-Host "[0/9] Checking prerequisites..." -ForegroundColor Yellow
 
 $missing = @()
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) { $missing += "Python 3.11+" }
@@ -68,7 +68,7 @@ if (-not $isAdmin) {
 }
 
 # ── Step 1: Clone or update the repo ──────────────────────────────────────
-Write-Host "`n[1/8] Getting source code..." -ForegroundColor Yellow
+Write-Host "`n[1/9] Getting source code..." -ForegroundColor Yellow
 
 if (Test-Path "$InstallDir\.git") {
     Write-Host "  Repo exists at $InstallDir, pulling latest..." -ForegroundColor Gray
@@ -85,7 +85,7 @@ if (Test-Path "$InstallDir\.git") {
 }
 
 # ── Step 2: Install Python dependencies (API) ────────────────────────────
-Write-Host "`n[2/8] Installing API Python dependencies..." -ForegroundColor Yellow
+Write-Host "`n[2/9] Installing API Python dependencies..." -ForegroundColor Yellow
 $ErrorActionPreference = "Continue"
 pip install -r "$InstallDir\api\requirements.txt" 2>&1 | Out-Null
 pip install pyinstaller pywin32 2>&1 | Out-Null
@@ -94,7 +94,7 @@ Write-Host "  Dependencies installed." -ForegroundColor Green
 $ErrorActionPreference = "Stop"
 
 # ── Step 3: Install collector as a package ────────────────────────────────
-Write-Host "`n[3/8] Installing collector package..." -ForegroundColor Yellow
+Write-Host "`n[3/9] Installing collector package..." -ForegroundColor Yellow
 $ErrorActionPreference = "Continue"
 Push-Location $InstallDir
 pip install -e . 2>&1 | Out-Null
@@ -103,7 +103,7 @@ Write-Host "  Collector package installed." -ForegroundColor Green
 $ErrorActionPreference = "Stop"
 
 # ── Step 4: Build the React dashboard ─────────────────────────────────────
-Write-Host "`n[4/8] Building dashboard..." -ForegroundColor Yellow
+Write-Host "`n[4/9] Building dashboard..." -ForegroundColor Yellow
 $ErrorActionPreference = "Continue"
 Push-Location "$InstallDir\dashboard"
 npm install --loglevel=error 2>&1 | Out-Null
@@ -117,7 +117,7 @@ if (-not (Test-Path "$InstallDir\dashboard\dist\index.html")) {
 Write-Host "  Dashboard built OK." -ForegroundColor Green
 
 # ── Step 5: Build detec-server.exe ────────────────────────────────────────
-Write-Host "`n[5/8] Building detec-server.exe (this takes a few minutes)..." -ForegroundColor Yellow
+Write-Host "`n[5/9] Building detec-server.exe (this takes a few minutes)..." -ForegroundColor Yellow
 Push-Location "$InstallDir\packaging\windows"
 $ErrorActionPreference = "Continue"
 pyinstaller --clean --noconfirm detec-server.spec 2>&1 | ForEach-Object { "$_" } | Select-String -Pattern "(ERROR|completed)" | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
@@ -132,7 +132,7 @@ $sizeS = [math]::Round((Get-Item "$ServerDist\detec-server.exe").Length / 1MB, 1
 Write-Host "  detec-server.exe built ($sizeS MB)" -ForegroundColor Green
 
 # ── Step 6: Build detec-agent.exe ─────────────────────────────────────────
-Write-Host "`n[6/8] Building detec-agent.exe..." -ForegroundColor Yellow
+Write-Host "`n[6/9] Building detec-agent.exe..." -ForegroundColor Yellow
 Push-Location "$InstallDir\packaging\windows"
 $ErrorActionPreference = "Continue"
 pyinstaller --clean --noconfirm detec-agent.spec 2>&1 | ForEach-Object { "$_" } | Select-String -Pattern "(ERROR|completed)" | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
@@ -147,7 +147,7 @@ $sizeA = [math]::Round((Get-Item "$AgentDist\detec-agent.exe").Length / 1MB, 1)
 Write-Host "  detec-agent.exe built ($sizeA MB)" -ForegroundColor Green
 
 # ── Step 7: Server setup + install ────────────────────────────────────────
-Write-Host "`n[7/8] Setting up Detec Server..." -ForegroundColor Yellow
+Write-Host "`n[7/9] Setting up Detec Server..." -ForegroundColor Yellow
 
 # Run first-time setup (generates JWT secret, admin password, DB)
 $ErrorActionPreference = "Continue"
@@ -166,7 +166,7 @@ if ($isAdmin) {
 $ErrorActionPreference = "Stop"
 
 # ── Step 8: Firewall rule ─────────────────────────────────────────────────
-Write-Host "`n[8/8] Configuring firewall..." -ForegroundColor Yellow
+Write-Host "`n[8/9] Configuring firewall..." -ForegroundColor Yellow
 
 if ($isAdmin) {
     $existingRule = Get-NetFirewallRule -DisplayName "Detec Server" -ErrorAction SilentlyContinue
@@ -178,6 +178,28 @@ if ($isAdmin) {
     }
 } else {
     Write-Host "  Skipping firewall (not Administrator)." -ForegroundColor DarkYellow
+}
+
+# ── Step 9: Desktop shortcut ──────────────────────────────────────────────
+Write-Host "`n[9/9] Creating desktop shortcut..." -ForegroundColor Yellow
+
+$DesktopPath = [Environment]::GetFolderPath("CommonDesktopDirectory")
+if (-not $DesktopPath) { $DesktopPath = [Environment]::GetFolderPath("Desktop") }
+$ShortcutFile = Join-Path $DesktopPath "Detec Dashboard.lnk"
+
+try {
+    $WshShell = New-Object -ComObject WScript.Shell
+    $Shortcut = $WshShell.CreateShortcut($ShortcutFile)
+    $Shortcut.TargetPath = "http://localhost:$ServerPort"
+    $Shortcut.Description = "Open the Detec governance dashboard"
+    $Shortcut.IconLocation = "shell32.dll,14"
+    if (Test-Path "$ServerDist\detec-server.exe") {
+        $Shortcut.IconLocation = "$ServerDist\detec-server.exe,0"
+    }
+    $Shortcut.Save()
+    Write-Host "  Shortcut created: $ShortcutFile" -ForegroundColor Green
+} catch {
+    Write-Host "  Could not create desktop shortcut: $_" -ForegroundColor DarkYellow
 }
 
 # ── Done ──────────────────────────────────────────────────────────────────
