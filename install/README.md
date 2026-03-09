@@ -23,7 +23,7 @@ The agentic-gov endpoint agent runs the scanner continuously in the background, 
 ```bash
 cd /path/to/agentic-governance
 python -m collector.main \
-  --api-url http://localhost:8000 \
+  --api-url http://localhost:8000/api \
   --api-key YOUR_API_KEY \
   --interval 300 \
   --sensitivity Tier1
@@ -79,7 +79,7 @@ rm ~/Library/LaunchAgents/ai.agentic-gov.agent.plist
 ```bash
 mkdir -p ~/.config/agentic-gov
 cat > ~/.config/agentic-gov/agent.env <<'EOF'
-AGENTIC_GOV_API_URL=http://localhost:8000
+AGENTIC_GOV_API_URL=http://localhost:8000/api
 AGENTIC_GOV_API_KEY=YOUR_API_KEY
 AGENTIC_GOV_INTERVAL=300
 AGENTIC_GOV_SENSITIVITY=Tier1
@@ -125,7 +125,7 @@ systemctl --user daemon-reload
 sudo cp install/linux/agentic-gov-agent.service /etc/systemd/system/
 sudo mkdir -p /etc/agentic-gov
 sudo tee /etc/agentic-gov/agent.env > /dev/null <<'EOF'
-AGENTIC_GOV_API_URL=http://localhost:8000
+AGENTIC_GOV_API_URL=http://localhost:8000/api
 AGENTIC_GOV_API_KEY=YOUR_API_KEY
 EOF
 sudo chmod 600 /etc/agentic-gov/agent.env

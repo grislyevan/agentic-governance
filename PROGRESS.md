@@ -104,6 +104,7 @@ API Client ────────────────────▶│ Mu
 - [x] macOS .app bundle — PyInstaller spec, build script, icon from `branding/Icon.icns`, entitlements plist (`packaging/macos/`)
 - [x] macOS .pkg installer — pkgbuild/productbuild, pre/postinstall scripts, distribution XML, LaunchAgent configuration (`packaging/macos/`)
 - [x] MDM deployment documentation — Jamf Pro, Endpoint Central, generic MDM; PPPC profile template for Full Disk Access (`docs/mdm-deployment.md`, `docs/macos-permissions.md`)
+- [x] Dashboard served from FastAPI — API routes under `/api/`, React SPA served at root, no separate Node process needed
 - [ ] Integration tests for API endpoints
 - [ ] Alembic migrations wired up
 - [ ] Migrate remaining 8 scanners to compat layer

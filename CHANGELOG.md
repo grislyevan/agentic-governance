@@ -8,6 +8,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Dashboard served from FastAPI**: The React dashboard is now served as static
+  files directly from FastAPI (`dashboard/dist/`). Build with
+  `cd dashboard && npm run build`, then start the API. No separate Node.js
+  process or Docker container needed. API routes moved under the `/api/` prefix;
+  the dashboard UI is served at the root URL. SPA routing is handled via a
+  catch-all that returns `index.html` for non-file paths.
 - **SQLite as default database**: The API now defaults to a local SQLite database
   with zero configuration. The database file is created automatically at a
   platform-appropriate path (Windows: `C:\ProgramData\Detec\detec.db`, macOS:

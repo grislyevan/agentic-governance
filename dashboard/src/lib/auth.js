@@ -33,7 +33,7 @@ export function clearTokens() {
 }
 
 function apiBase() {
-  const url = getStored(STORAGE_KEYS.apiUrl) || 'http://localhost:8000';
+  const url = getStored(STORAGE_KEYS.apiUrl) || '/api';
   return url.replace(/\/+$/, '');
 }
 

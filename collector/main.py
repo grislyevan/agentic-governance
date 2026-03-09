@@ -5,7 +5,7 @@ One-shot mode (default):
 
 Daemon mode (persistent endpoint agent):
     python -m collector.main \\
-        --api-url http://localhost:8000 \\
+        --api-url http://localhost:8000/api \\
         --api-key <key> \\
         --interval 300 \\
         --report-all          # omit to report changes only
@@ -715,7 +715,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--api-url", metavar="URL",
-        help="Central API base URL, e.g. http://localhost:8000",
+        help="Central API base URL, e.g. http://localhost:8000/api",
     )
     parser.add_argument(
         "--api-key", metavar="KEY",

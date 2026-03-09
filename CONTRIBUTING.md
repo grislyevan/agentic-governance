@@ -46,7 +46,7 @@ Or with Docker Compose (API + PostgreSQL):
 docker compose up db api
 ```
 
-OpenAPI docs: http://localhost:8000/docs
+OpenAPI docs: http://localhost:8000/docs (available when `DEBUG=true`)
 
 ---
 

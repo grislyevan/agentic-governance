@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from tests.conftest import _auth_header, register_user
+from tests.conftest import API, _auth_header, register_user
 
 
 def _auth(client):
@@ -13,7 +13,7 @@ def _auth(client):
 class TestCreatePolicy:
     def test_create_returns_201(self, client):
         headers = _auth(client)
-        resp = client.post("/policies", json={
+        resp = client.post(f"{API}/policies", json={
             "rule_id": "GOV-001",
             "description": "Block Class D tools on Tier 1 assets",
             "parameters": {"tool_class": "D", "sensitivity": "Tier1"},
@@ -25,16 +25,16 @@ class TestCreatePolicy:
         assert data["parameters"]["tool_class"] == "D"
 
     def test_create_unauthenticated_returns_401(self, client):
-        resp = client.post("/policies", json={"rule_id": "FAIL"})
+        resp = client.post(f"{API}/policies", json={"rule_id": "FAIL"})
         assert resp.status_code == 401
 
 
 class TestListPolicies:
     def test_list_returns_tenant_policies(self, client):
         headers = _auth(client)
-        client.post("/policies", json={"rule_id": "R-1"}, headers=headers)
-        client.post("/policies", json={"rule_id": "R-2"}, headers=headers)
-        resp = client.get("/policies", headers=headers)
+        client.post(f"{API}/policies", json={"rule_id": "R-1"}, headers=headers)
+        client.post(f"{API}/policies", json={"rule_id": "R-2"}, headers=headers)
+        resp = client.get(f"{API}/policies", headers=headers)
         assert resp.status_code == 200
         rules = [p["rule_id"] for p in resp.json()["items"]]
         assert "R-1" in rules
@@ -44,11 +44,11 @@ class TestListPolicies:
 class TestUpdatePolicy:
     def test_patch_updates_fields(self, client):
         headers = _auth(client)
-        created = client.post("/policies", json={
+        created = client.post(f"{API}/policies", json={
             "rule_id": "UP-1", "description": "original",
         }, headers=headers).json()
 
-        resp = client.patch(f"/policies/{created['id']}", json={
+        resp = client.patch(f"{API}/policies/{created['id']}", json={
             "rule_id": "UP-1",
             "description": "updated",
             "parameters": {"changed": True},
@@ -59,7 +59,7 @@ class TestUpdatePolicy:
 
     def test_patch_nonexistent_returns_404(self, client):
         headers = _auth(client)
-        resp = client.patch("/policies/no-such-id", json={
+        resp = client.patch(f"{API}/policies/no-such-id", json={
             "rule_id": "X",
         }, headers=headers)
         assert resp.status_code == 404

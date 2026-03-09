@@ -11,7 +11,7 @@ connection at the start of the following scan cycle.
 
 Usage::
 
-    emitter = HttpEmitter(api_url="http://localhost:8000", api_key="<key>")
+    emitter = HttpEmitter(api_url="http://localhost:8000/api", api_key="<key>")
     emitter.emit(event_dict)   # True = accepted, False = buffered locally
     emitter.flush_buffer()     # send any previously buffered events
 """

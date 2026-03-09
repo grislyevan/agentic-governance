@@ -10,7 +10,7 @@ function getStored(key, fallback) {
 
 export function getApiConfig() {
   return {
-    apiUrl: getStored(STORAGE_KEYS.apiUrl, 'http://localhost:8000'),
+    apiUrl: getStored(STORAGE_KEYS.apiUrl, '/api'),
     apiKey: getStored(STORAGE_KEYS.apiKey, ''),
   };
 }

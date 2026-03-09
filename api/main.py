@@ -26,7 +26,8 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -184,15 +185,18 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-Api-Key"],
 )
 
-app.include_router(auth.router)
-app.include_router(audit.router)
-app.include_router(events.router)
-app.include_router(endpoints.router)
-app.include_router(policies.router)
-app.include_router(users.router)
+API_PREFIX = "/api"
+
+app.include_router(auth.router, prefix=API_PREFIX)
+app.include_router(audit.router, prefix=API_PREFIX)
+app.include_router(events.router, prefix=API_PREFIX)
+app.include_router(endpoints.router, prefix=API_PREFIX)
+app.include_router(policies.router, prefix=API_PREFIX)
+app.include_router(users.router, prefix=API_PREFIX)
 
 
 @app.get("/health", tags=["meta"])
+@app.get(f"{API_PREFIX}/health", tags=["meta"], include_in_schema=False)
 def health() -> JSONResponse:
     db_ok = True
     try:
@@ -208,3 +212,24 @@ def health() -> JSONResponse:
         {"status": "degraded", "version": app.version, "db": "unreachable"},
         status_code=503,
     )
+
+
+# ---------------------------------------------------------------------------
+# Static dashboard serving
+# ---------------------------------------------------------------------------
+# When dashboard/dist/ exists (built React app), serve it at the root.
+# API routes take priority because they are registered first.
+# ---------------------------------------------------------------------------
+
+_dashboard_dist = Path(__file__).resolve().parent.parent / "dashboard" / "dist"
+
+if _dashboard_dist.is_dir():
+    app.mount("/assets", StaticFiles(directory=_dashboard_dist / "assets"), name="dashboard-assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def _serve_spa(full_path: str) -> FileResponse:
+        """Serve the React SPA. Non-asset paths return index.html for client-side routing."""
+        file_path = _dashboard_dist / full_path
+        if full_path and file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(_dashboard_dist / "index.html")

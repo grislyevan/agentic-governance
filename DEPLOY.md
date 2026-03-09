@@ -84,12 +84,12 @@ detec-agent --help
 For the agent to run as a persistent daemon and send events to the API, it needs at least:
 
 - **interval** — how often to scan (e.g. `300` seconds)
-- **api_url** — base URL of the central API (e.g. `https://api.example.com`)
+- **api_url** — base URL of the central API (e.g. `https://server.example.com/api`)
 - **api_key** — API key for authentication
 
 You can provide these via:
 
-1. **CLI:** `detec-agent --interval 300 --api-url https://api.example.com --api-key YOUR_KEY`
+1. **CLI:** `detec-agent --interval 300 --api-url https://server.example.com/api --api-key YOUR_KEY`
 2. **Environment variables:** `AGENTIC_GOV_INTERVAL`, `AGENTIC_GOV_API_URL`, `AGENTIC_GOV_API_KEY`
 3. **Config file:** `collector/config/collector.json` (see [collector/README.md](collector/README.md))
 
@@ -162,16 +162,16 @@ After the agent is running:
 
 2. **Events flowing:** After at least one scan cycle (within the configured interval), detection events should appear for that endpoint.
 
-Optional one-shot checks (if the API is on `localhost:8000` and you have an API key):
+Optional one-shot checks (if the server is on `localhost:8000` and you have an API key):
 
 ```bash
 # Heartbeat (agent sends these periodically)
-curl -s -X POST http://localhost:8000/endpoints/heartbeat \
+curl -s -X POST http://localhost:8000/api/endpoints/heartbeat \
   -H "X-Api-Key: YOUR_KEY" -H "Content-Type: application/json" \
   -d '{"endpoint_id":"test","interval_seconds":300}'
 
 # List endpoints (dashboard or API)
-curl -s -H "X-Api-Key: YOUR_KEY" http://localhost:8000/endpoints
+curl -s -H "X-Api-Key: YOUR_KEY" http://localhost:8000/api/endpoints
 ```
 
 ## One agent per user vs per machine

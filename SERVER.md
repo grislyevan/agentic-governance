@@ -1,6 +1,6 @@
 # Central Server Runbook
 
-This document covers deploying and operating the **Detec central server**: the FastAPI API and its database. Endpoint agents (`detec-agent`) call the API at `POST /events` and `POST /endpoints/heartbeat`. The dashboard is a separate web app that reads from this same API.
+This document covers deploying and operating the **Detec central server**: the FastAPI API and its database. Endpoint agents (`detec-agent`) call the API at `POST /api/events` and `POST /api/endpoints/heartbeat`. The dashboard is served by the same FastAPI process.
 
 For agent deployment, see [DEPLOY.md](DEPLOY.md).
 
@@ -22,7 +22,7 @@ For agent deployment, see [DEPLOY.md](DEPLOY.md).
 
 - **API** (`api/`): FastAPI application providing auth, event ingestion, endpoint tracking, and policy management.
 - **Database**: SQLite (default, zero configuration) or PostgreSQL 16+. The API creates tables on first startup or via Alembic migrations.
-- **Dashboard** (`dashboard/`): Separate Vite/React app. It connects to the API URL; it is not covered in this runbook. See `dashboard/README.md`.
+- **Dashboard** (`dashboard/dist/`): Pre-built React SPA, served by FastAPI at the root URL. Build with `cd dashboard && npm run build`. API routes live under `/api/`, dashboard assets under `/assets/`, and all other paths fall through to `index.html` for client-side routing.
 
 ### Database options
 
@@ -188,7 +188,7 @@ API keys are hashed (SHA-256) before storage. The raw key is displayed **once** 
 
 ### Rate limiting
 
-Auth endpoints (`/auth/login`, `/auth/register`, `/auth/refresh`) are rate-limited to prevent brute-force attacks:
+Auth endpoints (`/api/auth/login`, `/api/auth/register`, `/api/auth/refresh`) are rate-limited to prevent brute-force attacks:
 - Login and register: 5 requests per minute per IP
 - Token refresh: 10 requests per minute per IP
 
@@ -307,7 +307,7 @@ Copy this key immediately.
 Pass the key in the `X-Api-Key` header for agent and API requests:
 
 ```bash
-curl -H "X-Api-Key: <key>" http://localhost:8000/endpoints
+curl -H "X-Api-Key: <key>" http://localhost:8000/api/endpoints
 ```
 
 Configure agents with this key via `--api-key`, `AGENTIC_GOV_API_KEY`, or the config file. See [DEPLOY.md](DEPLOY.md) for agent configuration.
@@ -351,7 +351,7 @@ Then future migrations will apply cleanly on top.
 
 ## Health check
 
-The API exposes `GET /health` which verifies database connectivity and returns:
+The API exposes `GET /health` (and `GET /api/health`) which verifies database connectivity and returns:
 
 - `{"status": "ok", "version": "0.1.0", "db": "ok"}` (HTTP 200) when healthy
 - `{"status": "degraded", "version": "0.1.0", "db": "unreachable"}` (HTTP 503) when the database is down

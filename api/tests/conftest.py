@@ -54,6 +54,9 @@ from models.user import User
 # Fixtures
 # ---------------------------------------------------------------------------
 
+API = "/api"
+
+
 @pytest.fixture()
 def client():
     """FastAPI TestClient backed by a fresh in-memory database."""
@@ -79,7 +82,7 @@ def register_user(
     body: dict = {"email": email, "password": password}
     if tenant_name:
         body["tenant_name"] = tenant_name
-    resp = client.post("/auth/register", json=body)
+    resp = client.post(f"{API}/auth/register", json=body)
     assert resp.status_code == 201, resp.text
     return resp.json()
 
@@ -89,6 +92,6 @@ def login_user(
     email: str = "alice@test.com",
     password: str = "testpass12345",
 ) -> dict:
-    resp = client.post("/auth/login", json={"email": email, "password": password})
+    resp = client.post(f"{API}/auth/login", json={"email": email, "password": password})
     assert resp.status_code == 200, resp.text
     return resp.json()

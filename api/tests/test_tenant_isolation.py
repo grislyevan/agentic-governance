@@ -5,7 +5,7 @@ Each tenant must only see its own endpoints, events, and policies.
 
 from __future__ import annotations
 
-from tests.conftest import _auth_header, register_user
+from tests.conftest import API, _auth_header, register_user
 
 
 def _setup_two_tenants(client):
@@ -22,16 +22,16 @@ class TestEndpointIsolation:
     def test_tenant_a_cannot_see_tenant_b_endpoints(self, client):
         auth_a, auth_b = _setup_two_tenants(client)
 
-        client.post("/endpoints", json={"hostname": "ws-a"}, headers=auth_a)
-        client.post("/endpoints", json={"hostname": "ws-b"}, headers=auth_b)
+        client.post(f"{API}/endpoints", json={"hostname": "ws-a"}, headers=auth_a)
+        client.post(f"{API}/endpoints", json={"hostname": "ws-b"}, headers=auth_b)
 
-        resp_a = client.get("/endpoints", headers=auth_a)
+        resp_a = client.get(f"{API}/endpoints", headers=auth_a)
         assert resp_a.status_code == 200
         names_a = [e["hostname"] for e in resp_a.json()["items"]]
         assert "ws-a" in names_a
         assert "ws-b" not in names_a
 
-        resp_b = client.get("/endpoints", headers=auth_b)
+        resp_b = client.get(f"{API}/endpoints", headers=auth_b)
         names_b = [e["hostname"] for e in resp_b.json()["items"]]
         assert "ws-b" in names_b
         assert "ws-a" not in names_b
@@ -39,10 +39,10 @@ class TestEndpointIsolation:
     def test_tenant_a_cannot_get_tenant_b_endpoint_by_id(self, client):
         auth_a, auth_b = _setup_two_tenants(client)
 
-        resp = client.post("/endpoints", json={"hostname": "private-b"}, headers=auth_b)
+        resp = client.post(f"{API}/endpoints", json={"hostname": "private-b"}, headers=auth_b)
         ep_id = resp.json()["id"]
 
-        resp = client.get(f"/endpoints/{ep_id}", headers=auth_a)
+        resp = client.get(f"{API}/endpoints/{ep_id}", headers=auth_a)
         assert resp.status_code == 404
 
 
@@ -50,7 +50,7 @@ class TestEventIsolation:
     def test_tenant_a_cannot_see_tenant_b_events(self, client):
         auth_a, auth_b = _setup_two_tenants(client)
 
-        client.post("/events", json={
+        client.post(f"{API}/events", json={
             "event_id": "evt-a-1",
             "event_type": "detection",
             "event_version": "1.0",
@@ -58,7 +58,7 @@ class TestEventIsolation:
             "tool": {"name": "Ollama"},
         }, headers=auth_a)
 
-        client.post("/events", json={
+        client.post(f"{API}/events", json={
             "event_id": "evt-b-1",
             "event_type": "detection",
             "event_version": "1.0",
@@ -66,7 +66,7 @@ class TestEventIsolation:
             "tool": {"name": "Cursor"},
         }, headers=auth_b)
 
-        resp_a = client.get("/events", headers=auth_a)
+        resp_a = client.get(f"{API}/events", headers=auth_a)
         assert resp_a.status_code == 200
         ids_a = [e["event_id"] for e in resp_a.json()["items"]]
         assert "evt-a-1" in ids_a
@@ -77,15 +77,15 @@ class TestPolicyIsolation:
     def test_tenant_a_cannot_see_tenant_b_policies(self, client):
         auth_a, auth_b = _setup_two_tenants(client)
 
-        client.post("/policies", json={
+        client.post(f"{API}/policies", json={
             "rule_id": "RULE-A", "description": "A's rule",
         }, headers=auth_a)
 
-        client.post("/policies", json={
+        client.post(f"{API}/policies", json={
             "rule_id": "RULE-B", "description": "B's rule",
         }, headers=auth_b)
 
-        resp_a = client.get("/policies", headers=auth_a)
+        resp_a = client.get(f"{API}/policies", headers=auth_a)
         assert resp_a.status_code == 200
         rules_a = [p["rule_id"] for p in resp_a.json()["items"]]
         assert "RULE-A" in rules_a

@@ -47,12 +47,16 @@ Without `--dry-run`, the collector writes NDJSON to `collector/scan-results.ndjs
 ## Quick start (full stack)
 
 ```bash
-cp .env.example .env          # edit secrets for production
-docker compose up -d           # starts db + api
-cd dashboard && npm install && npm run dev
+cd dashboard && npm install && npm run build   # build the dashboard
+cd ../api && pip install -r requirements.txt
+export JWT_SECRET="$(openssl rand -hex 32)"
+export SEED_ADMIN_PASSWORD="pick-a-strong-password"
+uvicorn main:app --reload
 ```
 
-Open http://localhost:5173. Log in with the seed admin credentials (see [SERVER.md](SERVER.md#first-api-key)) or register a new account. The dashboard connects to the API at `http://localhost:8000` by default; configure this in Settings if needed.
+Open http://localhost:8000. The FastAPI server serves both the API (under `/api/`) and the dashboard UI at the root. Log in with the seed admin credentials (see [SERVER.md](SERVER.md#first-api-key)) or register a new account.
+
+For dashboard development with hot reload, use `cd dashboard && npm run dev` (Vite proxies `/api` to the FastAPI backend at port 8000).
 
 ## Running the API
 
@@ -83,4 +87,4 @@ SOC operator console for monitoring detected AI tools, confidence scoring, and p
 - **Live pages**: Endpoints dashboard (filterable by endpoint, time range, searchable), Policies list, Audit log (paginated).
 - **User management**: Admin page for creating, editing, and deactivating users. Four roles: owner, admin, analyst, viewer. Gated to owner/admin.
 
-Dev mode: `cd dashboard && npm install && npm run dev` (opens http://localhost:5173). See [dashboard/README.md](dashboard/README.md).
+The dashboard is served directly by FastAPI from `dashboard/dist/`. Build it with `cd dashboard && npm run build`. For development with hot reload: `cd dashboard && npm run dev` (Vite dev server on port 5173 proxies API calls to FastAPI on port 8000). See [dashboard/README.md](dashboard/README.md).
