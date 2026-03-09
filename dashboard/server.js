@@ -65,8 +65,18 @@ const server = http.createServer((req, res) => {
     '.css': 'text/css',
     '.json': 'application/json',
     '.ico': 'image/x-icon',
+    '.svg': 'image/svg+xml',
+    '.png': 'image/png',
+    '.woff2': 'font/woff2',
   };
-  serveFile(file, res, types[ext] || 'application/octet-stream');
+
+  fs.access(file, fs.constants.F_OK, (err) => {
+    if (err) {
+      serveFile(path.join(dist, 'index.html'), res, 'text/html');
+      return;
+    }
+    serveFile(file, res, types[ext] || 'application/octet-stream');
+  });
 });
 
 server.listen(PORT, () => {

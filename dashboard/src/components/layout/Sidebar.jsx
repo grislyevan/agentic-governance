@@ -26,6 +26,7 @@ export default function Sidebar({ activePage, onNavigate, alertCount = 0 }) {
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
+              aria-current={active ? 'page' : undefined}
               className={`
                 w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                 transition-colors duration-150 text-left
@@ -48,6 +49,7 @@ export default function Sidebar({ activePage, onNavigate, alertCount = 0 }) {
       <div className="px-3 py-3 border-t border-detec-slate-700/50">
         <button
           onClick={() => onNavigate('settings')}
+          aria-current={activePage === 'settings' ? 'page' : undefined}
           className={`
             w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
             transition-colors duration-150 text-left

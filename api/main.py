@@ -41,7 +41,7 @@ from models.audit import AuditLog
 from models.endpoint import Endpoint
 from models.event import Event
 from models.policy import Policy
-from routers import audit, auth, endpoints, events, policies
+from routers import audit, auth, endpoints, events, policies, users
 
 logger = logging.getLogger("agentic_governance")
 
@@ -72,7 +72,7 @@ async def _staleness_monitor() -> None:
             db.commit()
         except Exception:
             db.rollback()
-            logger.exception("Staleness monitor error")
+            logger.warning("Staleness monitor cycle failed", exc_info=True)
         finally:
             db.close()
 
@@ -185,6 +185,7 @@ app.include_router(audit.router)
 app.include_router(events.router)
 app.include_router(endpoints.router)
 app.include_router(policies.router)
+app.include_router(users.router)
 
 
 @app.get("/health", tags=["meta"])

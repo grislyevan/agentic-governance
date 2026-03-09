@@ -448,3 +448,5 @@ Each finding was verified by reading source code and graded by exploitability, i
 | L-25 | Low | Fixed | EndpointContextBar API key length guard |
 | L-33 | Low | Fixed | EventEmitter output file explicit 0o600 permissions |
 | L-42 | Low | Fixed | Public key file explicit 0o644 permissions |
+| H-6 | High | Fixed | React Router for URL-based navigation |
+| L-9 | Low | Fixed | Staleness monitor exception logging at WARNING |

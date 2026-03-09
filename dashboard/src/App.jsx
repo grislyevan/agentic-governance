@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import useAuth from './hooks/useAuth';
 import Sidebar from './components/layout/Sidebar';
 import TopBar from './components/layout/TopBar';
@@ -11,21 +12,28 @@ import AuditLogPage from './pages/AuditLogPage';
 import AdminPage from './pages/AdminPage';
 import SettingsPage from './pages/SettingsPage';
 
-const PAGES = {
-  endpoints: DashboardPage,
-  events: EventsPage,
-  policies: PoliciesPage,
-  audit: AuditLogPage,
-  admin: AdminPage,
-  settings: SettingsPage,
+const PATH_TO_PAGE = {
+  '/endpoints': 'endpoints',
+  '/events': 'events',
+  '/policies': 'policies',
+  '/audit': 'audit',
+  '/admin': 'admin',
+  '/settings': 'settings',
 };
 
 export default function App() {
   const { isAuthenticated, loading } = useAuth();
-  const [activePage, setActivePage] = useState('endpoints');
+  const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [alertCount, setAlertCount] = useState(0);
   const refreshRef = useRef(null);
+
+  const activePage = PATH_TO_PAGE[location.pathname] || 'endpoints';
+
+  const handleNavigate = useCallback((page) => {
+    navigate(`/${page}`);
+  }, [navigate]);
 
   const handleRefresh = useCallback(() => {
     refreshRef.current?.();
@@ -44,28 +52,36 @@ export default function App() {
     return <LoginPage />;
   }
 
-  const PageComponent = PAGES[activePage] || DashboardPage;
+  const pageProps = {
+    onNavigate: handleNavigate,
+    searchQuery,
+    refreshRef,
+    onAlertCountChange: setAlertCount,
+  };
 
   return (
     <div className="flex min-h-screen bg-detec-slate-900">
-      <Sidebar activePage={activePage} onNavigate={setActivePage} alertCount={alertCount} />
+      <Sidebar activePage={activePage} onNavigate={handleNavigate} alertCount={alertCount} />
 
       <div className="flex flex-col flex-1 ml-60">
         <TopBar
           activePage={activePage}
-          onNavigate={setActivePage}
+          onNavigate={handleNavigate}
           onSearch={setSearchQuery}
           onRefresh={handleRefresh}
           alertCount={alertCount}
         />
 
         <main className="flex-1 p-6 overflow-y-auto">
-          <PageComponent
-            onNavigate={setActivePage}
-            searchQuery={searchQuery}
-            refreshRef={refreshRef}
-            onAlertCountChange={setAlertCount}
-          />
+          <Routes>
+            <Route path="/endpoints" element={<DashboardPage {...pageProps} />} />
+            <Route path="/events" element={<EventsPage {...pageProps} />} />
+            <Route path="/policies" element={<PoliciesPage {...pageProps} />} />
+            <Route path="/audit" element={<AuditLogPage {...pageProps} />} />
+            <Route path="/admin" element={<AdminPage {...pageProps} />} />
+            <Route path="/settings" element={<SettingsPage {...pageProps} />} />
+            <Route path="*" element={<Navigate to="/endpoints" replace />} />
+          </Routes>
         </main>
       </div>
     </div>
