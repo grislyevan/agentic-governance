@@ -81,7 +81,7 @@ async def _staleness_monitor() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    _create_tables()
+    _apply_migrations()
     _seed()
     monitor_task = asyncio.create_task(_staleness_monitor())
     yield
@@ -92,13 +92,30 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         pass
 
 
-def _create_tables() -> None:
-    """Ensure all tables exist.
+def _apply_migrations() -> None:
+    """Run Alembic migrations on startup, falling back to create_all.
 
-    In production, run ``alembic upgrade head`` before starting the API
-    so the schema is versioned.  create_all is kept as a dev convenience;
-    it is a no-op when the tables already exist.
+    For on-prem/single-binary deployments, this ensures the database
+    schema is always up-to-date without requiring operators to run a
+    separate ``alembic upgrade head`` command.
     """
+    try:
+        from alembic.config import Config as AlembicConfig
+        from alembic import command as alembic_command
+
+        ini_path = Path(__file__).resolve().parent / "alembic.ini"
+        if ini_path.exists():
+            cfg = AlembicConfig(str(ini_path))
+            cfg.set_main_option("sqlalchemy.url", settings.database_url)
+            alembic_command.upgrade(cfg, "head")
+            logger.info("Alembic migrations applied successfully")
+            return
+    except Exception:
+        logger.warning(
+            "Alembic migration failed; falling back to create_all",
+            exc_info=True,
+        )
+
     from core.database import Base
     import models  # noqa: F401
     Base.metadata.create_all(bind=engine)

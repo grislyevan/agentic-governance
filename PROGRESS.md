@@ -14,9 +14,11 @@
 | Cross-platform abstraction layer (`collector/compat/`) | Done |
 | Confidence + policy engine | Done |
 | NDJSON event output | Done |
-| Canonical event schema v0.2.0 | Done |
+| Canonical event schema v0.3.0 | Done |
 | Playbook v0.3.1 (Class D taxonomy + platform notes) | Done |
 | Synthetic scanner fixture tests (22 tests, 5 scanners) | Done |
+| Scan pipeline integration tests (20 tests) | Done |
+| Alembic auto-migration on API startup | Done |
 | Lab runs (10 completed, 5 pending live validation) | In progress |
 | React/Vite dashboard (auth, live data, controls) | Done |
 | FastAPI backend (PostgreSQL, JWT, multi-tenancy) | Done |

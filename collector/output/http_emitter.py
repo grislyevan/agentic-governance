@@ -227,4 +227,6 @@ class HttpEmitter:
             "sent": self._sent,
             "buffered": self._buffered,
             "buffer_size": self._buffer.size(),
+            "emitted": self._sent,
+            "failed": self._buffered,
         }

@@ -171,6 +171,11 @@
       "id": "APPR-2026-0226-001",
       "scope_id": "claude-code:exec:claude-lab-workspace"
     },
+    "enforcement": {
+      "tactic": "approval_gate",
+      "success": true,
+      "detail": "Approval granted by security delegate; session allowed to proceed."
+    },
     "outcome": {
       "enforcement_result": "allowed",
       "incident_flag": false,

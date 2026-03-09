@@ -169,6 +169,11 @@ def build_event(
             "success": enforcement.success,
             "detail": enforcement.detail,
         }
+        event["outcome"] = {
+            "enforcement_result": "denied" if enforcement.success else "allowed",
+            "incident_flag": False,
+            "incident_id": None,
+        }
 
     severity_level = _compute_severity(confidence, scan.action_risk, sensitivity, policy)
     event["severity"] = {"level": severity_level}

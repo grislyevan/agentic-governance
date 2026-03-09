@@ -8,6 +8,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Scan pipeline integration tests**: 20 new tests covering `build_event`
+  schema conformance for all event types, `_process_detection` event chains,
+  parent_event_id linking, enforcement gating (M-28 regression guard),
+  StateDiffer suppression, cleared events, scanner failure isolation,
+  run_scan end-to-end (dry-run and NDJSON), and HttpEmitter stats
+  compatibility. Total collector tests: 186.
+- **Auto-migration on API startup**: The server now runs
+  `alembic upgrade head` automatically during startup, falling back to
+  `create_all` if Alembic is unavailable. Operators no longer need a
+  separate migration step for on-prem deployments.
 - **Windows collector agent packaging**: Added `detec-agent` CLI
   (`collector/agent_cli.py`) with `setup`, `scan`, `run`, `install`, `start`,
   `stop`, `remove`, and `status` subcommands. Includes a pywin32 Windows
@@ -48,6 +58,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Event schema v0.3.0**: Added `enforcement` object definition (tactic,
+  success, detail) to the canonical schema alongside `outcome`. The
+  `enforcement.applied` conditional now requires both `enforcement` and
+  `outcome`. Added `removal` to the `action.type` enum for
+  `detection.cleared` events. Schema `$id` bumped to v0.3.0.
+- **build_event populates outcome**: `enforcement.applied` events now include
+  both the `enforcement` detail block and the `outcome` block
+  (`enforcement_result`, `incident_flag`, `incident_id`), making them
+  schema-compliant. Previously only `enforcement` was written, which the
+  schema didn't recognize.
 - **JSONB replaced with JSON**: All three models that used PostgreSQL-specific
   `JSONB` columns (`Event.payload`, `AuditLog.detail`, `Policy.parameters`) now
   use SQLAlchemy's dialect-agnostic `JSON` type. This makes the API compatible
@@ -64,6 +84,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **HttpEmitter stats interface**: `HttpEmitter.stats` now includes `emitted`
+  and `failed` keys (aliasing `sent` and `buffered`), matching the interface
+  `run_scan` expects. Previously, daemon mode would crash with a `KeyError`
+  when accessing stats after a scan cycle.
 - **M-28: approval_required enforcement**: `approval_required` policy decisions
   no longer trigger the enforcer (process kill / network block). Only `block`
   decisions invoke enforcement. Previously both states were treated identically,

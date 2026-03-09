@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.agentic-governance.internal/canonical-event/v0.2.0",
+  "$id": "https://schemas.agentic-governance.internal/canonical-event/v0.3.0",
   "title": "Agentic AI Canonical Event Envelope",
   "description": "Unified event schema for detection, policy, enforcement, and audit data across all agentic AI tools and environments. Defined in Playbook v0.3 Section 9.",
   "type": "object",
@@ -68,6 +68,7 @@
     "approval": { "$ref": "#/$defs/approval" },
     "exception": { "$ref": "#/$defs/exception" },
     "evidence": { "$ref": "#/$defs/evidence" },
+    "enforcement": { "$ref": "#/$defs/enforcement" },
     "outcome": { "$ref": "#/$defs/outcome" },
     "severity": { "$ref": "#/$defs/severity" }
   },
@@ -128,7 +129,7 @@
         "required": ["event_type"]
       },
       "then": {
-        "required": ["tool", "action", "target", "policy", "outcome"]
+        "required": ["tool", "action", "target", "policy", "enforcement", "outcome"]
       }
     },
     {
@@ -297,7 +298,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["read", "write", "exec", "network", "repo", "privileged"],
+          "enum": ["read", "write", "exec", "network", "repo", "privileged", "removal"],
           "description": "Action category."
         },
         "risk_class": {
@@ -448,6 +449,27 @@
         }
       },
       "required": ["ids", "integrity_status", "hash_refs"],
+      "additionalProperties": false
+    },
+
+    "enforcement": {
+      "type": "object",
+      "description": "Details of the enforcement action that was applied.",
+      "properties": {
+        "tactic": {
+          "type": "string",
+          "description": "Enforcement tactic used (e.g. kill_process, quarantine)."
+        },
+        "success": {
+          "type": "boolean",
+          "description": "Whether the enforcement action completed successfully."
+        },
+        "detail": {
+          "type": "string",
+          "description": "Human-readable description of the enforcement action and its result."
+        }
+      },
+      "required": ["tactic", "success", "detail"],
       "additionalProperties": false
     },
 

@@ -21,7 +21,7 @@ For agent deployment, see [DEPLOY.md](DEPLOY.md).
 ```
 
 - **API** (`api/`): FastAPI application providing auth, event ingestion, endpoint tracking, and policy management.
-- **Database**: SQLite (default, zero configuration) or PostgreSQL 16+. The API creates tables on first startup or via Alembic migrations.
+- **Database**: SQLite (default, zero configuration) or PostgreSQL 16+. The API runs Alembic migrations automatically on startup (falling back to `create_all` if Alembic is unavailable).
 - **Dashboard** (`dashboard/dist/`): Pre-built React SPA, served by FastAPI at the root URL. Build with `cd dashboard && npm run build`. API routes live under `/api/`, dashboard assets under `/assets/`, and all other paths fall through to `index.html` for client-side routing.
 
 ### Database options
@@ -188,11 +188,17 @@ export JWT_SECRET="$(openssl rand -hex 32)"
 export SEED_ADMIN_PASSWORD="change-me-to-something-strong"
 ```
 
-### 3. Install dependencies and run migrations
+### 3. Install dependencies
 
 ```bash
 cd api
 pip install -r requirements.txt
+```
+
+Migrations run automatically when the server starts. To run them manually instead:
+
+```bash
+cd api
 alembic upgrade head
 ```
 
@@ -217,7 +223,7 @@ When `ENV=production` or `ENV=staging`, the API rejects startup if `JWT_SECRET` 
 
 ### Migrations
 
-For production, run `alembic upgrade head` before starting the API (or use the Docker entrypoint, which does this automatically). The `create_all` call on startup is a convenience for development; it is a no-op when the tables already exist but cannot track schema changes over time.
+The server runs `alembic upgrade head` automatically during startup, so no separate migration step is required. If Alembic is unavailable or the migration fails, it falls back to `create_all` (which cannot track schema changes over time). You can also run migrations manually with `cd api && alembic upgrade head`.
 
 ### Process management
 
