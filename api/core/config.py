@@ -32,8 +32,12 @@ class Settings(BaseSettings):
     # API
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000", "http://localhost:3001"]
+    cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost:3001"
     debug: bool = False
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [s.strip() for s in self.cors_origins.split(",") if s.strip()]
 
     # Heartbeat
     default_heartbeat_interval: int = 300
@@ -63,7 +67,7 @@ class Settings(BaseSettings):
                 "local development but must be changed before deployment."
             )
 
-        if "*" in self.cors_origins:
+        if "*" in self.cors_origins_list:
             if env in ("production", "staging"):
                 raise ValueError(
                     "CORS_ORIGINS must not contain '*' in "

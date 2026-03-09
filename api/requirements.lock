@@ -6,10 +6,11 @@ uvicorn[standard]==0.41.0
 sqlalchemy==2.0.48
 psycopg2-binary==2.9.11
 alembic==1.18.4
-pydantic==2.11.9
+pydantic[email]==2.11.9
 pydantic-settings==2.13.1
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
+bcrypt==4.2.1
 python-multipart==0.0.22
 httpx==0.28.1
 cryptography==46.0.5
