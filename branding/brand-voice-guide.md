@@ -12,7 +12,7 @@
 
 ### 1. Show the score, not the scare
 
-Lead with confidence scores and evidence, not fear. Orlog is a tool for informed decisions, not a panic button.
+Lead with confidence scores and evidence, not fear. Detec is a tool for informed decisions, not a panic button.
 
 - **Do:** "Claude Code found on 3 endpoints with 0.87 confidence"
 - **Don't:** "CRITICAL: Unauthorized AI detected across your infrastructure"
@@ -89,7 +89,7 @@ Use measured language. Every claim should be defensible. But don't sound like a 
 | cutting-edge / best-in-class | Empty superlatives |
 | revolutionary / game-changing | Hype language that erodes trust |
 | seamless / frictionless | Governance inherently introduces proportional friction — that's the point |
-| AI-powered (about Orlog itself) | We govern AI tools; describing ourselves as "AI-powered" creates confusion |
+| AI-powered (about Detec itself) | We govern AI tools; describing ourselves as "AI-powered" creates confusion |
 
 ---
 

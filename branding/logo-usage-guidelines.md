@@ -4,7 +4,9 @@
 
 - **Primary logo (horizontal):** `detec-logo-concept-v2.png` — mark + wordmark side by side
 - Previous concept: `detec-logo-concept-v1.png` (archived — replaced by v2)
-- Monochrome, dark-mode, and favicon variants: TBD (to be produced from this concept)
+- **Isolated mark:** `Icon.png` — aperture mark only, high-res source (1192x1183)
+- **Favicon (.ico):** `detec-icon.ico` — multi-size (16/32/48px), generated from `Icon.png`
+- Monochrome and dark-mode variants: TBD
 
 ---
 
@@ -116,4 +118,21 @@ v2 resolved the play-button read from v1 by switching to an aperture/iris motif.
 | File | Description |
 |---|---|
 | `detec-logo-concept-v2.png` | Primary horizontal lockup, full color, light background (current) |
+| `Icon.png` | Isolated aperture mark, high-res source (1192x1183) |
+| `Logo-N-I.png` | Logo variant (name + icon) |
+| `Detec_Logo_300.png` | Logo at 300px |
+| `Agent-V1.png` / `.psd` | Agent illustration concept v1 |
+| `detec-icon.ico` | Multi-size favicon (16/32/48px), generated from `Icon.png` |
 | `detec-logo-concept-v1.png` | Archived — D-letterform concept, replaced due to play-button read |
+
+### Dashboard Icon Assets (`dashboard/public/`)
+
+| File | Size | Purpose |
+|---|---|---|
+| `favicon.ico` | 16/32/48px | Browser tab icon (legacy format) |
+| `favicon.svg` | scalable | Browser tab icon (modern browsers) |
+| `favicon-16x16.png` | 16x16 | Small favicon PNG fallback |
+| `favicon-32x32.png` | 32x32 | Standard favicon PNG |
+| `apple-touch-icon.png` | 180x180 | iOS home screen / Safari |
+| `icon-192.png` | 192x192 | PWA manifest icon |
+| `icon-512.png` | 512x512 | PWA manifest icon (high-res) |
