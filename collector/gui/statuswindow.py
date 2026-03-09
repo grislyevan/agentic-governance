@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import os
 
 try:
     import warnings
@@ -22,6 +23,7 @@ try:
         NSView,
         NSTextField,
         NSImageView,
+        NSImage,
         NSColor,
         NSFont,
         NSMakeRect,
@@ -36,7 +38,7 @@ try:
         NSApp,
         NSWindowCollectionBehaviorCanJoinAllSpaces,
     )
-    from Foundation import NSObject
+    from Foundation import NSObject, NSBundle
 
     _OBJC_AVAILABLE = True
 except ImportError:
@@ -47,7 +49,7 @@ from collector.gui.assets import create_aperture_image, WORDMARK_COLOR
 logger = logging.getLogger(__name__)
 
 _VERSION = "0.3"
-_BUILD = "0.01"
+_BUILD = "0.3.0"
 _WIN_WIDTH = 720
 _WIN_HEIGHT = 440
 
@@ -55,11 +57,11 @@ _WIN_HEIGHT = 440
 _BG_R, _BG_G, _BG_B = 0xCB / 255, 0xD5 / 255, 0xE1 / 255
 
 _STATUS_LABELS = {
-    "connected": "Agent Status: Connected",
-    "disconnected": "Agent Status: Disconnected",
-    "scanning": "Agent Status: Scanning...",
-    "error": "Agent Status: Error",
-    "stopped": "Agent Status: Stopped",
+    "connected": "Agent Status... Connected",
+    "disconnected": "Agent Status... Disconnected",
+    "scanning": "Agent Status... Scanning",
+    "error": "Agent Status... Error",
+    "stopped": "Agent Status... Stopped",
 }
 
 
@@ -102,9 +104,16 @@ class DetecStatusWindow:
         )
         self._window.setBackgroundColor_(bg_color)
 
-        # --- Aperture mark (logo icon) ---
+        # --- App icon (Icon.icns from bundle resources) ---
         logo_size = 110
-        logo_image = create_aperture_image(logo_size)
+        logo_image = None
+        bundle = NSBundle.mainBundle()
+        if bundle and bundle.resourcePath():
+            icns_path = os.path.join(bundle.resourcePath(), "Icon.icns")
+            if os.path.exists(icns_path):
+                logo_image = NSImage.alloc().initWithContentsOfFile_(icns_path)
+        if logo_image is None:
+            logo_image = create_aperture_image(logo_size)
         logo_view = NSImageView.alloc().initWithFrame_(
             NSMakeRect(
                 (_WIN_WIDTH / 2) - logo_size - 10,
@@ -143,7 +152,7 @@ class DetecStatusWindow:
 
         # --- Status label ---
         self._status_label = NSTextField.labelWithString_(
-            "Agent Status: Disconnected"
+            "Agent Status... Disconnected"
         )
         self._status_label.setFont_(
             NSFont.fontWithName_size_("Helvetica Neue", 16)
@@ -182,7 +191,7 @@ class DetecStatusWindow:
         content.addSubview_(year_label)
 
         # --- Footer: version (right) ---
-        version_text = f"Version {_VERSION} Build no. {_BUILD}"
+        version_text = f"Version {_VERSION} - Build no. {_BUILD}"
         version_label = NSTextField.labelWithString_(version_text)
         version_label.setFont_(NSFont.fontWithName_size_("Helvetica Neue", 12))
         version_label.setTextColor_(
@@ -214,7 +223,7 @@ class DetecStatusWindow:
 
     def update_status(self, status: str) -> None:
         """Update the status label. Safe to call from any thread."""
-        text = _STATUS_LABELS.get(status, f"Agent Status: {status.title()}")
+        text = _STATUS_LABELS.get(status, f"Agent Status... {status.title()}")
         if self._status_label:
             self._status_label.performSelectorOnMainThread_withObject_waitUntilDone_(
                 "setStringValue:", text, False

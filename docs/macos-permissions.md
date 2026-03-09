@@ -131,7 +131,7 @@ Check Full Disk Access. Without it, scanners that inspect
 
 Verify in System Settings > Privacy & Security > Full Disk Access.
 
-### "Agent Status: Disconnected" in the menu bar
+### "Agent Status... Disconnected" in the menu bar
 
 1. Check that `api_url` and `api_key` are configured in
    `~/.agentic-gov/config.json` or via environment variables

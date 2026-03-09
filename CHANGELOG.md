@@ -8,6 +8,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Status window icon**: The status window now loads `Icon.icns` from the app
+  bundle resources instead of the programmatic aperture renderer, so the window
+  displays the actual app icon. Falls back to the programmatic renderer when
+  running outside the bundled `.app`.
+- **Status window footer**: Version string updated to
+  `Version 0.3 - Build no. 0.3.0` (added dash separator, corrected build number
+  to match `CFBundleVersion`).
+- **Status text ellipsis**: "Agent Status:" changed to "Agent Status..." across
+  all status states and the dynamic fallback.
+
 - **macOS .pkg installer ownership**: The postinstall script runs as root,
   so the LaunchAgent plist, log directory, state directory, and Application
   Support directory were all created with root ownership. `launchctl`
@@ -77,6 +87,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Cross-tenant read visibility for owner/admin roles**: Read-only query
+  endpoints (events, endpoints, endpoint status, audit log, policies, users)
+  now return data across all tenants when the authenticated user has the
+  `owner` or `admin` role. Analyst and viewer roles remain scoped to their
+  own tenant. Write and ingest endpoints are unchanged and still enforce
+  strict per-tenant isolation. Centralized via `get_tenant_filter()` helper
+  in `api/core/tenant.py`.
 - **Event schema v0.3.0**: Added `enforcement` object definition (tactic,
   success, detail) to the canonical schema alongside `outcome`. The
   `enforcement.applied` conditional now requires both `enforcement` and
