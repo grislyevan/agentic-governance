@@ -8,6 +8,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **GUI agent loads agent.env**: The macOS menu bar app (`DaemonBridge`) now
+  loads `~/Library/Application Support/Detec/agent.env` on startup so config
+  written by `detec-agent setup` is picked up by the GUI app without manual
+  environment variable setup. Cross-platform: also loads from
+  `C:\ProgramData\Detec\Agent\agent.env` (Windows) and
+  `~/.local/share/detec/agent.env` (Linux).
+
 - **Scan pipeline integration tests**: 20 new tests covering `build_event`
   schema conformance for all event types, `_process_detection` event chains,
   parent_event_id linking, enforcement gating (M-28 regression guard),

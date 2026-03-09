@@ -48,6 +48,26 @@ other MDMs, see [docs/mdm-deployment.md](docs/mdm-deployment.md).
 Deploy the PPPC profile (`packaging/macos/pppc-detec-agent.mobileconfig`)
 alongside the `.pkg` to pre-authorize Full Disk Access.
 
+### Configuring the Agent (macOS)
+
+After installing the `.pkg`, configure the agent to connect to your central server:
+
+```bash
+detec-agent setup --api-url http://server:8000/api --api-key YOUR_KEY --interval 300
+```
+
+This writes `~/Library/Application Support/Detec/agent.env`, which the GUI app loads on startup. Then launch the app:
+
+```bash
+open "/Applications/Detec Agent.app"
+```
+
+Alternatively, store the API key in macOS Keychain:
+
+```bash
+security add-generic-password -s "detec-agent" -a "api-key" -w "YOUR_KEY" -U
+```
+
 ### macOS Permissions
 
 See [docs/macos-permissions.md](docs/macos-permissions.md) for a

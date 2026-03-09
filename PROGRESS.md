@@ -115,6 +115,7 @@ API Client ────────────────────▶│ Mu
 - [x] Windows Service packaging — `detec-server` CLI with setup/run/install/start/stop/remove commands, pywin32 service wrapper, PyInstaller spec
 - [x] Windows collector agent packaging — `detec-agent` CLI with setup/scan/run/install/start/stop/remove commands, pywin32 service wrapper, PyInstaller spec
 - [x] Windows lab validation on Windows Server VM (deployed, service running, health OK)
+- [x] Cross-platform validation: macOS agent reporting to Windows Server (18 events ingested, endpoint registered)
 
 **Files:** `api/`, `collector/output/`, `collector/agent/`, `collector/gui/`, `collector/compat/`, `packaging/macos/`, `packaging/windows/`, `docs/`, `docker-compose.yml`
 

@@ -106,6 +106,7 @@ class DaemonBridge:
             logger.warning("DaemonBridge: already running")
             return
 
+        self._load_agent_env()
         merged = load_collector_config()
         if config:
             merged.update(config)
@@ -237,6 +238,31 @@ class DaemonBridge:
 
             self._notify(STATUS_STOPPED)
             logger.info("DaemonBridge: stopped")
+
+    @staticmethod
+    def _load_agent_env() -> None:
+        """Load agent.env written by ``detec-agent setup`` into os.environ.
+
+        On macOS the file lives at ~/Library/Application Support/Detec/agent.env.
+        Existing env vars are not overwritten.
+        """
+        if sys.platform == "darwin":
+            env_file = Path.home() / "Library" / "Application Support" / "Detec" / "agent.env"
+        elif sys.platform == "win32":
+            env_file = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "Detec" / "Agent" / "agent.env"
+        else:
+            env_file = Path.home() / ".local" / "share" / "detec" / "agent.env"
+
+        if not env_file.exists():
+            return
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            key, _, value = line.partition("=")
+            key, value = key.strip(), value.strip()
+            if key and key not in os.environ:
+                os.environ[key] = value
 
     @staticmethod
     def _heartbeat_loop(
