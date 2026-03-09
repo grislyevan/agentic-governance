@@ -134,9 +134,11 @@ All web and app icons are generated from `Icon.icns`. To regenerate after updati
 | File | Size | Purpose |
 |---|---|---|
 | `favicon.ico` | 16/32/48px | Browser tab icon (legacy format) |
-| `favicon.svg` | scalable | Browser tab icon (modern browsers) |
+| `favicon.svg` | scalable | Browser tab icon (modern browsers, embedded PNG from `.icns`) |
 | `favicon-16x16.png` | 16x16 | Small favicon PNG fallback |
 | `favicon-32x32.png` | 32x32 | Standard favicon PNG |
 | `apple-touch-icon.png` | 180x180 | iOS home screen / Safari |
 | `icon-192.png` | 192x192 | PWA manifest icon |
 | `icon-512.png` | 512x512 | PWA manifest icon (high-res) |
+| `mark-64.png` | 64x64 | Dashboard UI mark (sidebar logo, inline mark) |
+| `mark-128.png` | 128x128 | Dashboard UI mark (retina / larger contexts) |

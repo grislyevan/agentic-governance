@@ -1,8 +1,11 @@
 """Embedded logo assets and drawing utilities for the Detec Agent GUI.
 
 Renders the Detec aperture mark as NSImage instances at any size, using
-NSBezierPath with the same coordinates as the canonical favicon.svg.
-No external image files are needed at runtime.
+NSBezierPath with path coordinates derived from the brand mark.
+The master icon source is branding/Icon.icns; this programmatic renderer
+exists for macOS menu bar template images (which require monochrome
+rendering) and the status window logo. No external image files are
+needed at runtime.
 """
 
 from __future__ import annotations
@@ -225,6 +228,8 @@ def save_icon_to_path(size: int, template: bool = False, path: Path | None = Non
         icon_dir.mkdir(parents=True, exist_ok=True)
         suffix = "template" if template else "color"
         path = icon_dir / f"aperture-{size}-{suffix}.png"
+    else:
+        path.parent.mkdir(parents=True, exist_ok=True)
 
     image = create_aperture_image(size, template=template)
     tiff_data = image.TIFFRepresentation()
