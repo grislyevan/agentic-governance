@@ -2,7 +2,26 @@
 
 Build and install Detec components as Windows Services.
 
-## Quick Build
+## One-Command Deploy (Fresh VM)
+
+On a brand-new Windows Server with nothing installed, open an elevated PowerShell and run:
+
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process
+irm https://raw.githubusercontent.com/grislyevan/agentic-governance/main/packaging/windows/bootstrap.ps1 | iex
+```
+
+This installs Python, Node.js, and Git silently, clones the repo, builds both executables, runs setup, installs the server as a Windows Service, and opens the firewall. Total hands-off time: roughly 5-10 minutes depending on download speed.
+
+If you already have the prerequisites installed, run the deploy script directly:
+
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process
+cd C:\Detec\src\packaging\windows
+.\deploy.ps1
+```
+
+## Manual Build (Server)
 
 From an elevated PowerShell prompt:
 
