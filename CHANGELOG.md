@@ -8,6 +8,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Windows collector agent packaging**: Added `detec-agent` CLI
+  (`collector/agent_cli.py`) with `setup`, `scan`, `run`, `install`, `start`,
+  `stop`, `remove`, and `status` subcommands. Includes a pywin32 Windows
+  Service wrapper (`collector/win_agent_service.py`) registered as "Detec
+  Agent". PyInstaller spec (`packaging/windows/detec-agent.spec`) bundles
+  the collector, all scanners, and compat layer into a distributable
+  directory. Build script (`build-agent.ps1`) automates the pipeline.
 - **All 12 scanners cross-platform**: Migrated the remaining 9 scanners (aider,
   claude_code, claude_cowork, cline, continue_ext, gpt_pilot, lm_studio,
   open_interpreter, openclaw) from Unix-specific `pgrep`/`ps`/`lsof` commands

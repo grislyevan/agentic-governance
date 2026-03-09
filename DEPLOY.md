@@ -7,7 +7,8 @@ This guide covers installing and running the **Detec Agent** (endpoint collector
 | Method | Use Case | Details |
 |---|---|---|
 | `.pkg` installer | MDM-managed macOS fleets (Jamf, Endpoint Central) | [Packaged Deployment](#packaged-deployment-macos) |
-| `pip install` | Development, Linux, Windows, manual installs | [Manual Install](#manual-install) |
+| `.exe` Windows Service | Windows endpoints | [Windows Deployment](#windows-deployment) |
+| `pip install` | Development, Linux, manual installs | [Manual Install](#manual-install) |
 | CLI only (headless) | Servers, CI, containers | [Manual Install](#manual-install) |
 
 ## Packaged Deployment (macOS)
@@ -52,6 +53,52 @@ alongside the `.pkg` to pre-authorize Full Disk Access.
 See [docs/macos-permissions.md](docs/macos-permissions.md) for a
 complete guide to required permissions, troubleshooting, and MDM
 configuration profiles.
+
+## Windows Deployment
+
+For Windows endpoints, the agent ships as a standalone `.exe` that runs as a Windows Service. No Python installation required on target machines.
+
+### Building the Agent
+
+On a build machine with Python 3.11+ and pip:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File packaging/windows/build-agent.ps1
+```
+
+This produces `packaging/windows/dist/detec-agent/` containing `detec-agent.exe` and all dependencies.
+
+### Installing on a Windows Endpoint
+
+1. Copy the `detec-agent/` folder to the target machine (e.g., `C:\Program Files\Detec\`).
+
+2. Configure the agent (from an elevated prompt):
+
+```powershell
+.\detec-agent.exe setup --api-url http://server:8000/api --api-key YOUR_KEY
+```
+
+3. Install and start the Windows Service:
+
+```powershell
+.\detec-agent.exe install
+.\detec-agent.exe start
+```
+
+The agent scans every 300 seconds by default and reports to the central server. It survives logoff and starts automatically on boot.
+
+### Managing the Agent Service
+
+```powershell
+.\detec-agent.exe status    # show config and service state
+.\detec-agent.exe stop      # stop the service
+.\detec-agent.exe start     # restart the service
+.\detec-agent.exe remove    # unregister the service
+```
+
+For full details, see [packaging/windows/README.md](packaging/windows/README.md).
+
+---
 
 ## Manual Install
 
