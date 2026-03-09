@@ -12,6 +12,10 @@ import datetime
 import logging
 
 try:
+    import warnings
+    warnings.filterwarnings("ignore", category=DeprecationWarning, module="objc")
+    warnings.filterwarnings("ignore", message="PyObjCPointer created")
+
     import objc
     from AppKit import (
         NSWindow,
@@ -96,8 +100,7 @@ class DetecStatusWindow:
         bg_color = NSColor.colorWithCalibratedRed_green_blue_alpha_(
             _BG_R, _BG_G, _BG_B, 1.0
         )
-        content.setWantsLayer_(True)
-        content.layer().setBackgroundColor_(bg_color.CGColor())
+        self._window.setBackgroundColor_(bg_color)
 
         # --- Aperture mark (logo icon) ---
         logo_size = 110
