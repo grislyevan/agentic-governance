@@ -10,12 +10,26 @@ from unittest.mock import patch
 
 from scanner.aider import AiderScanner
 from tests.fixtures.canned_responses import (
-    AIDER_GIT_LOG_MATCH,
     AIDER_RUNNING,
     EMPTY,
     make_dispatcher,
 )
+from tests.fixtures.compat_fixtures import make_aider_compat_mocks
 from tests.fixtures.file_fixtures import create_aider_footprint
+
+# _run_cmd is only used for: pip show, aider --version, git config
+AIDER_RUN_CMD_CLEAN = {
+    ("pip", "show", "aider-chat"): EMPTY,
+    ("aider", "--version"): EMPTY,
+    ("git", "config", "--global", "user.email"): EMPTY,
+}
+AIDER_RUN_CMD_INSTALLED = {
+    ("pip", "show", "aider-chat"): AIDER_RUNNING[("pip", "show", "aider-chat")],
+    ("aider", "--version"): AIDER_RUNNING[("aider", "--version")],
+    ("git", "config", "--global", "user.email"): AIDER_RUNNING[
+        ("git", "config", "--global", "user.email")
+    ],
+}
 
 
 class TestAiderCleanSystem(unittest.TestCase):
@@ -29,18 +43,16 @@ class TestAiderCleanSystem(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_clean_system_not_detected(self):
-        nothing: dict = {
-            ("pgrep", "-fl", "aider"): EMPTY,
-            ("pip", "show", "aider-chat"): EMPTY,
-            ("aider", "--version"): EMPTY,
-            ("lsof", "-i", "-n", "-P"): EMPTY,
-            ("git", "config", "--global", "user.email"): EMPTY,
-        }
+        find_proc, get_children, get_info, get_conn = make_aider_compat_mocks(active=False)
         env_clean = {k: v for k, v in os.environ.items()
                      if k not in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY")}
         with (
             patch("scanner.aider.HOME", self.home),
-            patch.object(AiderScanner, "_run_cmd", make_dispatcher(nothing)),
+            patch("scanner.aider.find_processes", find_proc),
+            patch("scanner.aider.get_child_pids", get_children),
+            patch("scanner.aider.get_process_info", get_info),
+            patch("scanner.aider.get_connections", get_conn),
+            patch.object(AiderScanner, "_run_cmd", make_dispatcher(AIDER_RUN_CMD_CLEAN)),
             patch.object(AiderScanner, "_find_aider_commits", return_value=[]),
             patch.dict(os.environ, env_clean, clear=True),
         ):
@@ -66,19 +78,15 @@ class TestAiderInstalledNotRunning(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_installed_detects_file_layer(self):
-        not_running: dict = {
-            ("pgrep", "-fl", "aider"): EMPTY,
-            ("pip", "show", "aider-chat"): AIDER_RUNNING[("pip", "show", "aider-chat")],
-            ("aider", "--version"): AIDER_RUNNING[("aider", "--version")],
-            ("lsof", "-i", "-n", "-P"): EMPTY,
-            ("git", "config", "--global", "user.email"): AIDER_RUNNING[
-                ("git", "config", "--global", "user.email")
-            ],
-        }
+        find_proc, get_children, get_info, get_conn = make_aider_compat_mocks(active=False)
 
         with (
             patch("scanner.aider.HOME", self.home),
-            patch.object(AiderScanner, "_run_cmd", make_dispatcher(not_running)),
+            patch("scanner.aider.find_processes", find_proc),
+            patch("scanner.aider.get_child_pids", get_children),
+            patch("scanner.aider.get_process_info", get_info),
+            patch("scanner.aider.get_connections", get_conn),
+            patch.object(AiderScanner, "_run_cmd", make_dispatcher(AIDER_RUN_CMD_INSTALLED)),
             patch.object(AiderScanner, "_find_aider_commits", return_value=[]),
         ):
             scanner = AiderScanner()
@@ -105,9 +113,14 @@ class TestAiderFullyActive(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_fully_active_all_layers(self):
+        find_proc, get_children, get_info, get_conn = make_aider_compat_mocks(active=True)
         with (
             patch("scanner.aider.HOME", self.home),
-            patch.object(AiderScanner, "_run_cmd", make_dispatcher(AIDER_RUNNING)),
+            patch("scanner.aider.find_processes", find_proc),
+            patch("scanner.aider.get_child_pids", get_children),
+            patch("scanner.aider.get_process_info", get_info),
+            patch("scanner.aider.get_connections", get_conn),
+            patch.object(AiderScanner, "_run_cmd", make_dispatcher(AIDER_RUN_CMD_INSTALLED)),
             patch.object(
                 AiderScanner,
                 "_find_aider_commits",
@@ -141,20 +154,23 @@ class TestAiderGitCommitDetection(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_aider_commits_boost_behavior(self):
-        not_running: dict = {
-            ("pgrep", "-fl", "aider"): EMPTY,
+        find_proc, get_children, get_info, get_conn = make_aider_compat_mocks(active=False)
+        commits = [{"repo": str(self.repo), "commit_subject": "aider: fix input validation"}]
+        run_cmd = {
             ("pip", "show", "aider-chat"): EMPTY,
             ("aider", "--version"): EMPTY,
-            ("lsof", "-i", "-n", "-P"): EMPTY,
             ("git", "config", "--global", "user.email"): AIDER_RUNNING[
                 ("git", "config", "--global", "user.email")
             ],
         }
-        commits = [{"repo": str(self.repo), "commit_subject": "aider: fix input validation"}]
 
         with (
             patch("scanner.aider.HOME", self.home),
-            patch.object(AiderScanner, "_run_cmd", make_dispatcher(not_running)),
+            patch("scanner.aider.find_processes", find_proc),
+            patch("scanner.aider.get_child_pids", get_children),
+            patch("scanner.aider.get_process_info", get_info),
+            patch("scanner.aider.get_connections", get_conn),
+            patch.object(AiderScanner, "_run_cmd", make_dispatcher(run_cmd)),
             patch.object(AiderScanner, "_find_aider_commits", return_value=commits),
         ):
             scanner = AiderScanner()

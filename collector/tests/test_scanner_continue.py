@@ -9,13 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scanner.continue_ext import ContinueScanner
-from tests.fixtures.canned_responses import (
-    CONTINUE_ACTIVE,
-    CONTINUE_APPROVED_ACTIVE,
-    CONTINUE_NOT_RUNNING,
-    EMPTY,
-    make_dispatcher,
-)
+from tests.fixtures.compat_fixtures import make_continue_compat_mocks
 from tests.fixtures.file_fixtures import create_continue_footprint
 
 
@@ -34,18 +28,14 @@ class TestContinueCleanSystem(unittest.TestCase):
         True, but process/file/network/behavior should all be zero."""
         env_clean = {k: v for k, v in os.environ.items()
                      if k not in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY")}
+        find_proc, get_conn, get_paths = make_continue_compat_mocks(
+            self.home, active=False
+        )
         with (
-            patch("scanner.continue_ext.HOME", self.home),
             patch("scanner.continue_ext.CONTINUE_DIR", self.home / ".continue"),
-            patch("scanner.continue_ext.ALL_EXT_DIRS", [
-                self.home / ".vscode" / "extensions",
-                self.home / ".cursor" / "extensions",
-            ]),
-            patch("scanner.continue_ext.VSCODE_EXT_DIRS", [self.home / ".vscode" / "extensions"]),
-            patch("scanner.continue_ext.CURSOR_EXT_DIRS", [self.home / ".cursor" / "extensions"]),
-            patch("scanner.continue_ext.VSCODE_STORAGE", self.home / "Library" / "Application Support" / "Code" / "User" / "globalStorage"),
-            patch("scanner.continue_ext.CURSOR_STORAGE", self.home / "Library" / "Application Support" / "Cursor" / "User" / "globalStorage"),
-            patch.object(ContinueScanner, "_run_cmd", make_dispatcher(CONTINUE_NOT_RUNNING)),
+            patch("scanner.continue_ext.find_processes", find_proc),
+            patch("scanner.continue_ext.get_connections", get_conn),
+            patch("scanner.continue_ext.get_tool_paths", get_paths),
             patch.dict(os.environ, env_clean, clear=True),
         ):
             scanner = ContinueScanner()
@@ -68,20 +58,16 @@ class _ContinueTestBase(unittest.TestCase):
     def tearDown(self):
         self._tmp.cleanup()
 
-    def _patches(self, responses, *, extra_patches=None):
+    def _patches(self, *, active: bool = False, ollama_connection: bool = False, extra_patches=None):
         """Return a list of context managers for the standard Continue patches."""
+        find_proc, get_conn, get_paths = make_continue_compat_mocks(
+            self.home, active=active, ollama_connection=ollama_connection
+        )
         cms = [
-            patch("scanner.continue_ext.HOME", self.home),
             patch("scanner.continue_ext.CONTINUE_DIR", self.home / ".continue"),
-            patch("scanner.continue_ext.ALL_EXT_DIRS", [
-                self.home / ".vscode" / "extensions",
-                self.home / ".cursor" / "extensions",
-            ]),
-            patch("scanner.continue_ext.VSCODE_EXT_DIRS", [self.home / ".vscode" / "extensions"]),
-            patch("scanner.continue_ext.CURSOR_EXT_DIRS", [self.home / ".cursor" / "extensions"]),
-            patch("scanner.continue_ext.VSCODE_STORAGE", self.home / "Library" / "Application Support" / "Code" / "User" / "globalStorage"),
-            patch("scanner.continue_ext.CURSOR_STORAGE", self.home / "Library" / "Application Support" / "Cursor" / "User" / "globalStorage"),
-            patch.object(ContinueScanner, "_run_cmd", make_dispatcher(responses)),
+            patch("scanner.continue_ext.find_processes", find_proc),
+            patch("scanner.continue_ext.get_connections", get_conn),
+            patch("scanner.continue_ext.get_tool_paths", get_paths),
         ]
         if extra_patches:
             cms.extend(extra_patches)
@@ -94,7 +80,7 @@ class TestContinueInstalledNotRunning(_ContinueTestBase):
     def test_installed_detects_file_layer(self):
         create_continue_footprint(self.home, backends=["anthropic"])
 
-        patches = self._patches(CONTINUE_NOT_RUNNING)
+        patches = self._patches(active=False)
         with _apply_patches(patches):
             scanner = ContinueScanner()
             result = scanner.scan(verbose=False)
@@ -113,7 +99,7 @@ class TestContinueApprovedBackendActive(_ContinueTestBase):
     def test_approved_backend_active(self):
         create_continue_footprint(self.home, backends=["anthropic"])
 
-        patches = self._patches(CONTINUE_APPROVED_ACTIVE)
+        patches = self._patches(active=True, ollama_connection=False)
         with _apply_patches(patches):
             scanner = ContinueScanner()
             result = scanner.scan(verbose=True)
@@ -132,7 +118,7 @@ class TestContinueUnapprovedBackend(_ContinueTestBase):
     def test_unapproved_ollama_backend(self):
         create_continue_footprint(self.home, backends=["ollama"])
 
-        patches = self._patches(CONTINUE_ACTIVE)
+        patches = self._patches(active=True, ollama_connection=True)
         with _apply_patches(patches):
             scanner = ContinueScanner()
             result = scanner.scan(verbose=True)
@@ -148,7 +134,7 @@ class TestContinueUnapprovedBackend(_ContinueTestBase):
         """Config with both approved and unapproved backends still flags risk."""
         create_continue_footprint(self.home, backends=["anthropic", "ollama", "lmstudio"])
 
-        patches = self._patches(CONTINUE_NOT_RUNNING)
+        patches = self._patches(active=False)
         with _apply_patches(patches):
             scanner = ContinueScanner()
             result = scanner.scan(verbose=False)

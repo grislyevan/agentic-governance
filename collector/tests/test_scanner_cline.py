@@ -10,24 +10,19 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scanner.cline import ClineScanner
-from tests.fixtures.canned_responses import (
-    CLINE_ACTIVE,
-    CLINE_NOT_RUNNING,
-    EMPTY,
-    make_dispatcher,
-)
+from tests.fixtures.canned_responses import CLINE_NOT_RUNNING, make_dispatcher
+from tests.fixtures.compat_fixtures import make_cline_compat_mocks
 from tests.fixtures.file_fixtures import create_cline_footprint
 
 
-def _cline_patches(home, responses, *, extra=None):
+def _cline_patches(home, *, active: bool, extra=None):
     """Build the standard patch list for ClineScanner tests."""
-    vscode_ext_base = home / "Library" / "Application Support" / "Code" / "User"
-    cursor_ext_base = home / "Library" / "Application Support" / "Cursor" / "User"
+    find_proc, get_conn, get_paths = make_cline_compat_mocks(home, active=active)
     cms = [
-        patch("scanner.cline.HOME", home),
-        patch("scanner.cline.VSCODE_EXT_BASE", vscode_ext_base),
-        patch("scanner.cline.CURSOR_EXT_BASE", cursor_ext_base),
-        patch.object(ClineScanner, "_run_cmd", make_dispatcher(responses)),
+        patch("scanner.cline.find_processes", find_proc),
+        patch("scanner.cline.get_connections", get_conn),
+        patch("scanner.cline.get_tool_paths", get_paths),
+        patch.object(ClineScanner, "_run_cmd", make_dispatcher(CLINE_NOT_RUNNING)),
     ]
     if extra:
         cms.extend(extra)
@@ -58,7 +53,7 @@ class TestClineCleanSystem(unittest.TestCase):
         env_clean = {k: v for k, v in os.environ.items()
                      if k not in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY")}
         patches = _cline_patches(
-            self.home, CLINE_NOT_RUNNING,
+            self.home, active=False,
             extra=[patch.dict(os.environ, env_clean, clear=True)],
         )
         with _apply(patches):
@@ -86,7 +81,7 @@ class TestClineExtensionInstalled(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_extension_only(self):
-        patches = _cline_patches(self.home, CLINE_NOT_RUNNING)
+        patches = _cline_patches(self.home, active=False)
         with _apply(patches):
             scanner = ClineScanner()
             result = scanner.scan(verbose=False)
@@ -118,7 +113,7 @@ class TestClineTaskHistoryClassA(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_tasks_without_tool_calls_class_a(self):
-        patches = _cline_patches(self.home, CLINE_NOT_RUNNING)
+        patches = _cline_patches(self.home, active=False)
         with _apply(patches):
             scanner = ClineScanner()
             result = scanner.scan(verbose=False)
@@ -148,7 +143,7 @@ class TestClineToolCallsClassC(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_tool_calls_escalate_to_class_c(self):
-        patches = _cline_patches(self.home, CLINE_ACTIVE)
+        patches = _cline_patches(self.home, active=True)
         with _apply(patches):
             scanner = ClineScanner()
             result = scanner.scan(verbose=True)
@@ -178,7 +173,7 @@ class TestClineWriteOpsClassCR3(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_write_ops_class_c_r3(self):
-        patches = _cline_patches(self.home, CLINE_ACTIVE)
+        patches = _cline_patches(self.home, active=True)
         with _apply(patches):
             scanner = ClineScanner()
             result = scanner.scan(verbose=True)

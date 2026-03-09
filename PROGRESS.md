@@ -105,9 +105,11 @@ API Client ────────────────────▶│ Mu
 - [x] macOS .pkg installer — pkgbuild/productbuild, pre/postinstall scripts, distribution XML, LaunchAgent configuration (`packaging/macos/`)
 - [x] MDM deployment documentation — Jamf Pro, Endpoint Central, generic MDM; PPPC profile template for Full Disk Access (`docs/mdm-deployment.md`, `docs/macos-permissions.md`)
 - [x] Dashboard served from FastAPI — API routes under `/api/`, React SPA served at root, no separate Node process needed
+- [x] All 12 scanners migrated to compat layer (cross-platform via psutil)
+- [x] Events page — full SOC event browser with filters, pagination, detail panel
+- [x] M-28 fix: `approval_required` no longer triggers enforcement
 - [ ] Integration tests for API endpoints
 - [ ] Alembic migrations wired up
-- [ ] Migrate remaining 8 scanners to compat layer
 - [x] Windows Service packaging — `detec-server` CLI with setup/run/install/start/stop/remove commands, pywin32 service wrapper, PyInstaller spec
 - [ ] Windows lab validation on Windows Server VM
 

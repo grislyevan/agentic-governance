@@ -19,29 +19,43 @@ import re
 import time
 from pathlib import Path
 
+from compat import find_processes, get_connections, get_tool_paths
+
 from .base import BaseScanner, LayerSignals, ScanResult
 
 logger = logging.getLogger(__name__)
-HOME = Path.home()
-CONTINUE_DIR = HOME / ".continue"
-
-VSCODE_EXT_DIRS = [
-    HOME / ".vscode" / "extensions",
-    HOME / "Library" / "Application Support" / "Code" / "User" / "extensions",
-]
-CURSOR_EXT_DIRS = [
-    HOME / ".cursor" / "extensions",
-    HOME / "Library" / "Application Support" / "Cursor" / "User" / "extensions",
-]
-ALL_EXT_DIRS = VSCODE_EXT_DIRS + CURSOR_EXT_DIRS
-
-VSCODE_STORAGE = HOME / "Library" / "Application Support" / "Code" / "User" / "globalStorage"
-CURSOR_STORAGE = HOME / "Library" / "Application Support" / "Cursor" / "User" / "globalStorage"
+CONTINUE_DIR = Path.home() / ".continue"
 
 KNOWN_UNAPPROVED_BACKENDS = frozenset({
     "ollama", "lmstudio", "llamafile", "lm-studio",
     "together", "perplexity", "groq",
 })
+
+
+def _all_ext_dirs() -> list[Path]:
+    vscode = get_tool_paths("vscode")
+    cursor = get_tool_paths("cursor")
+    dirs: list[Path] = []
+    if vscode.extensions_dir:
+        dirs.append(vscode.extensions_dir)
+    if vscode.config_dir:
+        dirs.append(vscode.config_dir / "User" / "extensions")
+    if cursor.extensions_dir:
+        dirs.append(cursor.extensions_dir)
+    if cursor.config_dir:
+        dirs.append(cursor.config_dir / "User" / "extensions")
+    return dirs
+
+
+def _storage_roots() -> list[Path]:
+    vscode = get_tool_paths("vscode")
+    cursor = get_tool_paths("cursor")
+    roots: list[Path] = []
+    if vscode.config_dir:
+        roots.append(vscode.config_dir / "User" / "globalStorage")
+    if cursor.config_dir:
+        roots.append(cursor.config_dir / "User" / "globalStorage")
+    return roots
 
 
 class ContinueScanner(BaseScanner):
@@ -88,7 +102,7 @@ class ContinueScanner(BaseScanner):
 
     def _detect_version(self, verbose: bool) -> str | None:
         """Detect Continue extension version from extension manifest."""
-        for ext_dir in ALL_EXT_DIRS:
+        for ext_dir in _all_ext_dirs():
             if not ext_dir.is_dir():
                 continue
             try:
@@ -116,20 +130,18 @@ class ContinueScanner(BaseScanner):
         strength = 0.0
 
         for ide_name in ("Code", "Cursor"):
-            proc = self._run_cmd(["pgrep", "-fl", ide_name])
-            if not (proc and proc.returncode == 0 and proc.stdout.strip()):
-                continue
-            for line in proc.stdout.strip().splitlines():
-                parts = line.split(None, 1)
-                if len(parts) < 2:
-                    continue
-                pid, cmdline = parts
-                if "extensionHost" in cmdline or "extension-host" in cmdline:
-                    result.evidence_details.setdefault("ide_extension_hosts", []).append({
-                        "ide": ide_name, "pid": pid,
-                    })
-                    strength = max(strength, 0.30)
-                    self._log(f"  {ide_name} extension host found: PID {pid}", verbose)
+            procs = find_processes(ide_name)
+            procs = [
+                p for p in procs
+                if "collector" not in p.cmdline.lower()
+                and ("extensionHost" in p.cmdline or "extension-host" in p.cmdline)
+            ]
+            for p in procs:
+                result.evidence_details.setdefault("ide_extension_hosts", []).append({
+                    "ide": ide_name, "pid": p.pid,
+                })
+                strength = max(strength, 0.30)
+                self._log(f"  {ide_name} extension host found: PID {p.pid}", verbose)
 
         if strength > 0 and result.evidence_details.get("ide_extension_hosts"):
             self._log(f"  {len(result.evidence_details['ide_extension_hosts'])} extension host(s)", verbose)
@@ -166,7 +178,7 @@ class ContinueScanner(BaseScanner):
 
         # Extension manifests in VS Code / Cursor
         ext_installs: list[dict[str, str]] = []
-        for ext_dir in ALL_EXT_DIRS:
+        for ext_dir in _all_ext_dirs():
             if not ext_dir.is_dir():
                 continue
             try:
@@ -186,7 +198,7 @@ class ContinueScanner(BaseScanner):
 
         # Task history in globalStorage
         task_counts = 0
-        for storage_root in (VSCODE_STORAGE, CURSOR_STORAGE):
+        for storage_root in _storage_roots():
             storage = storage_root / "continue.continue"
             if storage.is_dir():
                 try:

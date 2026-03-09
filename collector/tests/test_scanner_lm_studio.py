@@ -1,4 +1,4 @@
-"""Integration tests for LMStudioScanner with synthetic file fixtures and mocked subprocesses."""
+"""Integration tests for LMStudioScanner with synthetic file fixtures and mocked compat layer."""
 
 from __future__ import annotations
 
@@ -9,14 +9,18 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from compat.types import ConnectionInfo, ProcessInfo, ToolPaths
+
 from scanner.lm_studio import LMStudioScanner
-from tests.fixtures.canned_responses import (
-    EMPTY,
-    LM_STUDIO_NOT_RUNNING,
-    LM_STUDIO_RUNNING,
-    make_dispatcher,
-)
 from tests.fixtures.file_fixtures import create_lm_studio_footprint
+
+
+def _tool_paths(home: Path, app_path: Path, app_support: Path) -> ToolPaths:
+    return ToolPaths(
+        install_dir=app_path,
+        config_dir=app_support,
+        data_dir=app_support,
+    )
 
 
 class TestLMStudioCleanSystem(unittest.TestCase):
@@ -25,6 +29,8 @@ class TestLMStudioCleanSystem(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.home = Path(self._tmp.name)
+        self.app_path = self.home / "Applications" / "LM Studio.app"
+        self.app_support = self.home / "Library" / "Application Support" / "LM Studio"
 
     def tearDown(self):
         self._tmp.cleanup()
@@ -33,11 +39,10 @@ class TestLMStudioCleanSystem(unittest.TestCase):
         env_clean = {k: v for k, v in os.environ.items()
                      if k not in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY")}
         with (
-            patch("scanner.lm_studio.HOME", self.home),
-            patch("scanner.lm_studio.APP_PATH", self.home / "Applications" / "LM Studio.app"),
-            patch("scanner.lm_studio.APP_SUPPORT_DIR", self.home / "Library" / "Application Support" / "LM Studio"),
-            patch("scanner.lm_studio.CACHE_DIR", self.home / "Library" / "Caches" / "LM Studio"),
-            patch.object(LMStudioScanner, "_run_cmd", make_dispatcher(LM_STUDIO_NOT_RUNNING)),
+            patch("scanner.lm_studio.get_tool_paths",
+                  return_value=_tool_paths(self.home, self.app_path, self.app_support)),
+            patch("scanner.lm_studio.find_processes", return_value=[]),
+            patch("scanner.lm_studio.get_listeners", return_value=[]),
             patch.object(LMStudioScanner, "_query_api", return_value=None),
             patch.dict(os.environ, env_clean, clear=True),
         ):
@@ -67,11 +72,10 @@ class TestLMStudioInstalledNotRunning(unittest.TestCase):
 
     def test_installed_detects_file_layer(self):
         with (
-            patch("scanner.lm_studio.HOME", self.home),
-            patch("scanner.lm_studio.APP_PATH", self.app_path),
-            patch("scanner.lm_studio.APP_SUPPORT_DIR", self.app_support),
-            patch("scanner.lm_studio.CACHE_DIR", self.home / "Library" / "Caches" / "LM Studio"),
-            patch.object(LMStudioScanner, "_run_cmd", make_dispatcher(LM_STUDIO_NOT_RUNNING)),
+            patch("scanner.lm_studio.get_tool_paths",
+                  return_value=_tool_paths(self.home, self.app_path, self.app_support)),
+            patch("scanner.lm_studio.find_processes", return_value=[]),
+            patch("scanner.lm_studio.get_listeners", return_value=[]),
             patch.object(LMStudioScanner, "_query_api", return_value=None),
         ):
             scanner = LMStudioScanner()
@@ -105,12 +109,33 @@ class TestLMStudioFullyActive(unittest.TestCase):
             "data": [{"id": "tinyllama-1.1b-chat-v1.0"}],
         })
 
+        lm_proc = ProcessInfo(
+            pid=55001,
+            name="LM Studio",
+            cmdline="/Applications/LM Studio.app/Contents/MacOS/LM Studio --type=renderer",
+            username="testuser",
+            ppid=55000,
+        )
+        listener = ConnectionInfo(
+            pid=55002,
+            local_addr="0.0.0.0",
+            local_port=1234,
+            remote_addr=None,
+            remote_port=None,
+            status="LISTEN",
+        )
+
+        def get_process_info(pid: int):
+            if pid == 55001:
+                return lm_proc
+            return None
+
         with (
-            patch("scanner.lm_studio.HOME", self.home),
-            patch("scanner.lm_studio.APP_PATH", self.app_path),
-            patch("scanner.lm_studio.APP_SUPPORT_DIR", self.app_support),
-            patch("scanner.lm_studio.CACHE_DIR", self.home / "Library" / "Caches" / "LM Studio"),
-            patch.object(LMStudioScanner, "_run_cmd", make_dispatcher(LM_STUDIO_RUNNING)),
+            patch("scanner.lm_studio.get_tool_paths",
+                  return_value=_tool_paths(self.home, self.app_path, self.app_support)),
+            patch("scanner.lm_studio.find_processes", return_value=[lm_proc]),
+            patch("scanner.lm_studio.get_process_info", side_effect=get_process_info),
+            patch("scanner.lm_studio.get_listeners", return_value=[listener]),
             patch.object(LMStudioScanner, "_query_api", return_value=api_response),
         ):
             scanner = LMStudioScanner()
@@ -128,12 +153,33 @@ class TestLMStudioFullyActive(unittest.TestCase):
 
     def test_server_without_api_response(self):
         """Server listening but no model loaded — still detects network layer."""
+        lm_proc = ProcessInfo(
+            pid=55001,
+            name="LM Studio",
+            cmdline="/Applications/LM Studio.app/Contents/MacOS/LM Studio --type=renderer",
+            username="testuser",
+            ppid=55000,
+        )
+        listener = ConnectionInfo(
+            pid=55002,
+            local_addr="0.0.0.0",
+            local_port=1234,
+            remote_addr=None,
+            remote_port=None,
+            status="LISTEN",
+        )
+
+        def get_process_info(pid: int):
+            if pid == 55001:
+                return lm_proc
+            return None
+
         with (
-            patch("scanner.lm_studio.HOME", self.home),
-            patch("scanner.lm_studio.APP_PATH", self.app_path),
-            patch("scanner.lm_studio.APP_SUPPORT_DIR", self.app_support),
-            patch("scanner.lm_studio.CACHE_DIR", self.home / "Library" / "Caches" / "LM Studio"),
-            patch.object(LMStudioScanner, "_run_cmd", make_dispatcher(LM_STUDIO_RUNNING)),
+            patch("scanner.lm_studio.get_tool_paths",
+                  return_value=_tool_paths(self.home, self.app_path, self.app_support)),
+            patch("scanner.lm_studio.find_processes", return_value=[lm_proc]),
+            patch("scanner.lm_studio.get_process_info", side_effect=get_process_info),
+            patch("scanner.lm_studio.get_listeners", return_value=[listener]),
             patch.object(LMStudioScanner, "_query_api", return_value=None),
         ):
             scanner = LMStudioScanner()

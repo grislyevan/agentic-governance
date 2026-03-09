@@ -21,6 +21,8 @@ import re
 import time
 from pathlib import Path
 
+from compat import find_processes, get_child_pids, get_connections, get_process_info
+
 from .base import BaseScanner, LayerSignals, ScanResult
 
 logger = logging.getLogger(__name__)
@@ -89,43 +91,38 @@ class GPTPilotScanner(BaseScanner):
         self._log("Scanning process layer...", verbose)
         strength = 0.0
 
+        all_procs: list = []
         for pattern in ("gpt-pilot", "gpt_pilot", "pythagora"):
-            proc = self._run_cmd(["pgrep", "-fl", pattern])
-            if not (proc and proc.returncode == 0 and proc.stdout.strip()):
+            all_procs.extend(find_processes(pattern))
+        procs = [p for p in all_procs if "collector" not in p.cmdline.lower()]
+        seen_pids: set[int] = set()
+
+        for p in procs:
+            if not re.search(r'(gpt.pilot|pythagora)', p.cmdline, re.IGNORECASE):
                 continue
-            for line in proc.stdout.strip().splitlines():
-                parts = line.split(None, 1)
-                if len(parts) < 2:
-                    continue
-                pid, cmdline = parts
-                if "pgrep" in cmdline.lower() or "collector" in cmdline.lower():
-                    continue
-                if re.search(r'(gpt.pilot|pythagora)', cmdline, re.IGNORECASE):
-                    result.evidence_details.setdefault("process_entries", []).append({
-                        "pid": pid, "cmdline": cmdline,
-                    })
-                    strength = 0.75
-                    self._log(f"  GPT-Pilot process found: PID {pid}", verbose)
+            if p.pid in seen_pids:
+                continue
+            seen_pids.add(p.pid)
+            result.evidence_details.setdefault("process_entries", []).append({
+                "pid": p.pid, "cmdline": p.cmdline,
+            })
+            strength = 0.75
+            self._log(f"  GPT-Pilot process found: PID {p.pid}", verbose)
 
-                    detail = self._run_cmd(["ps", "-p", pid, "-o", "pid,ppid,user,command"])
-                    if detail and detail.returncode == 0:
-                        result.evidence_details["process_detail"] = detail.stdout.strip()
-                        for dl in detail.stdout.splitlines()[1:]:
-                            fields = dl.split()
-                            if len(fields) >= 3:
-                                result.evidence_details["process_user"] = fields[2]
+            detail = get_process_info(p.pid)
+            if detail:
+                result.evidence_details["process_detail"] = f"{detail.pid} {detail.ppid} {detail.username or ''} {detail.cmdline}"
+                if detail.username:
+                    result.evidence_details["process_user"] = detail.username
 
-                    # Check for generate→run→correct child processes
-                    children = self._run_cmd(["pgrep", "-P", pid])
-                    if children and children.returncode == 0 and children.stdout.strip():
-                        for cpid in children.stdout.strip().splitlines()[:15]:
-                            child_info = self._run_cmd(["ps", "-p", cpid, "-o", "pid,command"])
-                            if child_info and child_info.returncode == 0:
-                                child_cmd = child_info.stdout.strip()
-                                if re.search(r'(python|node|bash|sh|npm|pip|pytest)', child_cmd):
-                                    result.evidence_details.setdefault(
-                                        "generation_children", []
-                                    ).append(child_cmd)
+            # Check for generate→run→correct child processes
+            children = get_child_pids(p.pid)
+            for cpid in children[:15]:
+                child = get_process_info(cpid)
+                if child and re.search(r'(python|node|bash|sh|npm|pip|pytest)', child.cmdline):
+                    result.evidence_details.setdefault(
+                        "generation_children", []
+                    ).append(child.cmdline)
 
         if result.evidence_details.get("generation_children"):
             strength = 0.90
@@ -227,22 +224,20 @@ class GPTPilotScanner(BaseScanner):
         if not pilot_pids:
             return strength
 
-        lsof = self._run_cmd(["lsof", "-i", "-n", "-P"])
-        if not (lsof and lsof.returncode == 0):
-            return strength
-
+        conns = get_connections(pids=pilot_pids)
         llm_patterns = ["api.openai.com", "api.anthropic.com", ":11434", ":1234"]
         burst_connections: list[str] = []
 
-        for line in lsof.stdout.splitlines():
-            parts = line.split()
-            if len(parts) < 2 or parts[1] not in pilot_pids:
+        for c in conns:
+            if c.pid is None or c.pid not in pilot_pids:
                 continue
-            if "ESTABLISHED" in line:
-                burst_connections.append(line.strip())
+            if c.status == "ESTABLISHED":
+                conn_str = f"{c.pid} {c.local_addr}:{c.local_port}->{c.remote_addr or ''}:{c.remote_port or ''} ({c.status})"
+                burst_connections.append(conn_str)
+                remote = f"{c.remote_addr or ''}:{c.remote_port or ''}"
                 for pattern in llm_patterns:
-                    if pattern in line:
-                        result.evidence_details.setdefault("llm_connections", []).append(line.strip())
+                    if pattern in remote or pattern in (c.remote_addr or ""):
+                        result.evidence_details.setdefault("llm_connections", []).append(conn_str)
                         break
 
         if result.evidence_details.get("llm_connections"):

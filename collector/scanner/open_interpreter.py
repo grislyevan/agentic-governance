@@ -12,6 +12,13 @@ import re
 import time
 from pathlib import Path
 
+from compat import (
+    find_processes,
+    get_child_pids,
+    get_connections,
+    get_process_info,
+)
+
 from .base import BaseScanner, LayerSignals, ScanResult
 
 SEARCH_DEPTH = 6
@@ -86,45 +93,36 @@ class OpenInterpreterScanner(BaseScanner):
         self._log("Scanning process layer...", verbose)
         strength = 0.0
 
-        proc = self._run_cmd(["pgrep", "-fl", "interpreter"])
-        if not (proc and proc.returncode == 0 and proc.stdout.strip()):
+        procs = find_processes("interpreter")
+        procs = [
+            p for p in procs
+            if "collector" not in p.cmdline.lower()
+            and "agentic-governance" not in p.cmdline.lower()
+            and re.search(r'interpreter', p.cmdline, re.IGNORECASE)
+        ]
+
+        if not procs:
             self._log("No interpreter-related process found", verbose)
             return strength
 
-        interpreter_pids: list[str] = []
-        for line in proc.stdout.strip().splitlines():
-            parts = line.split(None, 1)
-            if len(parts) < 2:
-                continue
-            pid, cmdline = parts
-            if "pgrep" in cmdline.lower():
-                continue
-            if "collector" in cmdline.lower() or "agentic-governance" in cmdline.lower():
-                continue
-            if re.search(r'interpreter', cmdline, re.IGNORECASE):
-                interpreter_pids.append(pid)
-                result.evidence_details.setdefault("process_entries", []).append({
-                    "pid": pid, "cmdline": cmdline,
-                })
-
-        if not interpreter_pids:
-            self._log("No interpreter-related process found (after filtering)", verbose)
-            return strength
+        interpreter_pids: list[int] = []
+        for p in procs:
+            interpreter_pids.append(p.pid)
+            result.evidence_details.setdefault("process_entries", []).append({
+                "pid": p.pid, "cmdline": p.cmdline,
+            })
 
         strength = 0.60
         self._log(f"Found interpreter process(es): {interpreter_pids}", verbose)
 
         ipykernel_found = False
         for pid in interpreter_pids[:5]:
-            children = self._run_cmd(["pgrep", "-P", pid])
-            if not (children and children.returncode == 0 and children.stdout.strip()):
-                continue
-
-            for cpid in children.stdout.strip().splitlines()[:10]:
-                child_info = self._run_cmd(["ps", "-p", cpid, "-o", "pid,command"])
-                if not (child_info and child_info.returncode == 0):
+            child_pids = get_child_pids(pid)
+            for cpid in child_pids[:10]:
+                child = get_process_info(cpid)
+                if not child:
                     continue
-                child_cmd = child_info.stdout.strip()
+                child_cmd = child.cmdline
 
                 if "ipykernel" in child_cmd:
                     ipykernel_found = True
@@ -132,28 +130,25 @@ class OpenInterpreterScanner(BaseScanner):
                     result.evidence_details.setdefault("child_processes", []).append(child_cmd)
                     self._log(f"  ipykernel child found: PID {cpid}", verbose)
 
-                    kernel_children = self._run_cmd(["pgrep", "-P", cpid])
-                    if kernel_children and kernel_children.returncode == 0 and kernel_children.stdout.strip():
-                        for kcpid in kernel_children.stdout.strip().splitlines()[:10]:
-                            kc_info = self._run_cmd(["ps", "-p", kcpid, "-o", "pid,command"])
-                            if kc_info and kc_info.returncode == 0:
-                                kc_cmd = kc_info.stdout.strip()
-                                if re.search(r'(bash|sh|pip|pytest|python|git)', kc_cmd):
-                                    result.evidence_details.setdefault(
-                                        "agentic_children", []
-                                    ).append(kc_cmd)
+                    kernel_children = get_child_pids(cpid)
+                    for kcpid in kernel_children[:10]:
+                        kc = get_process_info(kcpid)
+                        if kc and re.search(r'(bash|sh|pip|pytest|python|git)', kc.cmdline):
+                            result.evidence_details.setdefault(
+                                "agentic_children", []
+                            ).append(kc.cmdline)
 
         if ipykernel_found:
             strength = 0.70
             self._log("  python → ipykernel chain confirmed", verbose)
 
-        detail = self._run_cmd(["ps", "-p", interpreter_pids[0], "-o", "pid,ppid,user,command"])
-        if detail and detail.returncode == 0:
-            result.evidence_details["process_detail"] = detail.stdout.strip()
-            for dl in detail.stdout.splitlines()[1:]:
-                fields = dl.split()
-                if len(fields) >= 3:
-                    result.evidence_details["process_user"] = fields[2]
+        info = get_process_info(interpreter_pids[0])
+        if info:
+            result.evidence_details["process_detail"] = (
+                f"{info.pid} {info.ppid} {info.username} {info.cmdline}"
+            )
+            if info.username:
+                result.evidence_details["process_user"] = info.username
 
         return strength
 
@@ -204,21 +199,32 @@ class OpenInterpreterScanner(BaseScanner):
     def _find_interpreter_packages(self, verbose: bool) -> list[Path]:
         """Search bounded locations for interpreter package in site-packages."""
         results: list[Path] = []
+        seen: set[Path] = set()
+        home = Path.home()
 
-        find = self._run_cmd(
-            [
-                "find", str(Path.home()),
-                "-maxdepth", str(SEARCH_DEPTH),
-                "-path", "*/site-packages/interpreter/__init__.py",
-                "-not", "-path", "*/agentic-governance/*",
-            ],
-            timeout=VENV_SEARCH_TIMEOUT,
-        )
-        if find and find.returncode == 0 and find.stdout.strip():
-            for line in find.stdout.strip().splitlines():
-                pkg_dir = Path(line).parent
-                if pkg_dir.is_dir():
-                    results.append(pkg_dir)
+        def _search_dir(parent: Path, depth: int) -> None:
+            if depth > SEARCH_DEPTH:
+                return
+            if "agentic-governance" in str(parent):
+                return
+            try:
+                for p in parent.iterdir():
+                    if not p.is_dir():
+                        continue
+                    init_file = p / "site-packages" / "interpreter" / "__init__.py"
+                    if init_file.is_file():
+                        pkg_dir = init_file.parent
+                        if pkg_dir not in seen:
+                            seen.add(pkg_dir)
+                            results.append(pkg_dir)
+                    _search_dir(p, depth + 1)
+            except (PermissionError, OSError):
+                pass
+
+        try:
+            _search_dir(home, 0)
+        except (PermissionError, OSError):
+            pass
 
         return results
 
@@ -227,21 +233,17 @@ class OpenInterpreterScanner(BaseScanner):
         self._log("Scanning network layer...", verbose)
         strength = 0.0
 
-        interpreter_pids = {
+        interpreter_pids: set[int] = {
             e["pid"] for e in result.evidence_details.get("process_entries", [])
         }
         ipykernel_pid = result.evidence_details.get("ipykernel_pid")
-        if ipykernel_pid:
+        if ipykernel_pid is not None:
             interpreter_pids.add(ipykernel_pid)
 
         if not interpreter_pids:
             return strength
 
-        lsof = self._run_cmd(["lsof", "-i", "-n", "-P"])
-        if not (lsof and lsof.returncode == 0):
-            self._log("  lsof failed or unavailable", verbose)
-            return strength
-
+        conns = get_connections(pids=interpreter_pids)
         known_llm_patterns = [
             "api.openai.com", "api.anthropic.com",
             ":11434", ":8080", ":4000",
@@ -249,18 +251,18 @@ class OpenInterpreterScanner(BaseScanner):
 
         connections: list[str] = []
         llm_connections: list[str] = []
-        for line in lsof.stdout.splitlines():
-            parts = line.split()
-            if len(parts) < 2:
+        for c in conns:
+            if c.status not in ("ESTABLISHED", "LISTEN"):
                 continue
-            if parts[1] not in interpreter_pids:
-                continue
-            if "ESTABLISHED" in line or "LISTEN" in line:
-                connections.append(line.strip())
-                for pattern in known_llm_patterns:
-                    if pattern in line:
-                        llm_connections.append(line.strip())
-                        break
+            line_repr = (
+                f"{c.local_addr}:{c.local_port} -> "
+                f"{c.remote_addr or ''}:{c.remote_port or ''} {c.status}"
+            )
+            connections.append(line_repr)
+            for pattern in known_llm_patterns:
+                if pattern in line_repr:
+                    llm_connections.append(line_repr)
+                    break
 
         if llm_connections:
             strength = 0.55

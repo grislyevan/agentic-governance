@@ -22,6 +22,8 @@ import os
 import re
 from pathlib import Path
 
+from compat import find_processes, get_connections, get_process_info
+
 from .base import BaseScanner, LayerSignals, ScanResult
 
 logger = logging.getLogger(__name__)
@@ -212,14 +214,13 @@ class ClaudeCoworkScanner(BaseScanner):
         self._log("Scanning network layer...", verbose)
         strength = 0.0
 
-        proc = self._run_cmd(["lsof", "-i", "-nP"])
-        if proc and proc.returncode == 0:
-            for line in proc.stdout.splitlines():
-                if "claude" in line.lower():
-                    strength = max(strength, 0.65)
-                    result.evidence_details.setdefault("network_connections", []).append(
-                        line.strip()
-                    )
+        conns = get_connections()
+        for c in conns:
+            proc = get_process_info(c.pid) if c.pid else None
+            line = f"{c.pid or ''} {proc.cmdline if proc else ''} {c.remote_addr or ''}:{c.remote_port or ''} {c.status}"
+            if "claude" in line.lower():
+                strength = max(strength, 0.65)
+                result.evidence_details.setdefault("network_connections", []).append(line)
 
         vm_ip_path = self._VM_BUNDLES / "claudevm.bundle" / "vmIP"
         if vm_ip_path.is_file():

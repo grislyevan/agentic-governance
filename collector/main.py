@@ -348,7 +348,7 @@ def _process_detection(
     if emitter.emit(policy_event):
         events_emitted += 1
 
-    if enforcer and policy_decision.decision_state in ("block", "approval_required"):
+    if enforcer and policy_decision.decision_state == "block":
         network_elevated = "NET" in (policy_decision.rule_id or "")
         enf_result = enforcer.enforce(
             decision=policy_decision,
@@ -727,7 +727,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--enforce", action="store_true", default=False,
-        help="Execute enforcement actions (process kill, network block) for block/approval_required decisions",
+        help="Execute enforcement actions (process kill, network block) for block decisions",
     )
 
     # Centralized config: code defaults < config file < env vars < CLI

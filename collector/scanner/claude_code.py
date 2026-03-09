@@ -9,6 +9,8 @@ import re
 import time
 from pathlib import Path
 
+from compat import find_processes, get_child_pids, get_connections, get_process_info
+
 from .base import BaseScanner, LayerSignals, ScanResult
 from .constants import MAX_REPOS_TO_SCAN
 
@@ -84,52 +86,49 @@ class ClaudeCodeScanner(BaseScanner):
         """Check for running claude/claude-code processes and child chains."""
         self._log("Scanning process layer...", verbose)
         strength = 0.0
-        own_pid = str(os.getpid())
-        own_ppid = str(os.getppid())
+        own_pid = os.getpid()
+        own_ppid = os.getppid()
 
-        proc = self._run_cmd(["pgrep", "-fl", "claude"])
-        if proc and proc.returncode == 0 and proc.stdout.strip():
-            lines = proc.stdout.strip().splitlines()
-            claude_pids: list[str] = []
-            for line in lines:
-                parts = line.split(None, 1)
-                if len(parts) >= 2:
-                    pid, cmdline = parts
-                    if pid in (own_pid, own_ppid):
-                        continue
-                    if "pgrep" in cmdline.lower():
-                        continue
-                    if re.search(r'\bclaude\b', cmdline, re.IGNORECASE) and \
-                       "collector" not in cmdline.lower() and \
-                       "main.py" not in cmdline:
-                        claude_pids.append(pid)
-                        result.evidence_details.setdefault("process_entries", []).append({
-                            "pid": pid, "cmdline": cmdline
-                        })
+        procs = find_processes("claude")
+        procs = [
+            p for p in procs
+            if p.pid not in (own_pid, own_ppid)
+            and "pgrep" not in p.cmdline.lower()
+            and re.search(r'\bclaude\b', p.cmdline, re.IGNORECASE)
+            and "collector" not in p.cmdline.lower()
+            and "main.py" not in p.cmdline
+        ]
 
-            if claude_pids:
-                strength = 0.7
-                self._log(f"Found claude process(es): {claude_pids}", verbose)
+        if procs:
+            claude_pids: list[int] = [p.pid for p in procs]
+            for p in procs:
+                result.evidence_details.setdefault("process_entries", []).append({
+                    "pid": p.pid, "cmdline": p.cmdline
+                })
 
-                for pid in claude_pids[:3]:
-                    detail = self._run_cmd(["ps", "-p", pid, "-o", "pid,ppid,user,command"])
-                    if detail and detail.returncode == 0:
-                        result.evidence_details["process_detail"] = detail.stdout.strip()
+            strength = 0.7
+            self._log(f"Found claude process(es): {claude_pids}", verbose)
 
-                    children = self._run_cmd(["pgrep", "-P", pid])
-                    if children and children.returncode == 0 and children.stdout.strip():
-                        child_pids = children.stdout.strip().splitlines()
-                        result.evidence_details["child_pids"] = child_pids
-                        strength = 0.85
-                        self._log(f"Child processes found: {child_pids}", verbose)
+            for pid in claude_pids[:3]:
+                detail = get_process_info(pid)
+                if detail:
+                    result.evidence_details["process_detail"] = (
+                        f"{detail.pid} {detail.ppid or ''} {detail.username or ''} {detail.cmdline}"
+                    )
 
-                        for cpid in child_pids[:5]:
-                            child_info = self._run_cmd(["ps", "-p", cpid, "-o", "pid,command"])
-                            if child_info and child_info.returncode == 0:
-                                cmdline = child_info.stdout.strip()
-                                if re.search(r'(zsh|bash|python|git|node)', cmdline):
-                                    strength = 0.90
-                                    result.evidence_details.setdefault("agentic_children", []).append(cmdline)
+                child_pids = get_child_pids(pid)
+                if child_pids:
+                    result.evidence_details["child_pids"] = child_pids
+                    strength = 0.85
+                    self._log(f"Child processes found: {child_pids}", verbose)
+
+                    for cpid in child_pids[:5]:
+                        child = get_process_info(cpid)
+                        if child and re.search(r'(zsh|bash|python|git|node)', child.cmdline):
+                            strength = 0.90
+                            result.evidence_details.setdefault("agentic_children", []).append(
+                                child.cmdline
+                            )
         else:
             self._log("No claude process found", verbose)
 

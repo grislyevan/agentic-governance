@@ -8,6 +8,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **All 12 scanners cross-platform**: Migrated the remaining 9 scanners (aider,
+  claude_code, claude_cowork, cline, continue_ext, gpt_pilot, lm_studio,
+  open_interpreter, openclaw) from Unix-specific `pgrep`/`ps`/`lsof` commands
+  to the compat abstraction layer (`find_processes`, `get_child_pids`,
+  `get_process_info`, `get_connections`). All scanners now work on Windows,
+  macOS, and Linux via psutil. Added lm_studio and openclaw path entries to
+  the compat path registry.
+- **Events page**: Built a full SOC event browser at `/events` with filterable
+  table (decision state, tool name), pagination, and a slide-out detail panel
+  showing the complete event payload. Replaces the previous placeholder.
 - **Windows Service packaging**: Added `detec-server` CLI with `setup`, `run`,
   `install`, `start`, `stop`, `remove`, and `status` subcommands. On Windows,
   the server registers as a Windows Service ("Detec Server") via pywin32.
@@ -47,6 +57,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **M-28: approval_required enforcement**: `approval_required` policy decisions
+  no longer trigger the enforcer (process kill / network block). Only `block`
+  decisions invoke enforcement. Previously both states were treated identically,
+  contradicting the playbook semantics where `approval_required` means "flag for
+  human review," not "block."
 - Test `test_me_returns_user_info` expected `role == "admin"` but registration
   returns `"owner"` (changed in a prior release). Updated assertion.
 - Policy list tests iterated over `resp.json()` directly instead of

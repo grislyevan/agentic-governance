@@ -27,15 +27,21 @@ import re
 import time
 from pathlib import Path
 
+from compat import (
+    find_processes,
+    get_connections,
+    get_listeners,
+    get_process_info,
+    get_tool_paths,
+)
+
 from .base import BaseScanner, LayerSignals, ScanResult
+from .constants import OLLAMA_API_PORT
 
 logger = logging.getLogger(__name__)
-OPENCLAW_DIR = Path.home() / ".openclaw"
 LAUNCH_AGENT_PLIST = (
     Path.home() / "Library" / "LaunchAgents" / "ai.openclaw.gateway.plist"
 )
-from .constants import OLLAMA_API_PORT
-
 GATEWAY_PORT = 18789
 OLLAMA_PORT = OLLAMA_API_PORT
 
@@ -48,6 +54,9 @@ CREDENTIAL_ENV_NAMES = frozenset({
 
 class OpenClawScanner(BaseScanner):
     """Detects OpenClaw gateway, config directory, and agentic capabilities via five-layer model."""
+
+    def __init__(self) -> None:
+        self._paths = get_tool_paths("openclaw")
 
     @property
     def tool_name(self) -> str:
@@ -112,37 +121,32 @@ class OpenClawScanner(BaseScanner):
         self._log("Scanning process layer...", verbose)
         strength = 0.0
 
-        proc = self._run_cmd(["pgrep", "-fl", "openclaw"])
-        if proc and proc.returncode == 0 and proc.stdout.strip():
-            for line in proc.stdout.strip().splitlines():
-                parts = line.split(None, 1)
-                if len(parts) < 2:
-                    continue
-                pid, cmdline = parts
-                if "pgrep" in cmdline.lower() or "collector" in cmdline.lower():
-                    continue
-                if not re.search(r'openclaw', cmdline, re.IGNORECASE):
-                    continue
+        procs = find_processes("openclaw")
+        procs = [p for p in procs if "collector" not in p.cmdline.lower()]
 
-                result.evidence_details.setdefault("process_entries", []).append({
-                    "pid": pid, "cmdline": cmdline,
-                })
+        for p in procs:
+            if not re.search(r'openclaw', p.cmdline, re.IGNORECASE):
+                continue
 
-                if "gateway" in cmdline:
-                    strength = 0.90
-                    result.evidence_details["daemon_running"] = True
-                    self._log(f"  Gateway daemon found: PID {pid}", verbose)
-                else:
-                    strength = max(strength, 0.60)
-                    self._log(f"  CLI process found: PID {pid} ({cmdline})", verbose)
+            result.evidence_details.setdefault("process_entries", []).append({
+                "pid": p.pid, "cmdline": p.cmdline,
+            })
 
-                detail = self._run_cmd(["ps", "-p", pid, "-o", "pid,ppid,user,command"])
-                if detail and detail.returncode == 0:
-                    result.evidence_details["process_detail"] = detail.stdout.strip()
-                    for dl in detail.stdout.splitlines()[1:]:
-                        fields = dl.split()
-                        if len(fields) >= 3:
-                            result.evidence_details["process_user"] = fields[2]
+            if "gateway" in p.cmdline:
+                strength = 0.90
+                result.evidence_details["daemon_running"] = True
+                self._log(f"  Gateway daemon found: PID {p.pid}", verbose)
+            else:
+                strength = max(strength, 0.60)
+                self._log(f"  CLI process found: PID {p.pid} ({p.cmdline})", verbose)
+
+            info = get_process_info(p.pid)
+            if info:
+                result.evidence_details["process_detail"] = (
+                    f"{info.pid} {info.ppid} {info.username} {info.cmdline}"
+                )
+                if info.username:
+                    result.evidence_details["process_user"] = info.username
 
         if self._check_launch_agent(result, verbose):
             strength = max(strength, 0.50)
@@ -220,16 +224,17 @@ class OpenClawScanner(BaseScanner):
         self._log("Scanning file layer...", verbose)
         strength = 0.0
 
-        if not OPENCLAW_DIR.is_dir():
+        openclaw_dir = self._paths.data_dir
+        if openclaw_dir is None or not openclaw_dir.is_dir():
             self._log("No ~/.openclaw/ directory found", verbose)
             return strength
 
         strength = 0.60
-        self._log(f"Found {OPENCLAW_DIR}", verbose)
+        self._log(f"Found {openclaw_dir}", verbose)
 
         try:
-            file_count = sum(1 for f in OPENCLAW_DIR.rglob("*") if f.is_file())
-            total_size = sum(f.stat().st_size for f in OPENCLAW_DIR.rglob("*") if f.is_file())
+            file_count = sum(1 for f in openclaw_dir.rglob("*") if f.is_file())
+            total_size = sum(f.stat().st_size for f in openclaw_dir.rglob("*") if f.is_file())
             result.evidence_details["openclaw_dir"] = {
                 "file_count": file_count,
                 "total_size_bytes": total_size,
@@ -241,19 +246,19 @@ class OpenClawScanner(BaseScanner):
         except (PermissionError, OSError) as exc:
             self._log(f"  Error reading directory: {exc}", verbose)
 
-        config_file = OPENCLAW_DIR / "openclaw.json"
+        config_file = openclaw_dir / "openclaw.json"
         if config_file.is_file():
             strength = max(strength, 0.85)
             result.evidence_details["config_file"] = True
             self._log("  openclaw.json found (central config)", verbose)
             self._parse_model_backend(config_file, result, verbose)
 
-        creds_dir = OPENCLAW_DIR / "credentials"
+        creds_dir = openclaw_dir / "credentials"
         if creds_dir.is_dir():
             result.evidence_details["credentials_dir"] = True
             self._log("  credentials/ directory found", verbose)
 
-        skills_dir = OPENCLAW_DIR / "workspace" / "skills"
+        skills_dir = openclaw_dir / "workspace" / "skills"
         if skills_dir.is_dir():
             try:
                 skill_dirs = [d for d in skills_dir.iterdir() if d.is_dir()]
@@ -266,16 +271,16 @@ class OpenClawScanner(BaseScanner):
                 logger.debug("Could not list skill dirs in %s: %s", skills_dir, exc)
 
         for subdir_name in ("agents", "memory", "logs", "browser", "devices"):
-            subdir = OPENCLAW_DIR / subdir_name
+            subdir = openclaw_dir / subdir_name
             if subdir.is_dir():
                 result.evidence_details.setdefault("subdirectories", []).append(subdir_name)
 
-        exec_approvals = OPENCLAW_DIR / "exec-approvals.json"
+        exec_approvals = openclaw_dir / "exec-approvals.json"
         if exec_approvals.is_file():
             result.evidence_details["exec_approvals"] = True
             self._log("  exec-approvals.json found (authorized commands registry)", verbose)
 
-        sessions_path = OPENCLAW_DIR / "agents" / "main" / "sessions" / "sessions.json"
+        sessions_path = openclaw_dir / "agents" / "main" / "sessions" / "sessions.json"
         if sessions_path.is_file():
             result.evidence_details["sessions_file"] = True
             strength = max(strength, 0.85)
@@ -294,39 +299,37 @@ class OpenClawScanner(BaseScanner):
         self._log("Scanning network layer...", verbose)
         strength = 0.0
 
-        lsof = self._run_cmd(["lsof", "-i", f":{GATEWAY_PORT}", "-n", "-P"])
-        if lsof and lsof.returncode == 0 and lsof.stdout.strip():
-            for line in lsof.stdout.splitlines():
-                if "LISTEN" in line:
-                    strength = 0.75
-                    result.evidence_details["gateway_listener"] = line.strip()
-                    pid_match = re.search(r'^\S+\s+(\d+)', line)
-                    if pid_match:
-                        result.evidence_details["gateway_listener_pid"] = pid_match.group(1)
-                    self._log(f"  Gateway listener on :{GATEWAY_PORT}", verbose)
-                    break
+        listeners = get_listeners(port=GATEWAY_PORT)
+        if listeners:
+            c = listeners[0]
+            strength = 0.75
+            result.evidence_details["gateway_listener"] = (
+                f"{c.local_addr}:{c.local_port} LISTEN"
+            )
+            if c.pid is not None:
+                result.evidence_details["gateway_listener_pid"] = c.pid
+            self._log(f"  Gateway listener on :{GATEWAY_PORT}", verbose)
 
         if strength == 0.0:
-            openclaw_pids = {
+            openclaw_pids: set[int] = {
                 e["pid"] for e in result.evidence_details.get("process_entries", [])
             }
             if openclaw_pids:
-                lsof_all = self._run_cmd(["lsof", "-i", "-n", "-P"])
-                if lsof_all and lsof_all.returncode == 0:
-                    for line in lsof_all.stdout.splitlines():
-                        parts = line.split()
-                        if len(parts) >= 2 and parts[1] in openclaw_pids:
-                            if ":443" in line and "ESTABLISHED" in line:
-                                result.evidence_details.setdefault(
-                                    "model_api_connections", []
-                                ).append(line.strip())
-                    if result.evidence_details.get("model_api_connections"):
-                        strength = 0.55
-                        self._log(
-                            f"  {len(result.evidence_details['model_api_connections'])} "
-                            f"TLS connection(s) from OpenClaw PIDs",
-                            verbose,
-                        )
+                conns = get_connections(pids=openclaw_pids)
+                tls_conns = [
+                    c for c in conns
+                    if c.remote_port == 443 and c.status == "ESTABLISHED"
+                ]
+                if tls_conns:
+                    result.evidence_details["model_api_connections"] = [
+                        f"{c.local_addr}:{c.local_port} -> {c.remote_addr}:{c.remote_port} {c.status}"
+                        for c in tls_conns
+                    ]
+                    strength = 0.55
+                    self._log(
+                        f"  {len(tls_conns)} TLS connection(s) from OpenClaw PIDs",
+                        verbose,
+                    )
 
         self._check_ollama_coresidency(result, verbose)
 
@@ -339,11 +342,9 @@ class OpenClawScanner(BaseScanner):
         """Detect OpenClaw ↔ Ollama loopback connections (LAB-RUN-013 pattern)."""
         if not result.evidence_details.get("gateway_listener_pid"):
             return
-        lsof = self._run_cmd(["lsof", "-i", f":{OLLAMA_PORT}", "-n", "-P"])
-        if not lsof or lsof.returncode != 0 or not lsof.stdout.strip():
-            return
-        for line in lsof.stdout.splitlines():
-            if "LISTEN" in line or "ESTABLISHED" in line:
+        conns = get_connections(port=OLLAMA_PORT)
+        for c in conns:
+            if c.status in ("LISTEN", "ESTABLISHED"):
                 result.evidence_details["ollama_coresidency"] = True
                 self._log(
                     f"  Ollama co-residency detected (:{OLLAMA_PORT} active alongside gateway)",
@@ -364,7 +365,7 @@ class OpenClawScanner(BaseScanner):
             strength = 0.30
             result.evidence_details["identity_user"] = process_user
             self._log(f"  Process owner: {process_user}", verbose)
-        elif OPENCLAW_DIR.is_dir():
+        elif self._paths.data_dir and self._paths.data_dir.is_dir():
             result.evidence_details["identity_user"] = getpass.getuser()
             strength = 0.30
 
@@ -421,8 +422,9 @@ class OpenClawScanner(BaseScanner):
 
         now = time.time()
         recent_threshold = 3600
-        logs_dir = OPENCLAW_DIR / "logs"
-        if logs_dir.is_dir():
+        openclaw_dir = self._paths.data_dir
+        logs_dir = openclaw_dir / "logs" if openclaw_dir else None
+        if logs_dir and logs_dir.is_dir():
             try:
                 for log_file in logs_dir.iterdir():
                     if log_file.is_file() and (now - log_file.stat().st_mtime) < recent_threshold:
@@ -433,7 +435,10 @@ class OpenClawScanner(BaseScanner):
             except (PermissionError, OSError) as exc:
                 logger.debug("Could not check recent log activity in %s: %s", logs_dir, exc)
 
-        cron_jobs = OPENCLAW_DIR / "cron" / "jobs.json"
+        if openclaw_dir:
+            cron_jobs = openclaw_dir / "cron" / "jobs.json"
+        else:
+            cron_jobs = Path()
         if cron_jobs.is_file():
             result.evidence_details["cron_infrastructure"] = True
             try:
@@ -450,7 +455,8 @@ class OpenClawScanner(BaseScanner):
 
         if (
             strength == 0.0
-            and OPENCLAW_DIR.is_dir()
+            and openclaw_dir
+            and openclaw_dir.is_dir()
             and result.evidence_details.get("config_file")
         ):
             strength = 0.40
@@ -489,7 +495,7 @@ class OpenClawScanner(BaseScanner):
             summaries.append("OpenClaw gateway daemon running")
             result.action_type = "exec"
             result.action_risk = "R2"
-        elif OPENCLAW_DIR.is_dir():
+        elif self._paths.data_dir and self._paths.data_dir.is_dir():
             summaries.append("OpenClaw installed (daemon not running)")
             result.action_type = "read"
             result.action_risk = "R1"

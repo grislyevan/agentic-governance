@@ -123,10 +123,47 @@ def _ollama_paths() -> ToolPaths:
         )
 
 
+# -- LM Studio -------------------------------------------------------------
+
+def _lm_studio_paths() -> ToolPaths:
+    if _PLATFORM == "darwin":
+        return ToolPaths(
+            install_dir=Path("/Applications/LM Studio.app"),
+            config_dir=_HOME / "Library" / "Application Support" / "LM Studio",
+            data_dir=_HOME / "Library" / "Application Support" / "LM Studio",
+        )
+    elif _PLATFORM == "win32":
+        local = _env_path("LOCALAPPDATA")
+        appdata = _env_path("APPDATA")
+        return ToolPaths(
+            install_dir=local / "Programs" / "LM Studio",
+            config_dir=appdata / "LM Studio",
+            data_dir=appdata / "LM Studio",
+        )
+    else:  # Linux
+        return ToolPaths(
+            install_dir=None,
+            config_dir=_HOME / ".lmstudio",
+            data_dir=_HOME / ".lmstudio",
+        )
+
+
+# -- OpenClaw --------------------------------------------------------------
+
+def _openclaw_paths() -> ToolPaths:
+    return ToolPaths(
+        install_dir=None,
+        config_dir=_HOME / ".openclaw",
+        data_dir=_HOME / ".openclaw",
+    )
+
+
 # -- Registry --------------------------------------------------------------
 
 _REGISTRY: dict[str, callable] = {
     "cursor": _cursor_paths,
     "vscode": _vscode_paths,
     "ollama": _ollama_paths,
+    "lm_studio": _lm_studio_paths,
+    "openclaw": _openclaw_paths,
 }

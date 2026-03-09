@@ -20,6 +20,8 @@ import re
 import time
 from pathlib import Path
 
+from compat import find_processes, get_child_pids, get_connections, get_process_info
+
 from .base import BaseScanner, LayerSignals, ScanResult
 from .constants import MAX_REPOS_TO_SCAN
 
@@ -104,49 +106,35 @@ class AiderScanner(BaseScanner):
         self._log("Scanning process layer...", verbose)
         strength = 0.0
 
-        proc = self._run_cmd(["pgrep", "-fl", "aider"])
-        if not (proc and proc.returncode == 0 and proc.stdout.strip()):
+        procs = find_processes("aider")
+        procs = [p for p in procs if "collector" not in p.cmdline.lower()]
+        aider_pids: list[int] = []
+        for p in procs:
+            if re.search(r'\baider\b', p.cmdline, re.IGNORECASE):
+                aider_pids.append(p.pid)
+                result.evidence_details.setdefault("process_entries", []).append({
+                    "pid": p.pid, "cmdline": p.cmdline,
+                })
+                self._log(f"  Aider process found: PID {p.pid}", verbose)
+
+        if not aider_pids:
             self._log("No aider process found", verbose)
             return strength
 
-        aider_pids: list[str] = []
-        for line in proc.stdout.strip().splitlines():
-            parts = line.split(None, 1)
-            if len(parts) < 2:
-                continue
-            pid, cmdline = parts
-            if "pgrep" in cmdline.lower() or "collector" in cmdline.lower():
-                continue
-            if re.search(r'\baider\b', cmdline, re.IGNORECASE):
-                aider_pids.append(pid)
-                result.evidence_details.setdefault("process_entries", []).append({
-                    "pid": pid, "cmdline": cmdline,
-                })
-                self._log(f"  Aider process found: PID {pid}", verbose)
-
-        if not aider_pids:
-            return strength
-
         strength = 0.75
-        detail = self._run_cmd(["ps", "-p", aider_pids[0], "-o", "pid,ppid,user,command"])
-        if detail and detail.returncode == 0:
-            result.evidence_details["process_detail"] = detail.stdout.strip()
-            for dl in detail.stdout.splitlines()[1:]:
-                fields = dl.split()
-                if len(fields) >= 3:
-                    result.evidence_details["process_user"] = fields[2]
+        detail = get_process_info(aider_pids[0])
+        if detail:
+            result.evidence_details["process_detail"] = f"{detail.pid} {detail.ppid} {detail.username or ''} {detail.cmdline}"
+            if detail.username:
+                result.evidence_details["process_user"] = detail.username
 
         # Check for child git/shell/test processes (prompt-edit-commit loop)
         for pid in aider_pids[:3]:
-            children = self._run_cmd(["pgrep", "-P", pid])
-            if not (children and children.returncode == 0 and children.stdout.strip()):
-                continue
-            for cpid in children.stdout.strip().splitlines()[:10]:
-                child_info = self._run_cmd(["ps", "-p", cpid, "-o", "pid,command"])
-                if child_info and child_info.returncode == 0:
-                    child_cmd = child_info.stdout.strip()
-                    if re.search(r'(git|pytest|python|bash|sh|npm)', child_cmd):
-                        result.evidence_details.setdefault("agentic_children", []).append(child_cmd)
+            children = get_child_pids(pid)
+            for cpid in children[:10]:
+                child = get_process_info(cpid)
+                if child and re.search(r'(git|pytest|python|bash|sh|npm)', child.cmdline):
+                    result.evidence_details.setdefault("agentic_children", []).append(child.cmdline)
 
         if result.evidence_details.get("agentic_children"):
             strength = 0.90
@@ -244,23 +232,21 @@ class AiderScanner(BaseScanner):
         if not aider_pids:
             return strength
 
-        lsof = self._run_cmd(["lsof", "-i", "-n", "-P"])
-        if not (lsof and lsof.returncode == 0):
-            return strength
-
+        conns = get_connections(pids=aider_pids)
         llm_patterns = ["api.openai.com", "api.anthropic.com", ":11434", ":1234"]
         connections: list[str] = []
 
-        for line in lsof.stdout.splitlines():
-            parts = line.split()
-            if len(parts) < 2 or parts[1] not in aider_pids:
+        for c in conns:
+            if c.pid is None or c.pid not in aider_pids:
                 continue
-            if "ESTABLISHED" in line:
-                connections.append(line.strip())
+            if c.status == "ESTABLISHED":
+                conn_str = f"{c.pid} {c.local_addr}:{c.local_port}->{c.remote_addr or ''}:{c.remote_port or ''} ({c.status})"
+                connections.append(conn_str)
+                remote = f"{c.remote_addr or ''}:{c.remote_port or ''}"
                 for pattern in llm_patterns:
-                    if pattern in line:
-                        result.evidence_details.setdefault("llm_connections", []).append(line.strip())
-                        self._log(f"  LLM API connection: {line.strip()[:80]}", verbose)
+                    if pattern in remote or pattern in (c.remote_addr or ""):
+                        result.evidence_details.setdefault("llm_connections", []).append(conn_str)
+                        self._log(f"  LLM API connection: {conn_str[:80]}", verbose)
                         break
 
         if result.evidence_details.get("llm_connections"):

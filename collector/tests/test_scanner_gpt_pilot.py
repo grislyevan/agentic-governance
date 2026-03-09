@@ -9,13 +9,21 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scanner.gpt_pilot import GPTPilotScanner
-from tests.fixtures.canned_responses import (
-    EMPTY,
-    GPT_PILOT_NOT_RUNNING,
-    GPT_PILOT_RUNNING,
-    make_dispatcher,
-)
+from tests.fixtures.canned_responses import EMPTY, GPT_PILOT_RUNNING, make_dispatcher
+from tests.fixtures.compat_fixtures import make_gpt_pilot_compat_mocks
 from tests.fixtures.file_fixtures import create_gpt_pilot_footprint
+
+# _run_cmd is only used for: pip show gpt-pilot, pythagora, gpt_pilot
+GPT_PILOT_RUN_CMD_CLEAN = {
+    ("pip", "show", "gpt-pilot"): EMPTY,
+    ("pip", "show", "pythagora"): EMPTY,
+    ("pip", "show", "gpt_pilot"): EMPTY,
+}
+GPT_PILOT_RUN_CMD_INSTALLED = {
+    ("pip", "show", "gpt-pilot"): GPT_PILOT_RUNNING[("pip", "show", "gpt-pilot")],
+    ("pip", "show", "pythagora"): EMPTY,
+    ("pip", "show", "gpt_pilot"): EMPTY,
+}
 
 
 class TestGPTPilotCleanSystem(unittest.TestCase):
@@ -29,11 +37,16 @@ class TestGPTPilotCleanSystem(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_clean_system_not_detected(self):
+        find_proc, get_children, get_info, get_conn = make_gpt_pilot_compat_mocks(active=False)
         env_clean = {k: v for k, v in os.environ.items()
                      if k not in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY")}
         with (
             patch("scanner.gpt_pilot.HOME", self.home),
-            patch.object(GPTPilotScanner, "_run_cmd", make_dispatcher(GPT_PILOT_NOT_RUNNING)),
+            patch("scanner.gpt_pilot.find_processes", find_proc),
+            patch("scanner.gpt_pilot.get_child_pids", get_children),
+            patch("scanner.gpt_pilot.get_process_info", get_info),
+            patch("scanner.gpt_pilot.get_connections", get_conn),
+            patch.object(GPTPilotScanner, "_run_cmd", make_dispatcher(GPT_PILOT_RUN_CMD_CLEAN)),
             patch.dict(os.environ, env_clean, clear=True),
         ):
             scanner = GPTPilotScanner()
@@ -60,9 +73,14 @@ class TestGPTPilotStateDirsOnly(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_state_dirs_detects_file_and_behavior(self):
+        find_proc, get_children, get_info, get_conn = make_gpt_pilot_compat_mocks(active=False)
         with (
             patch("scanner.gpt_pilot.HOME", self.home),
-            patch.object(GPTPilotScanner, "_run_cmd", make_dispatcher(GPT_PILOT_NOT_RUNNING)),
+            patch("scanner.gpt_pilot.find_processes", find_proc),
+            patch("scanner.gpt_pilot.get_child_pids", get_children),
+            patch("scanner.gpt_pilot.get_process_info", get_info),
+            patch("scanner.gpt_pilot.get_connections", get_conn),
+            patch.object(GPTPilotScanner, "_run_cmd", make_dispatcher(GPT_PILOT_RUN_CMD_CLEAN)),
         ):
             scanner = GPTPilotScanner()
             result = scanner.scan(verbose=False)
@@ -91,9 +109,14 @@ class TestGPTPilotGenerationLoopActive(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_fully_active_all_layers(self):
+        find_proc, get_children, get_info, get_conn = make_gpt_pilot_compat_mocks(active=True)
         with (
             patch("scanner.gpt_pilot.HOME", self.home),
-            patch.object(GPTPilotScanner, "_run_cmd", make_dispatcher(GPT_PILOT_RUNNING)),
+            patch("scanner.gpt_pilot.find_processes", find_proc),
+            patch("scanner.gpt_pilot.get_child_pids", get_children),
+            patch("scanner.gpt_pilot.get_process_info", get_info),
+            patch("scanner.gpt_pilot.get_connections", get_conn),
+            patch.object(GPTPilotScanner, "_run_cmd", make_dispatcher(GPT_PILOT_RUN_CMD_INSTALLED)),
         ):
             scanner = GPTPilotScanner()
             result = scanner.scan(verbose=True)
@@ -110,9 +133,14 @@ class TestGPTPilotGenerationLoopActive(unittest.TestCase):
 
     def test_high_file_churn_detected(self):
         """Workspace with >20 recent files triggers high-churn behavior signal."""
+        find_proc, get_children, get_info, get_conn = make_gpt_pilot_compat_mocks(active=False)
         with (
             patch("scanner.gpt_pilot.HOME", self.home),
-            patch.object(GPTPilotScanner, "_run_cmd", make_dispatcher(GPT_PILOT_NOT_RUNNING)),
+            patch("scanner.gpt_pilot.find_processes", find_proc),
+            patch("scanner.gpt_pilot.get_child_pids", get_children),
+            patch("scanner.gpt_pilot.get_process_info", get_info),
+            patch("scanner.gpt_pilot.get_connections", get_conn),
+            patch.object(GPTPilotScanner, "_run_cmd", make_dispatcher(GPT_PILOT_RUN_CMD_CLEAN)),
         ):
             scanner = GPTPilotScanner()
             result = scanner.scan(verbose=False)

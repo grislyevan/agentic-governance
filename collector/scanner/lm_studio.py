@@ -20,14 +20,18 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from compat import (
+    find_processes,
+    get_app_version,
+    get_listeners,
+    get_process_info,
+    get_tool_paths,
+)
+
 from .base import BaseScanner, LayerSignals, ScanResult
 from .constants import LM_STUDIO_API_PORT
 
 logger = logging.getLogger(__name__)
-HOME = Path.home()
-APP_PATH = Path("/Applications/LM Studio.app")
-APP_SUPPORT_DIR = HOME / "Library" / "Application Support" / "LM Studio"
-CACHE_DIR = HOME / "Library" / "Caches" / "LM Studio"
 LOCAL_API_PORT = LM_STUDIO_API_PORT
 
 MODEL_EXTENSIONS = frozenset({".gguf", ".safetensors", ".bin", ".ggml"})
@@ -35,6 +39,9 @@ MODEL_EXTENSIONS = frozenset({".gguf", ".safetensors", ".bin", ".ggml"})
 
 class LMStudioScanner(BaseScanner):
     """Detects LM Studio via five-layer signal model."""
+
+    def __init__(self) -> None:
+        self._paths = get_tool_paths("lm_studio")
 
     @property
     def tool_name(self) -> str:
@@ -77,21 +84,18 @@ class LMStudioScanner(BaseScanner):
 
     def _detect_version(self, verbose: bool) -> str | None:
         """Detect LM Studio version from Info.plist or app support directory."""
-        import plistlib
-        plist_path = APP_PATH / "Contents" / "Info.plist"
-        if plist_path.is_file():
-            try:
-                with open(plist_path, "rb") as f:
-                    plist = plistlib.load(f)
-                version = plist.get("CFBundleShortVersionString") or plist.get("CFBundleVersion")
-                if version:
-                    self._log(f"Version from Info.plist: {version}", verbose)
-                    return str(version)
-            except (OSError, plistlib.InvalidFileException) as exc:
-                logger.debug("Could not read LM Studio Info.plist %s: %s", plist_path, exc)
+        install_dir = self._paths.install_dir
+        if install_dir:
+            version = get_app_version(install_dir)
+            if version:
+                self._log(f"Version from Info.plist: {version}", verbose)
+                return str(version)
 
         # Fallback: version file in app support dir
-        version_file = APP_SUPPORT_DIR / "version.json"
+        config_dir = self._paths.config_dir
+        if config_dir is None:
+            return None
+        version_file = config_dir / "version.json"
         if version_file.is_file():
             try:
                 data = json.loads(version_file.read_text())
@@ -107,36 +111,30 @@ class LMStudioScanner(BaseScanner):
         self._log("Scanning process layer...", verbose)
         strength = 0.0
 
-        for pattern in ("LM Studio", "lm-studio", "lmstudio"):
-            proc = self._run_cmd(["pgrep", "-fl", pattern])
-            if not (proc and proc.returncode == 0 and proc.stdout.strip()):
-                continue
-            for line in proc.stdout.strip().splitlines():
-                parts = line.split(None, 1)
-                if len(parts) < 2:
-                    continue
-                pid, cmdline = parts
-                if "pgrep" in cmdline.lower() or "collector" in cmdline.lower():
-                    continue
-                if re.search(r'(?i)(lm.?studio|lmstudio)', cmdline):
-                    result.evidence_details.setdefault("process_entries", []).append({
-                        "pid": pid, "cmdline": cmdline,
-                    })
-                    if "LM Studio" in cmdline and ".app" in cmdline:
-                        strength = 0.80
-                        result.evidence_details["app_running"] = True
-                        self._log(f"  LM Studio app process found: PID {pid}", verbose)
-                    else:
-                        strength = max(strength, 0.50)
-                        self._log(f"  LM Studio-related process: PID {pid}", verbose)
+        procs = find_processes(r"(?i)(lm.?studio|lmstudio)")
+        procs = [p for p in procs if "collector" not in p.cmdline.lower()]
 
-                    detail = self._run_cmd(["ps", "-p", pid, "-o", "pid,ppid,user,command"])
-                    if detail and detail.returncode == 0:
-                        result.evidence_details["process_detail"] = detail.stdout.strip()
-                        for dl in detail.stdout.splitlines()[1:]:
-                            fields = dl.split()
-                            if len(fields) >= 3:
-                                result.evidence_details["process_user"] = fields[2]
+        for p in procs:
+            if not re.search(r'(?i)(lm.?studio|lmstudio)', p.cmdline):
+                continue
+            result.evidence_details.setdefault("process_entries", []).append({
+                "pid": p.pid, "cmdline": p.cmdline,
+            })
+            if "LM Studio" in p.cmdline and ".app" in p.cmdline:
+                strength = 0.80
+                result.evidence_details["app_running"] = True
+                self._log(f"  LM Studio app process found: PID {p.pid}", verbose)
+            else:
+                strength = max(strength, 0.50)
+                self._log(f"  LM Studio-related process: PID {p.pid}", verbose)
+
+            info = get_process_info(p.pid)
+            if info:
+                result.evidence_details["process_detail"] = (
+                    f"{info.pid} {info.ppid} {info.username} {info.cmdline}"
+                )
+                if info.username:
+                    result.evidence_details["process_user"] = info.username
 
         if strength == 0.0:
             self._log("No LM Studio process found", verbose)
@@ -148,32 +146,35 @@ class LMStudioScanner(BaseScanner):
         self._log("Scanning file layer...", verbose)
         strength = 0.0
 
-        if APP_PATH.is_dir():
+        install_dir = self._paths.install_dir
+        app_support_dir = self._paths.config_dir
+
+        if install_dir and install_dir.is_dir():
             strength = 0.55
             result.evidence_details["app_installed"] = True
-            self._log(f"  LM Studio app found at {APP_PATH}", verbose)
+            self._log(f"  LM Studio app found at {install_dir}", verbose)
 
-        if APP_SUPPORT_DIR.is_dir():
+        if app_support_dir and app_support_dir.is_dir():
             strength = max(strength, 0.65)
             result.evidence_details["app_support_dir"] = True
-            self._log(f"  App support directory found: {APP_SUPPORT_DIR}", verbose)
+            self._log(f"  App support directory found: {app_support_dir}", verbose)
 
             try:
-                file_count = sum(1 for f in APP_SUPPORT_DIR.rglob("*") if f.is_file())
-                total_size = sum(f.stat().st_size for f in APP_SUPPORT_DIR.rglob("*") if f.is_file())
+                file_count = sum(1 for f in app_support_dir.rglob("*") if f.is_file())
+                total_size = sum(f.stat().st_size for f in app_support_dir.rglob("*") if f.is_file())
                 result.evidence_details["app_support_stats"] = {
                     "file_count": file_count,
                     "total_size_bytes": total_size,
                 }
                 self._log(f"  {file_count} files, {total_size:,} bytes in app support", verbose)
             except (PermissionError, OSError) as exc:
-                logger.debug("Could not count files in LM Studio app support dir %s: %s", APP_SUPPORT_DIR, exc)
+                logger.debug("Could not count files in LM Studio app support dir %s: %s", app_support_dir, exc)
 
             # Look for model configuration to find model storage path
             settings_candidates = [
-                APP_SUPPORT_DIR / "User" / "settings.json",
-                APP_SUPPORT_DIR / "settings.json",
-                APP_SUPPORT_DIR / "user-settings.json",
+                app_support_dir / "User" / "settings.json",
+                app_support_dir / "settings.json",
+                app_support_dir / "user-settings.json",
             ]
             for settings_path in settings_candidates:
                 if settings_path.is_file():
@@ -190,11 +191,13 @@ class LMStudioScanner(BaseScanner):
                     break
 
         # Default model storage paths
+        home = Path.home()
         default_model_dirs = [
-            HOME / ".lmstudio" / "models",
-            HOME / ".cache" / "lm-studio" / "models",
-            HOME / "Library" / "Application Support" / "LM Studio" / "models",
+            home / ".lmstudio" / "models",
+            home / ".cache" / "lm-studio" / "models",
         ]
+        if app_support_dir:
+            default_model_dirs.append(app_support_dir / "models")
         for model_dir in default_model_dirs:
             if model_dir.is_dir():
                 self._scan_model_dir(model_dir, result, verbose)
@@ -232,18 +235,17 @@ class LMStudioScanner(BaseScanner):
         self._log("Scanning network layer...", verbose)
         strength = 0.0
 
-        lsof = self._run_cmd(["lsof", "-i", f":{LOCAL_API_PORT}", "-n", "-P"])
-        if lsof and lsof.returncode == 0 and lsof.stdout.strip():
-            for line in lsof.stdout.splitlines():
-                if "LISTEN" in line:
-                    strength = 0.70
-                    result.evidence_details["local_server_listener"] = line.strip()
-                    result.evidence_details["local_server_active"] = True
-                    pid_match = re.search(r'^\S+\s+(\d+)', line)
-                    if pid_match:
-                        result.evidence_details["server_pid"] = pid_match.group(1)
-                    self._log(f"  LM Studio local server listener on :{LOCAL_API_PORT}", verbose)
-                    break
+        listeners = get_listeners(port=LOCAL_API_PORT)
+        if listeners:
+            c = listeners[0]
+            strength = 0.70
+            result.evidence_details["local_server_listener"] = (
+                f"{c.local_addr}:{c.local_port} LISTEN"
+            )
+            result.evidence_details["local_server_active"] = True
+            if c.pid is not None:
+                result.evidence_details["server_pid"] = c.pid
+            self._log(f"  LM Studio local server listener on :{LOCAL_API_PORT}", verbose)
 
         if strength > 0:
             api_response = self._query_api(
@@ -286,7 +288,10 @@ class LMStudioScanner(BaseScanner):
             strength = 0.40
             result.evidence_details["identity_user"] = process_user
             self._log(f"  Process owner: {process_user}", verbose)
-        elif APP_SUPPORT_DIR.is_dir() or APP_PATH.is_dir():
+        elif (
+            (self._paths.config_dir and self._paths.config_dir.is_dir())
+            or (self._paths.install_dir and self._paths.install_dir.is_dir())
+        ):
             import getpass
             result.evidence_details["identity_user"] = getpass.getuser()
             strength = 0.30

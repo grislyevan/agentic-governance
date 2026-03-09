@@ -20,13 +20,11 @@ import re
 import time
 from pathlib import Path
 
+from compat import find_processes, get_connections, get_tool_paths
+
 from .base import BaseScanner, LayerSignals, ScanResult
 
 logger = logging.getLogger(__name__)
-HOME = Path.home()
-
-VSCODE_EXT_BASE = HOME / "Library" / "Application Support" / "Code" / "User"
-CURSOR_EXT_BASE = HOME / "Library" / "Application Support" / "Cursor" / "User"
 
 EXTENSION_ID = "saoudrizwan.claude-dev"
 EXTENSION_GLOB_PREFIX = "saoudrizwan.claude-dev-"
@@ -103,18 +101,28 @@ class ClineScanner(BaseScanner):
         return None
 
     def _all_extension_dirs(self) -> list[Path]:
-        return [
-            VSCODE_EXT_BASE / "extensions",
-            CURSOR_EXT_BASE / "extensions",
-            HOME / ".vscode" / "extensions",
-            HOME / ".cursor" / "extensions",
-        ]
+        vscode = get_tool_paths("vscode")
+        cursor = get_tool_paths("cursor")
+        dirs: list[Path] = []
+        if vscode.config_dir:
+            dirs.append(vscode.config_dir / "User" / "extensions")
+        if vscode.extensions_dir:
+            dirs.append(vscode.extensions_dir)
+        if cursor.config_dir:
+            dirs.append(cursor.config_dir / "User" / "extensions")
+        if cursor.extensions_dir:
+            dirs.append(cursor.extensions_dir)
+        return dirs
 
     def _all_storage_dirs(self) -> list[tuple[str, Path]]:
-        return [
-            ("VSCode", VSCODE_EXT_BASE / "globalStorage" / EXTENSION_ID),
-            ("Cursor", CURSOR_EXT_BASE / "globalStorage" / EXTENSION_ID),
-        ]
+        vscode = get_tool_paths("vscode")
+        cursor = get_tool_paths("cursor")
+        result: list[tuple[str, Path]] = []
+        if vscode.config_dir:
+            result.append(("VSCode", vscode.config_dir / "User" / "globalStorage" / EXTENSION_ID))
+        if cursor.config_dir:
+            result.append(("Cursor", cursor.config_dir / "User" / "globalStorage" / EXTENSION_ID))
+        return result
 
     def _scan_process(self, result: ScanResult, verbose: bool) -> float:
         """Check for VS Code / Cursor extension host processes."""
@@ -260,30 +268,27 @@ class ClineScanner(BaseScanner):
         self._log("Scanning network layer...", verbose)
         strength = 0.0
 
-        ext_host_pids = {
+        ext_host_pids: set[int] = {
             e["pid"] for e in result.evidence_details.get("extension_hosts", [])
         }
         if not ext_host_pids:
             return strength
 
-        lsof = self._run_cmd(["lsof", "-i", "-n", "-P"])
-        if not (lsof and lsof.returncode == 0):
-            return strength
+        conns = get_connections(pids=ext_host_pids)
+        tls_conns: list = []
+        llm_conns: list = []
+        llm_remote_addrs = ("api.openai.com", "api.anthropic.com")
+        llm_ports = (11434, 1234)
 
-        tls_conns: list[str] = []
-        llm_conns: list[str] = []
-        llm_patterns = ["api.openai.com", "api.anthropic.com", ":11434", ":1234"]
-
-        for line in lsof.stdout.splitlines():
-            parts = line.split()
-            if len(parts) < 2 or parts[1] not in ext_host_pids:
+        for c in conns:
+            if c.status != "ESTABLISHED" or c.remote_port is None:
                 continue
-            if ":443" in line and "ESTABLISHED" in line:
-                tls_conns.append(line.strip())
-            for pattern in llm_patterns:
-                if pattern in line and "ESTABLISHED" in line:
-                    llm_conns.append(line.strip())
-                    break
+            if c.remote_port == 443:
+                tls_conns.append(c)
+            remote = (c.remote_addr or "").lower()
+            if any(addr in remote for addr in llm_remote_addrs) or c.remote_port in llm_ports:
+                pid_str = str(c.pid) if c.pid is not None else "?"
+                llm_conns.append(f"{pid_str} {c.remote_addr}:{c.remote_port} {c.status}")
 
         if llm_conns:
             strength = 0.55
