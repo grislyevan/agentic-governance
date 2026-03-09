@@ -171,21 +171,19 @@ class HttpEmitter:
 
         logger.info("HttpEmitter: flushing %d buffered events …", len(events))
         flushed = 0
-        requeue: list[dict[str, Any]] = []
+        failed = 0
 
         for event in events:
-            success = self.emit(event)
-            if success:
+            if self.emit(event):
                 flushed += 1
             else:
-                # emit() already re-appended failures to the buffer
-                requeue.append(event)
+                failed += 1
 
         logger.info(
             "HttpEmitter: flushed %d/%d buffered events (%d still queued)",
             flushed,
             len(events),
-            len(requeue),
+            failed,
         )
         return flushed
 

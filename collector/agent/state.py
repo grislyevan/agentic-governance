@@ -16,11 +16,14 @@ State is persisted to ~/.agentic-gov/state.json so it survives restarts.
 
 from __future__ import annotations
 
+import fcntl
 import json
 import logging
+import os
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +75,18 @@ class StateDiffer:
         self._path = state_path
         self._report_all = report_all
         self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._lock_path = self._path.with_suffix(".lock")
         self._states: dict[str, ToolState] = self._load()
+
+    @contextmanager
+    def _lock(self) -> Iterator[None]:
+        fd = os.open(str(self._lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
 
     # ------------------------------------------------------------------
     # Public interface
@@ -217,8 +231,9 @@ class StateDiffer:
     def _save(self) -> None:
         try:
             data = {name: asdict(state) for name, state in self._states.items()}
-            self._path.write_text(
-                json.dumps(data, indent=2), encoding="utf-8"
-            )
+            with self._lock():
+                self._path.write_text(
+                    json.dumps(data, indent=2), encoding="utf-8"
+                )
         except OSError as exc:
             logger.error("StateDiffer: could not save state to %s: %s", self._path, exc)

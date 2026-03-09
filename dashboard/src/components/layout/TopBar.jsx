@@ -23,7 +23,10 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, []);
 
   const handleSearchChange = (e) => {
@@ -48,6 +51,7 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
+              aria-current={active ? 'page' : undefined}
               className={`
                 flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors
                 ${active
@@ -70,6 +74,7 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
             value={searchValue}
             onChange={handleSearchChange}
             placeholder="Search tools..."
+            aria-label="Search tools"
             className="w-full bg-detec-slate-800 border border-detec-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-sm text-detec-slate-200 placeholder:text-detec-slate-500 focus:outline-none focus:border-detec-primary-500/50 transition-colors"
           />
         </div>
@@ -99,6 +104,9 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
         <div className="relative" ref={userMenuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
+            aria-expanded={showUserMenu}
+            aria-haspopup="true"
+            aria-label="User menu"
             className="flex items-center gap-2.5 pl-3 border-l border-detec-slate-700/50 cursor-pointer hover:opacity-80 transition-opacity"
           >
             <div className="w-8 h-8 rounded-full bg-detec-primary-500/20 border border-detec-primary-500/30 flex items-center justify-center text-xs font-semibold text-detec-primary-400">

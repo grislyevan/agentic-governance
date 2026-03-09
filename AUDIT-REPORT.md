@@ -402,22 +402,41 @@ Each finding was verified by reading source code and graded by exploitability, i
 
 ## Remediation Status
 
-| ID | Severity | Status | Commit |
-|----|----------|--------|--------|
-| C-1 | Critical | Fixed | `8399f73` (docker-compose env_file, .env.example) |
-| C-2 | Critical | Fixed | `8399f73` (fcntl.flock advisory locking, atomic trim) |
-| C-3 | Critical | Fixed | `8399f73` (_normalize_pid for string PIDs) |
-| C-4 | Critical | Fixed | `8399f73` (audit_logger.record, auth/policy/endpoint logging) |
-| C-5 | Critical | Fixed | `8399f73` (require_role in policies, endpoints, audit) |
-| H-2 | High | Fixed | `4856464` (python-jose >= 3.4.0) |
-| H-4 | High | Fixed | `4856464` (seed key logged to stdout only) |
-| H-5 | High | Fixed | `4856464` (React ErrorBoundary) |
-| H-11 | High | Fixed | `4856464` (ssl.create_default_context in HttpEmitter) |
-| H-12 | High | Fixed | `4856464` (docker-compose.override.yml renamed to .dev.yml) |
-| H-15 | High | Fixed | `4856464` (refresh mutex in useAuth) |
-| H-16 | High | Fixed | `4856464` (unsigned event rejection for enrolled endpoints) |
-| M-1/M-2/M-5 | Medium | Fixed | (Field max_length on schemas) |
-| M-8 | Medium | Fixed | (STORAGE_KEYS centralized in auth.js) |
-| M-17 | Medium | Fixed | (em dashes replaced in all dashboard files) |
-| M-18 | Medium | Fixed | (Pagination "totals" pluralization) |
-| Bugs | Medium | Fixed | (AuditLogPage null guard, SettingsPage timeout leak) |
+| ID | Severity | Status | Description |
+|----|----------|--------|-------------|
+| C-1 | Critical | Fixed | docker-compose env_file, .env.example |
+| C-2 | Critical | Fixed | fcntl.flock advisory locking, atomic trim |
+| C-3 | Critical | Fixed | _normalize_pid for string PIDs |
+| C-4 | Critical | Fixed | audit_logger.record, auth/policy/endpoint logging |
+| C-5 | Critical | Fixed | require_role in policies, endpoints, audit |
+| H-2 | High | Fixed | python-jose >= 3.4.0 |
+| H-4 | High | Fixed | seed key logged to stdout only |
+| H-5 | High | Fixed | React ErrorBoundary |
+| H-7 | High | Fixed | Process identity verification before kill |
+| H-9 | High | Fixed | Credential store errors at WARNING level |
+| H-11 | High | Fixed | ssl.create_default_context in HttpEmitter |
+| H-12 | High | Fixed | docker-compose.override.yml renamed to .dev.yml |
+| H-14 | High | Fixed | Consolidated two .env.example files |
+| H-15 | High | Fixed | refresh mutex in useAuth |
+| H-16 | High | Fixed | unsigned event rejection for enrolled endpoints |
+| H-17 | High | Fixed | DB port no longer auto-exposed (via H-12) |
+| H-19 | High | Fixed | pytest config in pyproject.toml |
+| M-1/M-2/M-5 | Medium | Fixed | Field(max_length) on schemas |
+| M-4 | Medium | Fixed | Global exception handler |
+| M-8 | Medium | Fixed | STORAGE_KEYS centralized in auth.js |
+| M-10 | Medium | Fixed | Search input aria-label |
+| M-11 | Medium | Fixed | FilterBar dropdown aria-expanded/aria-haspopup |
+| M-12 | Medium | Fixed | User menu aria-expanded/aria-haspopup |
+| M-17 | Medium | Fixed | em dashes replaced in all dashboard files |
+| M-18 | Medium | Fixed | Pagination "totals" pluralization |
+| M-25 | Medium | Fixed | State file advisory locking |
+| M-29 | Medium | Fixed | flush_buffer dead code removed |
+| M-33 | Medium | Fixed | Dashboard depends_on health condition |
+| M-34 | Medium | Fixed | Trivy action pinned to v0.28.0 |
+| M-40 | Medium | Fixed | Dashboard health check in compose |
+| L-10 | Low | Fixed | ilike wildcard escaping |
+| L-14 | Low | Fixed | Pagination page-size aria-label |
+| L-15 | Low | Fixed | Nav buttons aria-current |
+| L-16 | Low | Fixed | TopBar debounce timeout cleanup |
+| L-26/L-27 | Low | Fixed | AuditLogPage null guards |
+| M-14 | Medium | Fixed | SettingsPage timeout cleanup |

@@ -70,6 +70,7 @@ export default function Pagination({ page, pageSize, total, onPageChange, onPage
         <select
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          aria-label="Rows per page"
           className="bg-detec-slate-800 border border-detec-slate-700 rounded-md px-2 py-1 text-sm text-detec-slate-300 focus:outline-none focus:border-detec-primary-500/50"
         >
           {[10, 20, 50].map((s) => (

@@ -235,7 +235,8 @@ def list_events(
     if observed_before:
         q = q.filter(Event.observed_at <= observed_before)
     if search:
-        q = q.filter(Event.tool_name.ilike(f"%{search}%"))
+        escaped = search.replace("%", r"\%").replace("_", r"\_")
+        q = q.filter(Event.tool_name.ilike(f"%{escaped}%", escape="\\"))
 
     total = q.with_entities(func.count()).scalar() or 0
     items = (

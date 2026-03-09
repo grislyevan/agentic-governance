@@ -47,6 +47,9 @@ export default function FilterBar({ endpoints = [], selectedEndpoint, onEndpoint
         <div className="relative" ref={epRef}>
           <button
             onClick={() => setShowEpDropdown(!showEpDropdown)}
+            aria-expanded={showEpDropdown}
+            aria-haspopup="listbox"
+            aria-label="Select endpoint"
             className="flex items-center gap-2 px-3 py-1.5 bg-detec-slate-800 border border-detec-slate-700 rounded-lg text-sm text-detec-slate-300 hover:border-detec-slate-600 transition-colors"
           >
             <span className="text-detec-slate-500 text-xs">View:</span>
@@ -82,6 +85,9 @@ export default function FilterBar({ endpoints = [], selectedEndpoint, onEndpoint
         <div className="relative" ref={timeRef}>
           <button
             onClick={() => setShowTimeDropdown(!showTimeDropdown)}
+            aria-expanded={showTimeDropdown}
+            aria-haspopup="listbox"
+            aria-label="Select time range"
             className="flex items-center gap-2 px-3 py-1.5 bg-detec-slate-800 border border-detec-slate-700 rounded-lg text-sm text-detec-slate-300 hover:border-detec-slate-600 transition-colors"
           >
             <CalendarIcon />
