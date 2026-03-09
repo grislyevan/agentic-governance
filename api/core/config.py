@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
+from pathlib import Path
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -17,11 +19,23 @@ _UNSAFE_DEFAULTS = frozenset({
 })
 
 
+def _default_db_url() -> str:
+    """Platform-aware default SQLite path."""
+    if sys.platform == "win32":
+        data_dir = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "Detec"
+    elif sys.platform == "darwin":
+        data_dir = Path.home() / "Library" / "Application Support" / "Detec"
+    else:
+        data_dir = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "detec"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return f"sqlite:///{data_dir / 'detec.db'}"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # Database
-    database_url: str = "postgresql://postgres:postgres@localhost:5432/agentic_governance"
+    # Database (defaults to SQLite; set DATABASE_URL for PostgreSQL)
+    database_url: str = ""
 
     # Auth
     jwt_secret: str = "dev-secret-change-in-production"
@@ -46,6 +60,12 @@ class Settings(BaseSettings):
     seed_admin_email: str = "admin@example.com"
     seed_admin_password: str = "change-me"
     seed_tenant_name: str = "Default"
+
+    @model_validator(mode="after")
+    def _apply_default_database_url(self) -> "Settings":
+        if not self.database_url:
+            self.database_url = _default_db_url()
+        return self
 
     @model_validator(mode="after")
     def _reject_unsafe_defaults_in_production(self) -> "Settings":

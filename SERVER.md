@@ -1,6 +1,6 @@
 # Central Server Runbook
 
-This document covers deploying and operating the **Detec central server**: the FastAPI API and its PostgreSQL database. Endpoint agents (`detec-agent`) call the API at `POST /events` and `POST /endpoints/heartbeat`. The dashboard is a separate web app that reads from this same API.
+This document covers deploying and operating the **Detec central server**: the FastAPI API and its database. Endpoint agents (`detec-agent`) call the API at `POST /events` and `POST /endpoints/heartbeat`. The dashboard is a separate web app that reads from this same API.
 
 For agent deployment, see [DEPLOY.md](DEPLOY.md).
 
@@ -9,10 +9,10 @@ For agent deployment, see [DEPLOY.md](DEPLOY.md).
 ## Architecture overview
 
 ```
-┌─────────────┐        ┌──────────────┐        ┌────────────┐
-│ detec-agent  │──POST──▶  FastAPI API  │──SQL──▶│ PostgreSQL │
-│  (endpoint)  │        │  :8000       │        │            │
-└─────────────┘        └──────┬───────┘        └────────────┘
+┌─────────────┐        ┌──────────────┐        ┌──────────────┐
+│ detec-agent  │──POST──▶  FastAPI API  │──SQL──▶│ SQLite or    │
+│  (endpoint)  │        │  :8000       │        │ PostgreSQL   │
+└─────────────┘        └──────┬───────┘        └──────────────┘
                               │
                        ┌──────▼───────┐
                        │  Dashboard   │
@@ -21,8 +21,20 @@ For agent deployment, see [DEPLOY.md](DEPLOY.md).
 ```
 
 - **API** (`api/`): FastAPI application providing auth, event ingestion, endpoint tracking, and policy management.
-- **Database**: PostgreSQL 16+. The API creates tables on first startup or via Alembic migrations.
+- **Database**: SQLite (default, zero configuration) or PostgreSQL 16+. The API creates tables on first startup or via Alembic migrations.
 - **Dashboard** (`dashboard/`): Separate Vite/React app. It connects to the API URL; it is not covered in this runbook. See `dashboard/README.md`.
+
+### Database options
+
+| | SQLite (default) | PostgreSQL |
+|---|---|---|
+| **Setup** | Zero. Database file created automatically. | Requires install or Docker. |
+| **Scale** | 1-10 endpoints (ideal for on-prem, small teams) | 10-1000+ endpoints |
+| **Concurrency** | WAL mode handles moderate concurrent writes | Full MVCC concurrency |
+| **Data location** | `C:\ProgramData\Detec\detec.db` (Windows), `~/Library/Application Support/Detec/detec.db` (macOS), `~/.local/share/detec/detec.db` (Linux) | Server-managed |
+| **Backup** | Copy the `.db` file | `pg_dump` |
+
+To use PostgreSQL instead of SQLite, set `DATABASE_URL` to a PostgreSQL connection string (e.g., `postgresql://user:pass@host:5432/agentic_governance`).
 
 ---
 
@@ -68,7 +80,44 @@ The API container runs Alembic migrations automatically before starting (see `ap
 
 ---
 
-## Option B: Bare metal / VM
+## Option B: Bare metal / VM (SQLite)
+
+The fastest way to get the server running. No database install required.
+
+### Prerequisites
+
+- Python 3.11+
+
+### 1. Set environment variables
+
+```bash
+export JWT_SECRET="$(openssl rand -hex 32)"
+export SEED_ADMIN_PASSWORD="change-me-to-something-strong"
+```
+
+The API will create a SQLite database automatically at the platform-appropriate location. See [Production environment variables](#production-environment-variables) for the full list.
+
+### 2. Install dependencies
+
+```bash
+cd api
+pip install -r requirements.txt
+```
+
+### 3. Start the API
+
+```bash
+cd api
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+For development, add `--reload`. For production, use a process manager (systemd, supervisord) or a container.
+
+---
+
+## Option C: Bare metal / VM (PostgreSQL)
+
+Use this option when you need higher concurrency or are managing 100+ endpoints.
 
 ### Prerequisites
 
@@ -79,13 +128,9 @@ The API container runs Alembic migrations automatically before starting (see `ap
 
 ```bash
 createdb agentic_governance
-# Or via psql:
-# psql -U postgres -c "CREATE DATABASE agentic_governance;"
 ```
 
 ### 2. Set environment variables
-
-At minimum:
 
 ```bash
 export DATABASE_URL="postgresql://postgres:yourpassword@localhost:5432/agentic_governance"
@@ -93,32 +138,20 @@ export JWT_SECRET="$(openssl rand -hex 32)"
 export SEED_ADMIN_PASSWORD="change-me-to-something-strong"
 ```
 
-See [Production environment variables](#production-environment-variables) for the full list.
-
-### 3. Install dependencies
+### 3. Install dependencies and run migrations
 
 ```bash
 cd api
 pip install -r requirements.txt
-```
-
-### 4. Run migrations (recommended)
-
-```bash
-cd api
 alembic upgrade head
 ```
 
-This creates all tables in the database. If you skip this step, the API will still create tables on first startup via `create_all`, but the schema will not be tracked by Alembic.
-
-### 5. Start the API
+### 4. Start the API
 
 ```bash
 cd api
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
-
-For development, add `--reload`. For production, use a process manager (systemd, supervisord) or a container.
 
 ---
 
@@ -224,9 +257,14 @@ All settings are defined in `api/core/config.py` (pydantic-settings). Field name
 
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string. Example: `postgresql://user:pass@host:5432/agentic_governance` |
 | `JWT_SECRET` | Secret key for signing JWTs. Generate with `openssl rand -hex 32`. Must not be a default value when `ENV` is `production` or `staging`. |
 | `SEED_ADMIN_PASSWORD` | Password for the seed admin user created on first startup. Must not be `change-me` when `ENV` is `production` or `staging`. |
+
+### Database
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | SQLite (platform-appropriate path) | Connection string. Defaults to a local SQLite file. Set to `postgresql://user:pass@host:5432/dbname` for PostgreSQL. |
 
 ### Optional
 

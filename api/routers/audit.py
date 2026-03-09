@@ -51,7 +51,7 @@ def list_audit_logs(
 ) -> AuditLogListResponse:
     """List audit log entries for the authenticated tenant."""
     auth = resolve_auth(authorization, x_api_key, db)
-    require_role(auth, "admin", "analyst")
+    require_role(auth, "owner", "admin", "analyst")
     tenant_id = auth.tenant_id
 
     q = db.query(AuditLog).filter(AuditLog.tenant_id == tenant_id)

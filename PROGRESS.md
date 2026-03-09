@@ -85,7 +85,8 @@ API Client ────────────────────▶│ Mu
 **Goal:** Replace file-based NDJSON pipeline with a real API and database.
 
 - [x] FastAPI backend scaffolded (`api/`)
-- [x] PostgreSQL schema: `events`, `endpoints`, `tenants`, `users`, `policies`, `audit_log`
+- [x] SQLite default database (zero-config, platform-aware path); PostgreSQL supported via `DATABASE_URL`
+- [x] Database schema: `events`, `endpoints`, `tenants`, `users`, `policies`, `audit_log`
 - [x] JWT authentication: register, login, token refresh
 - [x] Per-tenant data isolation (row-level filter on `tenant_id`)
 - [x] API key support for headless collector agents

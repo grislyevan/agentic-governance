@@ -18,17 +18,14 @@ if _api_dir not in sys.path:
 os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["JWT_SECRET"] = "test-jwt-secret-for-unit-tests-only"
 os.environ["SEED_ADMIN_PASSWORD"] = "testpass12345"
+os.environ["TESTING"] = "1"
+os.environ["RATELIMIT_ENABLED"] = "false"
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
 from fastapi.testclient import TestClient
-
-# JSONB is PostgreSQL-specific; teach SQLite to render it as plain JSON.
-if not hasattr(SQLiteTypeCompiler, "visit_JSONB"):
-    SQLiteTypeCompiler.visit_JSONB = SQLiteTypeCompiler.visit_JSON
 
 import core.database as _db_mod
 from core.database import Base, get_db
@@ -62,7 +59,8 @@ def client():
     """FastAPI TestClient backed by a fresh in-memory database."""
     Base.metadata.drop_all(bind=_test_engine)
 
-    from main import app
+    from main import app, limiter
+    limiter.enabled = False
 
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c

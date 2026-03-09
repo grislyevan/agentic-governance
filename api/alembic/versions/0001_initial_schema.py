@@ -10,7 +10,6 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision: str = "0001"
 down_revision: Union[str, Sequence[str], None] = None
@@ -78,7 +77,7 @@ def upgrade() -> None:
         sa.Column("rule_id", sa.String(32), nullable=True),
         sa.Column("severity_level", sa.String(4), nullable=True),
         sa.Column("signature_verified", sa.Boolean(), nullable=True),
-        sa.Column("payload", postgresql.JSONB(), nullable=False, server_default="{}"),
+        sa.Column("payload", sa.JSON(), nullable=False, server_default="{}"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
     op.create_index("ix_events_tenant_observed", "events", ["tenant_id", "observed_at"])
@@ -93,7 +92,7 @@ def upgrade() -> None:
         sa.Column("rule_version", sa.String(16), nullable=False, server_default="0.1.0"),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
-        sa.Column("parameters", postgresql.JSONB(), nullable=False, server_default="{}"),
+        sa.Column("parameters", sa.JSON(), nullable=False, server_default="{}"),
         sa.Column("created_by", sa.String(36), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
@@ -108,7 +107,7 @@ def upgrade() -> None:
         sa.Column("action", sa.String(128), nullable=False),
         sa.Column("resource_type", sa.String(64), nullable=True),
         sa.Column("resource_id", sa.String(36), nullable=True),
-        sa.Column("detail", postgresql.JSONB(), nullable=False, server_default="{}"),
+        sa.Column("detail", sa.JSON(), nullable=False, server_default="{}"),
         sa.Column("ip_address", sa.String(64), nullable=True),
         sa.Column("occurred_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False, index=True),
     )

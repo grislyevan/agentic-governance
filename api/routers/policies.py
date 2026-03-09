@@ -78,7 +78,7 @@ def create_policy(
     x_api_key: str | None = Header(default=None),
 ) -> PolicyResponse:
     auth = resolve_auth(authorization, x_api_key, db)
-    require_role(auth, "admin")
+    require_role(auth, "owner", "admin")
     policy = Policy(
         id=str(uuid.uuid4()),
         tenant_id=auth.tenant_id,
@@ -115,7 +115,7 @@ def update_policy(
     x_api_key: str | None = Header(default=None),
 ) -> PolicyResponse:
     auth = resolve_auth(authorization, x_api_key, db)
-    require_role(auth, "admin")
+    require_role(auth, "owner", "admin")
     policy = db.query(Policy).filter(
         Policy.id == policy_id, Policy.tenant_id == auth.tenant_id
     ).first()

@@ -60,7 +60,7 @@ Open http://localhost:5173. Log in with the seed admin credentials (see [SERVER.
 cd api && pip install -r requirements.txt && uvicorn main:app --reload
 ```
 
-The API requires a PostgreSQL database. Set `DATABASE_URL`, `JWT_SECRET`, and `SEED_ADMIN_PASSWORD` via environment variables or `.env` file. Auth endpoints are rate-limited (5 req/min). `GET /health` verifies DB connectivity (returns 503 when degraded). For production deployment, security hardening, and environment variable reference, see [SERVER.md](SERVER.md).
+The API defaults to a local **SQLite** database (zero setup, stored at a platform-appropriate location). For production or higher scale, set `DATABASE_URL` to a PostgreSQL connection string. Set `JWT_SECRET` and `SEED_ADMIN_PASSWORD` via environment variables or `.env` file. Auth endpoints are rate-limited (5 req/min). `GET /health` verifies DB connectivity (returns 503 when degraded). For production deployment, security hardening, and environment variable reference, see [SERVER.md](SERVER.md).
 
 ## Running tests
 

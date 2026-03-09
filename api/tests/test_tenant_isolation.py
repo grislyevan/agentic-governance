@@ -87,6 +87,6 @@ class TestPolicyIsolation:
 
         resp_a = client.get("/policies", headers=auth_a)
         assert resp_a.status_code == 200
-        rules_a = [p["rule_id"] for p in resp_a.json()]
+        rules_a = [p["rule_id"] for p in resp_a.json()["items"]]
         assert "RULE-A" in rules_a
         assert "RULE-B" not in rules_a

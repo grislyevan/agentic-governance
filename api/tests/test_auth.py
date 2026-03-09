@@ -91,7 +91,7 @@ class TestMe:
         assert resp.status_code == 200
         data = resp.json()
         assert data["email"] == "me@test.com"
-        assert data["role"] == "admin"
+        assert data["role"] == "owner"
         assert "tenant_id" in data
 
     def test_me_without_auth_returns_401(self, client):

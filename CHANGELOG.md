@@ -8,6 +8,40 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **SQLite as default database**: The API now defaults to a local SQLite database
+  with zero configuration. The database file is created automatically at a
+  platform-appropriate path (Windows: `C:\ProgramData\Detec\detec.db`, macOS:
+  `~/Library/Application Support/Detec/detec.db`, Linux:
+  `~/.local/share/detec/detec.db`). SQLite uses WAL journal mode for concurrent
+  read support and busy timeout for resilience. PostgreSQL remains fully
+  supported by setting `DATABASE_URL`.
+
+### Changed
+
+- **JSONB replaced with JSON**: All three models that used PostgreSQL-specific
+  `JSONB` columns (`Event.payload`, `AuditLog.detail`, `Policy.parameters`) now
+  use SQLAlchemy's dialect-agnostic `JSON` type. This makes the API compatible
+  with SQLite, PostgreSQL, and other SQL backends without code changes.
+- **Alembic migrations**: Initial migration (0001) updated from `postgresql.JSONB`
+  to `sa.JSON()`. Alembic `env.py` now enables `render_as_batch` mode when
+  running against SQLite (required for `ALTER TABLE` operations).
+- **RBAC**: `require_role` guards on policy, enrollment, and audit endpoints now
+  include `owner` alongside `admin`. Previously, tenant owners (the first user
+  who registers) were locked out of policy management and endpoint enrollment.
+- **Rate limiting in tests**: Test environment sets `RATELIMIT_ENABLED=false` via
+  slowapi's config key, preventing rate limit interference in the test suite.
+  Production rate limiting is unaffected.
+
+### Fixed
+
+- Test `test_me_returns_user_info` expected `role == "admin"` but registration
+  returns `"owner"` (changed in a prior release). Updated assertion.
+- Policy list tests iterated over `resp.json()` directly instead of
+  `resp.json()["items"]` (the endpoint was updated to paginated responses but
+  the tests were not).
+
+---
+
 - **User management system**: backend CRUD for tenant users at `/users` (list,
   create, get, update, deactivate). Enforces a four-role model: owner, admin,
   analyst, viewer. Owner cannot be modified or deactivated. Soft-delete via

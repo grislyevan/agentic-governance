@@ -36,7 +36,7 @@ class TestListPolicies:
         client.post("/policies", json={"rule_id": "R-2"}, headers=headers)
         resp = client.get("/policies", headers=headers)
         assert resp.status_code == 200
-        rules = [p["rule_id"] for p in resp.json()]
+        rules = [p["rule_id"] for p in resp.json()["items"]]
         assert "R-1" in rules
         assert "R-2" in rules
 

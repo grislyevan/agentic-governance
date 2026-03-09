@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import uuid
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
@@ -145,7 +146,10 @@ def _seed() -> None:
         db.close()
 
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(
+    key_func=get_remote_address,
+    enabled=not os.environ.get("TESTING"),
+)
 
 _docs_kwargs: dict[str, Any] = {}
 if not settings.debug:

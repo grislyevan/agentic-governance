@@ -246,7 +246,7 @@ def enroll_endpoint(
     Re-enrollment (key rotation) replaces the existing key.
     """
     auth = resolve_auth(authorization, x_api_key, db)
-    require_role(auth, "admin")
+    require_role(auth, "owner", "admin")
     now = datetime.now(timezone.utc)
 
     fingerprint = hashlib.sha256(body.public_key_pem.encode()).hexdigest()
