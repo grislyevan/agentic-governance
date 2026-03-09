@@ -12,8 +12,9 @@ from slowapi.util import get_remote_address
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from core.audit_logger import record as audit_record
 from core.database import get_db
-from core.tenant import get_tenant_id as _get_tenant_id
+from core.tenant import resolve_auth, require_role
 from models.policy import Policy
 
 logger = logging.getLogger(__name__)
@@ -56,7 +57,8 @@ def list_policies(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ) -> PolicyListResponse:
-    tenant_id = _get_tenant_id(authorization, x_api_key, db)
+    auth = resolve_auth(authorization, x_api_key, db)
+    tenant_id = auth.tenant_id
     q = db.query(Policy).filter(Policy.tenant_id == tenant_id)
     total = q.with_entities(func.count()).scalar() or 0
     items = q.order_by(Policy.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
@@ -75,16 +77,28 @@ def create_policy(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ) -> PolicyResponse:
-    tenant_id = _get_tenant_id(authorization, x_api_key, db)
+    auth = resolve_auth(authorization, x_api_key, db)
+    require_role(auth, "admin")
     policy = Policy(
         id=str(uuid.uuid4()),
-        tenant_id=tenant_id,
+        tenant_id=auth.tenant_id,
         rule_id=body.rule_id,
         rule_version=body.rule_version,
         description=body.description,
         parameters=body.parameters,
     )
     db.add(policy)
+    db.flush()
+    audit_record(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="policy.created",
+        resource_type="policy",
+        resource_id=policy.id,
+        detail={"rule_id": body.rule_id, "rule_version": body.rule_version},
+        ip_address=request.client.host if request.client else None,
+    )
     db.commit()
     db.refresh(policy)
     return PolicyResponse.model_validate(policy)
@@ -100,17 +114,29 @@ def update_policy(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ) -> PolicyResponse:
-    tenant_id = _get_tenant_id(authorization, x_api_key, db)
+    auth = resolve_auth(authorization, x_api_key, db)
+    require_role(auth, "admin")
     policy = db.query(Policy).filter(
-        Policy.id == policy_id, Policy.tenant_id == tenant_id
+        Policy.id == policy_id, Policy.tenant_id == auth.tenant_id
     ).first()
     if not policy:
-        logger.warning("Policy %s not found for tenant %s", policy_id, tenant_id)
+        logger.warning("Policy %s not found for tenant %s", policy_id, auth.tenant_id)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy not found")
+    old_rule_id = policy.rule_id
     policy.rule_id = body.rule_id
     policy.rule_version = body.rule_version
     policy.description = body.description
     policy.parameters = body.parameters
+    audit_record(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="policy.updated",
+        resource_type="policy",
+        resource_id=policy_id,
+        detail={"old_rule_id": old_rule_id, "new_rule_id": body.rule_id},
+        ip_address=request.client.host if request.client else None,
+    )
     db.commit()
     db.refresh(policy)
     return PolicyResponse.model_validate(policy)

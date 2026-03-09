@@ -10,7 +10,7 @@ from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.tenant import get_tenant_id as _get_tenant_id
+from core.tenant import resolve_auth, require_role
 from models.audit import AuditLog
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,9 @@ def list_audit_logs(
     x_api_key: str | None = Header(default=None),
 ) -> AuditLogListResponse:
     """List audit log entries for the authenticated tenant."""
-    tenant_id = _get_tenant_id(authorization, x_api_key, db)
+    auth = resolve_auth(authorization, x_api_key, db)
+    require_role(auth, "admin", "analyst")
+    tenant_id = auth.tenant_id
 
     q = db.query(AuditLog).filter(AuditLog.tenant_id == tenant_id)
 

@@ -15,9 +15,10 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from core.audit_logger import record as audit_record
 from core.config import settings
 from core.database import get_db
-from core.tenant import get_tenant_id as _get_tenant_id
+from core.tenant import get_tenant_id as _get_tenant_id, resolve_auth, require_role
 from models.endpoint import (
     ENDPOINT_STATUS_ACTIVE,
     Endpoint,
@@ -244,20 +245,22 @@ def enroll_endpoint(
     here.  The API stores the key so it can verify event signatures.
     Re-enrollment (key rotation) replaces the existing key.
     """
-    tenant_id = _get_tenant_id(authorization, x_api_key, db)
+    auth = resolve_auth(authorization, x_api_key, db)
+    require_role(auth, "admin")
     now = datetime.now(timezone.utc)
 
     fingerprint = hashlib.sha256(body.public_key_pem.encode()).hexdigest()
 
     endpoint = db.query(Endpoint).filter(
-        Endpoint.tenant_id == tenant_id,
+        Endpoint.tenant_id == auth.tenant_id,
         Endpoint.hostname == body.hostname,
     ).first()
 
+    is_rotation = endpoint is not None
     if endpoint is None:
         endpoint = Endpoint(
             id=str(uuid.uuid4()),
-            tenant_id=tenant_id,
+            tenant_id=auth.tenant_id,
             hostname=body.hostname,
             posture="unmanaged",
             signing_public_key=body.public_key_pem,
@@ -272,7 +275,7 @@ def enroll_endpoint(
         except IntegrityError:
             db.rollback()
             endpoint = db.query(Endpoint).filter(
-                Endpoint.tenant_id == tenant_id,
+                Endpoint.tenant_id == auth.tenant_id,
                 Endpoint.hostname == body.hostname,
             ).first()
     else:
@@ -280,6 +283,16 @@ def enroll_endpoint(
         endpoint.key_fingerprint = fingerprint
         endpoint.enrolled_at = now
 
+    audit_record(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="endpoint.key_rotated" if is_rotation else "endpoint.enrolled",
+        resource_type="endpoint",
+        resource_id=endpoint.id,
+        detail={"hostname": body.hostname, "key_fingerprint": fingerprint},
+        ip_address=request.client.host if request.client else None,
+    )
     db.commit()
     db.refresh(endpoint)
 

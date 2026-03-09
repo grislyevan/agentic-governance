@@ -22,6 +22,7 @@ from core.auth import (
     is_valid_token,
     verify_password,
 )
+from core.audit_logger import record as audit_record
 from core.database import get_db
 from models.tenant import Tenant
 from models.user import User, generate_api_key
@@ -84,6 +85,18 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
         api_key_hash=key_hash,
     )
     db.add(user)
+    db.flush()
+
+    audit_record(
+        db,
+        tenant_id=tenant.id,
+        actor_id=user.id,
+        action="user.registered",
+        resource_type="user",
+        resource_id=user.id,
+        detail={"email": body.email},
+        ip_address=request.client.host if request.client else None,
+    )
     db.commit()
 
     return RegisterResponse(
@@ -104,6 +117,17 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)) -
     if not user.is_active:
         logger.warning("Login attempt for disabled account %s", body.email)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
+
+    audit_record(
+        db,
+        tenant_id=user.tenant_id,
+        actor_id=user.id,
+        action="user.login",
+        resource_type="user",
+        resource_id=user.id,
+        ip_address=request.client.host if request.client else None,
+    )
+    db.commit()
 
     return TokenResponse(
         access_token=create_access_token(user.id, user.tenant_id),

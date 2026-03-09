@@ -64,16 +64,30 @@ AnyEmitter = Union[EventEmitter, HttpEmitter]
 EVENT_VERSION = "0.4.0"
 
 
+def _normalize_pid(value: object) -> int | None:
+    """Coerce a PID from int or numeric string, returning None if invalid."""
+    if isinstance(value, int):
+        return value if value > 1 else None
+    if isinstance(value, str) and value.strip().isdigit():
+        pid = int(value.strip())
+        return pid if pid > 1 else None
+    return None
+
+
 def _extract_pids(scan: ScanResult) -> set[int]:
-    """Pull process IDs from scan evidence for enforcement targeting."""
+    """Pull process IDs from scan evidence for enforcement targeting.
+
+    Handles both int and string PIDs since some scanners store pgrep
+    output as strings.
+    """
     pids: set[int] = set()
     for entry in scan.evidence_details.get("process_entries", []):
-        pid = entry.get("pid")
-        if isinstance(pid, int) and pid > 1:
+        pid = _normalize_pid(entry.get("pid"))
+        if pid is not None:
             pids.add(pid)
     for key in ("listener_pid", "ipykernel_pid"):
-        pid = scan.evidence_details.get(key)
-        if isinstance(pid, int) and pid > 1:
+        pid = _normalize_pid(scan.evidence_details.get(key))
+        if pid is not None:
             pids.add(pid)
     return pids
 

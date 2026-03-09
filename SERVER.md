@@ -41,19 +41,24 @@ This starts:
 
 A `docker-compose.override.yml` is included for development convenience (adds `--reload`, volume mount, and exposes the DB port). Remove or rename this file for production.
 
-The default compose file uses development credentials. For production, set environment variables before starting:
+The compose file reads credentials from a `.env` file (via variable substitution) and will refuse to start if required secrets are missing. Copy the template and fill in real values:
 
 ```bash
-export JWT_SECRET=$(openssl rand -hex 32)
-export SEED_ADMIN_PASSWORD=$(openssl rand -base64 18)
-export ENV=production
+cp .env.example .env
+# Edit .env: set POSTGRES_PASSWORD, JWT_SECRET, SEED_ADMIN_PASSWORD
+```
+
+Then start:
+
+```bash
 docker compose up -d
 ```
 
-Or create a `.env` file alongside `docker-compose.yml`:
+For production, also set `ENV=production` in `.env` so the API rejects insecure defaults on startup:
 
 ```dotenv
 ENV=production
+POSTGRES_PASSWORD=<strong random password>
 JWT_SECRET=<output of openssl rand -hex 32>
 SEED_ADMIN_PASSWORD=<strong password>
 SEED_ADMIN_EMAIL=admin@yourorg.com
@@ -156,12 +161,33 @@ Auth endpoints (`/auth/login`, `/auth/register`, `/auth/refresh`) are rate-limit
 
 Rate limiting is provided by `slowapi`. Clients that exceed the limit receive HTTP 429 (Too Many Requests).
 
+### Role-based access control
+
+Users have a `role` field (`admin` or `analyst`). Sensitive endpoints enforce role checks:
+
+- **Admin only**: `POST /policies`, `PATCH /policies/{id}`, `POST /endpoints/enroll`
+- **Admin or analyst**: `GET /audit-log`
+- **Any authenticated user**: read endpoints, read events, heartbeat
+
+Users with insufficient privileges receive HTTP 403.
+
+### Audit log
+
+All security-relevant actions are recorded in the `audit_log` table with actor, tenant, action, resource, IP address, and timestamp. Audited actions include:
+
+- `user.registered`, `user.login` (auth events)
+- `policy.created`, `policy.updated` (policy changes)
+- `endpoint.enrolled`, `endpoint.key_rotated` (enrollment events)
+
+Query the audit log via `GET /audit-log` (requires admin or analyst role).
+
 ### Tenant isolation
 
 All data queries are scoped by `tenant_id`. Event deduplication checks are tenant-scoped to prevent cross-tenant data leakage. Endpoint creation uses a unique constraint on `(tenant_id, hostname)` to prevent duplicates.
 
 ### Docker security
 
+- **No secrets in compose**: `docker-compose.yml` uses `${VARIABLE}` substitution from `.env`. Required variables (`POSTGRES_PASSWORD`, `JWT_SECRET`) use the `:?` syntax so Docker Compose fails immediately with a clear error if they are not set.
 - **Non-root containers**: Both the API and dashboard containers run as an unprivileged `appuser`.
 - **Network segmentation**: The database is on an internal-only `backend` network (not exposed to the host by default). The API bridges `backend` and `frontend` networks. The dashboard is on `frontend` only and cannot reach the database directly.
 - **Dev overrides**: Development settings (volume mounts, `--reload`, DB port exposure, `DEBUG=true`) live in `docker-compose.override.yml` and should be removed in production.
