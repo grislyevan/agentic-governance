@@ -86,27 +86,28 @@ if (Test-Path "$InstallDir\.git") {
 
 # ── Step 2: Install Python dependencies (API) ────────────────────────────
 Write-Host "`n[2/8] Installing API Python dependencies..." -ForegroundColor Yellow
-pip install -r "$InstallDir\api\requirements.txt" 2>&1 | Select-String -Pattern "^(Successfully|ERROR|WARNING)" | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
-pip install pyinstaller pywin32 2>&1 | Select-String -Pattern "^(Successfully|already)" | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
-
-# psycopg2-binary may fail without PostgreSQL libs; that's fine for SQLite mode.
-# Suppress the error if it occurs.
-pip install psycopg2-binary 2>$null
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "  psycopg2-binary skipped (not needed for SQLite mode)" -ForegroundColor DarkYellow
-}
+$ErrorActionPreference = "Continue"
+pip install -r "$InstallDir\api\requirements.txt" 2>&1 | Out-Null
+pip install pyinstaller pywin32 2>&1 | Out-Null
+pip install psycopg2-binary 2>&1 | Out-Null
+Write-Host "  Dependencies installed." -ForegroundColor Green
+$ErrorActionPreference = "Stop"
 
 # ── Step 3: Install collector as a package ────────────────────────────────
 Write-Host "`n[3/8] Installing collector package..." -ForegroundColor Yellow
+$ErrorActionPreference = "Continue"
 Push-Location $InstallDir
-pip install -e . 2>&1 | Select-String -Pattern "^(Successfully|already)" | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+pip install -e . 2>&1 | Out-Null
 Pop-Location
+Write-Host "  Collector package installed." -ForegroundColor Green
+$ErrorActionPreference = "Stop"
 
 # ── Step 4: Build the React dashboard ─────────────────────────────────────
 Write-Host "`n[4/8] Building dashboard..." -ForegroundColor Yellow
+$ErrorActionPreference = "Continue"
 Push-Location "$InstallDir\dashboard"
-npm install --loglevel=error 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
-npm run build 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+npm install --loglevel=error 2>&1 | Out-Null
+npm run build 2>&1 | Out-Null
 Pop-Location
 
 if (-not (Test-Path "$InstallDir\dashboard\dist\index.html")) {
@@ -116,9 +117,11 @@ if (-not (Test-Path "$InstallDir\dashboard\dist\index.html")) {
 Write-Host "  Dashboard built OK." -ForegroundColor Green
 
 # ── Step 5: Build detec-server.exe ────────────────────────────────────────
-Write-Host "`n[5/8] Building detec-server.exe..." -ForegroundColor Yellow
+Write-Host "`n[5/8] Building detec-server.exe (this takes a few minutes)..." -ForegroundColor Yellow
 Push-Location "$InstallDir\packaging\windows"
-pyinstaller --clean --noconfirm detec-server.spec 2>&1 | Select-String -Pattern "(INFO|ERROR|WARNING|completed)" | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+$ErrorActionPreference = "Continue"
+pyinstaller --clean --noconfirm detec-server.spec 2>&1 | ForEach-Object { "$_" } | Select-String -Pattern "(ERROR|completed)" | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+$ErrorActionPreference = "Stop"
 Pop-Location
 
 if (-not (Test-Path "$ServerDist\detec-server.exe")) {
@@ -131,7 +134,9 @@ Write-Host "  detec-server.exe built ($sizeS MB)" -ForegroundColor Green
 # ── Step 6: Build detec-agent.exe ─────────────────────────────────────────
 Write-Host "`n[6/8] Building detec-agent.exe..." -ForegroundColor Yellow
 Push-Location "$InstallDir\packaging\windows"
-pyinstaller --clean --noconfirm detec-agent.spec 2>&1 | Select-String -Pattern "(INFO|ERROR|WARNING|completed)" | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+$ErrorActionPreference = "Continue"
+pyinstaller --clean --noconfirm detec-agent.spec 2>&1 | ForEach-Object { "$_" } | Select-String -Pattern "(ERROR|completed)" | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+$ErrorActionPreference = "Stop"
 Pop-Location
 
 if (-not (Test-Path "$AgentDist\detec-agent.exe")) {
@@ -145,6 +150,7 @@ Write-Host "  detec-agent.exe built ($sizeA MB)" -ForegroundColor Green
 Write-Host "`n[7/8] Setting up Detec Server..." -ForegroundColor Yellow
 
 # Run first-time setup (generates JWT secret, admin password, DB)
+$ErrorActionPreference = "Continue"
 & "$ServerDist\detec-server.exe" setup --admin-email $AdminEmail --port $ServerPort
 Write-Host ""
 
@@ -157,6 +163,7 @@ if ($isAdmin) {
     Write-Host "  Skipping service install (not Administrator)." -ForegroundColor DarkYellow
     Write-Host "  To test, run: $ServerDist\detec-server.exe run" -ForegroundColor DarkYellow
 }
+$ErrorActionPreference = "Stop"
 
 # ── Step 8: Firewall rule ─────────────────────────────────────────────────
 Write-Host "`n[8/8] Configuring firewall..." -ForegroundColor Yellow
