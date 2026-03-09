@@ -1,4 +1,4 @@
-# Detec — Windows Server Bootstrap Script
+# Detec - Windows Server Bootstrap Script
 #
 # Installs all prerequisites (Python, Node.js, Git) on a fresh Windows
 # Server VM, then runs the full deployment. One script, zero manual steps.
@@ -162,5 +162,6 @@ if (-not (Test-Path "$InstallDir\.git")) {
     Pop-Location
 }
 
-# Hand off to the main deploy script
-& "$InstallDir\packaging\windows\deploy.ps1"
+# Hand off to the main deploy script in a clean process
+# (avoids iex parser quirks when bootstrap is run via irm | iex)
+powershell.exe -ExecutionPolicy Bypass -File "$InstallDir\packaging\windows\deploy.ps1"

@@ -1,4 +1,4 @@
-# Detec Server + Agent — Full Windows Deployment Script
+# Detec Server + Agent - Full Windows Deployment Script
 #
 # Clones (or pulls) the repo, builds both executables, runs setup,
 # and installs as Windows Services.
@@ -14,11 +14,11 @@
 #   .\deploy.ps1
 #
 # Environment variables (optional):
-#   $env:DETEC_ADMIN_EMAIL   — seed admin email (default: admin@yourorg.com)
-#   $env:DETEC_REPO_URL      — git clone URL (default: https://github.com/grislyevan/agentic-governance.git)
-#   $env:DETEC_BRANCH        — git branch to deploy (default: main)
-#   $env:DETEC_INSTALL_DIR   — where to clone the repo (default: C:\Detec\src)
-#   $env:DETEC_SERVER_PORT   — port for the API server (default: 8000)
+#   $env:DETEC_ADMIN_EMAIL   - seed admin email (default: admin@yourorg.com)
+#   $env:DETEC_REPO_URL      - git clone URL
+#   $env:DETEC_BRANCH        - git branch to deploy (default: main)
+#   $env:DETEC_INSTALL_DIR   - where to clone the repo (default: C:\Detec\src)
+#   $env:DETEC_SERVER_PORT   - port for the API server (default: 8000)
 
 $ErrorActionPreference = "Stop"
 
@@ -174,26 +174,24 @@ if ($isAdmin) {
 }
 
 # ── Done ──────────────────────────────────────────────────────────────────
-Write-Host ""
-Write-Host "╔══════════════════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "║             Deployment Complete                      ║" -ForegroundColor Green
-Write-Host "╚══════════════════════════════════════════════════════╝" -ForegroundColor Green
-Write-Host ""
+Write-Host ''
+Write-Host '  *** Deployment Complete ***' -ForegroundColor Green
+Write-Host ''
 Write-Host "  Server:     http://localhost:$ServerPort" -ForegroundColor White
 Write-Host "  Dashboard:  http://localhost:$ServerPort" -ForegroundColor White
 Write-Host "  API docs:   http://localhost:$ServerPort/docs" -ForegroundColor White
-Write-Host "  Config:     C:\ProgramData\Detec\server.env" -ForegroundColor White
-Write-Host "  Database:   C:\ProgramData\Detec\detec.db" -ForegroundColor White
-Write-Host ""
+Write-Host '  Config:     C:\ProgramData\Detec\server.env' -ForegroundColor White
+Write-Host '  Database:   C:\ProgramData\Detec\detec.db' -ForegroundColor White
+Write-Host ''
 Write-Host "  Server exe: $ServerDist\detec-server.exe" -ForegroundColor Gray
 Write-Host "  Agent exe:  $AgentDist\detec-agent.exe" -ForegroundColor Gray
-Write-Host ""
-Write-Host "  Next steps:" -ForegroundColor Yellow
-Write-Host "    1. Open http://localhost:$ServerPort in a browser" -ForegroundColor White
-Write-Host "    2. Log in with the admin credentials shown above" -ForegroundColor White
-Write-Host "    3. Copy the API key from the setup output" -ForegroundColor White
-Write-Host "    4. On each endpoint, run:" -ForegroundColor White
-Write-Host "       detec-agent.exe setup --api-url http://THIS_SERVER:$ServerPort/api --api-key YOUR_KEY" -ForegroundColor White
-Write-Host "       detec-agent.exe install" -ForegroundColor White
-Write-Host "       detec-agent.exe start" -ForegroundColor White
-Write-Host ""
+Write-Host ''
+Write-Host '  Next steps:' -ForegroundColor Yellow
+Write-Host "  1. Open http://localhost:$ServerPort in a browser" -ForegroundColor White
+Write-Host '  2. Log in with the admin credentials shown above' -ForegroundColor White
+Write-Host '  3. Copy the API key from the setup output' -ForegroundColor White
+Write-Host '  4. On each endpoint, run:' -ForegroundColor White
+Write-Host '     detec-agent.exe setup --api-url http://SERVER:8000/api --api-key KEY' -ForegroundColor White
+Write-Host '     detec-agent.exe install' -ForegroundColor White
+Write-Host '     detec-agent.exe start' -ForegroundColor White
+Write-Host ''
