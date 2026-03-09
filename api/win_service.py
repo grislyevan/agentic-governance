@@ -124,6 +124,16 @@ class DetecService(win32serviceutil.ServiceFramework):
 
         os.chdir(str(_api_dir))
 
+        # Windows Services have no console; sys.stdout/stderr are None.
+        # Uvicorn's DefaultFormatter calls sys.stderr.isatty() on init,
+        # which crashes with AttributeError on NoneType.  Redirect to
+        # a log file so uvicorn (and any other library) can write safely.
+        log_file = _data_dir() / "server.log"
+        if sys.stdout is None:
+            sys.stdout = open(log_file, "a", encoding="utf-8")
+        if sys.stderr is None:
+            sys.stderr = open(log_file, "a", encoding="utf-8")
+
         import uvicorn
         from main import app
 
