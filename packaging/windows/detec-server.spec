@@ -32,10 +32,11 @@ if not _dashboard_dist.is_dir():
     )
 
 # Collect data files: Alembic config, migrations, dashboard static files.
+# Destinations are relative to sys._MEIPASS (_internal/ in onedir builds).
 datas = [
-    (str(_api / "alembic.ini"), "alembic"),
+    (str(_api / "alembic.ini"), "."),
     (str(_api / "alembic"), "alembic"),
-    (str(_dashboard_dist), os.path.join("..", "dashboard", "dist")),
+    (str(_dashboard_dist), os.path.join("dashboard", "dist")),
 ]
 
 # Hidden imports that PyInstaller may miss.

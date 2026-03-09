@@ -17,12 +17,17 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import sys
 import uuid
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+# PyInstaller bundles data files under sys._MEIPASS; in development,
+# paths are relative to this file's location.
+_BUNDLE_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -103,7 +108,7 @@ def _apply_migrations() -> None:
         from alembic.config import Config as AlembicConfig
         from alembic import command as alembic_command
 
-        ini_path = Path(__file__).resolve().parent / "alembic.ini"
+        ini_path = _BUNDLE_DIR / "alembic.ini"
         if ini_path.exists():
             cfg = AlembicConfig(str(ini_path))
             cfg.set_main_option("sqlalchemy.url", settings.database_url)
@@ -238,7 +243,11 @@ def health() -> JSONResponse:
 # API routes take priority because they are registered first.
 # ---------------------------------------------------------------------------
 
-_dashboard_dist = Path(__file__).resolve().parent.parent / "dashboard" / "dist"
+# In a PyInstaller bundle, dashboard is at _MEIPASS/dashboard/dist.
+# In development, it's at <repo>/dashboard/dist (two levels up from api/).
+_dashboard_dist = _BUNDLE_DIR / "dashboard" / "dist"
+if not _dashboard_dist.is_dir():
+    _dashboard_dist = Path(__file__).resolve().parent.parent / "dashboard" / "dist"
 
 if _dashboard_dist.is_dir():
     app.mount("/assets", StaticFiles(directory=_dashboard_dist / "assets"), name="dashboard-assets")
