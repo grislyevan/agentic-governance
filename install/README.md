@@ -1,4 +1,10 @@
-# Endpoint Agent — Install Guide
+# Endpoint Agent — Install Guide (Legacy)
+
+> **Note**: This directory contains legacy install templates. For macOS
+> packaged deployment (`.pkg` installer for MDM), see
+> [`packaging/macos/`](../packaging/macos/) and
+> [`DEPLOY.md`](../DEPLOY.md). For current deployment templates, see
+> [`deploy/`](../deploy/).
 
 The agentic-gov endpoint agent runs the scanner continuously in the background, sending events to the central API over HTTP.
 

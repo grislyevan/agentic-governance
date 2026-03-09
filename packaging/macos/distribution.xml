@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>Detec Agent</title>
+    <organization>com.detec</organization>
+    <domains enable_localSystem="false" enable_currentUserHome="false" enable_anywhere="true"/>
+
+    <options customize="never" require-scripts="true" rootVolumeOnly="false"/>
+
+    <!-- System requirements -->
+    <os-version min="13.0"/>
+    <allowed-os-versions>
+        <os-version min="13.0"/>
+    </allowed-os-versions>
+
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <readme file="readme.html" mime-type="text/html"/>
+
+    <choices-outline>
+        <line choice="detec-agent-choice"/>
+    </choices-outline>
+
+    <choice id="detec-agent-choice"
+            title="Detec Agent"
+            description="Installs the Detec endpoint agent to /Applications and configures it to start at login."
+            visible="true"
+            selected="true">
+        <pkg-ref id="com.detec.agent"/>
+    </choice>
+
+    <pkg-ref id="com.detec.agent"
+             version="0.3.0"
+             onConclusion="none">DetecAgent.pkg</pkg-ref>
+</installer-gui-script>

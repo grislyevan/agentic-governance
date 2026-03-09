@@ -1,0 +1,36 @@
+#!/bin/bash
+# Pre-install script for Detec Agent .pkg
+#
+# Stops any running agent instance and unloads the LaunchAgent so the
+# new version can be installed cleanly.
+
+set -e
+
+PLIST_LABEL="com.detec.agent"
+PLIST_PATH="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
+
+echo "Detec Agent: pre-install starting..."
+
+# Unload existing LaunchAgent if present
+if [ -f "$PLIST_PATH" ]; then
+    echo "  Unloading existing LaunchAgent..."
+    launchctl bootout "gui/$(id -u)/${PLIST_LABEL}" 2>/dev/null || true
+    # Fallback for older macOS
+    launchctl unload "$PLIST_PATH" 2>/dev/null || true
+fi
+
+# Kill any running agent process
+pkill -f "Detec Agent" 2>/dev/null || true
+pkill -f "detec-agent-gui" 2>/dev/null || true
+
+# Brief pause for processes to exit
+sleep 1
+
+# Back up existing configuration if present
+CONFIG_DIR="$HOME/.agentic-gov"
+if [ -d "$CONFIG_DIR" ]; then
+    echo "  Existing config directory found at $CONFIG_DIR (preserved)"
+fi
+
+echo "Detec Agent: pre-install complete."
+exit 0

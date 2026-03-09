@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; line-height: 1.5; color: #334155; }
+  h2 { color: #2d2b7a; font-size: 16px; margin-top: 16px; }
+  code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+  th { color: #475569; }
+</style>
+</head>
+<body>
+
+<h2>System Requirements</h2>
+<table>
+  <tr><th>Requirement</th><th>Value</th></tr>
+  <tr><td>macOS</td><td>13.0 (Ventura) or later</td></tr>
+  <tr><td>Architecture</td><td>Apple Silicon (arm64) and Intel (x86_64)</td></tr>
+  <tr><td>Disk Space</td><td>~100 MB</td></tr>
+</table>
+
+<h2>Configuration</h2>
+<p>After installation, configure the agent with your organization's API
+endpoint. Create or edit <code>~/.agentic-gov/config.json</code>:</p>
+
+<pre style="background:#f1f5f9; padding:10px; border-radius:6px; font-size:12px;">{
+  "api_url": "https://your-detec-server.example.com",
+  "api_key": "your-api-key",
+  "interval": 300,
+  "sensitivity": "Tier0"
+}</pre>
+
+<p>Alternatively, set environment variables <code>AGENTIC_GOV_API_URL</code>
+and <code>AGENTIC_GOV_API_KEY</code>, or store the API key in the macOS
+Keychain (service: <code>detec-agent</code>, account: <code>api-key</code>).</p>
+
+<h2>Permissions</h2>
+<p>For complete detection coverage, grant <strong>Full Disk Access</strong>
+to Detec Agent in System Settings. Your IT administrator may push this
+permission automatically via an MDM configuration profile.</p>
+
+<h2>Uninstalling</h2>
+<p>To remove the agent:</p>
+<ol style="font-size:13px;">
+  <li>Quit Detec Agent from the menu bar</li>
+  <li>Run: <code>launchctl bootout gui/$(id -u)/com.detec.agent</code></li>
+  <li>Delete <code>/Applications/Detec Agent.app</code></li>
+  <li>Delete <code>~/Library/LaunchAgents/com.detec.agent.plist</code></li>
+  <li>(Optional) Delete <code>~/.agentic-gov/</code> to remove state and config</li>
+</ol>
+
+</body>
+</html>

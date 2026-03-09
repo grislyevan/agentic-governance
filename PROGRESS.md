@@ -1,7 +1,7 @@
 # Agentic Governance — Progress Tracker
 
 **Last updated:** 2026-03-09  
-**Current phase:** M2 — Backend API + Dashboard  
+**Current phase:** M2 — Backend API + Dashboard + Agent Packaging  
 **Ultimate goal:** Production SaaS for agentic AI endpoint governance
 
 ---
@@ -20,6 +20,10 @@
 | Lab runs (10 completed, 5 pending live validation) | In progress |
 | React/Vite dashboard (auth, live data, controls) | Done |
 | FastAPI backend (PostgreSQL, JWT, multi-tenancy) | Done |
+| User management API (CRUD, roles, auth_provider) | Done |
+| macOS agent GUI (menu bar + status window) | Done |
+| macOS .app/.pkg packaging for MDM distribution | Done |
+| MDM deployment docs (Jamf, Endpoint Central) | Done |
 | SaaS frontend (auth, org management) | In progress |
 | Cloud deployment + CI/CD | Not started |
 | Billing + enterprise features | Not started |
@@ -94,12 +98,17 @@ API Client ────────────────────▶│ Mu
 - [x] `POST /endpoints/heartbeat` — auto-registers endpoints, updates `last_seen_at`
 - [x] OS-level install scripts: macOS LaunchAgent + Linux systemd unit (`install/`)
 - [x] Cross-platform abstraction layer (`collector/compat/`) — psutil-backed process, network, service, identity, and path abstraction; macOS/Linux/Windows dispatch; Cursor, Ollama, and Copilot scanners migrated
+- [x] User management API — CRUD endpoints for tenant users (first_name, last_name, email, role), owner/admin/analyst/viewer roles, auth_provider placeholder for future SSO/SAML, password_reset_required for email provisioning (`api/routers/users.py`, `api/schemas/users.py`)
+- [x] macOS agent GUI — rumps-based menu bar app with status window matching Detec branding, PyObjC NSWindow, aperture mark drawn from SVG path data (`collector/gui/`)
+- [x] macOS .app bundle — PyInstaller spec, build script, icon generation from SVG, entitlements plist (`packaging/macos/`)
+- [x] macOS .pkg installer — pkgbuild/productbuild, pre/postinstall scripts, distribution XML, LaunchAgent configuration (`packaging/macos/`)
+- [x] MDM deployment documentation — Jamf Pro, Endpoint Central, generic MDM; PPPC profile template for Full Disk Access (`docs/mdm-deployment.md`, `docs/macos-permissions.md`)
 - [ ] Integration tests for API endpoints
 - [ ] Alembic migrations wired up
 - [ ] Migrate remaining 8 scanners to compat layer
 - [ ] Windows lab validation + Windows Service install script
 
-**Files:** `api/`, `collector/output/`, `collector/agent/`, `collector/compat/`, `docker-compose.yml`, `install/`
+**Files:** `api/`, `collector/output/`, `collector/agent/`, `collector/gui/`, `collector/compat/`, `packaging/macos/`, `docs/`, `docker-compose.yml`
 
 ---
 

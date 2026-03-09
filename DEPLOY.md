@@ -2,20 +2,78 @@
 
 This guide covers installing and running the **Detec Agent** (endpoint collector) so it reports to the central API. For deploying the **central server** (API + PostgreSQL), see [SERVER.md](SERVER.md). For collector configuration reference, see [collector/README.md](collector/README.md).
 
-## Prerequisites
+## Deployment Options
+
+| Method | Use Case | Details |
+|---|---|---|
+| `.pkg` installer | MDM-managed macOS fleets (Jamf, Endpoint Central) | [Packaged Deployment](#packaged-deployment-macos) |
+| `pip install` | Development, Linux, Windows, manual installs | [Manual Install](#manual-install) |
+| CLI only (headless) | Servers, CI, containers | [Manual Install](#manual-install) |
+
+## Packaged Deployment (macOS)
+
+For managed macOS environments, the agent ships as a `.pkg` installer
+that includes a GUI menu bar app, a LaunchAgent for auto-start, and all
+Python dependencies bundled (no Python installation required on target machines).
+
+### Building the Installer
+
+```bash
+# Install build dependencies
+pip install -e ".[gui]"
+pip install pyinstaller
+
+# Build the .app bundle
+bash packaging/macos/build-app.sh
+
+# Build the .pkg installer
+bash packaging/macos/build-pkg.sh
+```
+
+The `.pkg` is written to `dist/DetecAgent-<version>.pkg`.
+
+### What the Installer Does
+
+1. Installs `Detec Agent.app` to `/Applications`
+2. Creates a LaunchAgent (`com.detec.agent.plist`) in `~/Library/LaunchAgents/`
+3. Starts the agent automatically at login
+4. Creates the state directory at `~/.agentic-gov/`
+
+### MDM Deployment
+
+For fleet deployment via Jamf Pro, ManageEngine Endpoint Central, or
+other MDMs, see [docs/mdm-deployment.md](docs/mdm-deployment.md).
+
+Deploy the PPPC profile (`packaging/macos/pppc-detec-agent.mobileconfig`)
+alongside the `.pkg` to pre-authorize Full Disk Access.
+
+### macOS Permissions
+
+See [docs/macos-permissions.md](docs/macos-permissions.md) for a
+complete guide to required permissions, troubleshooting, and MDM
+configuration profiles.
+
+## Manual Install
+
+### Prerequisites
 
 - **Python 3.11+** and **pip**
 - **API URL** and **API key** from your central Detec API or dashboard. The API key is tied to a tenant; use the same key for all agents in that tenant. API keys are shown only once at creation (seed log or registration response) and stored as a hash; save the key when it is first displayed.
 
-## Install
+### Install
 
 From the repository root:
 
 ```bash
+# Headless agent only
 pip install -e .
+
+# With GUI support (macOS only)
+pip install -e ".[gui]"
 ```
 
-This installs the **detec-agent** console script. Verify:
+This installs the **detec-agent** console script (and **detec-agent-gui**
+for macOS GUI mode). Verify:
 
 ```bash
 detec-agent --help
@@ -146,3 +204,12 @@ Mitigations:
 ### Process kill and PID reuse
 
 When a policy triggers `process_kill`, the agent verifies the process command line matches the expected tool pattern before sending signals. This prevents accidental kills from PID reuse. If the command line cannot be read (e.g., on macOS without Full Disk Access), the kill is skipped and logged.
+
+## Deployment Directory Layout
+
+| Directory | Purpose |
+|---|---|
+| `packaging/macos/` | Build scripts, PyInstaller spec, .pkg config, and PPPC profile for macOS packaged deployment |
+| `deploy/` | Platform-specific LaunchAgent/systemd/task templates for manual installs |
+| `docs/` | Permissions guide, MDM deployment guide |
+| `install/` | (Deprecated) Legacy install scripts; use `deploy/` or `packaging/` instead |

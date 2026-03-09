@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Privacy Preferences Policy Control (PPPC) profile for the Detec Agent.
+
+  Deploy via MDM (Jamf Pro, Endpoint Central, Mosyle, etc.) to
+  pre-authorize Full Disk Access and suppress user prompts.
+
+  IMPORTANT:
+  - Replace TEAM_ID_HERE with your Apple Developer Team ID
+  - This profile only works when the .app is code-signed with a
+    Developer ID Application certificate
+  - Test on a single device before deploying fleet-wide
+  - The CodeRequirement string must match your signing identity
+-->
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadDescription</key>
+            <string>Privacy Preferences Policy Control for Detec Agent</string>
+            <key>PayloadDisplayName</key>
+            <string>Detec Agent PPPC</string>
+            <key>PayloadIdentifier</key>
+            <string>com.detec.agent.pppc</string>
+            <key>PayloadType</key>
+            <string>com.apple.TCC.configuration-profile-policy</string>
+            <key>PayloadUUID</key>
+            <string>A1B2C3D4-E5F6-7890-ABCD-EF1234567890</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+
+            <key>Services</key>
+            <dict>
+                <!-- Full Disk Access -->
+                <key>SystemPolicyAllFiles</key>
+                <array>
+                    <dict>
+                        <key>Identifier</key>
+                        <string>com.detec.agent</string>
+                        <key>IdentifierType</key>
+                        <string>bundleID</string>
+                        <key>CodeRequirement</key>
+                        <string>identifier "com.detec.agent" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = "TEAM_ID_HERE"</string>
+                        <key>Allowed</key>
+                        <true/>
+                        <key>StaticCode</key>
+                        <false/>
+                    </dict>
+                </array>
+
+                <!-- Accessibility (not currently needed, reserved for future use) -->
+                <!--
+                <key>Accessibility</key>
+                <array>
+                    <dict>
+                        <key>Identifier</key>
+                        <string>com.detec.agent</string>
+                        <key>IdentifierType</key>
+                        <string>bundleID</string>
+                        <key>CodeRequirement</key>
+                        <string>identifier "com.detec.agent" and anchor apple generic</string>
+                        <key>Allowed</key>
+                        <true/>
+                    </dict>
+                </array>
+                -->
+            </dict>
+        </dict>
+    </array>
+
+    <key>PayloadDescription</key>
+    <string>Grants Detec Agent the permissions required for endpoint AI tool detection.</string>
+    <key>PayloadDisplayName</key>
+    <string>Detec Agent Permissions</string>
+    <key>PayloadIdentifier</key>
+    <string>com.detec.agent.profile.pppc</string>
+    <key>PayloadOrganization</key>
+    <string>Detec</string>
+    <key>PayloadScope</key>
+    <string>System</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>F1E2D3C4-B5A6-7890-1234-567890ABCDEF</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

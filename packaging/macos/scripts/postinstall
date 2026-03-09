@@ -1,0 +1,80 @@
+#!/bin/bash
+# Post-install script for Detec Agent .pkg
+#
+# Sets up the LaunchAgent so the agent starts automatically at login.
+# Creates the required directory structure and log directory.
+
+set -e
+
+PLIST_LABEL="com.detec.agent"
+APP_PATH="/Applications/Detec Agent.app"
+BINARY_PATH="${APP_PATH}/Contents/MacOS/detec-agent-gui"
+LAUNCH_AGENTS_DIR="$HOME/Library/LaunchAgents"
+PLIST_PATH="${LAUNCH_AGENTS_DIR}/${PLIST_LABEL}.plist"
+LOG_DIR="$HOME/Library/Logs/DetecAgent"
+STATE_DIR="$HOME/.agentic-gov"
+
+echo "Detec Agent: post-install starting..."
+
+# Create required directories
+mkdir -p "$LAUNCH_AGENTS_DIR"
+mkdir -p "$LOG_DIR"
+mkdir -p "$STATE_DIR"
+
+# Write the LaunchAgent plist
+cat > "$PLIST_PATH" << PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${PLIST_LABEL}</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>${BINARY_PATH}</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>LimitLoadToSessionType</key>
+    <string>Aqua</string>
+
+    <key>StandardOutPath</key>
+    <string>${LOG_DIR}/agent.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>${LOG_DIR}/agent-error.log</string>
+
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>
+PLIST
+
+echo "  LaunchAgent plist written to $PLIST_PATH"
+
+# Set correct permissions
+chmod 644 "$PLIST_PATH"
+chmod 755 "$STATE_DIR"
+
+# Load the LaunchAgent
+echo "  Loading LaunchAgent..."
+launchctl bootstrap "gui/$(id -u)" "$PLIST_PATH" 2>/dev/null || \
+    launchctl load "$PLIST_PATH" 2>/dev/null || true
+
+echo "Detec Agent: post-install complete."
+echo "  The agent will start automatically at login."
+echo "  Configure API URL and key in $STATE_DIR/config.json or via environment variables."
+exit 0
