@@ -33,9 +33,14 @@ def upgrade() -> None:
         sa.Column("tenant_id", sa.String(36), sa.ForeignKey("tenants.id"), nullable=False, index=True),
         sa.Column("email", sa.String(255), nullable=False, unique=True),
         sa.Column("hashed_password", sa.String(255), nullable=False),
-        sa.Column("full_name", sa.String(255), nullable=True),
+        sa.Column("first_name", sa.String(128), nullable=True),
+        sa.Column("last_name", sa.String(128), nullable=True),
         sa.Column("role", sa.String(32), nullable=False, server_default="analyst"),
-        sa.Column("api_key", sa.String(64), unique=True, index=True),
+        sa.Column("auth_provider", sa.String(32), nullable=False, server_default="local"),
+        sa.Column("password_reset_required", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+        sa.Column("api_key_prefix", sa.String(8), index=True),
+        sa.Column("api_key_hash", sa.String(64), unique=True),
+        sa.Column("refresh_jti", sa.String(32), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
@@ -54,6 +59,7 @@ def upgrade() -> None:
         sa.Column("signing_public_key", sa.Text(), nullable=True),
         sa.Column("key_fingerprint", sa.String(64), nullable=True, index=True),
         sa.Column("enrolled_at", sa.DateTime(timezone=True), nullable=True),
+        sa.UniqueConstraint("tenant_id", "hostname", name="uq_endpoints_tenant_hostname"),
     )
 
     op.create_table(

@@ -61,6 +61,7 @@ API = "/api"
 def client():
     """FastAPI TestClient backed by a fresh in-memory database."""
     Base.metadata.drop_all(bind=_test_engine)
+    Base.metadata.create_all(bind=_test_engine)
 
     from main import app, limiter
     limiter.enabled = False
