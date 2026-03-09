@@ -22,13 +22,17 @@ from __future__ import annotations
 import os
 import sys
 import logging
+import traceback
 import threading
 from pathlib import Path
 
 logger = logging.getLogger("detec.service")
 
-# Ensure the api/ package is importable when running as a frozen exe.
-_api_dir = Path(__file__).resolve().parent
+# In a PyInstaller onedir bundle, sys._MEIPASS points to the _internal
+# directory containing all bundled modules and data files.  Use it as
+# the canonical "api dir" so that os.chdir and sys.path are correct
+# regardless of the CWD the SCM launches us from (usually system32).
+_api_dir = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 if str(_api_dir) not in sys.path:
     sys.path.insert(0, str(_api_dir))
 
@@ -104,8 +108,9 @@ class DetecService(win32serviceutil.ServiceFramework):
         try:
             self._run_server()
         except Exception:
+            tb = traceback.format_exc()
             logger.exception("Detec Server crashed")
-            servicemanager.LogErrorMsg("Detec Server crashed unexpectedly")
+            servicemanager.LogErrorMsg(f"Detec Server crashed:\n{tb}")
         finally:
             servicemanager.LogMsg(
                 servicemanager.EVENTLOG_INFORMATION_TYPE,

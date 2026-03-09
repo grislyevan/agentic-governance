@@ -151,7 +151,7 @@ Write-Host "`n[7/9] Setting up Detec Server..." -ForegroundColor Yellow
 
 # Run first-time setup (generates JWT secret, admin password, DB)
 $ErrorActionPreference = "Continue"
-& "$ServerDist\detec-server.exe" setup --admin-email $AdminEmail --port $ServerPort
+& "$ServerDist\detec-server.exe" setup --admin-email $AdminEmail
 Write-Host ""
 
 if ($isAdmin) {

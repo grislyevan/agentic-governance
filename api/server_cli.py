@@ -263,11 +263,8 @@ def main() -> None:
     # When launched by the Windows SCM with no arguments, enter service mode
     # immediately instead of falling through to argparse.
     if _IS_WINDOWS and len(sys.argv) == 1:
-        try:
-            _enter_service_mode()
-            return
-        except Exception:
-            pass
+        _enter_service_mode()
+        return
 
     parser = argparse.ArgumentParser(
         prog="detec-server",
