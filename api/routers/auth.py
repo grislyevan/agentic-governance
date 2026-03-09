@@ -99,9 +99,13 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
     )
     db.commit()
 
+    refresh_tok, refresh_jti = create_refresh_token(user.id, tenant.id)
+    user.refresh_jti = refresh_jti
+    db.commit()
+
     return RegisterResponse(
         access_token=create_access_token(user.id, tenant.id),
-        refresh_token=create_refresh_token(user.id, tenant.id),
+        refresh_token=refresh_tok,
         api_key=raw_key,
     )
 
@@ -129,9 +133,13 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)) -
     )
     db.commit()
 
+    refresh_tok, refresh_jti = create_refresh_token(user.id, user.tenant_id)
+    user.refresh_jti = refresh_jti
+    db.commit()
+
     return TokenResponse(
         access_token=create_access_token(user.id, user.tenant_id),
-        refresh_token=create_refresh_token(user.id, user.tenant_id),
+        refresh_token=refresh_tok,
     )
 
 
@@ -148,9 +156,20 @@ def refresh_token(request: Request, body: RefreshRequest, db: Session = Depends(
         logger.warning("Refresh token valid but user %s not found or inactive", payload["sub"])
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
+    if user.refresh_jti and payload.get("jti") != user.refresh_jti:
+        logger.warning("Refresh token reuse detected for user %s (expected jti=%s, got=%s)",
+                        user.id, user.refresh_jti, payload.get("jti"))
+        user.refresh_jti = None
+        db.commit()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token already used")
+
+    refresh_tok, refresh_jti = create_refresh_token(user.id, user.tenant_id)
+    user.refresh_jti = refresh_jti
+    db.commit()
+
     return TokenResponse(
         access_token=create_access_token(user.id, user.tenant_id),
-        refresh_token=create_refresh_token(user.id, user.tenant_id),
+        refresh_token=refresh_tok,
     )
 
 

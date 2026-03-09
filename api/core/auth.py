@@ -37,18 +37,20 @@ def create_access_token(subject: str, tenant_id: str, extra: dict[str, Any] | No
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-def create_refresh_token(subject: str, tenant_id: str) -> str:
+def create_refresh_token(subject: str, tenant_id: str) -> tuple[str, str]:
+    """Create a refresh JWT. Returns (encoded_token, jti)."""
     now = datetime.now(timezone.utc)
     expire = now + timedelta(days=settings.refresh_token_expire_days)
+    jti = uuid.uuid4().hex
     payload: dict[str, Any] = {
         "sub": subject,
         "tenant_id": tenant_id,
         "exp": expire,
         "iat": now,
-        "jti": uuid.uuid4().hex,
+        "jti": jti,
         "type": "refresh",
     }
-    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm), jti
 
 
 def decode_token(token: str) -> dict[str, Any]:
