@@ -117,12 +117,13 @@ class DetecService(win32serviceutil.ServiceFramework):
         os.chdir(str(_api_dir))
 
         import uvicorn
+        from main import app
 
         host = os.environ.get("API_HOST", "0.0.0.0")
         port = int(os.environ.get("API_PORT", "8000"))
 
         config = uvicorn.Config(
-            "main:app",
+            app,
             host=host,
             port=port,
             log_level="info",

@@ -99,13 +99,23 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     import uvicorn
 
-    uvicorn.run(
-        "main:app",
-        host=args.host,
-        port=args.port,
-        log_level="info",
-        reload=args.reload,
-    )
+    if args.reload:
+        # reload requires the string form (only works in development)
+        uvicorn.run(
+            "main:app",
+            host=args.host,
+            port=args.port,
+            log_level="info",
+            reload=True,
+        )
+    else:
+        from main import app
+        uvicorn.run(
+            app,
+            host=args.host,
+            port=args.port,
+            log_level="info",
+        )
 
 
 # -------------------------------------------------------------------
