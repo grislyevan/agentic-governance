@@ -15,7 +15,7 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"   # speeds up Invoke-WebRequest
 
 $PythonVersion  = "3.11.9"
-$NodeVersion    = "20.18.1"
+$NodeVersion    = "22.14.0"
 $GitVersion     = "2.47.1"
 $DownloadDir    = "$env:TEMP\detec-bootstrap"
 
@@ -77,7 +77,7 @@ if (Get-Command python -ErrorAction SilentlyContinue) {
 # ══════════════════════════════════════════════════════════════════════════
 # 2. Node.js 20 LTS
 # ══════════════════════════════════════════════════════════════════════════
-Write-Host "`n[2/4] Node.js $NodeVersion (LTS)" -ForegroundColor Yellow
+Write-Host "`n[2/4] Node.js $NodeVersion LTS" -ForegroundColor Yellow
 
 if (Get-Command node -ErrorAction SilentlyContinue) {
     $existingNode = node --version 2>&1
