@@ -11,7 +11,7 @@ Set-ExecutionPolicy Bypass -Scope Process
 irm https://raw.githubusercontent.com/grislyevan/agentic-governance/main/packaging/windows/bootstrap.ps1 | iex
 ```
 
-This installs Python, Node.js, and Git silently, clones the repo, builds both executables, runs setup, installs the server as a Windows Service, and opens the firewall. Total hands-off time: roughly 5-10 minutes depending on download speed.
+This installs Python 3.11, Node.js 22 LTS, and Git silently, clones the repo, builds both executables, runs setup, installs the server as a Windows Service, opens the firewall, and places a "Detec Dashboard" shortcut on the desktop. Total hands-off time: roughly 5-10 minutes depending on download speed.
 
 If you already have the prerequisites installed, run the deploy script directly:
 
@@ -76,7 +76,7 @@ From an elevated (Administrator) command prompt:
 .\detec-server.exe start
 ```
 
-The service runs as "Detec Server" and starts automatically on boot. The server is accessible at http://localhost:8000.
+The service runs as "Detec Server", starts automatically on boot, and survives logoff/reboot. A "Detec Dashboard" shortcut is placed on the Public Desktop during deployment. The server is accessible at http://localhost:8000.
 
 ### Manage the service
 
@@ -93,7 +93,8 @@ The service runs as "Detec Server" and starts automatically on boot. The server 
 |------|------|
 | Database | `C:\ProgramData\Detec\detec.db` |
 | Config | `C:\ProgramData\Detec\server.env` |
-| Logs | Windows Event Log (Application, source "DetecServer") |
+| Server log | `C:\ProgramData\Detec\server.log` (stdout/stderr when running as a service) |
+| Event log | Windows Event Log (Application, source "DetecServer") |
 
 ### Backup
 

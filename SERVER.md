@@ -87,7 +87,7 @@ Run the Detec server as a Windows Service with SQLite. No database or container 
 ### Prerequisites
 
 - Python 3.11+
-- Node.js 18+ (for building the dashboard)
+- Node.js 20.19+ or 22.12+ (for building the dashboard; Vite requires these versions)
 
 ### 1. Build the server
 
@@ -115,7 +115,7 @@ From an **elevated** (Administrator) command prompt:
 .\detec-server.exe start
 ```
 
-The service runs in the background, survives logoff, and starts automatically on boot. Open http://localhost:8000 to access the dashboard.
+The service runs in the background, survives logoff, and starts automatically on boot. A "Detec Dashboard" shortcut is placed on the desktop during deployment. Open http://localhost:8000 to access the dashboard. Service output is logged to `C:\ProgramData\Detec\server.log`; crash tracebacks are also written to the Windows Event Log (Application, source "DetecServer").
 
 ### Service management
 

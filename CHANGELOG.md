@@ -82,8 +82,36 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   slowapi's config key, preventing rate limit interference in the test suite.
   Production rate limiting is unaffected.
 
+- **Windows Service auto-start**: Both `DetecServer` and `DetecAgent` services
+  now register with `SERVICE_AUTO_START`, so they start automatically on boot
+  without manual intervention.
+- **Desktop shortcut**: The deploy script (`deploy.ps1`) creates a "Detec
+  Dashboard" shortcut on the Public Desktop that opens the dashboard URL in the
+  default browser. Deployment now runs 9 steps (was 8).
+- **One-command VM deploy**: `bootstrap.ps1` installs Python 3.11, Node.js
+  22.14 LTS, and Git, then runs the full deployment. Updated to use Node 22 to
+  meet Vite's minimum version requirements.
+
 ### Fixed
 
+- **Windows Service Error 1053**: When the SCM started `detec-server.exe` with
+  no arguments, it fell through to argparse help and exited instead of
+  registering with the service dispatcher. Now detects the no-argument case and
+  enters service mode immediately.
+- **Windows Service crash (stderr is None)**: Uvicorn's `DefaultFormatter`
+  calls `sys.stderr.isatty()` during logging setup, but Windows Services have
+  no console so `sys.stderr` is `None`. Both streams are now redirected to
+  `C:\ProgramData\Detec\server.log` when absent.
+- **Service crash diagnostics**: The `SvcDoRun` exception handler now writes
+  the full Python traceback to the Windows Event Log (Application, source
+  "DetecServer") instead of a generic "crashed unexpectedly" message.
+- **Frozen bundle path resolution**: `win_service.py` now uses `sys._MEIPASS`
+  (PyInstaller's bundle directory) for `_api_dir` instead of
+  `Path(__file__).parent`, ensuring modules and data files are found regardless
+  of the working directory the SCM launches from.
+- **Deploy script --port bug**: Removed the invalid `--port` argument from the
+  `setup` call in `deploy.ps1` (the `setup` subcommand only accepts
+  `--admin-email` and `--force`).
 - **HttpEmitter stats interface**: `HttpEmitter.stats` now includes `emitted`
   and `failed` keys (aliasing `sent` and `buffered`), matching the interface
   `run_scan` expects. Previously, daemon mode would crash with a `KeyError`

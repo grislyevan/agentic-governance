@@ -5,7 +5,7 @@
 #
 # Prerequisites:
 #   - Python 3.11+ on PATH
-#   - Node.js 18+ on PATH (for dashboard build)
+#   - Node.js 20.19+ or 22+ on PATH (for dashboard build; Vite requirement)
 #   - Git on PATH
 #   - Run from an elevated (Administrator) PowerShell prompt
 #

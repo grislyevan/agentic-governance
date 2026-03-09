@@ -114,7 +114,7 @@ API Client ────────────────────▶│ Mu
 - [ ] Alembic migrations wired up
 - [x] Windows Service packaging — `detec-server` CLI with setup/run/install/start/stop/remove commands, pywin32 service wrapper, PyInstaller spec
 - [x] Windows collector agent packaging — `detec-agent` CLI with setup/scan/run/install/start/stop/remove commands, pywin32 service wrapper, PyInstaller spec
-- [ ] Windows lab validation on Windows Server VM
+- [x] Windows lab validation on Windows Server VM (deployed, service running, health OK)
 
 **Files:** `api/`, `collector/output/`, `collector/agent/`, `collector/gui/`, `collector/compat/`, `packaging/macos/`, `packaging/windows/`, `docs/`, `docker-compose.yml`
 
