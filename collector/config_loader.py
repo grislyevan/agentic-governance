@@ -130,8 +130,10 @@ def load_collector_config(config_path: Path | None = None) -> dict[str, Any]:
             key = get_api_key()
             if key:
                 merged["api_key"] = key
+        except ImportError:
+            logger.debug("Credential store module not available")
         except Exception as e:
-            logger.debug("Credential store lookup skipped: %s", e)
+            logger.warning("Credential store lookup failed: %s", e)
 
     if merged["endpoint_id"] is None:
         merged["endpoint_id"] = socket.gethostname()
