@@ -37,8 +37,9 @@ The `.pkg` is written to `dist/DetecAgent-<version>.pkg`.
 
 1. Installs `Detec Agent.app` to `/Applications`
 2. Creates a LaunchAgent (`com.detec.agent.plist`) in `~/Library/LaunchAgents/`
-3. Starts the agent automatically at login
-4. Creates the state directory at `~/.agentic-gov/`
+3. Creates directories: `~/.agentic-gov/`, `~/Library/Logs/DetecAgent/`, `~/Library/Application Support/Detec/`
+4. Transfers ownership of all created files from root to the logged-in user (pkg scripts run as root)
+5. Loads the LaunchAgent so the agent starts automatically at login
 
 ### MDM Deployment
 

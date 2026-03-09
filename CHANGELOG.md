@@ -6,6 +6,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **macOS .pkg installer ownership**: The postinstall script runs as root,
+  so the LaunchAgent plist, log directory, state directory, and Application
+  Support directory were all created with root ownership. `launchctl`
+  silently refuses to load user-domain plists owned by root, preventing the
+  agent from starting. The script now resolves the real user via
+  `stat -f '%Su' "$HOME"` and `chown`s all created files back to them.
+- **GUI crash on unwritable log directory**: If `~/Library/Logs/DetecAgent/`
+  is not writable (e.g., from the ownership bug above), the menu bar app
+  now falls back to stderr-only logging instead of crashing on startup.
+
 ### Added
 
 - **GUI agent loads agent.env**: The macOS menu bar app (`DaemonBridge`) now

@@ -142,13 +142,16 @@ def main() -> None:
     log_dir = Path.home() / "Library" / "Logs" / "DetecAgent"
     log_dir.mkdir(parents=True, exist_ok=True)
 
+    handlers: list[logging.Handler] = [logging.StreamHandler()]
+    try:
+        handlers.append(logging.FileHandler(log_dir / "agent.log"))
+    except PermissionError:
+        pass
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler(log_dir / "agent.log"),
-        ],
+        handlers=handlers,
     )
 
     app = DetecAgentApp()

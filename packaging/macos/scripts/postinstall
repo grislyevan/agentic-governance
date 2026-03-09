@@ -13,13 +13,20 @@ LAUNCH_AGENTS_DIR="$HOME/Library/LaunchAgents"
 PLIST_PATH="${LAUNCH_AGENTS_DIR}/${PLIST_LABEL}.plist"
 LOG_DIR="$HOME/Library/Logs/DetecAgent"
 STATE_DIR="$HOME/.agentic-gov"
+APP_SUPPORT_DIR="$HOME/Library/Application Support/Detec"
 
-echo "Detec Agent: post-install starting..."
+# Resolve the real (non-root) user who owns $HOME.
+# Pkg install scripts run as root, so we need to chown everything back.
+REAL_USER="$(stat -f '%Su' "$HOME")"
+REAL_GROUP="$(stat -f '%Sg' "$HOME")"
+
+echo "Detec Agent: post-install starting (user=$REAL_USER)..."
 
 # Create required directories
 mkdir -p "$LAUNCH_AGENTS_DIR"
 mkdir -p "$LOG_DIR"
 mkdir -p "$STATE_DIR"
+mkdir -p "$APP_SUPPORT_DIR"
 
 # Write the LaunchAgent plist
 cat > "$PLIST_PATH" << PLIST
@@ -65,16 +72,22 @@ PLIST
 
 echo "  LaunchAgent plist written to $PLIST_PATH"
 
-# Set correct permissions
+# Set correct permissions and transfer ownership from root to the real user.
+# launchctl requires user-domain plists to be owned by the user.
 chmod 644 "$PLIST_PATH"
 chmod 755 "$STATE_DIR"
+chown "$REAL_USER:$REAL_GROUP" "$PLIST_PATH"
+chown -R "$REAL_USER:$REAL_GROUP" "$LOG_DIR"
+chown -R "$REAL_USER:$REAL_GROUP" "$STATE_DIR"
+chown -R "$REAL_USER:$REAL_GROUP" "$APP_SUPPORT_DIR"
 
-# Load the LaunchAgent
-echo "  Loading LaunchAgent..."
-launchctl bootstrap "gui/$(id -u)" "$PLIST_PATH" 2>/dev/null || \
-    launchctl load "$PLIST_PATH" 2>/dev/null || true
+# Load the LaunchAgent as the real user (not root).
+REAL_UID="$(id -u "$REAL_USER")"
+echo "  Loading LaunchAgent for UID $REAL_UID..."
+launchctl bootstrap "gui/$REAL_UID" "$PLIST_PATH" 2>/dev/null || \
+    sudo -u "$REAL_USER" launchctl load "$PLIST_PATH" 2>/dev/null || true
 
 echo "Detec Agent: post-install complete."
 echo "  The agent will start automatically at login."
-echo "  Configure API URL and key in $STATE_DIR/config.json or via environment variables."
+echo "  Run 'detec-agent setup' to configure the API URL and key."
 exit 0
