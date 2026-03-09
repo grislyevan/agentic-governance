@@ -1,7 +1,7 @@
 # Agentic Governance — Progress Tracker
 
-**Last updated:** 2026-03-05  
-**Current phase:** M1 — Prototype Complete  
+**Last updated:** 2026-03-08  
+**Current phase:** M2 — Backend API + Dashboard  
 **Ultimate goal:** Production SaaS for agentic AI endpoint governance
 
 ---
@@ -18,9 +18,9 @@
 | Playbook v0.3.1 (Class D taxonomy + platform notes) | Done |
 | Synthetic scanner fixture tests (22 tests, 5 scanners) | Done |
 | Lab runs (10 completed, 5 pending live validation) | In progress |
-| React/Vite dashboard | In progress |
-| FastAPI backend (PostgreSQL, JWT, multi-tenancy) | Not started |
-| SaaS frontend (auth, org management) | Not started |
+| React/Vite dashboard (auth, live data, controls) | Done |
+| FastAPI backend (PostgreSQL, JWT, multi-tenancy) | Done |
+| SaaS frontend (auth, org management) | In progress |
 | Cloud deployment + CI/CD | Not started |
 | Billing + enterprise features | Not started |
 
@@ -107,14 +107,18 @@ API Client ────────────────────▶│ Mu
 
 **Goal:** Replace the prototype React app with a production-quality multi-tenant dashboard.
 
-- [ ] Auth flows: login, register, invite, password reset
+- [x] Auth flows: login, register (JWT with auto-refresh, API key fallback)
+- [ ] Auth flows: invite, password reset
 - [ ] Org/tenant management: create org, invite members, roles (admin, analyst, viewer)
-- [ ] Endpoint management: register endpoints, assign groups, view status
-- [ ] Events dashboard: filterable table, confidence bands, enforcement state, time range
+- [x] Endpoint management: multi-endpoint view with filter, status, signal bars
+- [x] Events dashboard: filterable table, confidence bands, enforcement state, time range
+- [x] Policy list (read-only, from API)
 - [ ] Policy configuration UI: edit enforcement ladder rules, risky action controls
+- [x] Audit log page (read-only, paginated, from API)
 - [ ] Alerts and notifications: email or webhook on enforcement state change
 - [ ] Real-time updates via WebSocket or polling
-- [ ] Responsive, accessible design
+- [x] Accessible design (ARIA labels, keyboard nav, screen reader support)
+- [ ] Responsive design (mobile breakpoints)
 
 ---
 

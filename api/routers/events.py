@@ -187,6 +187,9 @@ def list_events(
     tool_class: str | None = Query(default=None),
     decision_state: str | None = Query(default=None),
     endpoint_id: str | None = Query(default=None),
+    observed_after: datetime | None = Query(default=None),
+    observed_before: datetime | None = Query(default=None),
+    search: str | None = Query(default=None, max_length=200),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=500),
     db: Session = Depends(get_db),
@@ -208,6 +211,12 @@ def list_events(
         q = q.filter(Event.decision_state == decision_state)
     if endpoint_id:
         q = q.filter(Event.endpoint_id == endpoint_id)
+    if observed_after:
+        q = q.filter(Event.observed_at >= observed_after)
+    if observed_before:
+        q = q.filter(Event.observed_at <= observed_before)
+    if search:
+        q = q.filter(Event.tool_name.ilike(f"%{search}%"))
 
     total = q.with_entities(func.count()).scalar() or 0
     items = (

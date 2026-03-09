@@ -20,68 +20,6 @@ export function parseNdjson(raw) {
   return events;
 }
 
-/**
- * Transform a FastAPI EventListResponse into canonical event objects.
- * Each item's `payload` field holds the full canonical event envelope.
- * Falls back to constructing a minimal canonical shape from flat fields
- * when payload is missing.
- */
-export function transformApiEvents(apiResponse) {
-  const items = apiResponse?.items || [];
-  return items
-    .map((item) => {
-      if (item.payload && Object.keys(item.payload).length > 0) {
-        return item.payload;
-      }
-      return {
-        event_type: item.event_type,
-        observed_at: item.observed_at,
-        tool: item.tool_name
-          ? {
-              name: item.tool_name,
-              class: item.tool_class,
-              version: item.tool_version,
-              attribution_confidence: item.attribution_confidence,
-            }
-          : null,
-        policy: item.decision_state
-          ? { decision_state: item.decision_state, rule_id: item.rule_id }
-          : null,
-        severity: item.severity_level ? { level: item.severity_level } : null,
-      };
-    })
-    .filter(Boolean);
-}
-
-/**
- * Fetch all pages from the FastAPI events endpoint.
- * Returns the concatenated canonical events array.
- */
-export async function fetchAllApiEvents(apiUrl, apiKey) {
-  const events = [];
-  let page = 1;
-  const pageSize = 500;
-
-  while (true) {
-    const url = `${apiUrl}/events?page=${page}&page_size=${pageSize}`;
-    const res = await fetch(url, {
-      headers: { 'X-Api-Key': apiKey },
-      cache: 'no-store',
-    });
-    if (!res.ok) {
-      if (res.status === 401 || res.status === 403) {
-        throw new Error('Authentication failed. Check your API key.');
-      }
-      throw new Error(`API returned ${res.status}`);
-    }
-    const data = await res.json();
-    events.push(...transformApiEvents(data));
-    if (page * pageSize >= data.total) break;
-    page++;
-  }
-  return events;
-}
-
 /** Confidence band from 0–1 score — thresholds from Playbook Section 6.2 */
 export function confidenceBand(score) {
   if (score == null || typeof score !== 'number') return '—';
@@ -103,7 +41,7 @@ export function policyLabel(decision) {
 
 /** Severity label from S0–S4 */
 export function severityLabel(level) {
-  const labels = { S0: 'S0', S1: 'S1', S2: 'S2', S3: 'S3', S4: 'S4' };
+  const labels = { S0: 'Info', S1: 'Low', S2: 'Medium', S3: 'High', S4: 'Critical' };
   return labels[level] ?? level ?? '—';
 }
 

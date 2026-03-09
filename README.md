@@ -48,10 +48,11 @@ Without `--dry-run`, the collector writes NDJSON to `collector/scan-results.ndjs
 
 ```bash
 cp .env.example .env          # edit secrets for production
-docker compose up -d           # starts db + api + dashboard
+docker compose up -d           # starts db + api
+cd dashboard && npm install && npm run dev
 ```
 
-Open http://localhost:3001 (dashboard). Click **API config**, enter `http://localhost:8000` and the seeded admin API key (see [SERVER.md](SERVER.md#first-api-key)), then click **Load from API**.
+Open http://localhost:5173. Log in with the seed admin credentials (see [SERVER.md](SERVER.md#first-api-key)) or register a new account. The dashboard connects to the API at `http://localhost:8000` by default; configure this in Settings if needed.
 
 ## Running the API
 
@@ -75,9 +76,10 @@ Note: Run collector and API tests separately (not in a single pytest invocation)
 
 ## Dashboard
 
-A web UI showing detected tools, confidence, and policy decisions. Two data modes:
+SOC operator console for monitoring detected AI tools, confidence scoring, and policy enforcement. The dashboard requires authentication (JWT login or API key).
 
-- **Load from API** (recommended): connects to the FastAPI backend with your API key. Shows live events ingested by agents.
-- **Load NDJSON / Load file**: reads raw NDJSON from the collector server or a local file (for offline inspection).
+- **Login/Register**: email + password, JWT with auto-refresh. User profile (name, role) shown in the top bar.
+- **API key fallback**: configure in Settings when JWT is unavailable (headless access).
+- **Live pages**: Endpoints dashboard (filterable by endpoint, time range, searchable), Policies list, Audit log (paginated).
 
-Dev mode: `cd dashboard && npm install && npm run dev` (opens http://localhost:5173). Docker: included in `docker compose up` on http://localhost:3001. See [dashboard/README.md](dashboard/README.md).
+Dev mode: `cd dashboard && npm install && npm run dev` (opens http://localhost:5173). See [dashboard/README.md](dashboard/README.md).

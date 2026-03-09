@@ -1,45 +1,83 @@
 # Agentic Governance Dashboard
 
-Minimal web UI for the agentic-governance collector: single-endpoint view of detected AI tools, confidence, and policy decisions.
+SOC operator console for the Detec platform. Multi-endpoint view of detected AI tools, confidence scoring, policy decisions, and enforcement state.
+
+## Prerequisites
+
+- Node.js 20+
+- A running Detec API (see [SERVER.md](../SERVER.md)) or the local NDJSON server for demo mode
 
 ## Quick start
 
-1. **Produce NDJSON** (from repo root):
-   ```bash
-   cd collector && python main.py
-   ```
-   This writes to `collector/scan-results.ndjson`. To print to stdout instead: `python main.py --dry-run`.
-
-2. **Run the dashboard** (from repo root):
-   ```bash
-   cd dashboard && npm install && npm run dev
-   ```
-   Open [http://localhost:5173](http://localhost:5173). Click **Load from server** to show results from `collector/scan-results.ndjson`.
-
-## Loading data
-
-- **Load from server** — Fetches NDJSON from the local API (default file: `../collector/scan-results.ndjson`). Requires the dashboard dev server to be running (it starts automatically with `npm run dev`).
-- **Load file…** — Pick an NDJSON file from your machine. Works without the API server.
-
-To point the server at a different file:
 ```bash
-NDJSON_PATH=/path/to/events.ndjson node server.js
+cd dashboard
+npm install
+npm run dev
 ```
-Then run Vite in another terminal: `npm run dev:vite`, and use **Load from server**.
+
+Open [http://localhost:5173](http://localhost:5173).
+
+The dashboard requires authentication. Log in with your email and password (created via `POST /auth/register` or the seed admin from the API). Alternatively, configure an API key in Settings.
+
+## Architecture
+
+```
+dashboard/src/
+  main.jsx                  Entry point, wraps app in AuthProvider
+  App.jsx                   Auth gate + shell (sidebar, topbar, page router)
+  index.css                 Tailwind directives + base overrides
+  parseNdjson.js            NDJSON parsing and event helpers
+  lib/
+    api.js                  API client (endpoints, events, policies, audit log)
+    auth.js                 Token management (login, register, refresh, logout)
+  hooks/
+    useAuth.jsx             React auth context (user, login, logout, auto-refresh)
+    useEndpoints.js         Fetch + aggregate multi-endpoint data with filters
+  components/
+    branding/DetecLogo.jsx  SVG aperture mark + wordmark
+    layout/Sidebar.jsx      Left nav with data-driven event badge
+    layout/TopBar.jsx       Search, refresh, notifications, user profile + logout
+    dashboard/
+      SummaryCards.jsx      Blocked/Approval/Warned/Detected counts
+      FilterBar.jsx         Endpoint selector, time range picker
+      EndpointContextBar.jsx  Endpoint count, status, API key, signal bars
+      ToolTabs.jsx          Tab filter + navigation links
+      ToolsTable.jsx        Main data table
+      ToolRow.jsx           Expandable row with overflow menu
+      Pagination.jsx        Page navigation + rows-per-page
+  pages/
+    LoginPage.jsx           Email/password login with registration toggle
+    DashboardPage.jsx       Full implementation with search, filters, refresh
+    EventsPage.jsx          Placeholder (events feed)
+    PoliciesPage.jsx        Live policy list from API
+    AuditLogPage.jsx        Live audit log table from API
+    AdminPage.jsx           Placeholder (administration)
+    SettingsPage.jsx        API URL and key configuration
+```
+
+## Authentication
+
+The dashboard supports two auth methods:
+
+1. **JWT login** (primary): email + password via `POST /auth/login`. Tokens are stored in localStorage and auto-refreshed.
+2. **API key** (fallback): configured in Settings. Used when no JWT is available.
+
+User profile (name, role) is pulled from `GET /auth/me` and displayed in the top bar. Logout clears tokens and returns to the login page.
+
+## Data flow
+
+The `useEndpoints` hook fetches events from the API with optional filters (time range, endpoint ID), aggregates them client-side into per-tool rows with decision counts, and provides the data to all dashboard components. The TopBar search filters tools client-side with debounce.
 
 ## Scripts
 
 | Command | Description |
-|--------|-------------|
-| `npm run dev` | Start Vite + API server (recommended for demo) |
-| `npm run dev:vite` | Vite only; use **Load file…** to open NDJSON |
+|---------|-------------|
+| `npm run dev` | Start Vite + NDJSON server (for demo without the API) |
+| `npm run dev:vite` | Vite only |
 | `npm run build` | Build static assets to `dist/` |
-| `npm run server` | Run only the API server (port 3001) |
-| `npm start` | Build and serve app + API (port 3001) |
+| `npm run server` | Run only the NDJSON server (port 3001) |
+| `npm start` | Build and serve app + NDJSON server (port 3001) |
 
-## What it shows
+## Design tokens
 
-- **Endpoint**: ID, OS, posture, last scan time (from events).
-- **Detected tools**: Tool name, class (A/B/C), confidence band (Low/Medium/High), policy decision (Detect / Warn / Approval Required / Block), and reason/summary from the canonical event schema.
-
-No auth; for local/demo use only.
+Colors are defined in `branding/tailwind-colors.js` and imported into `tailwind.config.cjs`. The dashboard uses IBM Plex Sans (body) and IBM Plex Mono (code/data). Dark theme throughout, with enforcement colors mapped to `detec-enforce-*` tokens.

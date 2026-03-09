@@ -133,11 +133,25 @@ def refresh_token(request: Request, body: RefreshRequest, db: Session = Depends(
 @router.get("/me", response_model=UserResponse)
 def get_me(
     authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ) -> UserResponse:
-    if not authorization or not authorization.startswith("Bearer "):
-        logger.warning("GET /auth/me called without Authorization header")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
-    token = authorization.removeprefix("Bearer ").strip()
-    user = _get_current_user(token, db)
-    return UserResponse.model_validate(user)
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.removeprefix("Bearer ").strip()
+        user = _get_current_user(token, db)
+        return UserResponse.model_validate(user)
+
+    if x_api_key:
+        from models.user import verify_api_key, API_KEY_PREFIX_LEN
+        prefix = x_api_key[:API_KEY_PREFIX_LEN]
+        candidates = (
+            db.query(User)
+            .filter(User.api_key_prefix == prefix, User.is_active.is_(True))
+            .all()
+        )
+        for user in candidates:
+            if user.api_key_hash and verify_api_key(x_api_key, user.api_key_hash):
+                return UserResponse.model_validate(user)
+
+    logger.warning("GET /auth/me called without valid credentials")
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")

@@ -26,8 +26,10 @@ python -m pytest tests/ -v
 ```bash
 cd dashboard
 npm install
-npm run dev          # starts Vite (port 5173) + API server (port 3001)
+npm run dev          # starts Vite (port 5173)
 ```
+
+The dashboard requires a running backend API for authentication and data. Log in with the seed admin credentials or register a new account. See [dashboard/README.md](dashboard/README.md) for architecture and auth details.
 
 ### Backend API (FastAPI)
 
@@ -53,7 +55,7 @@ OpenAPI docs: http://localhost:8000/docs
 ```
 agentic-governance/
 ├── collector/          Python endpoint collector (scanners, engine, schema)
-├── dashboard/          React/Vite frontend (local prototype)
+├── dashboard/          React/Vite SOC dashboard (auth, live data, Tailwind)
 ├── api/                FastAPI backend (PostgreSQL, JWT, multi-tenancy)
 ├── playbook/           Governance playbook (Markdown, versioned)
 ├── schemas/            Canonical event JSON Schema

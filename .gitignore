@@ -9,6 +9,7 @@ dashboard/dist/
 node_modules/
 .venv/
 *.egg-info/
+*.psd
 
 # Real collector config (may contain api_key)
 collector/config/collector.json

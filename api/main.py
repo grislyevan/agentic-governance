@@ -41,7 +41,7 @@ from models.audit import AuditLog
 from models.endpoint import Endpoint
 from models.event import Event
 from models.policy import Policy
-from routers import auth, endpoints, events, policies
+from routers import audit, auth, endpoints, events, policies
 
 logger = logging.getLogger("agentic_governance")
 
@@ -180,6 +180,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(audit.router)
 app.include_router(events.router)
 app.include_router(endpoints.router)
 app.include_router(policies.router)

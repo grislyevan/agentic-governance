@@ -2,8 +2,8 @@
 
 **Date:** March 7, 2026
 **Scope:** Comprehensive codebase review for issues, contradictions, and "AI slop"
-**Status:** M1 (Prototype) → M2 (Production API)
-**Last updated:** March 8, 2026 (post-Codex audit)
+**Status:** M2 (Production API + Dashboard)
+**Last updated:** March 8, 2026 (post-dashboard overhaul)
 
 ---
 
@@ -636,5 +636,7 @@ All critical and high-priority issues (1-9) have been resolved, plus seven addit
 - Resilient scan pipeline (scanner failures don't trigger false "cleared" events)
 - `run_scan()` decomposed into testable stages (collect, process, emit-cleared)
 - Collector importable both as `cd collector && python main.py` and `python -m collector.main`
+
+**Dashboard overhaul (March 8, 2026):** The dashboard was rebuilt from a static prototype into a functional SOC operator console. Changes include: JWT authentication (login/register, auto-refresh, user profile in TopBar), functional controls (search with debounce, refresh, notification bell, endpoint filter, time range picker), live data pages (Policies from API, Audit Log from API), keyboard accessibility and ARIA labels throughout, and backend extensions (GET /audit-log route, event filters on GET /events, API key support on GET /auth/me). Four bugs were fixed (pagination, confidence dot colors, enforcement color tokens, dead code). All hardcoded user profiles and non-functional UI elements were removed.
 
 **Remaining work:** Phase 3 (Issues 10-15) covers documentation cleanup and style consistency. These are non-blocking for M2 release.
