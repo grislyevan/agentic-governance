@@ -15,13 +15,21 @@ logger = logging.getLogger(__name__)
 class EventEmitter:
     """Validates and writes canonical events as newline-delimited JSON."""
 
+    _SAFE_EXTENSIONS = frozenset({".ndjson", ".jsonl", ".json", ".log"})
+
     def __init__(
         self,
         output_path: str = "./scan-results.ndjson",
         dry_run: bool = False,
         validator: EventValidator | None = None,
     ) -> None:
-        self._output_path = Path(output_path)
+        resolved = Path(output_path).resolve()
+        if resolved.suffix not in self._SAFE_EXTENSIONS:
+            raise ValueError(
+                f"Output path '{output_path}' has disallowed extension "
+                f"'{resolved.suffix}'. Allowed: {sorted(self._SAFE_EXTENSIONS)}"
+            )
+        self._output_path = resolved
         self._dry_run = dry_run
         self._validator = validator or EventValidator()
         self._emitted: int = 0

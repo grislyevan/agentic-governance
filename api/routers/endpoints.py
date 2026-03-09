@@ -7,8 +7,10 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -29,11 +31,15 @@ from schemas.endpoints import (
 
 logger = logging.getLogger(__name__)
 
+limiter = Limiter(key_func=get_remote_address)
+
 router = APIRouter(prefix="/endpoints", tags=["endpoints"])
 
 
 @router.post("", response_model=EndpointResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("30/minute")
 def create_endpoint(
+    request: Request,
     body: EndpointCreate,
     db: Session = Depends(get_db),
     authorization: str | None = Header(default=None),
@@ -130,7 +136,9 @@ class HeartbeatResponse(BaseModel):
 
 
 @router.post("/heartbeat", response_model=HeartbeatResponse, tags=["heartbeat"])
+@limiter.limit("60/minute")
 def heartbeat(
+    request: Request,
     body: HeartbeatRequest,
     db: Session = Depends(get_db),
     authorization: str | None = Header(default=None),
@@ -222,7 +230,9 @@ class EnrollResponse(BaseModel):
 
 
 @router.post("/enroll", response_model=EnrollResponse, status_code=status.HTTP_201_CREATED, tags=["enrollment"])
+@limiter.limit("10/minute")
 def enroll_endpoint(
+    request: Request,
     body: EnrollRequest,
     db: Session = Depends(get_db),
     authorization: str | None = Header(default=None),

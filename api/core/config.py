@@ -62,6 +62,18 @@ class Settings(BaseSettings):
                 "Running with default JWT_SECRET. This is fine for "
                 "local development but must be changed before deployment."
             )
+
+        if "*" in self.cors_origins:
+            if env in ("production", "staging"):
+                raise ValueError(
+                    "CORS_ORIGINS must not contain '*' in "
+                    f"{env}. Use an explicit allowlist of origins."
+                )
+            logger.warning(
+                "CORS_ORIGINS contains '*'. This is unsafe with "
+                "allow_credentials=True and must not be used in production."
+            )
+
         return self
 
 

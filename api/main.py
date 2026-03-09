@@ -20,6 +20,8 @@ import uuid
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -130,22 +132,40 @@ def _seed() -> None:
         )
         db.add(admin)
         db.commit()
-        print(f"[seed] Created tenant '{tenant.name}' and admin '{admin.email}'")
-        print(f"[seed] Admin API key (save this, it will not be shown again): {raw_key}")
-    except Exception as exc:
+        logger.info("Seed: created tenant '%s' and admin '%s'", tenant.name, admin.email)
+        key_hint = f"{raw_key[:8]}...{raw_key[-4:]}"
+        logger.info(
+            "Seed: admin API key starts with %s (full key written to /tmp/detec-seed-key.txt)",
+            key_hint,
+        )
+        try:
+            import stat
+            key_file = Path("/tmp/detec-seed-key.txt")
+            key_file.write_text(raw_key + "\n")
+            key_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
+        except OSError:
+            logger.warning("Could not write seed key file; printing to stdout as fallback")
+            print(f"[seed] Admin API key: {raw_key}")
+    except Exception:
         db.rollback()
-        print(f"[seed] Seed skipped: {exc}")
+        logger.warning("Seed skipped (set DEBUG=true for details)")
+        logger.debug("Seed error details", exc_info=True)
     finally:
         db.close()
 
 
 limiter = Limiter(key_func=get_remote_address)
 
+_docs_kwargs: dict[str, Any] = {}
+if not settings.debug:
+    _docs_kwargs = {"docs_url": None, "redoc_url": None, "openapi_url": None}
+
 app = FastAPI(
     title="Agentic Governance API",
     description="Endpoint telemetry and policy engine for agentic AI tool governance",
     version="0.1.0",
     lifespan=lifespan,
+    **_docs_kwargs,
 )
 
 app.state.limiter = limiter

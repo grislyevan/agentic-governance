@@ -1,0 +1,7 @@
+# Pinned dependency versions for reproducible builds.
+# Generated from requirements.txt — update by running:
+#   pip install -r requirements.txt && pip freeze > requirements.lock
+jsonschema==4.26.0
+watchdog==6.0.0
+psutil==7.0.0
+cryptography==46.0.5

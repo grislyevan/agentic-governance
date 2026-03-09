@@ -3,10 +3,21 @@ __pycache__/
 .DS_Store
 *.ndjson
 .env
+.env.local
+.env.*.local
 dashboard/dist/
 node_modules/
 .venv/
 *.egg-info/
+
+# Real collector config (may contain api_key)
+collector/config/collector.json
+
+# Credential and key file patterns
+*.pem
+*.key
+*.p12
+*.pfx
 
 # Agency-agents Cursor rules (generic, not project-specific)
 .cursor/rules/*.mdc

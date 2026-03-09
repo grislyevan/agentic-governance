@@ -5,8 +5,10 @@ from __future__ import annotations
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -15,6 +17,8 @@ from core.tenant import get_tenant_id as _get_tenant_id
 from models.policy import Policy
 
 logger = logging.getLogger(__name__)
+
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/policies", tags=["policies"])
 
@@ -63,7 +67,9 @@ def list_policies(
 
 
 @router.post("", response_model=PolicyResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("20/minute")
 def create_policy(
+    request: Request,
     body: PolicyCreate,
     db: Session = Depends(get_db),
     authorization: str | None = Header(default=None),
@@ -85,7 +91,9 @@ def create_policy(
 
 
 @router.patch("/{policy_id}", response_model=PolicyResponse)
+@limiter.limit("20/minute")
 def update_policy(
+    request: Request,
     policy_id: str,
     body: PolicyCreate,
     db: Session = Depends(get_db),

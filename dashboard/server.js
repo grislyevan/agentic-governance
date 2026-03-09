@@ -37,10 +37,13 @@ const server = http.createServer((req, res) => {
 
   if (url.pathname === '/api/events') {
     const resolved = path.resolve(__dirname, NDJSON_PATH);
+    if (!resolved.endsWith('.ndjson') && !resolved.endsWith('.jsonl')) {
+      return send(res, 403, 'NDJSON_PATH must point to a .ndjson or .jsonl file');
+    }
     fs.readFile(resolved, 'utf8', (err, data) => {
       if (err) {
         if (err.code === 'ENOENT') return send(res, 404, 'NDJSON file not found. Set NDJSON_PATH or run the collector first.');
-        return send(res, 500, err.message);
+        return send(res, 500, 'Internal server error');
       }
       send(res, 200, data, 'application/x-ndjson');
     });

@@ -9,7 +9,9 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import desc, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -21,6 +23,8 @@ from models.event import Event
 from schemas.events import EventIngest, EventListResponse, EventResponse
 
 logger = logging.getLogger(__name__)
+
+limiter = Limiter(key_func=get_remote_address)
 
 try:
     from cryptography.hazmat.primitives.serialization import load_pem_public_key
@@ -97,7 +101,9 @@ def _verify_signature(body: EventIngest, db: Session, tenant_id: str) -> bool | 
 
 
 @router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("120/minute")
 def ingest_event(
+    request: Request,
     body: EventIngest,
     db: Session = Depends(get_db),
     authorization: str | None = Header(default=None),

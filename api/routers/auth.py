@@ -59,7 +59,7 @@ def _slugify(name: str) -> str:
 def register(request: Request, body: RegisterRequest, db: Session = Depends(get_db)) -> RegisterResponse:
     existing = db.query(User).filter(User.email == body.email).first()
     if existing:
-        logger.warning("Registration attempt with existing email %s", body.email)
+        logger.warning("Registration attempt with existing email (domain: %s)", body.email.split("@")[-1] if "@" in body.email else "unknown")
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
     tenant_name = (body.tenant_name or body.email.split("@")[0]).strip() or "My Org"
@@ -98,7 +98,8 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
 def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
     user = db.query(User).filter(User.email == body.email).first()
     if not user or not verify_password(body.password, user.hashed_password):
-        logger.warning("Failed login attempt for %s", body.email)
+        masked = body.email.split("@")[0][:2] + "***@" + body.email.split("@")[-1] if "@" in body.email else "***"
+        logger.warning("Failed login attempt for %s", masked)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if not user.is_active:
         logger.warning("Login attempt for disabled account %s", body.email)
