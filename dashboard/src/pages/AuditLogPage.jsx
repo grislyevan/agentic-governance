@@ -77,11 +77,11 @@ export default function AuditLogPage() {
                   <td className="px-4 py-3 text-sm text-detec-slate-200 font-medium">{log.action}</td>
                   <td className="px-4 py-3 text-sm text-detec-slate-400">
                     <span className="font-mono text-xs">{log.actor_type}</span>
-                    {log.actor_id && <span className="text-detec-slate-600 ml-1">{log.actor_id.slice(0, 8)}</span>}
+                    {log.actor_id ? <span className="text-detec-slate-600 ml-1">{log.actor_id.slice(0, 8)}</span> : null}
                   </td>
                   <td className="px-4 py-3 text-sm text-detec-slate-400">
-                    {log.resource_type && <span className="font-mono text-xs">{log.resource_type}</span>}
-                    {log.resource_id && <span className="text-detec-slate-600 ml-1">{log.resource_id.slice(0, 8)}</span>}
+                    {log.resource_type ? <span className="font-mono text-xs">{log.resource_type}</span> : null}
+                    {log.resource_id ? <span className="text-detec-slate-600 ml-1">{log.resource_id.slice(0, 8)}</span> : null}
                   </td>
                   <td className="px-4 py-3 text-sm text-detec-slate-500 max-w-xs truncate">
                     {typeof log.detail === 'object' ? JSON.stringify(log.detail) : String(log.detail || '')}

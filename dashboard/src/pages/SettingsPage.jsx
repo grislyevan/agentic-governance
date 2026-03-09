@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { getApiConfig, setApiConfig } from '../lib/api';
 
 export default function SettingsPage() {
@@ -6,11 +6,17 @@ export default function SettingsPage() {
   const [apiUrl, setApiUrl] = useState(config.apiUrl);
   const [apiKey, setApiKey] = useState(config.apiKey);
   const [saved, setSaved] = useState(false);
+  const savedTimer = useRef(null);
+
+  useEffect(() => {
+    return () => { if (savedTimer.current) clearTimeout(savedTimer.current); };
+  }, []);
 
   const handleSave = () => {
     setApiConfig({ apiUrl, apiKey });
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    if (savedTimer.current) clearTimeout(savedTimer.current);
+    savedTimer.current = setTimeout(() => setSaved(false), 2000);
   };
 
   return (
@@ -59,7 +65,12 @@ export default function SettingsPage() {
               Save
             </button>
             {saved && (
-              <span className="text-sm text-detec-teal-500">Saved</span>
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-detec-teal-500 detec-toast-enter">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12" className="detec-checkmark" />
+                </svg>
+                Saved
+              </span>
             )}
           </div>
         </div>

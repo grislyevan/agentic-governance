@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { severityLabel } from '../../parseNdjson';
+import CopyToast, { useCopyToast } from './CopyToast';
 
 const CONFIDENCE_COLORS = {
   High: '#14b8a6',
@@ -57,8 +58,10 @@ export default function ToolRow({ tool }) {
     }
   }, [menuOpen]);
 
+  const { copied, copy } = useCopyToast();
+
   const handleCopyName = () => {
-    navigator.clipboard?.writeText(tool.name);
+    copy(tool.name);
     setMenuOpen(false);
   };
 
@@ -71,7 +74,7 @@ export default function ToolRow({ tool }) {
       tool.severity_level ? `Severity: ${tool.severity_level}` : null,
       tool.observed_at ? `Observed: ${new Date(tool.observed_at).toLocaleString()}` : null,
     ].filter(Boolean).join('\n');
-    navigator.clipboard?.writeText(details);
+    copy(details);
     setMenuOpen(false);
   };
 
@@ -102,7 +105,10 @@ export default function ToolRow({ tool }) {
               {icon}
             </span>
             <div>
-              <div className="text-sm font-medium text-detec-slate-200">{tool.name}</div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-detec-slate-200">{tool.name}</span>
+                {copied && <CopyToast />}
+              </div>
               {tool.version && (
                 <div className="text-xs text-detec-slate-500 font-mono">{tool.version}</div>
               )}
@@ -135,7 +141,7 @@ export default function ToolRow({ tool }) {
 
         <td className="px-4 py-3">
           <div className="text-sm text-detec-slate-400">
-            {tool.summary || (tool.reason_codes?.length ? tool.reason_codes[0] : '—')}
+            {tool.summary || (tool.reason_codes?.length ? tool.reason_codes[0] : 'N/A')}
           </div>
           {tool.observed_at && (
             <div className="text-xs text-detec-slate-500">

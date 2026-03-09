@@ -22,7 +22,7 @@ export function parseNdjson(raw) {
 
 /** Confidence band from 0–1 score — thresholds from Playbook Section 6.2 */
 export function confidenceBand(score) {
-  if (score == null || typeof score !== 'number') return '—';
+  if (score == null || typeof score !== 'number') return 'N/A';
   if (score >= 0.75) return 'High';
   if (score >= 0.45) return 'Medium';
   return 'Low';
@@ -36,13 +36,13 @@ export function policyLabel(decision) {
     approval_required: 'Approval Required',
     block: 'Block',
   };
-  return labels[decision] ?? decision ?? '—';
+  return labels[decision] ?? decision ?? 'N/A';
 }
 
 /** Severity label from S0–S4 */
 export function severityLabel(level) {
   const labels = { S0: 'Info', S1: 'Low', S2: 'Medium', S3: 'High', S4: 'Critical' };
-  return labels[level] ?? level ?? '—';
+  return labels[level] ?? level ?? 'N/A';
 }
 
 /**
@@ -101,7 +101,7 @@ export function buildEndpointSummary(events) {
 
     return {
       name: base?.tool?.name ?? 'Unknown',
-      class: base?.tool?.class ?? '—',
+      class: base?.tool?.class ?? 'N/A',
       version: base?.tool?.version ?? null,
       attribution_confidence: confidence,
       confidenceBand: confidenceBand(confidence),

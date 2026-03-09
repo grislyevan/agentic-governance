@@ -1,4 +1,4 @@
-const STORAGE_KEYS = {
+export const STORAGE_KEYS = {
   accessToken: 'detec_access_token',
   refreshToken: 'detec_refresh_token',
   apiUrl: 'detec_api_url',

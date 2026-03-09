@@ -1,7 +1,4 @@
-import { getStoredTokens } from './auth';
-
-const STORAGE_KEY_API_URL = 'detec_api_url';
-const STORAGE_KEY_API_KEY = 'detec_api_key';
+import { getStoredTokens, STORAGE_KEYS } from './auth';
 
 function getStored(key, fallback) {
   try {
@@ -13,15 +10,15 @@ function getStored(key, fallback) {
 
 export function getApiConfig() {
   return {
-    apiUrl: getStored(STORAGE_KEY_API_URL, 'http://localhost:8000'),
-    apiKey: getStored(STORAGE_KEY_API_KEY, ''),
+    apiUrl: getStored(STORAGE_KEYS.apiUrl, 'http://localhost:8000'),
+    apiKey: getStored(STORAGE_KEYS.apiKey, ''),
   };
 }
 
 export function setApiConfig({ apiUrl, apiKey }) {
   try {
-    if (apiUrl !== undefined) localStorage.setItem(STORAGE_KEY_API_URL, apiUrl);
-    if (apiKey !== undefined) localStorage.setItem(STORAGE_KEY_API_KEY, apiKey);
+    if (apiUrl !== undefined) localStorage.setItem(STORAGE_KEYS.apiUrl, apiUrl);
+    if (apiKey !== undefined) localStorage.setItem(STORAGE_KEYS.apiKey, apiKey);
   } catch {
     // localStorage unavailable
   }

@@ -36,9 +36,9 @@ class PolicyResponse(BaseModel):
 
 
 class PolicyCreate(BaseModel):
-    rule_id: str
-    rule_version: str = "0.1.0"
-    description: str | None = None
+    rule_id: str = Field(max_length=128)
+    rule_version: str = Field(default="0.1.0", max_length=32)
+    description: str | None = Field(default=None, max_length=512)
     parameters: dict = Field(default_factory=dict)
 
 

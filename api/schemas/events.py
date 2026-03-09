@@ -9,14 +9,14 @@ from pydantic import BaseModel, Field
 
 
 class EventIngest(BaseModel):
-    """Payload for POST /events — accepts the canonical event envelope."""
-    event_id: str
-    event_type: str
-    event_version: str
+    """Payload for POST /events: accepts the canonical event envelope."""
+    event_id: str = Field(max_length=36)
+    event_type: str = Field(max_length=64)
+    event_version: str = Field(max_length=16)
     observed_at: datetime
-    session_id: str | None = None
-    trace_id: str | None = None
-    parent_event_id: str | None = None
+    session_id: str | None = Field(default=None, max_length=36)
+    trace_id: str | None = Field(default=None, max_length=64)
+    parent_event_id: str | None = Field(default=None, max_length=36)
     tool: dict[str, Any] | None = None
     action: dict[str, Any] | None = None
     target: dict[str, Any] | None = None

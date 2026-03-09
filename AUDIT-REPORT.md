@@ -397,3 +397,27 @@ Four parallel audit workstreams analyzed every file in the codebase:
 4. **Infrastructure Audit**: Docker, CI/CD, env configs, deploy templates, documentation
 
 Each finding was verified by reading source code and graded by exploitability, impact, and likelihood.
+
+---
+
+## Remediation Status
+
+| ID | Severity | Status | Commit |
+|----|----------|--------|--------|
+| C-1 | Critical | Fixed | `8399f73` (docker-compose env_file, .env.example) |
+| C-2 | Critical | Fixed | `8399f73` (fcntl.flock advisory locking, atomic trim) |
+| C-3 | Critical | Fixed | `8399f73` (_normalize_pid for string PIDs) |
+| C-4 | Critical | Fixed | `8399f73` (audit_logger.record, auth/policy/endpoint logging) |
+| C-5 | Critical | Fixed | `8399f73` (require_role in policies, endpoints, audit) |
+| H-2 | High | Fixed | `4856464` (python-jose >= 3.4.0) |
+| H-4 | High | Fixed | `4856464` (seed key logged to stdout only) |
+| H-5 | High | Fixed | `4856464` (React ErrorBoundary) |
+| H-11 | High | Fixed | `4856464` (ssl.create_default_context in HttpEmitter) |
+| H-12 | High | Fixed | `4856464` (docker-compose.override.yml renamed to .dev.yml) |
+| H-15 | High | Fixed | `4856464` (refresh mutex in useAuth) |
+| H-16 | High | Fixed | `4856464` (unsigned event rejection for enrolled endpoints) |
+| M-1/M-2/M-5 | Medium | Fixed | (Field max_length on schemas) |
+| M-8 | Medium | Fixed | (STORAGE_KEYS centralized in auth.js) |
+| M-17 | Medium | Fixed | (em dashes replaced in all dashboard files) |
+| M-18 | Medium | Fixed | (Pagination "totals" pluralization) |
+| Bugs | Medium | Fixed | (AuditLogPage null guard, SettingsPage timeout leak) |

@@ -7,7 +7,7 @@ export default function Pagination({ page, pageSize, total, onPageChange, onPage
     <div className="flex items-center justify-between text-sm">
       {/* Left: total count */}
       <div className="text-detec-slate-500">
-        Tool Scanners <span className="text-detec-slate-400 font-medium">{total} total{total !== 1 ? 's' : ''}</span>
+        Tool Scanners <span className="text-detec-slate-400 font-medium">{total} total</span>
       </div>
 
       {/* Center: page numbers */}

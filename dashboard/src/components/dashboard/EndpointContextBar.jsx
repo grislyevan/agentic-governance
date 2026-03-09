@@ -4,13 +4,13 @@ export default function EndpointContextBar({ endpointCount, endpoints, endpointS
   const multipleEndpoints = endpoints?.length > 1;
   const firstEp = endpoints?.[0];
 
-  const hostname = multipleEndpoints ? 'Multiple' : (firstEp?.hostname || '—');
-  const os = multipleEndpoints ? 'Various' : (firstEp?.os_info || '—');
+  const hostname = multipleEndpoints ? 'Multiple' : (firstEp?.hostname || 'N/A');
+  const os = multipleEndpoints ? 'Various' : (firstEp?.os_info || 'N/A');
   const posture = multipleEndpoints ? null : (firstEp?.posture || 'unmanaged');
 
   const lastSeen = firstEp?.last_seen_at
     ? timeSince(new Date(firstEp.last_seen_at))
-    : '—';
+    : 'N/A';
 
   const config = getApiConfig();
   const apiKeyDisplay = config.apiKey

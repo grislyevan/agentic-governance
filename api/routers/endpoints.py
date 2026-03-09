@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import func
@@ -125,8 +125,8 @@ def endpoint_status(
 
 
 class HeartbeatRequest(BaseModel):
-    hostname: str
-    interval_seconds: int = settings.default_heartbeat_interval
+    hostname: str = Field(max_length=255)
+    interval_seconds: int = Field(default=settings.default_heartbeat_interval, ge=30, le=86400)
 
 
 class HeartbeatResponse(BaseModel):
@@ -220,8 +220,8 @@ def get_endpoint(
 # ---------------------------------------------------------------------------
 
 class EnrollRequest(BaseModel):
-    hostname: str
-    public_key_pem: str
+    hostname: str = Field(max_length=255)
+    public_key_pem: str = Field(max_length=2048)
 
 
 class EnrollResponse(BaseModel):
