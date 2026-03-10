@@ -169,14 +169,12 @@ def _seed() -> None:
         from models.tenant import generate_agent_key
 
         slug = settings.seed_tenant_name.lower().replace(" ", "-")[:64]
-        raw_agent_key, agent_prefix, agent_hash = generate_agent_key()
+        agent_key = generate_agent_key()
         tenant = Tenant(
             id=str(uuid.uuid4()),
             name=settings.seed_tenant_name,
             slug=slug,
-            agent_key=raw_agent_key,
-            agent_key_prefix=agent_prefix,
-            agent_key_hash=agent_hash,
+            agent_key=agent_key,
         )
         db.add(tenant)
         db.flush()
@@ -203,11 +201,11 @@ def _seed() -> None:
             )
             logger.info(
                 "[seed] Tenant agent key prefix: %s...",
-                raw_agent_key[:8],
+                agent_key[:8],
             )
             cred_path = Path("seed-credentials.txt")
             cred_path.write_text(
-                f"admin_api_key={raw_key}\nagent_key={raw_agent_key}\n",
+                f"admin_api_key={raw_key}\nagent_key={agent_key}\n",
                 encoding="utf-8",
             )
             cred_path.chmod(0o600)
@@ -218,7 +216,7 @@ def _seed() -> None:
             )
             logger.info(
                 "[seed] Tenant agent key (used in agent packages): %s",
-                raw_agent_key,
+                agent_key,
             )
     except Exception:
         db.rollback()

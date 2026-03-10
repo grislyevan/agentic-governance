@@ -65,25 +65,12 @@ def _find_package(platform: str) -> Path | None:
 
 
 def _ensure_agent_key(tenant: Tenant, db: Session) -> str:
-    """Return the tenant's agent key for embedding in packages.
-
-    Generates a new key if the tenant lacks one. Stores both plaintext
-    (for package embedding) and hash + prefix (for secure auth lookup).
-    """
+    """Return the tenant's agent key, generating one if it doesn't exist yet."""
     if not tenant.agent_key:
-        raw_key, prefix, key_hash = generate_agent_key()
-        tenant.agent_key = raw_key
-        tenant.agent_key_prefix = prefix
-        tenant.agent_key_hash = key_hash
+        tenant.agent_key = generate_agent_key()
         db.commit()
         db.refresh(tenant)
         logger.info("Generated agent key for tenant %s (%s)", tenant.name, tenant.id)
-    elif not tenant.agent_key_hash:
-        from models.tenant import _hash_agent_key, AGENT_KEY_PREFIX_LEN
-        tenant.agent_key_prefix = tenant.agent_key[:AGENT_KEY_PREFIX_LEN]
-        tenant.agent_key_hash = _hash_agent_key(tenant.agent_key)
-        db.commit()
-        db.refresh(tenant)
     return tenant.agent_key
 
 
@@ -469,15 +456,13 @@ def get_agent_key(
     require_role(auth, "owner", "admin")
 
     tenant = db.query(Tenant).filter(Tenant.id == auth.tenant_id).first()
-    has_key = bool(tenant and (tenant.agent_key_hash or tenant.agent_key))
-    prefix = ""
-    if tenant:
-        if tenant.agent_key_prefix:
-            prefix = tenant.agent_key_prefix
-        elif tenant.agent_key:
-            prefix = tenant.agent_key[:8]
+    if not tenant or not tenant.agent_key:
+        return AgentKeyResponse(key_prefix="", has_key=False)
 
-    return AgentKeyResponse(key_prefix=prefix, has_key=has_key)
+    return AgentKeyResponse(
+        key_prefix=tenant.agent_key[:8],
+        has_key=True,
+    )
 
 
 @router.post("/key/rotate", response_model=AgentKeyRotateResponse)
@@ -495,10 +480,7 @@ def rotate_agent_key(
     if not tenant:
         raise HTTPException(status_code=500, detail="Tenant not found")
 
-    raw_key, prefix, key_hash = generate_agent_key()
-    tenant.agent_key = raw_key
-    tenant.agent_key_prefix = prefix
-    tenant.agent_key_hash = key_hash
+    tenant.agent_key = generate_agent_key()
 
     from core.audit_logger import record as audit_record
     audit_record(
@@ -508,13 +490,13 @@ def rotate_agent_key(
         action="agent.key_rotated",
         resource_type="tenant",
         resource_id=tenant.id,
-        detail={"new_key_prefix": prefix},
+        detail={"new_key_prefix": tenant.agent_key[:8]},
         ip_address=request.client.host if request.client else None,
     )
     db.commit()
     db.refresh(tenant)
 
     return AgentKeyRotateResponse(
-        agent_key=raw_key,
+        agent_key=tenant.agent_key,
         message="Agent key rotated. Existing agents using the old key will need to be reconfigured.",
     )

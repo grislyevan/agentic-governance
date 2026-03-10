@@ -61,26 +61,11 @@ def resolve_auth(authorization: str | None, x_api_key: str | None, db: Session) 
                     role=user.role,
                 )
 
-        from models.tenant import Tenant, AGENT_KEY_PREFIX_LEN, verify_agent_key
-        agent_prefix = x_api_key[:AGENT_KEY_PREFIX_LEN]
-        tenant_candidates = (
-            db.query(Tenant)
-            .filter(Tenant.agent_key_prefix == agent_prefix)
-            .all()
-        )
-        for tenant in tenant_candidates:
-            if tenant.agent_key_hash and verify_agent_key(x_api_key, tenant.agent_key_hash):
-                return AuthContext(
-                    tenant_id=tenant.id,
-                    user_id=None,
-                    role=AGENT_ROLE,
-                )
-        # Backwards compatibility: check plaintext agent_key for tenants
-        # created before the hashing migration
-        legacy_tenant = db.query(Tenant).filter(Tenant.agent_key == x_api_key).first()
-        if legacy_tenant:
+        from models.tenant import Tenant
+        tenant = db.query(Tenant).filter(Tenant.agent_key == x_api_key).first()
+        if tenant:
             return AuthContext(
-                tenant_id=legacy_tenant.id,
+                tenant_id=tenant.id,
                 user_id=None,
                 role=AGENT_ROLE,
             )
