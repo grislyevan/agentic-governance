@@ -16,14 +16,13 @@ State is persisted to ~/.agentic-gov/state.json so it survives restarts.
 
 from __future__ import annotations
 
-import fcntl
 import json
 import logging
-import os
-from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
+
+from agent._filelock import file_lock
 
 logger = logging.getLogger(__name__)
 
@@ -78,15 +77,8 @@ class StateDiffer:
         self._lock_path = self._path.with_suffix(".lock")
         self._states: dict[str, ToolState] = self._load()
 
-    @contextmanager
-    def _lock(self) -> Iterator[None]:
-        fd = os.open(str(self._lock_path), os.O_CREAT | os.O_RDWR, 0o600)
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX)
-            yield
-        finally:
-            fcntl.flock(fd, fcntl.LOCK_UN)
-            os.close(fd)
+    def _lock(self):
+        return file_lock(str(self._lock_path))
 
     # ------------------------------------------------------------------
     # Public interface

@@ -37,7 +37,7 @@ if _COLLECTOR_DIR not in sys.path:
 from config_loader import argparse_defaults
 from engine.confidence import classify_confidence, compute_confidence
 from engine.container import is_containerized as check_containerized
-from engine.policy import PolicyDecision, evaluate_policy
+from engine.policy import NetworkContext, PolicyDecision, evaluate_policy
 from enforcement.enforcer import Enforcer, EnforcementResult
 from output.emitter import EventEmitter
 from output.http_emitter import HttpEmitter
@@ -92,6 +92,70 @@ def _extract_pids(scan: ScanResult) -> set[int]:
         if pid is not None:
             pids.add(pid)
     return pids
+
+
+def _load_network_allowlist(path: str | None) -> set[str]:
+    """Load allowed destination hostnames/IPs from a newline-delimited file.
+
+    Returns an empty set when path is None or the file is missing, which
+    disables network policy evaluation (net_ctx stays None).
+    """
+    if not path:
+        return set()
+    p = Path(path)
+    if not p.is_file():
+        logger.warning("Network allowlist file not found: %s", p)
+        return set()
+    try:
+        entries = set()
+        for line in p.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                entries.add(line.lower())
+        logger.debug("Loaded %d entries from network allowlist %s", len(entries), p)
+        return entries
+    except OSError as exc:
+        logger.warning("Could not read network allowlist %s: %s", p, exc)
+        return set()
+
+
+def _build_network_context(
+    scan: ScanResult,
+    allowlist: set[str],
+) -> NetworkContext | None:
+    """Build a NetworkContext from scan evidence and the allowlist.
+
+    Returns None when the allowlist is empty (opt-in: no allowlist means
+    network policy rules are skipped, preserving default behavior).
+    """
+    if not allowlist:
+        return None
+
+    connections = scan.evidence_details.get("connections", [])
+    if not connections:
+        return None
+
+    total = len(connections)
+    unknown_dests: list[str] = []
+    for conn in connections:
+        dest = conn.get("remote_address") or conn.get("dest") or ""
+        if isinstance(dest, str) and dest:
+            host = dest.split(":")[0].lower()
+            if host and host not in allowlist:
+                unknown_dests.append(dest)
+
+    if not unknown_dests:
+        return NetworkContext(
+            unknown_connections=0,
+            unknown_destinations=[],
+            total_connections=total,
+        )
+
+    return NetworkContext(
+        unknown_connections=len(unknown_dests),
+        unknown_destinations=unknown_dests[:10],
+        total_connections=total,
+    )
 
 
 def build_event(
@@ -260,6 +324,7 @@ def _process_detection(
     emitter: AnyEmitter,
     enforcer: Enforcer | None,
     state_differ: StateDiffer | None,
+    network_allowlist: set[str] | None = None,
     verbose: bool,
 ) -> int:
     """Score, evaluate policy, enforce, and emit events for one detection.
@@ -274,6 +339,8 @@ def _process_detection(
     pids = _extract_pids(scan)
     containerized = check_containerized(next(iter(pids))) if pids else None
 
+    net_ctx = _build_network_context(scan, network_allowlist or set())
+
     policy_decision = evaluate_policy(
         confidence=confidence,
         confidence_class=conf_class,
@@ -281,6 +348,7 @@ def _process_detection(
         sensitivity=sensitivity,
         action_risk=scan.action_risk,
         is_containerized=containerized,
+        net_ctx=net_ctx,
     )
 
     if state_differ is not None:
@@ -466,9 +534,15 @@ def run_scan(
     if getattr(args, "enforce", False):
         enforcer = Enforcer(dry_run=args.dry_run)
 
+    network_allowlist = _load_network_allowlist(
+        getattr(args, "network_allowlist_path", None)
+    )
+
     if args.verbose:
         print(f"Collector session: {session_id}")
         print(f"Endpoint: {endpoint_id}  Actor: {actor_id}  Sensitivity: {sensitivity}")
+        if network_allowlist:
+            print(f"Network allowlist: {len(network_allowlist)} entries")
         print("-" * 60)
 
     scanners = [
@@ -503,6 +577,7 @@ def run_scan(
             emitter=emitter,
             enforcer=enforcer,
             state_differ=state_differ,
+            network_allowlist=network_allowlist or None,
             verbose=args.verbose,
         )
 

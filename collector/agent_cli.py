@@ -94,22 +94,17 @@ def cmd_setup(args: argparse.Namespace) -> None:
 
 def cmd_scan(args: argparse.Namespace) -> None:
     """Run a single scan and print results."""
+    from config_loader import load_collector_config
     from main import run_scan
 
-    class ScanArgs:
-        dry_run = True
-        verbose = args.verbose
-        interval = 0
-        output = "ndjson"
-        endpoint_id = None
-        actor_id = None
-        sensitivity = "Tier0"
-        api_url = None
-        api_key = None
-        report_all = True
-        enforce = False
+    cfg = load_collector_config()
+    cfg["dry_run"] = True
+    cfg["verbose"] = args.verbose
+    cfg["interval"] = 0
+    cfg["report_all"] = True
+    cfg["enforce"] = False
 
-    sys.exit(run_scan(ScanArgs()))
+    sys.exit(run_scan(argparse.Namespace(**cfg)))
 
 
 # -------------------------------------------------------------------
@@ -120,20 +115,39 @@ def cmd_run(args: argparse.Namespace) -> None:
     """Run the agent daemon in the foreground."""
     _load_env()
 
-    from main import main as collector_main
+    from config_loader import load_collector_config
+    from main import _run_daemon
 
-    protocol = getattr(args, "protocol", "http")
-    sys.argv = [
-        "detec-agent",
-        "--interval", str(args.interval),
-        "--api-url", args.api_url,
-        "--api-key", args.api_key,
-        "--protocol", protocol,
-    ]
-    if args.verbose:
-        sys.argv.append("--verbose")
+    cfg = load_collector_config()
 
-    collector_main()
+    if args.api_url:
+        cfg["api_url"] = args.api_url
+    if args.api_key:
+        cfg["api_key"] = args.api_key
+    cfg["interval"] = args.interval
+    cfg["protocol"] = getattr(args, "protocol", cfg.get("protocol", "http"))
+    cfg["verbose"] = args.verbose
+    cfg["report_all"] = getattr(args, "report_all", cfg.get("report_all", False))
+    cfg["enforce"] = getattr(args, "enforce", False)
+
+    ns = argparse.Namespace(**cfg)
+
+    if not ns.api_url or not ns.api_key:
+        print(
+            "Error: api_url and api_key are required. "
+            "Run 'detec-agent setup' first, or pass --api-url and --api-key.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if ns.interval <= 0:
+        ns.interval = 300
+
+    logging.basicConfig(
+        level=logging.DEBUG if ns.verbose else logging.WARNING,
+        format="%(levelname)s %(name)s: %(message)s",
+    )
+
+    _run_daemon(ns)
 
 
 # -------------------------------------------------------------------
@@ -260,7 +274,24 @@ def _require_pywin32() -> None:
 # Argument parser
 # -------------------------------------------------------------------
 
+_LEGACY_FLAGS = {
+    "--output", "--endpoint-id", "--actor-id", "--sensitivity",
+    "--dry-run", "--verbose", "--interval", "--api-url", "--api-key",
+    "--report-all", "--enforce", "--protocol", "--gateway-host",
+    "--gateway-port",
+}
+
+
 def main() -> None:
+    # Backward compatibility: if invoked with legacy flat flags (no
+    # subcommand), delegate to the flat-flag parser in main.py so
+    # existing LaunchAgents, systemd units, and scripts keep working.
+    if len(sys.argv) > 1 and sys.argv[1].startswith("--"):
+        if sys.argv[1].split("=")[0] in _LEGACY_FLAGS:
+            from main import main as legacy_main
+            legacy_main()
+            return
+
     parser = argparse.ArgumentParser(
         prog="detec-agent",
         description="Detec Agent: endpoint telemetry collector for agentic AI tools",
@@ -272,7 +303,7 @@ def main() -> None:
     p_setup.add_argument("--api-url", required=True, help="Central server API URL, e.g. http://server:8000/api")
     p_setup.add_argument("--api-key", required=True, help="API key for authentication")
     p_setup.add_argument("--interval", type=int, default=300, help="Scan interval in seconds (default: 300)")
-    p_setup.add_argument("--protocol", choices=["http", "tcp"], default="tcp", help="Transport protocol (default: tcp)")
+    p_setup.add_argument("--protocol", choices=["http", "tcp"], default="http", help="Transport protocol (default: http)")
     p_setup.add_argument("--gateway-port", dest="gateway_port", type=int, default=8001, help="Gateway port for TCP protocol (default: 8001)")
     p_setup.add_argument("--force", action="store_true", help="Overwrite existing config")
     p_setup.set_defaults(func=cmd_setup)
@@ -287,7 +318,9 @@ def main() -> None:
     p_run.add_argument("--api-url", help="Central server API URL")
     p_run.add_argument("--api-key", help="API key for authentication")
     p_run.add_argument("--interval", type=int, default=300, help="Scan interval in seconds (default: 300)")
-    p_run.add_argument("--protocol", choices=["http", "tcp"], default="tcp", help="Transport protocol (default: tcp)")
+    p_run.add_argument("--protocol", choices=["http", "tcp"], default="http", help="Transport protocol (default: http)")
+    p_run.add_argument("--report-all", action="store_true", default=False, help="Report all detections every cycle (default: changes only)")
+    p_run.add_argument("--enforce", action="store_true", default=False, help="Execute enforcement actions for block decisions")
     p_run.add_argument("--verbose", action="store_true", help="Show detailed scan output")
     p_run.set_defaults(func=cmd_run)
 

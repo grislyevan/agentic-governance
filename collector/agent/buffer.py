@@ -13,14 +13,14 @@ concurrently (e.g. heartbeat thread + scan thread in daemon mode).
 
 from __future__ import annotations
 
-import fcntl
 import json
 import logging
 import os
 import tempfile
-from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
+
+from agent._filelock import file_lock
 
 logger = logging.getLogger(__name__)
 
@@ -37,16 +37,9 @@ class LocalBuffer:
         self._path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         self._lock_path = self._path.with_suffix(".lock")
 
-    @contextmanager
-    def _lock(self) -> Iterator[None]:
+    def _lock(self):
         """Acquire an advisory file lock for the buffer."""
-        fd = os.open(str(self._lock_path), os.O_CREAT | os.O_RDWR, 0o600)
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX)
-            yield
-        finally:
-            fcntl.flock(fd, fcntl.LOCK_UN)
-            os.close(fd)
+        return file_lock(str(self._lock_path))
 
     # ------------------------------------------------------------------
     # Write

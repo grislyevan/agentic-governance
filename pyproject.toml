@@ -23,7 +23,7 @@ gui = [
 ]
 
 [project.scripts]
-detec-agent = "collector.main:main"
+detec-agent = "collector.agent_cli:main"
 
 [project.gui-scripts]
 detec-agent-gui = "collector.gui.menubar:main"
