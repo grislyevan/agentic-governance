@@ -276,3 +276,30 @@ begin
     Btn.OnClick := @OpenDashboard;
   end;
 end;
+
+{ After uninstall, offer to remove the data directory (database, config, logs). }
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  DataDir: string;
+begin
+  if CurUninstallStep = usPostUninstall then
+  begin
+    DataDir := ExpandConstant('{sd}\ProgramData\Detec');
+    if DirExists(DataDir) then
+    begin
+      if MsgBox(
+        'Do you also want to remove the Detec data directory?' + #13#10 +
+        #13#10 +
+        'This will permanently delete:' + #13#10 +
+        '  - Database (detec.db)' + #13#10 +
+        '  - Configuration (server.env)' + #13#10 +
+        '  - Server logs (server.log)' + #13#10 +
+        #13#10 +
+        'Location: ' + DataDir,
+        mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+      begin
+        DelTree(DataDir, True, True, True);
+      end;
+    end;
+  end;
+end;
