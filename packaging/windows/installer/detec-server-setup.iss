@@ -221,10 +221,10 @@ begin
     PreflightMemo.Lines[PreflightMemo.Lines.Count - 1] :=
       '  [PASS]  No existing service found';
 
-  { Check 4: Existing installation }
+  { Check 4: Existing installation (use literal path, {app} is not available yet) }
   PreflightMemo.Lines.Add('  Checking for previous installation...');
   WizardForm.Refresh;
-  InstallExists := FileExists(ExpandConstant('{app}\detec-server.exe'));
+  InstallExists := FileExists(ExpandConstant('{autopf}\Detec\Server\detec-server.exe'));
 
   if InstallExists then
     PreflightMemo.Lines[PreflightMemo.Lines.Count - 1] :=
@@ -362,6 +362,9 @@ procedure CurPageChanged(CurPageID: Integer);
 var
   Btn: TNewButton;
 begin
+  { Hide the progress log when not on the Installing page }
+  LogMemo.Visible := (CurPageID = wpInstalling);
+
   { Run preflight checks when entering that page }
   if CurPageID = PreflightPage.ID then
     RunPreflightChecks;
@@ -539,7 +542,7 @@ begin
     'Detec Server will be installed with these settings:' + NewLine +
     NewLine +
     Space + 'Install directory:' + NewLine +
-    Space + Space + ExpandConstant('{app}') + NewLine +
+    Space + Space + ExpandConstant('{autopf}\Detec\Server') + NewLine +
     NewLine +
     Space + 'Server port: ' + Port + NewLine +
     Space + 'Database: ' + DbDesc + NewLine +
