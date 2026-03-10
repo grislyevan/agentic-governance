@@ -117,6 +117,10 @@ class DetecAgentService(win32serviceutil.ServiceFramework):
             )
             return
 
+        self.ReportServiceStatus(
+            win32service.SERVICE_START_PENDING, waitHint=120_000
+        )
+
         from main import _run_daemon
 
         class ServiceArgs:
