@@ -9,16 +9,23 @@ For agent deployment, see [DEPLOY.md](DEPLOY.md).
 ## Architecture overview
 
 ```
-┌─────────────┐        ┌──────────────┐        ┌──────────────┐
-│ detec-agent  │──POST──▶  FastAPI API  │──SQL──▶│ SQLite or    │
-│  (endpoint)  │        │  :8000       │        │ PostgreSQL   │
-└─────────────┘        └──────┬───────┘        └──────────────┘
-                              │
-                       ┌──────▼───────┐
-                       │  Dashboard   │
-                       │  (separate)  │
-                       └──────────────┘
+                              ┌──────────────────┐
+                         HTTP │  FastAPI API      │
+┌─────────────┐──POST :8000──▶  /api/events      │──SQL──▶┌──────────────┐
+│ detec-agent  │              │  /api/heartbeat   │        │ SQLite or    │
+│  (endpoint)  │──TCP :8001──▶│                   │        │ PostgreSQL   │
+└─────────────┘     binary    │  DetecGateway     │──SQL──▶└──────────────┘
+                    protocol  └────────┬──────────┘
+                                       │
+                                ┌──────▼───────┐
+                                │  Dashboard   │
+                                │  (separate)  │
+                                └──────────────┘
 ```
+
+Agents can connect via either transport:
+- **HTTP** (default): REST calls to `POST /api/events` and `POST /api/endpoints/heartbeat` on port 8000.
+- **TCP binary protocol**: Persistent msgpack-framed connection to the DetecGateway on port 8001. Lower overhead, supports server-push (policy updates, commands), and automatic reconnection. Enable with `--protocol tcp` on the agent and `GATEWAY_ENABLED=true` on the server.
 
 **Note:** In Docker Compose the dashboard runs as a separate service (e.g. port 3001). When running the API bare metal, FastAPI serves the pre-built dashboard at the root URL (no separate process).
 
@@ -219,6 +226,17 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 
 In production, run the API behind a TLS-terminating reverse proxy or load balancer (nginx, Caddy, AWS ALB, etc.). The API itself serves plain HTTP on port 8000; HTTPS termination happens at the proxy layer.
 
+For the binary protocol gateway (port 8001), you can either provide TLS certificates directly via `GATEWAY_TLS_CERT` and `GATEWAY_TLS_KEY`, or terminate TLS at the proxy layer and forward plain TCP to the gateway.
+
+### Network / firewall
+
+Open the following ports:
+
+| Port | Protocol | Service |
+|------|----------|---------|
+| 8000 | TCP (HTTP) | FastAPI API + dashboard |
+| 8001 | TCP (binary) | DetecGateway (when `GATEWAY_ENABLED=true`) |
+
 ### Environment enforcement
 
 When `ENV=production` or `ENV=staging`, the API rejects startup if `JWT_SECRET` or `SEED_ADMIN_PASSWORD` are still set to their insecure defaults. This is enforced in `api/core/config.py`.
@@ -345,6 +363,18 @@ All settings are defined in `api/core/config.py` (pydantic-settings). Field name
 | `DEFAULT_HEARTBEAT_INTERVAL` | `300` | Default heartbeat interval in seconds for new endpoints. |
 | `DEBUG` | `false` | Enable debug mode. Do not use in production. |
 | `RUN_MIGRATIONS` | `true` | (Docker only) Set to `false` to skip automatic Alembic migrations on container start. |
+
+### Binary protocol gateway
+
+| Variable | Default | Description |
+|---|---|---|
+| `GATEWAY_ENABLED` | `true` | Start the TCP gateway alongside the HTTP API. Set to `false` to disable. |
+| `GATEWAY_HOST` | `0.0.0.0` | Bind address for the gateway listener. |
+| `GATEWAY_PORT` | `8001` | TCP port for the binary protocol gateway. |
+| `GATEWAY_TLS_CERT` | _(none)_ | Path to a PEM certificate file for TLS. When both cert and key are set, the gateway uses TLS; otherwise plain TCP. |
+| `GATEWAY_TLS_KEY` | _(none)_ | Path to the PEM private key file for TLS. |
+
+When enabled, the gateway listens for persistent agent connections using the Detec wire protocol (length-prefixed msgpack frames). Agents authenticate with the same API key used for HTTP. In production, provide TLS certificates or terminate TLS at the network layer (load balancer, reverse proxy). See [DEPLOY.md](DEPLOY.md) for agent-side configuration.
 
 ---
 

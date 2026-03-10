@@ -2,13 +2,14 @@
 
 Endpoint telemetry and policy for agentic AI tool detection. This repo defines detection profiles, schemas, and a collector that scans endpoints for tools (Claude Code, Ollama, Cursor, Copilot, Open Interpreter), computes confidence, evaluates policy, and emits NDJSON events.
 
-**Main reference:** the [playbook](playbook/PLAYBOOK-v0.4-agentic-ai-endpoint-detection-governance.md) (detection profiles, policy, and lab methodology).
+**Main reference:** the [playbook](playbook/PLAYBOOK-v0.4-agentic-ai-endpoint-detection-governance.md) (detection profiles, policy, and lab methodology). **For AI agents / new contributors:** read [AGENTS.md](AGENTS.md) first for a short project brief and where to look.
 
 ## Repo layout
 
 - **playbook/** — Governance playbook and detection profiles
-- **collector/** — Endpoint telemetry collector (5-dimension confidence model, 12 scanners)
-- **api/** — Multi-tenant FastAPI backend (auth, endpoints, events, policies)
+- **collector/** — Endpoint telemetry collector (5-dimension confidence model, 12 scanners, HTTP + TCP emitters)
+- **api/** — Multi-tenant FastAPI backend (auth, endpoints, events, policies) + binary protocol gateway
+- **protocol/** — Shared binary wire protocol (msgpack framing, message types, connection base class)
 - **dashboard/** — Web UI for viewing detection results
 - **schemas/** — Event and config schemas
 - **lab-runs/** — Lab run outputs and findings
@@ -75,9 +76,10 @@ The API defaults to a local **SQLite** database (zero setup, stored at a platfor
 ## Running tests
 
 ```bash
-python -m pytest collector/tests/ -v                           # 186 collector tests (includes 108 scanner consistency tests)
+python -m pytest collector/tests/ -v                           # ~200 collector tests (includes 108 scanner consistency tests)
 python -m pytest collector/tests/test_scanner_consistency.py -v # 108 scanner consistency tests
-python -m pytest api/tests/ -v                                 # 45 API tests
+python -m pytest api/tests/ -v                                 # ~53 API tests
+python -m pytest protocol/tests/ -v                            # ~45 protocol tests
 ```
 
 The scanner consistency tests verify that all 12 scanners populate `action_type`, `action_risk`, `action_summary`, `tool_class`, and `tool_name` correctly. They run actual scans so take ~2 minutes.

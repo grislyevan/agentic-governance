@@ -22,7 +22,7 @@ This runs the full pipeline: dashboard build, PyInstaller bundle, branding asset
 2. Asks for an admin email address
 3. Generates secrets and configuration
 4. Installs and starts the Detec Server Windows Service
-5. Configures Windows Firewall (TCP 8000 inbound)
+5. Configures Windows Firewall (TCP 8000 inbound for HTTP, TCP 8001 inbound for binary protocol gateway)
 6. Creates a "Detec Dashboard" desktop shortcut
 7. Shows the generated admin credentials (password displayed once)
 
@@ -158,10 +158,14 @@ cd dist\detec-agent
 ### Configure the agent
 
 ```powershell
+# HTTP transport (default)
 .\detec-agent.exe setup --api-url http://server:8000/api --api-key YOUR_KEY --interval 300
+
+# TCP binary protocol (persistent connection to gateway on port 8001)
+.\detec-agent.exe setup --api-url http://server:8000/api --api-key YOUR_KEY --interval 300 --protocol tcp
 ```
 
-This writes `C:\ProgramData\Detec\Agent\agent.env` with the API URL, key, and scan interval.
+This writes `C:\ProgramData\Detec\Agent\agent.env` with the API URL, key, scan interval, and transport protocol.
 
 ### Install as a Windows Service
 

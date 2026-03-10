@@ -89,7 +89,39 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _apply_migrations()
     _seed()
     monitor_task = asyncio.create_task(_staleness_monitor())
+
+    gateway = None
+    gateway_task = None
+    if settings.gateway_enabled:
+        from gateway import DetecGateway
+        from protocol.connection import BaseConnection
+
+        ssl_ctx = None
+        if settings.gateway_tls_cert and settings.gateway_tls_key:
+            ssl_ctx = BaseConnection.make_server_ssl_context(
+                settings.gateway_tls_cert,
+                settings.gateway_tls_key,
+            )
+
+        gateway = DetecGateway(
+            host=settings.gateway_host,
+            port=settings.gateway_port,
+            ssl_context=ssl_ctx,
+        )
+        gateway_task = asyncio.create_task(gateway.serve())
+        app.state.gateway = gateway
+
     yield
+
+    if gateway:
+        await gateway.stop()
+    if gateway_task:
+        gateway_task.cancel()
+        try:
+            await gateway_task
+        except asyncio.CancelledError:
+            pass
+
     monitor_task.cancel()
     try:
         await monitor_task

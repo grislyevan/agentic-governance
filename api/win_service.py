@@ -86,6 +86,7 @@ class DetecService(win32serviceutil.ServiceFramework):
         self.stop_event = win32event.CreateEvent(None, 0, 0, None)
         self._server: object | None = None
         self._thread: threading.Thread | None = None
+        self._gateway_task = None
 
     def SvcStop(self) -> None:
         """Called by the SCM to stop the service."""

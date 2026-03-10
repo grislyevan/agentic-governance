@@ -60,18 +60,25 @@ def cmd_setup(args: argparse.Namespace) -> None:
         print("Use --force to overwrite.")
         return
 
+    protocol = getattr(args, "protocol", "http")
+    gateway_port = getattr(args, "gateway_port", 8001)
+
     lines = [
         f"AGENTIC_GOV_API_URL={args.api_url}",
         f"AGENTIC_GOV_API_KEY={args.api_key}",
         f"AGENTIC_GOV_INTERVAL={args.interval}",
+        f"AGENTIC_GOV_PROTOCOL={protocol}",
+        f"AGENTIC_GOV_GATEWAY_PORT={gateway_port}",
         "",
     ]
     env_file.write_text("\n".join(lines), encoding="utf-8")
 
     print(f"Config written to {env_file}")
     print()
-    print(f"  API URL:  {args.api_url}")
-    print(f"  Interval: {args.interval}s")
+    print(f"  API URL:       {args.api_url}")
+    print(f"  Protocol:      {protocol}")
+    print(f"  Gateway port:  {gateway_port}")
+    print(f"  Interval:      {args.interval}s")
     print()
     print("Next steps:")
     if _IS_WINDOWS:
@@ -115,11 +122,13 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     from main import main as collector_main
 
+    protocol = getattr(args, "protocol", "http")
     sys.argv = [
         "detec-agent",
         "--interval", str(args.interval),
         "--api-url", args.api_url,
         "--api-key", args.api_key,
+        "--protocol", protocol,
     ]
     if args.verbose:
         sys.argv.append("--verbose")
@@ -263,6 +272,8 @@ def main() -> None:
     p_setup.add_argument("--api-url", required=True, help="Central server API URL, e.g. http://server:8000/api")
     p_setup.add_argument("--api-key", required=True, help="API key for authentication")
     p_setup.add_argument("--interval", type=int, default=300, help="Scan interval in seconds (default: 300)")
+    p_setup.add_argument("--protocol", choices=["http", "tcp"], default="tcp", help="Transport protocol (default: tcp)")
+    p_setup.add_argument("--gateway-port", dest="gateway_port", type=int, default=8001, help="Gateway port for TCP protocol (default: 8001)")
     p_setup.add_argument("--force", action="store_true", help="Overwrite existing config")
     p_setup.set_defaults(func=cmd_setup)
 
@@ -276,6 +287,7 @@ def main() -> None:
     p_run.add_argument("--api-url", help="Central server API URL")
     p_run.add_argument("--api-key", help="API key for authentication")
     p_run.add_argument("--interval", type=int, default=300, help="Scan interval in seconds (default: 300)")
+    p_run.add_argument("--protocol", choices=["http", "tcp"], default="tcp", help="Transport protocol (default: tcp)")
     p_run.add_argument("--verbose", action="store_true", help="Show detailed scan output")
     p_run.set_defaults(func=cmd_run)
 

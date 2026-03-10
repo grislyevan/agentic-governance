@@ -41,6 +41,7 @@ from engine.policy import PolicyDecision, evaluate_policy
 from enforcement.enforcer import Enforcer, EnforcementResult
 from output.emitter import EventEmitter
 from output.http_emitter import HttpEmitter
+from output.tcp_emitter import TcpEmitter
 from agent.state import StateDiffer
 from scanner.base import ScanResult
 from scanner.aider import AiderScanner
@@ -57,7 +58,7 @@ from scanner.openclaw import OpenClawScanner
 
 logger = logging.getLogger(__name__)
 
-AnyEmitter = Union[EventEmitter, HttpEmitter]
+AnyEmitter = Union[EventEmitter, HttpEmitter, TcpEmitter]
 
 # Version map — keeps collector artifacts aligned with the Playbook.
 #   Playbook  0.4   →  RULE_VERSION 0.4.0, EVENT_VERSION 0.4.0
@@ -536,7 +537,7 @@ def run_scan(
 # ---------------------------------------------------------------------------
 
 def _heartbeat_loop(
-    emitter: HttpEmitter,
+    emitter: HttpEmitter | TcpEmitter,
     hostname: str,
     interval: int,
     stop_event: threading.Event,
@@ -633,7 +634,27 @@ def _run_daemon(args: argparse.Namespace) -> None:
     _write_pid_file()
 
     hostname = args.endpoint_id
-    emitter = HttpEmitter(api_url=args.api_url, api_key=args.api_key)
+    protocol = getattr(args, "protocol", "http")
+
+    if protocol == "tcp":
+        gateway_host = getattr(args, "gateway_host", None)
+        gateway_port = getattr(args, "gateway_port", 8001)
+
+        if not gateway_host:
+            from urllib.parse import urlparse
+            parsed = urlparse(args.api_url)
+            gateway_host = parsed.hostname or "localhost"
+
+        emitter = TcpEmitter(
+            gateway_host=gateway_host,
+            gateway_port=gateway_port,
+            api_key=args.api_key,
+            hostname=hostname,
+            agent_version=EVENT_VERSION,
+        )
+    else:
+        emitter = HttpEmitter(api_url=args.api_url, api_key=args.api_key)
+
     differ = StateDiffer(report_all=args.report_all)
 
     stop_event = threading.Event()
@@ -670,8 +691,6 @@ def _run_daemon(args: argparse.Namespace) -> None:
         if stop_event.wait(timeout=args.interval):
             break
 
-    # Emit graceful shutdown event so the API can distinguish between
-    # a clean stop (decommission/restart) and a killed process (tamper).
     shutdown_event = _build_lifecycle_event(
         event_type="agent.shutdown",
         endpoint_id=hostname,
@@ -679,6 +698,9 @@ def _run_daemon(args: argparse.Namespace) -> None:
         summary="Collector agent shutting down gracefully",
     )
     emitter.emit(shutdown_event)
+
+    if isinstance(emitter, TcpEmitter):
+        emitter.shutdown()
 
     stop_event.set()
     _remove_pid_file()
@@ -733,6 +755,18 @@ def main() -> None:
     parser.add_argument(
         "--enforce", action="store_true", default=False,
         help="Execute enforcement actions (process kill, network block) for block decisions",
+    )
+    parser.add_argument(
+        "--protocol", choices=["http", "tcp"], default="http",
+        help="Transport protocol for daemon mode (default: http)",
+    )
+    parser.add_argument(
+        "--gateway-host", dest="gateway_host", metavar="HOST",
+        help="Gateway host for TCP protocol (default: derived from --api-url)",
+    )
+    parser.add_argument(
+        "--gateway-port", dest="gateway_port", type=int, default=8001,
+        help="Gateway port for TCP protocol (default: 8001)",
     )
 
     # Centralized config: code defaults < config file < env vars < CLI

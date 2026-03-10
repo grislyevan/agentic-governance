@@ -36,6 +36,7 @@ SCANNER_MODULES = [
 
 HIDDEN_IMPORTS = [
     'rumps',
+    'msgpack',
     'collector.gui',
     'collector.gui.menubar',
     'collector.gui.statuswindow',
@@ -48,6 +49,7 @@ HIDDEN_IMPORTS = [
     'collector.agent.credentials',
     'collector.output.emitter',
     'collector.output.http_emitter',
+    'collector.output.tcp_emitter',
     'collector.engine.confidence',
     'collector.engine.policy',
     'collector.engine.container',
@@ -58,6 +60,10 @@ HIDDEN_IMPORTS = [
     'collector.compat.paths',
     'collector.compat.services',
     'collector.scanner.base',
+    'protocol',
+    'protocol.wire',
+    'protocol.messages',
+    'protocol.connection',
     *SCANNER_MODULES,
 ]
 

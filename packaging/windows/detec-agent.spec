@@ -28,6 +28,7 @@ hiddenimports = [
     "psutil._pswindows",
     "jsonschema",
     "watchdog",
+    "msgpack",
     "win32timezone",
     "servicemanager",
     "pywintypes",
@@ -50,6 +51,11 @@ hiddenimports = [
     "collector.compat.services",
     "collector.compat.identity",
     "collector.compat.paths",
+    "collector.output.tcp_emitter",
+    "protocol",
+    "protocol.wire",
+    "protocol.messages",
+    "protocol.connection",
 ]
 
 # Data files: schemas for event validation.
@@ -60,7 +66,7 @@ if _schemas.is_dir():
 
 a = Analysis(
     [str(_collector / "agent_cli.py")],
-    pathex=[str(_collector)],
+    pathex=[str(_collector), str(_root)],
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,

@@ -168,13 +168,23 @@ $ErrorActionPreference = "Stop"
 # ── Step 8: Firewall rule ─────────────────────────────────────────────────
 Write-Host "`n[8/9] Configuring firewall..." -ForegroundColor Yellow
 
+$GatewayPort = if ($env:DETEC_GATEWAY_PORT) { $env:DETEC_GATEWAY_PORT } else { "8001" }
+
 if ($isAdmin) {
     $existingRule = Get-NetFirewallRule -DisplayName "Detec Server" -ErrorAction SilentlyContinue
     if (-not $existingRule) {
         New-NetFirewallRule -DisplayName "Detec Server" -Direction Inbound -Protocol TCP -LocalPort $ServerPort -Action Allow | Out-Null
-        Write-Host "  Firewall rule created (TCP $ServerPort inbound)." -ForegroundColor Green
+        Write-Host "  Firewall rule created (TCP $ServerPort inbound, HTTP API)." -ForegroundColor Green
     } else {
-        Write-Host "  Firewall rule already exists." -ForegroundColor Gray
+        Write-Host "  Firewall rule 'Detec Server' already exists." -ForegroundColor Gray
+    }
+
+    $existingGwRule = Get-NetFirewallRule -DisplayName "Detec Gateway" -ErrorAction SilentlyContinue
+    if (-not $existingGwRule) {
+        New-NetFirewallRule -DisplayName "Detec Gateway" -Direction Inbound -Protocol TCP -LocalPort $GatewayPort -Action Allow | Out-Null
+        Write-Host "  Firewall rule created (TCP $GatewayPort inbound, binary protocol)." -ForegroundColor Green
+    } else {
+        Write-Host "  Firewall rule 'Detec Gateway' already exists." -ForegroundColor Gray
     }
 } else {
     Write-Host "  Skipping firewall (not Administrator)." -ForegroundColor DarkYellow

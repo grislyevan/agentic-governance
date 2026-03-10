@@ -64,10 +64,13 @@ def cmd_setup(args: argparse.Namespace) -> None:
     jwt_secret = secrets.token_hex(32)
     seed_password = secrets.token_urlsafe(16)
 
+    gateway_port = getattr(args, "gateway_port", 8001)
+
     lines = [
         f"JWT_SECRET={jwt_secret}",
         f"SEED_ADMIN_PASSWORD={seed_password}",
         f"SEED_ADMIN_EMAIL={args.admin_email}",
+        f"GATEWAY_PORT={gateway_port}",
         "ENV=production",
         "",
     ]
@@ -278,6 +281,7 @@ def main() -> None:
         "--admin-email", default="admin@example.com",
         help="Email for the seed admin user (default: admin@example.com)",
     )
+    p_setup.add_argument("--gateway-port", dest="gateway_port", type=int, default=8001, help="Binary protocol gateway port (default: 8001)")
     p_setup.add_argument("--force", action="store_true", help="Overwrite existing config")
     p_setup.set_defaults(func=cmd_setup)
 

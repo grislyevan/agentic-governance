@@ -1,6 +1,6 @@
 # Agentic Governance — Progress Tracker
 
-**Last updated:** 2026-03-09  
+**Last updated:** 2026-03-10  
 **Current phase:** M2 — Backend API + Dashboard + Agent Packaging  
 **Ultimate goal:** Production SaaS for agentic AI endpoint governance
 
@@ -116,8 +116,13 @@ API Client ────────────────────▶│ Mu
 - [x] Windows collector agent packaging — `detec-agent` CLI with setup/scan/run/install/start/stop/remove commands, pywin32 service wrapper, PyInstaller spec
 - [x] Windows lab validation on Windows Server VM (deployed, service running, health OK)
 - [x] Cross-platform validation: macOS agent reporting to Windows Server (18 events ingested, endpoint registered)
+- [x] Binary wire protocol (`protocol/`): msgpack framing, 13 message types, length-prefixed TCP transport with TLS support
+- [x] Gateway server (`api/gateway.py`): asyncio TCP listener, API key auth, event ingestion via shared models, session registry, push support
+- [x] TCP emitter (`collector/output/tcp_emitter.py`): persistent connection, auto-reconnect with backoff, batching (50 events/1s), ack tracking, local buffer fallback
+- [x] Protocol integration: `--protocol tcp` flag, gateway auto-starts in API lifespan, config loader + CLI support, PyInstaller specs updated
+- [x] Protocol test suite: 67 unit tests (wire, messages, connection, gateway, emitter) + end-to-end integration test
 
-**Files:** `api/`, `collector/output/`, `collector/agent/`, `collector/gui/`, `collector/compat/`, `packaging/macos/`, `packaging/windows/`, `docs/`, `docker-compose.yml`
+**Files:** `api/`, `collector/output/`, `collector/agent/`, `collector/gui/`, `collector/compat/`, `packaging/macos/`, `packaging/windows/`, `docs/`, `docker-compose.yml`, `protocol/`
 
 ---
 

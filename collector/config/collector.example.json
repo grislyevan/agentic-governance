@@ -14,6 +14,10 @@
     "api_key": null,
     "report_all": false,
 
+    "protocol": "http",
+    "gateway_host": null,
+    "gateway_port": 8001,
+
     "verbose": false,
     "dry_run": false
 }

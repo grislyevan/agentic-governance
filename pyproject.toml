@@ -13,6 +13,7 @@ dependencies = [
     "watchdog>=4.0.0",
     "psutil>=7.0.0",
     "cryptography>=42.0.0",
+    "msgpack>=1.0.0",
 ]
 
 [project.optional-dependencies]
@@ -29,7 +30,7 @@ detec-agent-gui = "collector.gui.menubar:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["collector", "collector*"]
+include = ["collector", "collector*", "protocol", "protocol*"]
 
 [tool.pytest.ini_options]
 testpaths = ["collector/tests"]

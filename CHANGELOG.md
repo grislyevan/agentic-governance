@@ -30,6 +30,34 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Binary wire protocol (Detec Wire Protocol)**: New `protocol/` package providing
+  a msgpack-based, length-prefixed binary framing layer for agent-server
+  communication over persistent TCP connections (port 8001). Includes message
+  type enum, encode/decode functions, incremental `FrameReader`, and an asyncio
+  `BaseConnection` class with keepalive and graceful shutdown.
+- **DetecGateway (server-side TCP gateway)**: `api/gateway.py` implements an
+  asyncio TCP/TLS server that accepts persistent agent connections, authenticates
+  via API key, ingests events and heartbeats using existing SQLAlchemy models,
+  and supports server-push (policy updates, remote commands). Integrated into the
+  FastAPI lifespan so it starts/stops with the API process.
+- **TcpEmitter (agent-side TCP transport)**: `collector/output/tcp_emitter.py`
+  provides a synchronous interface over a background asyncio thread for persistent
+  TCP connections, event batching, acknowledgement tracking, automatic reconnection
+  with exponential backoff, and fallback to `LocalBuffer` when disconnected.
+- **Protocol selection CLI**: `--protocol tcp|http`, `--gateway-host`, and
+  `--gateway-port` flags on both `detec-agent` and `detec-agent setup`. Config
+  keys `protocol`, `gateway_host`, `gateway_port` supported in collector.json
+  and `AGENTIC_GOV_*` environment variables.
+- **Gateway server config**: `GATEWAY_ENABLED`, `GATEWAY_HOST`, `GATEWAY_PORT`,
+  `GATEWAY_TLS_CERT`, `GATEWAY_TLS_KEY` settings in `api/core/config.py` and
+  `.env.example`.
+- **Protocol test suite**: 45 unit tests for wire format, messages, and connection,
+  plus an end-to-end integration test that verifies the full agent-gateway-database
+  path.
+- **Packaging updates**: PyInstaller specs (macOS, Windows agent, Windows server)
+  updated with `protocol` and `msgpack` hidden imports. Windows deploy script
+  adds firewall rule for TCP 8001 alongside HTTP 8000.
+
 - **macOS uninstaller**: `packaging/macos/uninstall.sh` cleanly removes the
   Detec Agent: stops the LaunchAgent, deletes the app from `/Applications`,
   removes config (`~/Library/Application Support/Detec/`), logs

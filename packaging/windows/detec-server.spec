@@ -31,6 +31,8 @@ if not _dashboard_dist.is_dir():
         f"Expected: {_dashboard_dist}"
     )
 
+_protocol = _root / "protocol"
+
 # Collect data files: Alembic config, migrations, dashboard static files.
 # Destinations are relative to sys._MEIPASS (_internal/ in onedir builds).
 datas = [
@@ -53,11 +55,17 @@ hiddenimports = [
     "pywintypes",
     "sqlalchemy.dialects.sqlite",
     "win_service",
+    "msgpack",
+    "protocol",
+    "protocol.wire",
+    "protocol.messages",
+    "protocol.connection",
+    "gateway",
 ]
 
 a = Analysis(
     [str(_api / "server_cli.py")],
-    pathex=[str(_api)],
+    pathex=[str(_api), str(_root)],
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,

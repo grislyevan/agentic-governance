@@ -54,7 +54,11 @@ alongside the `.pkg` to pre-authorize Full Disk Access.
 After installing the `.pkg`, configure the agent to connect to your central server:
 
 ```bash
+# HTTP transport (default)
 detec-agent setup --api-url http://server:8000/api --api-key YOUR_KEY --interval 300
+
+# TCP binary protocol
+detec-agent setup --api-url http://server:8000/api --api-key YOUR_KEY --interval 300 --protocol tcp
 ```
 
 This writes `~/Library/Application Support/Detec/agent.env`, which the GUI app loads on startup. Then launch the app:
@@ -108,7 +112,11 @@ This produces `packaging/windows/dist/detec-agent/` containing `detec-agent.exe`
 2. Configure the agent (from an elevated prompt):
 
 ```powershell
+# HTTP transport (default)
 .\detec-agent.exe setup --api-url http://server:8000/api --api-key YOUR_KEY
+
+# TCP binary protocol
+.\detec-agent.exe setup --api-url http://server:8000/api --api-key YOUR_KEY --protocol tcp
 ```
 
 3. Install and start the Windows Service:
@@ -174,6 +182,25 @@ You can provide these via:
 3. **Config file:** `collector/config/collector.json` (see [collector/README.md](collector/README.md))
 
 Do not commit API keys to config files in version control. For production, prefer environment variables or a secure credential store (see below).
+
+### Transport protocol
+
+By default, agents use **HTTP** (REST calls to `POST /api/events`). You can switch to the **TCP binary protocol** for lower overhead, persistent connections, and server-push capability (policy updates, remote commands):
+
+```bash
+# HTTP (default)
+detec-agent --interval 300 --api-url http://server:8000/api --api-key YOUR_KEY
+
+# TCP binary protocol (connects to gateway on port 8001)
+detec-agent --interval 300 --api-url http://server:8000/api --api-key YOUR_KEY --protocol tcp
+
+# TCP with custom gateway host/port
+detec-agent --protocol tcp --gateway-host gateway.example.com --gateway-port 9001 --api-key YOUR_KEY
+```
+
+When using `--protocol tcp`, the agent derives `gateway_host` from the `api_url` hostname by default. Override with `--gateway-host` if the gateway runs on a different host. The TCP binary protocol requires `GATEWAY_ENABLED=true` on the server (see [SERVER.md](SERVER.md)).
+
+Environment variables: `AGENTIC_GOV_PROTOCOL` (`http` or `tcp`), `AGENTIC_GOV_GATEWAY_HOST`, `AGENTIC_GOV_GATEWAY_PORT`.
 
 ## Auto-start at boot / logon
 

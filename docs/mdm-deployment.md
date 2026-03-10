@@ -11,7 +11,8 @@ Before deploying to your fleet, ensure the following:
 - [ ] Central API server is running and reachable from endpoint networks
 - [ ] API key(s) have been generated for agent authentication
 - [ ] Network firewall rules allow endpoints to reach the API server
-      (port 443 for production, 8000 for development)
+      (port 443 for production HTTPS, 8000 for development HTTP,
+      port 8001 for TCP binary protocol when using `--protocol tcp`)
 - [ ] The `.pkg` installer has been built (`packaging/macos/build-pkg.sh`)
 - [ ] (Recommended) The `.app` is code-signed with a Developer ID certificate
 - [ ] (Recommended) The `.pkg` is signed with a Developer ID Installer certificate
@@ -256,7 +257,10 @@ Ensure the following network access from managed endpoints:
 | Destination | Port | Protocol | Purpose |
 |---|---|---|---|
 | API server | 443 (prod) / 8000 (dev) | HTTPS/HTTP | Event submission, heartbeats |
+| Gateway | 8001 | TCP (binary) | Persistent agent connection (when `--protocol tcp`) |
 | DNS | 53 | UDP/TCP | Resolve API server hostname |
 
 The agent does not require inbound connections. All communication is
-initiated by the agent to the central API server.
+initiated by the agent to the central API server. The TCP binary
+protocol gateway port (8001) is only required when agents are configured
+with `--protocol tcp`.

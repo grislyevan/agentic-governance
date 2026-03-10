@@ -45,8 +45,13 @@ Every config key can be overridden with an `AGENTIC_GOV_`-prefixed variable:
 | `api_url`                | `AGENTIC_GOV_API_URL`                | string  |
 | `api_key`                | `AGENTIC_GOV_API_KEY`                | string  |
 | `report_all`             | `AGENTIC_GOV_REPORT_ALL`             | boolean |
+| `protocol`               | `AGENTIC_GOV_PROTOCOL`               | string  |
+| `gateway_host`           | `AGENTIC_GOV_GATEWAY_HOST`           | string  |
+| `gateway_port`           | `AGENTIC_GOV_GATEWAY_PORT`           | integer |
 | `verbose`                | `AGENTIC_GOV_VERBOSE`                | boolean |
 | `dry_run`                | `AGENTIC_GOV_DRY_RUN`                | boolean |
+
+`protocol` selects the transport: `http` (default, uses HttpEmitter) or `tcp` (uses TcpEmitter with binary wire protocol on port 8001). When `protocol=tcp`, `gateway_host` defaults to the hostname from `api_url` and `gateway_port` defaults to `8001`.
 
 Booleans accept `1`, `true`, `yes`, or `on` (case-insensitive) as truthy.
 

@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost:3001"
     debug: bool = False
 
+    # Binary protocol gateway
+    gateway_enabled: bool = True
+    gateway_host: str = "0.0.0.0"
+    gateway_port: int = 8001
+    gateway_tls_cert: str = ""
+    gateway_tls_key: str = ""
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [s.strip() for s in self.cors_origins.split(",") if s.strip()]

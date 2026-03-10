@@ -80,18 +80,24 @@ payload can be used to explicitly allow the background item.
 
 ## Outgoing Network Connections
 
-The agent makes HTTPS requests to the central API server:
+The agent connects to the central server using one of two transports:
 
+**HTTP transport** (default):
 - `POST /events` to submit detection events
 - `POST /endpoints/heartbeat` for status monitoring
 - `GET /health` for connectivity checks
+
+**TCP binary protocol** (when `--protocol tcp` is configured):
+- Persistent connection to the DetecGateway for event ingestion, heartbeats, and server-push (policy updates, commands)
 
 If the macOS Application Firewall (ALF) is enabled, the user may see
 a prompt asking whether to allow outgoing connections from Detec Agent.
 Code-signed applications are generally allowed automatically.
 
 **Ports**: The agent connects to the API server's configured port
-(typically 443 for production, 8000 for development).
+(typically 443 for production HTTPS, 8000 for development HTTP). When
+using the TCP binary protocol, the agent also connects to port 8001
+(configurable via `--gateway-port`).
 
 **Firewall rule via MDM**: Add Detec Agent to the Application Firewall
 allowlist using a `com.apple.alf` configuration profile payload.
