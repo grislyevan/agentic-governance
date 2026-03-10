@@ -23,38 +23,58 @@ The fastest way to deploy agents. The central server generates a zip bundle cont
   - macOS: `DetecAgent-latest.pkg` (or `DetecAgent.pkg`)
   - Windows: `detec-agent.zip`
   - Linux: `detec-agent-linux.tar.gz`
-- An admin or owner account with an API key
+- An admin or owner account (login via email/password or API key)
 
 ### From the Dashboard UI
 
 1. Log in to the Detec dashboard.
 2. Go to **Settings**.
-3. In the **Download Agent** section, select the target platform (macOS, Windows, or Linux).
+3. In the **Deploy Agent** section, select the target platform (macOS, Windows, or Linux).
 4. Optionally adjust the scan interval and transport protocol.
-5. Click **Download Agent**.
+5. Click **Download Agent** to download a pre-configured package directly.
 6. A zip file downloads containing the installer, `agent.env`, `collector.json`, and a platform-specific README.
 7. Transfer the zip to the target machine, extract, and run the installer. The agent connects to the server automatically.
+
+The server automatically generates and manages a tenant-level agent key. No manual API key handling is required.
+
+### Email Enrollment
+
+Admins can send a download link directly to end users:
+
+1. In the **Deploy Agent** section, enter the user's email address.
+2. Click **Send Download Link**.
+3. The user receives an email with a one-click download link (valid for 72 hours, single-use).
+4. The user clicks the link, downloads the pre-configured package, and installs it.
+
+Email enrollment requires SMTP configuration on the server. See [SERVER.md](SERVER.md) for SMTP settings.
 
 ### Via the API
 
 ```bash
-# Download a pre-configured macOS agent package
+# Download (JWT auth via cookie or Bearer token)
+curl -O -J \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  "https://your-server.example.com/api/agent/download?platform=macos"
+
+# Download (API key auth also works)
 curl -O -J \
   -H "X-Api-Key: YOUR_ADMIN_API_KEY" \
   "https://your-server.example.com/api/agent/download?platform=macos"
 
-# With custom interval and TCP protocol
-curl -O -J \
-  -H "X-Api-Key: YOUR_ADMIN_API_KEY" \
-  "https://your-server.example.com/api/agent/download?platform=windows&interval=600&protocol=tcp"
+# Email a download link to a user
+curl -X POST \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@company.com", "platform": "macos"}' \
+  "https://your-server.example.com/api/agent/enroll-email"
 ```
 
-Query parameters:
+Query parameters for download:
 - `platform` (required): `macos`, `windows`, or `linux`
 - `interval` (optional, default 300): scan interval in seconds (30-86400)
 - `protocol` (optional, default `http`): `http` or `tcp`
 
-The endpoint requires `X-Api-Key` authentication with an `owner` or `admin` role. The API key you provide is the key that gets embedded in the agent config.
+The download endpoint requires `owner` or `admin` role. The server embeds the tenant's agent key in the package automatically.
 
 ### Building Pre-Configured Packages
 

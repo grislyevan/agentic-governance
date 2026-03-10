@@ -14,6 +14,7 @@ from models.user import VALID_ROLES, User, verify_api_key, API_KEY_PREFIX_LEN
 logger = logging.getLogger(__name__)
 
 CROSS_TENANT_ROLES = ("owner", "admin")
+AGENT_ROLE = "agent"
 
 
 @dataclass(frozen=True)
@@ -25,7 +26,14 @@ class AuthContext:
 
 
 def resolve_auth(authorization: str | None, x_api_key: str | None, db: Session) -> AuthContext:
-    """Resolve full auth context from JWT or API key. Raises 401 on failure."""
+    """Resolve full auth context from JWT, user API key, or tenant agent key.
+
+    Lookup order:
+      1. JWT Bearer token
+      2. User API key (prefix match + hash verify)
+      3. Tenant agent key (exact match)
+    Raises 401 on failure.
+    """
     if authorization and authorization.startswith("Bearer "):
         token = authorization.removeprefix("Bearer ").strip()
         payload = is_valid_token(token)
@@ -52,6 +60,15 @@ def resolve_auth(authorization: str | None, x_api_key: str | None, db: Session) 
                     user_id=user.id,
                     role=user.role,
                 )
+
+        from models.tenant import Tenant
+        tenant = db.query(Tenant).filter(Tenant.agent_key == x_api_key).first()
+        if tenant:
+            return AuthContext(
+                tenant_id=tenant.id,
+                user_id=None,
+                role=AGENT_ROLE,
+            )
 
     logger.warning("Authentication failed: no valid JWT or API key provided")
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getApiConfig, setApiConfig, fetchWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, downloadAgent } from '../lib/api';
+import { getApiConfig, setApiConfig, fetchWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, downloadAgent, enrollAgentByEmail } from '../lib/api';
 import useAuth from '../hooks/useAuth';
 
 const EVENT_TYPES = [
@@ -112,8 +112,16 @@ function AgentDownloadSection() {
   const [success, setSuccess] = useState(false);
   const successTimer = useRef(null);
 
+  const [enrollEmail, setEnrollEmail] = useState('');
+  const [enrolling, setEnrolling] = useState(false);
+  const [enrollSuccess, setEnrollSuccess] = useState(null);
+  const enrollTimer = useRef(null);
+
   useEffect(() => {
-    return () => { if (successTimer.current) clearTimeout(successTimer.current); };
+    return () => {
+      if (successTimer.current) clearTimeout(successTimer.current);
+      if (enrollTimer.current) clearTimeout(enrollTimer.current);
+    };
   }, []);
 
   const handleDownload = async () => {
@@ -136,14 +144,38 @@ function AgentDownloadSection() {
     }
   };
 
+  const handleEnroll = async () => {
+    if (!enrollEmail.trim()) return;
+    setError(null);
+    setEnrollSuccess(null);
+    setEnrolling(true);
+    try {
+      await enrollAgentByEmail({
+        email: enrollEmail.trim(),
+        platform,
+        interval: parseInt(interval, 10) || 300,
+        protocol,
+      });
+      setEnrollSuccess(enrollEmail.trim());
+      setEnrollEmail('');
+      if (enrollTimer.current) clearTimeout(enrollTimer.current);
+      enrollTimer.current = setTimeout(() => setEnrollSuccess(null), 6000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
   return (
     <div className="rounded-xl border border-detec-slate-700/50 bg-detec-slate-800/50 p-5 space-y-4">
       <h2 className="text-sm font-semibold text-detec-slate-300 uppercase tracking-wider">
-        Download Agent
+        Deploy Agent
       </h2>
       <p className="text-xs text-detec-slate-500">
-        Download a pre-configured agent package. The server URL and your API key are
-        embedded automatically, so the agent connects with zero manual setup after install.
+        Download a pre-configured agent package or email a download link to a user.
+        The server URL and credentials are embedded automatically, so the agent connects
+        with zero manual setup after install.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -209,6 +241,37 @@ function AgentDownloadSection() {
               <polyline points="20 6 9 17 4 12" className="detec-checkmark" />
             </svg>
             Download started
+          </span>
+        )}
+      </div>
+
+      <div className="border-t border-detec-slate-700/30 pt-4 mt-2 space-y-3">
+        <h3 className="text-xs font-semibold text-detec-slate-400 uppercase tracking-wider">
+          Email to User
+        </h3>
+        <div className="flex gap-2">
+          <input
+            type="email"
+            value={enrollEmail}
+            onChange={(e) => setEnrollEmail(e.target.value)}
+            placeholder="user@company.com"
+            spellCheck={false}
+            className="flex-1 bg-detec-slate-900 border border-detec-slate-700 rounded-lg px-3 py-2 text-sm text-detec-slate-200 font-mono placeholder:text-detec-slate-600 focus:outline-none focus:border-detec-primary-500/50 transition-colors"
+          />
+          <button
+            onClick={handleEnroll}
+            disabled={enrolling || !enrollEmail.trim()}
+            className="px-4 py-2 bg-detec-primary-600 hover:bg-detec-primary-500 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
+          >
+            {enrolling ? 'Sending...' : 'Send Download Link'}
+          </button>
+        </div>
+        {enrollSuccess && (
+          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-detec-teal-500 detec-toast-enter">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12" className="detec-checkmark" />
+            </svg>
+            Download link sent to {enrollSuccess} (expires in 72 hours)
           </span>
         )}
       </div>

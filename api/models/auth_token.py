@@ -12,9 +12,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
 
-VALID_PURPOSES = ("invite", "reset")
+VALID_PURPOSES = ("invite", "reset", "agent_download")
 DEFAULT_TOKEN_EXPIRY_HOURS = 24
 RESET_TOKEN_EXPIRY_HOURS = 1
+DOWNLOAD_TOKEN_EXPIRY_HOURS = 72
 
 
 def generate_token() -> tuple[str, str]:
@@ -91,5 +92,18 @@ class AuthToken(Base):
             purpose="reset",
             expires_at=datetime.now(timezone.utc)
             + timedelta(hours=RESET_TOKEN_EXPIRY_HOURS),
+        )
+        return token, raw
+
+    @classmethod
+    def create_download_token(cls, user_id: str) -> tuple["AuthToken", str]:
+        """Create an agent-download token (72h). Returns (model_instance, raw_token)."""
+        raw, hashed = generate_token()
+        token = cls(
+            user_id=user_id,
+            token_hash=hashed,
+            purpose="agent_download",
+            expires_at=datetime.now(timezone.utc)
+            + timedelta(hours=DOWNLOAD_TOKEN_EXPIRY_HOURS),
         )
         return token, raw

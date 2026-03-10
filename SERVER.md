@@ -415,11 +415,24 @@ All settings are defined in `api/core/config.py` (pydantic-settings). Field name
 
 When enabled, the gateway listens for persistent agent connections using the Detec wire protocol (length-prefixed msgpack frames). Agents authenticate with the same API key used for HTTP. In production, provide TLS certificates or terminate TLS at the network layer (load balancer, reverse proxy). See [DEPLOY.md](DEPLOY.md) for agent-side configuration.
 
+### SMTP (email enrollment)
+
+| Variable | Default | Description |
+|---|---|---|
+| `SMTP_HOST` | _(none)_ | SMTP server hostname. Required for email enrollment. |
+| `SMTP_PORT` | `587` | SMTP server port. |
+| `SMTP_USER` | _(none)_ | SMTP username for authentication. |
+| `SMTP_PASSWORD` | _(none)_ | SMTP password for authentication. |
+| `SMTP_FROM` | _(none)_ | "From" address for outgoing emails. Required for email enrollment. |
+| `SMTP_USE_TLS` | `true` | Use STARTTLS for the SMTP connection. |
+
+When `SMTP_HOST` and `SMTP_FROM` are set, admins can send agent download links directly to end users via the dashboard or the `POST /api/agent/enroll-email` endpoint.
+
 ---
 
 ## Agent downloads
 
-The server can generate pre-configured agent packages via the dashboard or the API. Admins download a zip bundle containing the platform installer plus `agent.env` and `collector.json` with the server URL and API key already embedded, so agents connect automatically after install.
+The server generates pre-configured agent packages via the dashboard or the API. Each package includes a tenant-level agent key (managed server-side), so agents connect automatically after install.
 
 ### Setup
 
@@ -431,9 +444,21 @@ Place pre-built agent packages in `dist/packages/` at the repo root (or next to 
 | Windows | `detec-agent.zip` |
 | Linux | `detec-agent-linux.tar.gz` |
 
-### Endpoint
+### Endpoints
 
-`GET /api/agent/download?platform=macos` (requires `X-Api-Key` with owner or admin role). See [DEPLOY.md](DEPLOY.md) for full usage.
+| Endpoint | Auth | Description |
+|----------|------|-------------|
+| `GET /api/agent/download?platform=...` | JWT or API key (owner/admin) | Download a pre-configured agent package |
+| `GET /api/agent/download/{token}?platform=...` | None (token is auth) | Token-based download from email enrollment |
+| `POST /api/agent/enroll-email` | JWT or API key (owner/admin) | Send a download link via email |
+| `GET /api/agent/key` | JWT or API key (owner/admin) | View the tenant agent key prefix |
+| `POST /api/agent/key/rotate` | JWT or API key (owner/admin) | Rotate the tenant agent key |
+
+### Tenant agent key
+
+Each tenant has a server-managed agent key used to authenticate agents for event submission and heartbeats. The key is generated automatically on the first agent download (or on tenant seed) and embedded in every agent package. Admins can rotate the key via `POST /api/agent/key/rotate` (existing agents will need reconfiguration).
+
+See [DEPLOY.md](DEPLOY.md) for full usage including email enrollment.
 
 ---
 

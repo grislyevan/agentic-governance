@@ -67,6 +67,18 @@ class Settings(BaseSettings):
     webhook_delivery_timeout: int = 10
     webhook_max_retries: int = 3
 
+    # SMTP (for email enrollment; optional)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_use_tls: bool = True
+
+    @property
+    def smtp_configured(self) -> bool:
+        return bool(self.smtp_host and self.smtp_from)
+
     # Seed data (created on first startup if DB is empty)
     seed_admin_email: str = "admin@example.com"
     seed_admin_password: str = "change-me"

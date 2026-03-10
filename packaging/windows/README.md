@@ -174,7 +174,7 @@ cd dist\detec-agent
 
 ### Configure the agent
 
-**Option A: Download pre-configured from the dashboard** (zero-touch). In the Detec dashboard, go to Settings, select Windows, and click "Download Agent". The resulting zip contains the agent plus a `collector.json` with the server URL and API key already filled in. Extract to `C:\Program Files\Detec\`, copy `collector.json` to `%PROGRAMDATA%\Detec\`, and install the service. No manual setup required.
+**Option A: Download pre-configured from the dashboard** (zero-touch). In the Detec dashboard, go to Settings, select Windows, and click "Download Agent". The resulting zip contains the agent plus a `collector.json` with the server URL and tenant agent key already filled in. Extract to `C:\Program Files\Detec\`, copy `collector.json` to `%PROGRAMDATA%\Detec\`, and install the service. No manual setup required. Admins can also email a download link to end users directly from the dashboard.
 
 **Option B: Manual setup.** After extracting the agent:
 

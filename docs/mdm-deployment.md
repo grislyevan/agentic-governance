@@ -9,7 +9,7 @@ supports `.pkg` distribution.
 Before deploying to your fleet, ensure the following:
 
 - [ ] Central API server is running and reachable from endpoint networks
-- [ ] API key(s) have been generated for agent authentication
+- [ ] A tenant agent key exists (auto-generated on first agent download or server seed)
 - [ ] Network firewall rules allow endpoints to reach the API server
       (port 443 for production HTTPS, 8000 for development HTTP,
       port 8001 for TCP binary protocol when using `--protocol tcp`)
@@ -33,9 +33,9 @@ are several ways to deliver these to managed endpoints:
 
 ### Option 0: Pre-configured package from the server (recommended)
 
-Build the `.pkg` with the server URL and API key baked in. The postinstall script copies the config to `~/Library/Application Support/Detec/agent.env` automatically; no additional MDM scripts or profiles needed.
+Build the `.pkg` with the server URL and tenant agent key baked in. The postinstall script copies the config to `~/Library/Application Support/Detec/agent.env` automatically; no additional MDM scripts or profiles needed.
 
-**From the dashboard:** Go to Settings > Download Agent, select macOS, and download. The zip contains a `.pkg` with embedded config plus standalone `agent.env` and `collector.json` files.
+**From the dashboard:** Go to Settings > Deploy Agent, select macOS, and click "Download Agent". The zip contains a `.pkg` with embedded config plus standalone `agent.env` and `collector.json` files. The tenant agent key is embedded automatically. You can also email a download link directly to end users from the same section.
 
 **From the build machine:**
 

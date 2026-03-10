@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 import uuid
 from datetime import datetime, timezone
 
@@ -11,12 +12,18 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
 
+def generate_agent_key() -> str:
+    """Generate a random tenant-level agent key (plaintext, 64 hex chars)."""
+    return secrets.token_hex(32)
+
+
 class Tenant(Base):
     __tablename__ = "tenants"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     slug: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    agent_key: Mapped[str | None] = mapped_column(String(128))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

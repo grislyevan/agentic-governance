@@ -166,11 +166,15 @@ def _seed() -> None:
         if existing:
             return
 
+        from models.tenant import generate_agent_key
+
         slug = settings.seed_tenant_name.lower().replace(" ", "-")[:64]
+        agent_key = generate_agent_key()
         tenant = Tenant(
             id=str(uuid.uuid4()),
             name=settings.seed_tenant_name,
             slug=slug,
+            agent_key=agent_key,
         )
         db.add(tenant)
         db.flush()
@@ -192,6 +196,10 @@ def _seed() -> None:
         logger.info(
             "[seed] Admin API key (save this, it will not be shown again): %s",
             raw_key,
+        )
+        logger.info(
+            "[seed] Tenant agent key (used in agent packages): %s",
+            agent_key,
         )
     except Exception:
         db.rollback()

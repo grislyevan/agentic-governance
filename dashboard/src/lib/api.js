@@ -177,7 +177,7 @@ async function apiMutatePublic(method, path, body) {
   return res.json();
 }
 
-// Agent download
+// Agent download (uses JWT auth; server embeds tenant agent key automatically)
 
 export async function downloadAgent({ platform, interval, protocol }) {
   const config = getApiConfig();
@@ -186,8 +186,7 @@ export async function downloadAgent({ platform, interval, protocol }) {
   if (protocol) params.set('protocol', protocol);
   const url = `${config.apiUrl.replace(/\/+$/, '')}/agent/download?${params}`;
 
-  const headers = {};
-  if (config.apiKey) headers['X-Api-Key'] = config.apiKey;
+  const headers = buildAuthHeaders();
 
   const res = await fetch(url, { headers });
   if (res.status === 404) {
@@ -195,7 +194,7 @@ export async function downloadAgent({ platform, interval, protocol }) {
     throw new Error(data.detail || 'No pre-built package available for this platform.');
   }
   if (res.status === 401 || res.status === 403) {
-    throw new Error('Authentication failed. An API key with admin or owner role is required.');
+    throw new Error('Authentication failed. Admin or owner role is required.');
   }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -214,6 +213,10 @@ export async function downloadAgent({ platform, interval, protocol }) {
   a.click();
   a.remove();
   URL.revokeObjectURL(a.href);
+}
+
+export async function enrollAgentByEmail({ email, platform, interval, protocol }) {
+  return apiMutate('POST', '/agent/enroll-email', { email, platform, interval, protocol });
 }
 
 // Webhooks
