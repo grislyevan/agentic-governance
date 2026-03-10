@@ -89,16 +89,30 @@ The API container runs Alembic migrations automatically before starting (see `ap
 
 ---
 
-## Option B: Windows Service (recommended for Windows)
+## Option B: Windows Installer (recommended for Windows)
 
-Run the Detec server as a Windows Service with SQLite. No database or container runtime needed.
+The easiest way to deploy on Windows. Ship a single `DetecServerSetup.exe` to the target machine; no prerequisites required.
 
-### Prerequisites
+### GUI installer (recommended)
+
+Build the installer on your build machine (requires Python 3.11+, Node.js 22+, and [Inno Setup 6](https://jrsoftware.org/isdl.php)):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File packaging\windows\build-installer.ps1
+```
+
+This produces `packaging/windows/dist/DetecServerSetup-0.1.0.exe`. The wizard handles license acceptance, pre-flight checks, server configuration (port, database), admin account creation, service installation, firewall rules, and a desktop shortcut. See [packaging/windows/README.md](packaging/windows/README.md) for full details.
+
+### Manual build (alternative)
+
+If you prefer to build without the installer wrapper:
+
+#### Prerequisites
 
 - Python 3.11+
 - Node.js 20.19+ or 22.12+ (for building the dashboard; Vite requires these versions)
 
-### 1. Build the server
+#### Build the server
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File packaging/windows/build.ps1

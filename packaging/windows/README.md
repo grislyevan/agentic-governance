@@ -21,14 +21,25 @@ This runs the full pipeline: dashboard build, PyInstaller bundle, branding asset
 The wizard walks the user through these steps:
 
 1. **License agreement**: accept the Detec Server EULA
-2. **Pre-flight checks**: validates disk space (300 MB minimum), port availability, detects existing installations or services
+2. **Pre-flight checks**: validates disk space (300 MB minimum), port availability (via `Get-NetTCPConnection`), detects existing installations or services
 3. **Server configuration**: choose the API port (default 8000) and database backend (SQLite or PostgreSQL with connection URL)
-4. **Installation summary**: review chosen settings before proceeding
-5. **File extraction + post-install**: extracts the server bundle to `C:\Program Files\Detec\Server\`, generates secrets and an `admin@localhost` administrator account, installs and starts the Windows Service, configures the firewall, and creates a desktop shortcut
-6. **Credentials page**: displays the generated admin password (shown once, user must save it)
+4. **Administrator account**: enter the admin email, password, and confirmation (validated for format and minimum length)
+5. **Installation summary**: review all chosen settings before proceeding
+6. **File extraction + post-install**: extracts the server bundle to `C:\Program Files\Detec\Server\`, generates secrets and the administrator account, installs and starts the Windows Service, configures firewall rules for both the API port and gateway port (8001), and creates a desktop shortcut
 7. **Finish page**: includes an "Open Detec Dashboard" button
 
-The installer also registers an uninstaller in Add/Remove Programs that stops the service, removes the service, cleans up the firewall rule, deletes files, and optionally removes the data directory (`C:\ProgramData\Detec\`).
+#### Security
+
+- Admin credentials are passed to the setup process via environment variable, not on the command line, to prevent exposure in Task Manager or process listings.
+- If the setup step (config generation) fails, post-install halts early and displays manual recovery instructions.
+
+#### Upgrades
+
+When an existing Detec Server service is detected, the installer stops it before extracting files to avoid locked-file errors. The service is reinstalled and restarted after extraction.
+
+#### Uninstaller
+
+Registered in Add/Remove Programs. It stops and removes the Windows Service, deletes both firewall rules (API and gateway), removes installed files, and optionally removes the data directory (`C:\ProgramData\Detec\`).
 
 ---
 

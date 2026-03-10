@@ -62,7 +62,11 @@ def cmd_setup(args: argparse.Namespace) -> None:
         return
 
     jwt_secret = secrets.token_hex(32)
-    seed_password = getattr(args, "admin_password", None) or secrets.token_urlsafe(16)
+    seed_password = (
+        getattr(args, "admin_password", None)
+        or os.environ.get("DETEC_ADMIN_PASSWORD")
+        or secrets.token_urlsafe(16)
+    )
 
     api_port = getattr(args, "port", 8000)
     gateway_port = getattr(args, "gateway_port", 8001)

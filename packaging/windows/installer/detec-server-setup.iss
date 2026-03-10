@@ -46,6 +46,7 @@ Source: "..\dist\detec-server\*"; DestDir: "{app}"; Flags: ignoreversion recurse
 Filename: "{app}\detec-server.exe"; Parameters: "stop"; Flags: runhidden waituntilterminated; RunOnceId: "StopService"
 Filename: "{app}\detec-server.exe"; Parameters: "remove"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveService"
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Detec Server"""; Flags: runhidden waituntilterminated; RunOnceId: "RemoveFirewall"
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Detec Gateway"""; Flags: runhidden waituntilterminated; RunOnceId: "RemoveGatewayFirewall"
 
 [UninstallDelete]
 Type: files; Name: "{commondesktop}\Detec Dashboard.lnk"
@@ -80,6 +81,7 @@ var
   LogMemo: TNewMemo;
 
   PreflightPassed: Boolean;
+  InstallHadErrors: Boolean;
   ChosenPort: string;
 
 { ── Helpers ────────────────────────────────────────────────────────── }
@@ -91,6 +93,17 @@ begin
   Result := Exec(Filename, Params, WorkDir, SW_HIDE,
                  ewWaitUntilTerminated, ResultCode)
             and (ResultCode = 0);
+end;
+
+function RunCmdWithEnv(const Filename, Params, WorkDir, EnvName, EnvValue: string): Boolean;
+var
+  ResultCode: Integer;
+begin
+  SetEnvironmentVariable(EnvName, EnvValue);
+  Result := Exec(Filename, Params, WorkDir, SW_HIDE,
+                 ewWaitUntilTerminated, ResultCode)
+            and (ResultCode = 0);
+  SetEnvironmentVariable(EnvName, '');
 end;
 
 procedure LogStep(const Msg: string);
@@ -166,15 +179,17 @@ begin
   WizardForm.Refresh;
   PortInUse := False;
   OutputFile := ExpandConstant('{tmp}\netstat-check.txt');
-  if Exec(ExpandConstant('{cmd}'),
-          '/C netstat -an | findstr "LISTENING" | findstr ":' + Port + ' " > "' + OutputFile + '"',
+  if Exec('powershell.exe',
+          '-NoProfile -Command "if (Get-NetTCPConnection -LocalPort ' + Port +
+          ' -State Listen -ErrorAction SilentlyContinue) { ''IN_USE'' | Out-File -Encoding ascii ''' +
+          OutputFile + ''' } else { ''FREE'' | Out-File -Encoding ascii ''' + OutputFile + ''' }"',
           '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
   begin
     if LoadStringsFromFile(OutputFile, Lines) then
       for I := 0 to GetArrayLength(Lines) - 1 do
       begin
         Line := Lines[I];
-        if Pos(':' + Port + ' ', Line) > 0 then
+        if Pos('IN_USE', Line) > 0 then
         begin
           PortInUse := True;
           Break;
@@ -506,6 +521,25 @@ begin
   Result := (PageID = wpReady);
 end;
 
+{ ── Pre-install: stop running service to avoid locked files ────────── }
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Result := '';
+  if Exec(ExpandConstant('{sys}\sc.exe'), 'query DetecServer',
+          '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  begin
+    if ResultCode = 0 then
+    begin
+      Exec(ExpandConstant('{sys}\sc.exe'), 'stop DetecServer',
+           '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      Sleep(2000);
+    end;
+  end;
+end;
+
 { ── Post-install actions ───────────────────────────────────────────── }
 
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -520,6 +554,7 @@ begin
   AppDir := ExpandConstant('{app}');
   Port := ChosenPort;
   AdminEmail := GetAdminEmail;
+  InstallHadErrors := False;
 
   LogMemo.Lines.Add('  Installing Detec Server');
   LogMemo.Lines.Add('');
@@ -528,42 +563,61 @@ begin
 
   LogStep('  [2/5]  Generating server configuration...');
   SetupArgs := 'setup --force --admin-email "' + AdminEmail +
-               '" --admin-password "' + GetAdminPassword +
                '" --port ' + Port;
   if IsPostgreSQL then
     SetupArgs := SetupArgs + ' --database-url "' + Trim(PgUrlEdit.Text) + '"';
-  if RunCmd(AppDir + '\detec-server.exe', SetupArgs, AppDir) then
+  if RunCmdWithEnv(AppDir + '\detec-server.exe', SetupArgs, AppDir,
+                   'DETEC_ADMIN_PASSWORD', GetAdminPassword) then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
       '  [2/5]  Generating server configuration... done'
-  else
+  else begin
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
       '  [2/5]  Generating server configuration... ERROR';
+    InstallHadErrors := True;
+    LogMemo.Lines.Add('');
+    LogStep('  Setup failed. Files have been extracted to ' + AppDir);
+    LogStep('  You can re-run setup manually:');
+    LogStep('    detec-server.exe setup --admin-email ' + AdminEmail);
+    WizardForm.Refresh;
+    Exit;
+  end;
   WizardForm.Refresh;
 
   LogStep('  [3/5]  Installing Windows Service...');
   if RunCmd(AppDir + '\detec-server.exe', 'install', AppDir) then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
       '  [3/5]  Installing Windows Service...      done'
-  else
+  else begin
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
       '  [3/5]  Installing Windows Service...      ERROR';
+    InstallHadErrors := True;
+  end;
   WizardForm.Refresh;
 
   LogStep('  [4/5]  Starting Detec Server...');
   if RunCmd(AppDir + '\detec-server.exe', 'start', AppDir) then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
       '  [4/5]  Starting Detec Server...           done'
-  else
+  else begin
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
       '  [4/5]  Starting Detec Server...           ERROR';
+    InstallHadErrors := True;
+  end;
   WizardForm.Refresh;
 
   LogStep('  [5/5]  Configuring firewall...');
-  RunCmd(ExpandConstant('{sys}\netsh.exe'),
+  if RunCmd(ExpandConstant('{sys}\netsh.exe'),
          'advfirewall firewall add rule name="Detec Server" ' +
-         'dir=in action=allow protocol=TCP localport=' + Port, '');
-  LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-    '  [5/5]  Configuring firewall...            done';
+         'dir=in action=allow protocol=TCP localport=' + Port, '') then
+    LogMemo.Lines[LogMemo.Lines.Count - 1] :=
+      '  [5/5]  Configuring firewall...            done'
+  else begin
+    LogMemo.Lines[LogMemo.Lines.Count - 1] :=
+      '  [5/5]  Configuring firewall...            WARNING (non-critical)';
+  end;
+  RunCmd(ExpandConstant('{sys}\netsh.exe'),
+         'advfirewall firewall add rule name="Detec Gateway" ' +
+         'dir=in action=allow protocol=TCP localport=8001', '');
   WizardForm.Refresh;
 
   try
@@ -583,7 +637,13 @@ begin
     DbLabel := 'SQLite';
 
   LogMemo.Lines.Add('');
-  LogStep('  Detec Server is running at http://localhost:' + Port);
+  if InstallHadErrors then begin
+    LogStep('  Installation completed with errors.');
+    LogMemo.Lines.Add('  Some steps failed. The server may not be running.');
+    LogMemo.Lines.Add('  Check C:\ProgramData\Detec\server.log for details.');
+    LogMemo.Lines.Add('');
+  end else
+    LogStep('  Detec Server is running at http://localhost:' + Port);
   LogMemo.Lines.Add('');
   LogMemo.Lines.Add('  Sign in:     ' + AdminEmail);
   LogMemo.Lines.Add('  Database:    ' + DbLabel);
