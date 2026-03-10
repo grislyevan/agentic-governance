@@ -720,12 +720,23 @@ def _run_daemon(args: argparse.Namespace) -> None:
             parsed = urlparse(args.api_url)
             gateway_host = parsed.hostname or "localhost"
 
+        auto_tls = args.api_url.startswith("https://") if args.api_url else False
+        tls_enabled = getattr(args, "tls", auto_tls)
+        if not tls_enabled and auto_tls:
+            tls_enabled = True
+        if not tls_enabled and args.api_url and not args.api_url.startswith("http://localhost"):
+            logger.warning(
+                "TCP transport running without TLS. Set --tls or use https:// API URL "
+                "to enable encrypted transport."
+            )
+
         emitter = TcpEmitter(
             gateway_host=gateway_host,
             gateway_port=gateway_port,
             api_key=args.api_key,
             hostname=hostname,
             agent_version=EVENT_VERSION,
+            tls=tls_enabled,
         )
     else:
         emitter = HttpEmitter(api_url=args.api_url, api_key=args.api_key)

@@ -52,11 +52,12 @@ def list_users(
     q = db.query(User).filter(get_tenant_filter(auth, User))
 
     if search:
-        pattern = f"%{search}%"
+        escaped = search.replace("%", r"\%").replace("_", r"\_")
+        pattern = f"%{escaped}%"
         q = q.filter(
-            (User.email.ilike(pattern))
-            | (User.first_name.ilike(pattern))
-            | (User.last_name.ilike(pattern))
+            (User.email.ilike(pattern, escape="\\"))
+            | (User.first_name.ilike(pattern, escape="\\"))
+            | (User.last_name.ilike(pattern, escape="\\"))
         )
 
     total = q.with_entities(func.count()).scalar() or 0

@@ -2,9 +2,51 @@
 
 from __future__ import annotations
 
+import ipaddress
+import os
 from datetime import datetime
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, field_validator, HttpUrl
+
+_BLOCKED_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),
+    ipaddress.ip_network("fe80::/10"),
+]
+
+
+def _validate_webhook_url(v: str) -> str:
+    v = v.strip()
+    env = os.getenv("ENV", "development").lower()
+    is_prod = env in ("production", "staging")
+
+    if is_prod:
+        if not v.startswith("https://"):
+            raise ValueError("Webhook URL must use https:// in production")
+    else:
+        if not v.startswith(("https://", "http://")):
+            raise ValueError("Webhook URL must start with https:// or http://")
+
+    if len(v) > 2048:
+        raise ValueError("URL must be at most 2048 characters")
+
+    parsed = urlparse(v)
+    hostname = parsed.hostname or ""
+    try:
+        addr = ipaddress.ip_address(hostname)
+        for network in _BLOCKED_NETWORKS:
+            if addr in network:
+                raise ValueError("Webhook URL must not target private or link-local addresses")
+    except ValueError as e:
+        if "must not target" in str(e):
+            raise
+    return v
 
 
 class WebhookCreate(BaseModel):
@@ -15,12 +57,7 @@ class WebhookCreate(BaseModel):
     @field_validator("url")
     @classmethod
     def validate_url(cls, v: str) -> str:
-        v = v.strip()
-        if not v.startswith(("https://", "http://")):
-            raise ValueError("Webhook URL must start with https:// or http://")
-        if len(v) > 2048:
-            raise ValueError("URL must be at most 2048 characters")
-        return v
+        return _validate_webhook_url(v)
 
 
 class WebhookUpdate(BaseModel):
@@ -32,11 +69,7 @@ class WebhookUpdate(BaseModel):
     @classmethod
     def validate_url(cls, v: str | None) -> str | None:
         if v is not None:
-            v = v.strip()
-            if not v.startswith(("https://", "http://")):
-                raise ValueError("Webhook URL must start with https:// or http://")
-            if len(v) > 2048:
-                raise ValueError("URL must be at most 2048 characters")
+            return _validate_webhook_url(v)
         return v
 
 

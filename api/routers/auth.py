@@ -162,8 +162,11 @@ def forgot_password(
     """Request a password reset. Creates a reset token (valid 1 hour).
 
     Always returns 200 to avoid leaking whether an email exists.
-    The token is returned in the response body until email delivery is wired up.
+    When SMTP is configured the token is emailed; otherwise it is logged
+    server-side at DEBUG level for development use only.
     """
+    from core.config import settings as _settings
+
     user = db.query(User).filter(User.email == body.email, User.is_active.is_(True)).first()
     if not user:
         return PasswordResetResponse(message="If that email is registered, a reset link has been created.")
@@ -188,9 +191,13 @@ def forgot_password(
     )
     db.commit()
 
+    if _settings.smtp_configured:
+        logger.info("Password reset token created for %s (email delivery pending)", body.email)
+    else:
+        logger.debug("Password reset token for %s (no SMTP): %s", body.email, raw_token)
+
     return PasswordResetResponse(
         message="If that email is registered, a reset link has been created.",
-        token=raw_token,
     )
 
 

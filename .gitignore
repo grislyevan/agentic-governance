@@ -14,6 +14,13 @@ node_modules/
 # Real collector config (may contain api_key)
 collector/config/collector.json
 
+# Agent and server env files (may contain API keys / secrets)
+agent.env
+server.env
+**/agent.env
+**/server.env
+seed-credentials.txt
+
 # Credential and key file patterns
 *.pem
 *.key

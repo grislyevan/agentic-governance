@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.database import get_db
+from core.event_validator import validate_event_payload
 from core.tenant import get_tenant_id as _get_tenant_id, resolve_auth, get_tenant_filter
 from models.endpoint import Endpoint
 from models.event import Event
@@ -117,6 +118,13 @@ def ingest_event(
     key.  Events with invalid signatures are rejected with 403.
     """
     tenant_id = _get_tenant_id(authorization, x_api_key, db)
+
+    validation_errors = validate_event_payload(body.model_dump(mode="json", exclude_none=True))
+    if validation_errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Event validation failed: {'; '.join(validation_errors)}",
+        )
 
     existing = db.query(Event).filter(
         Event.event_id == body.event_id,

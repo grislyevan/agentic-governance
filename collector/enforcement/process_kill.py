@@ -63,8 +63,8 @@ def kill_processes(
                 continue
             if expected_pattern.lower() not in cmdline.lower():
                 logger.warning(
-                    "PID %d: cmdline %r does not match expected pattern %r, skipping",
-                    pid, cmdline[:120], expected_pattern,
+                    "PID %d: cmdline does not match expected pattern %r, skipping",
+                    pid, expected_pattern,
                 )
                 continue
 

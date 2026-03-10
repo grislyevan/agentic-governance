@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class RegisterRequest(BaseModel):
@@ -75,7 +75,7 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class ResetPasswordRequest(BaseModel):
-    token: str
+    token: str = Field(max_length=512)
     new_password: str
 
     @field_validator("new_password")
@@ -89,7 +89,7 @@ class ResetPasswordRequest(BaseModel):
 
 
 class AcceptInviteRequest(BaseModel):
-    token: str
+    token: str = Field(max_length=512)
     new_password: str
 
     @field_validator("new_password")
@@ -104,7 +104,6 @@ class AcceptInviteRequest(BaseModel):
 
 class PasswordResetResponse(BaseModel):
     message: str
-    token: str | None = None
 
 
 class LoginResponse(TokenResponse):

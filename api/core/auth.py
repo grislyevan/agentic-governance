@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from jose import JWTError, jwt
+import jwt as pyjwt
 from passlib.context import CryptContext
 
 from .config import settings
@@ -34,7 +34,7 @@ def create_access_token(subject: str, tenant_id: str, extra: dict[str, Any] | No
         "type": "access",
         **(extra or {}),
     }
-    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    return pyjwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
 def create_refresh_token(subject: str, tenant_id: str) -> tuple[str, str]:
@@ -50,12 +50,12 @@ def create_refresh_token(subject: str, tenant_id: str) -> tuple[str, str]:
         "jti": jti,
         "type": "refresh",
     }
-    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm), jti
+    return pyjwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm), jti
 
 
 def decode_token(token: str) -> dict[str, Any]:
-    """Decode and validate a JWT. Raises JWTError on failure."""
-    return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    """Decode and validate a JWT. Raises pyjwt.PyJWTError on failure."""
+    return pyjwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
 
 
 def is_valid_token(token: str, token_type: str = "access") -> dict[str, Any] | None:
@@ -65,5 +65,5 @@ def is_valid_token(token: str, token_type: str = "access") -> dict[str, Any] | N
         if payload.get("type") != token_type:
             return None
         return payload
-    except JWTError:
+    except pyjwt.PyJWTError:
         return None

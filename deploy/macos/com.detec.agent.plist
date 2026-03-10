@@ -17,9 +17,9 @@
 	<key>KeepAlive</key>
 	<true/>
 	<key>StandardOutPath</key>
-	<string>/tmp/detec-agent.log</string>
+	<string>Library/Logs/DetecAgent/detec-agent.log</string>
 	<key>StandardErrorPath</key>
-	<string>/tmp/detec-agent.err</string>
+	<string>Library/Logs/DetecAgent/detec-agent.err</string>
 	<!-- Do not put API key here. Set AGENTIC_GOV_API_KEY via launchctl setenv or use keychain (see DEPLOY.md). -->
 	<!-- Optional: add key EnvironmentVariables with dict AGENTIC_GOV_API_URL, AGENTIC_GOV_INTERVAL if you prefer env over args. -->
 </dict>

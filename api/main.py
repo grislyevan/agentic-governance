@@ -169,12 +169,14 @@ def _seed() -> None:
         from models.tenant import generate_agent_key
 
         slug = settings.seed_tenant_name.lower().replace(" ", "-")[:64]
-        agent_key = generate_agent_key()
+        raw_agent_key, agent_prefix, agent_hash = generate_agent_key()
         tenant = Tenant(
             id=str(uuid.uuid4()),
             name=settings.seed_tenant_name,
             slug=slug,
-            agent_key=agent_key,
+            agent_key=raw_agent_key,
+            agent_key_prefix=agent_prefix,
+            agent_key_hash=agent_hash,
         )
         db.add(tenant)
         db.flush()
@@ -193,14 +195,31 @@ def _seed() -> None:
         db.add(admin)
         db.commit()
         logger.info("Seed: created tenant '%s' and admin '%s'", tenant.name, admin.email)
-        logger.info(
-            "[seed] Admin API key (save this, it will not be shown again): %s",
-            raw_key,
-        )
-        logger.info(
-            "[seed] Tenant agent key (used in agent packages): %s",
-            agent_key,
-        )
+        env = os.getenv("ENV", "development").lower()
+        if env in ("production", "staging"):
+            logger.info(
+                "[seed] Admin API key prefix (full key written to seed-credentials.txt): %s...",
+                raw_key[:8],
+            )
+            logger.info(
+                "[seed] Tenant agent key prefix: %s...",
+                raw_agent_key[:8],
+            )
+            cred_path = Path("seed-credentials.txt")
+            cred_path.write_text(
+                f"admin_api_key={raw_key}\nagent_key={raw_agent_key}\n",
+                encoding="utf-8",
+            )
+            cred_path.chmod(0o600)
+        else:
+            logger.info(
+                "[seed] Admin API key (save this, it will not be shown again): %s",
+                raw_key,
+            )
+            logger.info(
+                "[seed] Tenant agent key (used in agent packages): %s",
+                raw_agent_key,
+            )
     except Exception:
         db.rollback()
         logger.warning("Seed skipped (set DEBUG=true for details)")
@@ -211,6 +230,7 @@ def _seed() -> None:
 
 limiter = Limiter(
     key_func=get_remote_address,
+    default_limits=["300/minute"],
     enabled=not os.environ.get("TESTING"),
 )
 
@@ -246,6 +266,25 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Api-Key"],
 )
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    env = os.getenv("ENV", "development").lower()
+    if env in ("production", "staging"):
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; "
+            "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        )
+    return response
+
 
 API_PREFIX = "/api"
 

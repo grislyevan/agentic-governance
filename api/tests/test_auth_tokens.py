@@ -6,34 +6,86 @@ import pytest
 from tests.conftest import API, _auth_header, register_user, login_user
 
 
+def _get_latest_reset_token(email: str) -> str:
+    """Retrieve the latest unused reset token from the DB for testing.
+
+    In production, this token would arrive via email. For tests we
+    read it from the DB directly.
+    """
+    from core.database import get_db
+    from models.auth_token import AuthToken
+    from models.user import User
+
+    db = next(get_db())
+    user = db.query(User).filter(User.email == email).first()
+    token_obj = (
+        db.query(AuthToken)
+        .filter(
+            AuthToken.user_id == user.id,
+            AuthToken.purpose == "reset",
+            AuthToken.used_at.is_(None),
+        )
+        .order_by(AuthToken.created_at.desc())
+        .first()
+    )
+    raw_token, _ = AuthToken.create_reset_token.__func__  # noqa: not callable directly
+    # Workaround: we can't retrieve the raw token from a hash.
+    # Instead, create a new token directly and use it.
+    token_obj2, raw = AuthToken.create_reset_token(user.id)
+    db.add(token_obj2)
+    db.commit()
+    return raw
+
+
+def _request_reset_and_get_token(client, email: str) -> str:
+    """Request a password reset and retrieve the raw token from the DB."""
+    from core.database import get_db
+    from models.auth_token import AuthToken
+    from models.user import User
+
+    resp = client.post(f"{API}/auth/forgot-password", json={"email": email})
+    assert resp.status_code == 200
+    assert "token" not in resp.json()
+
+    db = next(get_db())
+    user = db.query(User).filter(User.email == email).first()
+
+    # The forgot-password endpoint creates a token but no longer returns it.
+    # For testing, create a fresh token via the model directly.
+    token_obj, raw = AuthToken.create_reset_token(user.id)
+    db.add(token_obj)
+    db.commit()
+    return raw
+
+
 class TestForgotPassword:
-    def test_forgot_password_returns_token(self, client):
+    def test_forgot_password_does_not_return_token(self, client):
         register_user(client, email="fp@test.com", password="testpass12345")
         resp = client.post(f"{API}/auth/forgot-password", json={"email": "fp@test.com"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["message"]
-        assert data["token"] is not None
-        assert len(data["token"]) > 20
+        assert "token" not in data
 
     def test_forgot_password_nonexistent_email_still_200(self, client):
         resp = client.post(f"{API}/auth/forgot-password", json={"email": "nobody@test.com"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["message"]
-        assert data.get("token") is None
+        assert "token" not in data
 
     def test_forgot_password_invalidates_old_tokens(self, client):
         register_user(client, email="multi@test.com", password="testpass12345")
 
-        r1 = client.post(f"{API}/auth/forgot-password", json={"email": "multi@test.com"})
-        token1 = r1.json()["token"]
+        token1 = _request_reset_and_get_token(client, "multi@test.com")
 
-        r2 = client.post(f"{API}/auth/forgot-password", json={"email": "multi@test.com"})
-        token2 = r2.json()["token"]
+        # Second request invalidates previous tokens
+        client.post(f"{API}/auth/forgot-password", json={"email": "multi@test.com"})
+        token2 = _request_reset_and_get_token(client, "multi@test.com")
 
         assert token1 != token2
 
+        # token1 was invalidated by the second forgot-password request
         resp = client.post(f"{API}/auth/reset-password", json={
             "token": token1, "new_password": "newpass12345",
         })
@@ -48,8 +100,7 @@ class TestForgotPassword:
 class TestResetPassword:
     def test_reset_password_success(self, client):
         register_user(client, email="reset@test.com", password="testpass12345")
-        r = client.post(f"{API}/auth/forgot-password", json={"email": "reset@test.com"})
-        token = r.json()["token"]
+        token = _request_reset_and_get_token(client, "reset@test.com")
 
         resp = client.post(f"{API}/auth/reset-password", json={
             "token": token, "new_password": "newpassword1",
@@ -70,8 +121,7 @@ class TestResetPassword:
 
     def test_reset_password_used_token_rejected(self, client):
         register_user(client, email="used@test.com", password="testpass12345")
-        r = client.post(f"{API}/auth/forgot-password", json={"email": "used@test.com"})
-        token = r.json()["token"]
+        token = _request_reset_and_get_token(client, "used@test.com")
 
         client.post(f"{API}/auth/reset-password", json={
             "token": token, "new_password": "newpassword1",
@@ -84,8 +134,7 @@ class TestResetPassword:
 
     def test_reset_password_short_password_rejected(self, client):
         register_user(client, email="short@test.com", password="testpass12345")
-        r = client.post(f"{API}/auth/forgot-password", json={"email": "short@test.com"})
-        token = r.json()["token"]
+        token = _request_reset_and_get_token(client, "short@test.com")
 
         resp = client.post(f"{API}/auth/reset-password", json={
             "token": token, "new_password": "short",

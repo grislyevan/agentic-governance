@@ -19,6 +19,7 @@ from sqlalchemy.exc import IntegrityError
 
 from core.config import settings
 from core.database import SessionLocal
+from core.event_validator import validate_event_payload
 from models.endpoint import Endpoint, ENDPOINT_STATUS_ACTIVE
 from models.event import Event
 from models.user import User, verify_api_key, API_KEY_PREFIX_LEN
@@ -85,10 +86,12 @@ class AgentSession(BaseConnection):
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
         registry: SessionRegistry,
+        read_timeout: int = 120,
         **kwargs: Any,
     ) -> None:
         super().__init__(reader, writer, **kwargs)
         self._registry = registry
+        self._read_timeout = read_timeout
         self._authenticated = False
         self._tenant_id: str | None = None
         self._endpoint_id: str | None = None
@@ -135,6 +138,28 @@ class AgentSession(BaseConnection):
         else:
             logger.warning("AgentSession %s: unknown message type 0x%02x", self._session_id, msg_type)
             await self.send(error_msg(400, f"Unknown message type: {msg_type}"))
+
+    async def _read_loop(self) -> None:
+        """Override to add a per-recv timeout so idle connections are evicted."""
+        while not self._closed:
+            try:
+                msg = await asyncio.wait_for(self.recv(), timeout=self._read_timeout)
+            except asyncio.TimeoutError:
+                logger.info(
+                    "Session %s idle for %ds, closing",
+                    self._session_id, self._read_timeout,
+                )
+                break
+            if msg is None:
+                logger.info("%s: remote end closed", self._label)
+                break
+            try:
+                await self.handle_message(msg)
+            except Exception:
+                logger.exception(
+                    "%s: error handling message type 0x%02x",
+                    self._label, msg.get("t", 0),
+                )
 
     # -- Authentication ------------------------------------------------------
 
@@ -263,6 +288,14 @@ class AgentSession(BaseConnection):
 
     def _ingest_event(self, event_data: dict[str, Any]) -> bool:
         """Persist a single event to the database. Runs in a thread."""
+        validation_errors = validate_event_payload(event_data)
+        if validation_errors:
+            logger.warning(
+                "Event from %s failed validation: %s",
+                self._hostname, "; ".join(validation_errors),
+            )
+            return False
+
         db = SessionLocal()
         try:
             event_id = event_data.get("event_id")
@@ -378,6 +411,11 @@ class AgentSession(BaseConnection):
         logger.info("Session closed: %s (endpoint=%s)", self._hostname or "unauthenticated", self._endpoint_id)
 
 
+_MAX_GLOBAL_CONNECTIONS = 500
+_MAX_CONNECTIONS_PER_IP = 20
+_READ_TIMEOUT = 120  # seconds; idle connections closed after this
+
+
 class DetecGateway:
     """Asyncio TCP/TLS server that accepts binary protocol agent connections."""
 
@@ -392,10 +430,34 @@ class DetecGateway:
         self._ssl_context = ssl_context
         self._server: asyncio.Server | None = None
         self._registry = SessionRegistry()
+        self._active_connections = 0
+        self._connections_per_ip: dict[str, int] = {}
+        self._conn_lock = asyncio.Lock()
 
     @property
     def registry(self) -> SessionRegistry:
         return self._registry
+
+    async def _track_connect(self, ip: str) -> bool:
+        """Register a connection. Returns False if limits are exceeded."""
+        async with self._conn_lock:
+            if self._active_connections >= _MAX_GLOBAL_CONNECTIONS:
+                return False
+            current = self._connections_per_ip.get(ip, 0)
+            if current >= _MAX_CONNECTIONS_PER_IP:
+                return False
+            self._active_connections += 1
+            self._connections_per_ip[ip] = current + 1
+            return True
+
+    async def _track_disconnect(self, ip: str) -> None:
+        async with self._conn_lock:
+            self._active_connections = max(0, self._active_connections - 1)
+            current = self._connections_per_ip.get(ip, 1)
+            if current <= 1:
+                self._connections_per_ip.pop(ip, None)
+            else:
+                self._connections_per_ip[ip] = current - 1
 
     async def serve(self) -> None:
         """Start listening for agent connections. Runs until cancelled."""
@@ -419,7 +481,17 @@ class DetecGateway:
         writer: asyncio.StreamWriter,
     ) -> None:
         peer = writer.get_extra_info("peername")
+        peer_ip = peer[0] if peer else "unknown"
         logger.debug("New connection from %s", peer)
+
+        if not await self._track_connect(peer_ip):
+            logger.warning(
+                "Connection rejected from %s (limit reached: %d global, %d from this IP)",
+                peer_ip, self._active_connections,
+                self._connections_per_ip.get(peer_ip, 0),
+            )
+            writer.close()
+            return
 
         session = AgentSession(
             reader,
@@ -427,6 +499,7 @@ class DetecGateway:
             registry=self._registry,
             label=f"pending:{peer}",
             keepalive_interval=settings.default_heartbeat_interval,
+            read_timeout=_READ_TIMEOUT,
         )
         try:
             await session.run()
@@ -435,6 +508,7 @@ class DetecGateway:
         finally:
             if not session.closed:
                 await session.close()
+            await self._track_disconnect(peer_ip)
 
     async def stop(self) -> None:
         """Gracefully shut down the gateway."""
