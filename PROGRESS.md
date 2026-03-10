@@ -137,6 +137,7 @@ API Client ────────────────────▶│ Mu
 - [x] Windows GUI installer (`DetecServerSetup.exe`): branded Inno Setup wizard, pre-flight checks, admin account creation, service install, firewall rules, desktop shortcut, uninstaller
 - [x] Installer security: admin password passed via env var (not CLI), error tracking with early exit on setup failure, upgrade path stops service before file extraction
 - [x] `[dev]` optional-dependencies added to `pyproject.toml` for CI test runner
+- [x] Agent download packages bundled into installer: build pipeline builds agent exe, creates zip, places in `dist/packages/` so dashboard downloads work out of the box
 
 **Files:** `api/`, `collector/output/`, `collector/agent/`, `collector/gui/`, `collector/compat/`, `packaging/macos/`, `packaging/windows/`, `docs/`, `docker-compose.yml`, `protocol/`, `legal/`
 

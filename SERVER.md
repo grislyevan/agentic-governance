@@ -450,13 +450,15 @@ The server generates pre-configured agent packages via the dashboard or the API.
 
 ### Setup
 
-Place pre-built agent packages in `dist/packages/` at the repo root (or next to the API working directory):
+**Windows installer:** The `build-installer.ps1` pipeline automatically builds the Windows agent, zips it, and bundles it into the installer. Agent downloads work from the dashboard immediately after install with no extra steps.
 
-| Platform | Expected filename |
-|----------|------------------|
-| macOS | `DetecAgent-latest.pkg` or `DetecAgent.pkg` |
-| Windows | `detec-agent.zip` |
-| Linux | `detec-agent-linux.tar.gz` |
+**Docker / bare metal:** Place pre-built agent packages in `dist/packages/` relative to the API working directory (or the server exe directory for PyInstaller builds):
+
+| Platform | Expected filename | How to build |
+|----------|------------------|--------------|
+| Windows | `detec-agent.zip` | `build-agent.ps1` then zip the `dist/detec-agent/` folder |
+| macOS | `DetecAgent-latest.pkg` or `DetecAgent.pkg` | `bash packaging/macos/build-pkg.sh` (macOS only) |
+| Linux | `detec-agent-linux.tar.gz` | PyInstaller on Linux, then tar the output |
 
 ### Endpoints
 

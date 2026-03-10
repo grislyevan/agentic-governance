@@ -14,7 +14,9 @@ On your build machine (requires Python 3.11+, Node.js 22+, and [Inno Setup 6](ht
 powershell -ExecutionPolicy Bypass -File packaging\windows\build-installer.ps1
 ```
 
-This runs the full pipeline: dashboard build, PyInstaller bundle, branding asset generation, and Inno Setup compilation. Output: `packaging/windows/dist/DetecServerSetup-0.1.0.exe`.
+This runs the full pipeline: dashboard build, server PyInstaller bundle, agent PyInstaller bundle + zip, branding asset generation, and Inno Setup compilation. Output: `packaging/windows/dist/DetecServerSetup-0.1.0.exe`.
+
+The installer bundles the Windows agent package (`detec-agent.zip`) inside `dist/packages/` so agent downloads work from the dashboard immediately after install. To also include macOS agent downloads, build the .pkg on a Mac (`bash packaging/macos/build-pkg.sh`) and place it at `dist/DetecAgent-latest.pkg` or `dist/DetecAgent.pkg` before running `build-installer.ps1`.
 
 ### What the installer does
 

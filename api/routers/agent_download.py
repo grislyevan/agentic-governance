@@ -13,6 +13,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import sys
 import zipfile
 from datetime import datetime, timezone
 from enum import Enum
@@ -39,7 +40,12 @@ limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/agent", tags=["agent-download"])
 
-_DIST_DIR = Path(__file__).resolve().parent.parent.parent / "dist" / "packages"
+if getattr(sys, "frozen", False):
+    _APP_ROOT = Path(sys.executable).resolve().parent
+else:
+    _APP_ROOT = Path(__file__).resolve().parent.parent.parent
+
+_DIST_DIR = _APP_ROOT / "dist" / "packages"
 
 _PLATFORM_PACKAGES: dict[str, list[str]] = {
     "macos": ["DetecAgent-latest.pkg", "DetecAgent.pkg"],
