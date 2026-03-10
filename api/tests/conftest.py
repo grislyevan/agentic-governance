@@ -20,6 +20,7 @@ os.environ["JWT_SECRET"] = "test-jwt-secret-for-unit-tests-only"
 os.environ["SEED_ADMIN_PASSWORD"] = "testpass12345"
 os.environ["TESTING"] = "1"
 os.environ["RATELIMIT_ENABLED"] = "false"
+os.environ["GATEWAY_ENABLED"] = "false"
 
 import pytest
 from sqlalchemy import create_engine

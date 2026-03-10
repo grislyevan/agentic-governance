@@ -8,40 +8,24 @@ import sys
 import uuid
 from datetime import datetime, timezone
 
-# Ensure api/ and repo root are on sys.path, set test env vars before app imports
 _api_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _repo_root = os.path.dirname(_api_dir)
 for _p in (_api_dir, _repo_root):
     if _p not in sys.path:
         sys.path.insert(0, _p)
-os.environ.setdefault("DATABASE_URL", "sqlite://")
-os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-unit-tests-only")
-os.environ.setdefault("SEED_ADMIN_PASSWORD", "testpass12345")
-os.environ.setdefault("TESTING", "1")
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 import core.database as _db_mod
 from core.database import Base
 from models.tenant import Tenant
 from models.user import User, generate_api_key
-from models.endpoint import Endpoint
 from models.event import Event
 from core.auth import hash_password
-import models  # noqa: F401 — register all ORM models
+import models  # noqa: F401
 
-_test_engine = create_engine(
-    "sqlite://",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-_db_mod.engine = _test_engine
-_db_mod.SessionLocal = sessionmaker(
-    autocommit=False, autoflush=False, bind=_test_engine,
-)
+# Use the shared test engine from conftest (already patched into _db_mod).
+_test_engine = _db_mod.engine
 
 
 def _reset_db():
