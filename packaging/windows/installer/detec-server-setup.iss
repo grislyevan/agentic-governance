@@ -221,7 +221,7 @@ begin
     PreflightMemo.Lines[PreflightMemo.Lines.Count - 1] :=
       '  [PASS]  No existing service found';
 
-  { Check 4: Existing installation (use literal path, {app} is not available yet) }
+  // Check 4: Existing installation (use literal path; app dir not available yet)
   PreflightMemo.Lines.Add('  Checking for previous installation...');
   WizardForm.Refresh;
   InstallExists := FileExists(ExpandConstant('{autopf}\Detec\Server\detec-server.exe'));
