@@ -102,6 +102,14 @@ export async function fetchPolicies(config, { page = 1, pageSize = 50 } = {}) {
   return apiFetch(`/policies?page=${page}&page_size=${pageSize}`, config);
 }
 
+export async function createPolicy(data) {
+  return apiMutate('POST', '/policies', data);
+}
+
+export async function updatePolicy(id, data) {
+  return apiMutate('PATCH', `/policies/${id}`, data);
+}
+
 async function apiMutate(method, path, body) {
   const config = getApiConfig();
   const url = `${config.apiUrl.replace(/\/+$/, '')}${path}`;

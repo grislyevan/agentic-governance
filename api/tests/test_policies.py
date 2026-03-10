@@ -57,6 +57,20 @@ class TestUpdatePolicy:
         assert resp.json()["description"] == "updated"
         assert resp.json()["parameters"]["changed"] is True
 
+    def test_patch_toggle_is_active(self, client):
+        headers = _auth(client)
+        created = client.post(f"{API}/policies", json={
+            "rule_id": "TOGGLE-1",
+        }, headers=headers).json()
+        assert created["is_active"] is True
+
+        resp = client.patch(f"{API}/policies/{created['id']}", json={
+            "is_active": False,
+        }, headers=headers)
+        assert resp.status_code == 200
+        assert resp.json()["is_active"] is False
+        assert resp.json()["rule_id"] == "TOGGLE-1"
+
     def test_patch_nonexistent_returns_404(self, client):
         headers = _auth(client)
         resp = client.patch(f"{API}/policies/no-such-id", json={

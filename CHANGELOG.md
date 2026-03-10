@@ -8,6 +8,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **API test suite (35 of 53 failures)**: `test_gateway.py` created its own
+  `StaticPool` in-memory SQLite engine and patched `core.database`, overwriting
+  the conftest's shared engine. This caused test-to-test contamination where
+  `drop_all`/`create_all` cleaned one database while the app used another.
+  Additionally, the gateway (`GATEWAY_ENABLED` defaulting to `true`) started a
+  TCP listener during every `TestClient` lifespan, causing import failures or
+  port conflicts. Fixed by sharing the conftest engine and setting
+  `GATEWAY_ENABLED=false` in the test environment. Suite now passes 54/54.
+
 - **Status window icon**: The status window now loads `Icon.icns` from the app
   bundle resources instead of the programmatic aperture renderer, so the window
   displays the actual app icon. Falls back to the programmatic renderer when
@@ -29,6 +38,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   now falls back to stderr-only logging instead of crashing on startup.
 
 ### Added
+
+- **Policy configuration UI**: The Policies page is now fully interactive for
+  owner and admin roles. Create policies with rule ID, version, description,
+  active toggle, and a JSON parameters editor. Edit existing policies inline.
+  Enable/disable policies with a single click. Policy cards show decision state
+  badges and a readable parameter grid. Empty state prompts the user to create
+  their first policy.
+- **Policy partial updates (backend)**: `PATCH /policies/{id}` now accepts a
+  `PolicyUpdate` schema with all-optional fields. Only provided fields are
+  updated (true PATCH semantics). `is_active` can be toggled independently
+  without resending the full policy.
+- **API client functions**: `createPolicy()` and `updatePolicy()` added to the
+  dashboard's API client (`dashboard/src/lib/api.js`).
 
 - **Binary wire protocol (Detec Wire Protocol)**: New `protocol/` package providing
   a msgpack-based, length-prefixed binary framing layer for agent-server

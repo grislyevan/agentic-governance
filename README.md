@@ -78,7 +78,7 @@ The API defaults to a local **SQLite** database (zero setup, stored at a platfor
 ```bash
 python -m pytest collector/tests/ -v                           # ~200 collector tests (includes 108 scanner consistency tests)
 python -m pytest collector/tests/test_scanner_consistency.py -v # 108 scanner consistency tests
-python -m pytest api/tests/ -v                                 # ~53 API tests
+python -m pytest api/tests/ -v                                 # ~54 API tests
 python -m pytest protocol/tests/ -v                            # ~45 protocol tests
 ```
 
@@ -92,7 +92,7 @@ SOC operator console for monitoring detected AI tools, confidence scoring, and p
 
 - **Login/Register**: email + password, JWT with auto-refresh. User profile (first/last name, role) shown in the top bar.
 - **API key fallback**: configure in Settings when JWT is unavailable (headless access).
-- **Live pages**: Endpoints dashboard (filterable by endpoint, time range, searchable), Policies list, Audit log (paginated).
+- **Live pages**: Endpoints dashboard (filterable by endpoint, time range, searchable), Policies (create, edit, toggle active), Audit log (paginated).
 - **User management**: Admin page for creating, editing, and deactivating users. Four roles: owner, admin, analyst, viewer. Gated to owner/admin.
 
 The dashboard is served directly by FastAPI from `dashboard/dist/`. Build it with `cd dashboard && npm run build`. For development with hot reload: `cd dashboard && npm run dev` (Vite dev server on port 5173 proxies API calls to FastAPI on port 8000). See [dashboard/README.md](dashboard/README.md).

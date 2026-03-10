@@ -140,7 +140,7 @@ API Client ────────────────────▶│ Mu
 - [x] Endpoint management: multi-endpoint view with filter, status, signal bars
 - [x] Events dashboard: filterable table, confidence bands, enforcement state, time range
 - [x] Policy list (read-only, from API)
-- [ ] Policy configuration UI: edit enforcement ladder rules, risky action controls
+- [x] Policy configuration UI: create/edit/toggle policies from dashboard (owner/admin)
 - [x] Audit log page (read-only, paginated, from API)
 - [ ] Alerts and notifications: email or webhook on enforcement state change
 - [ ] Real-time updates via WebSocket or polling

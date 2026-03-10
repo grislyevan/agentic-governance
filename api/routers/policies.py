@@ -39,7 +39,16 @@ class PolicyCreate(BaseModel):
     rule_id: str = Field(max_length=128)
     rule_version: str = Field(default="0.1.0", max_length=32)
     description: str | None = Field(default=None, max_length=512)
+    is_active: bool = True
     parameters: dict = Field(default_factory=dict)
+
+
+class PolicyUpdate(BaseModel):
+    rule_id: str | None = Field(default=None, max_length=128)
+    rule_version: str | None = Field(default=None, max_length=32)
+    description: str | None = None
+    is_active: bool | None = None
+    parameters: dict | None = None
 
 
 class PolicyListResponse(BaseModel):
@@ -84,6 +93,7 @@ def create_policy(
         rule_id=body.rule_id,
         rule_version=body.rule_version,
         description=body.description,
+        is_active=body.is_active,
         parameters=body.parameters,
     )
     db.add(policy)
@@ -108,7 +118,7 @@ def create_policy(
 def update_policy(
     request: Request,
     policy_id: str,
-    body: PolicyCreate,
+    body: PolicyUpdate,
     db: Session = Depends(get_db),
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
@@ -121,11 +131,12 @@ def update_policy(
     if not policy:
         logger.warning("Policy %s not found for tenant %s", policy_id, auth.tenant_id)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy not found")
+
+    changes = body.model_dump(exclude_unset=True)
     old_rule_id = policy.rule_id
-    policy.rule_id = body.rule_id
-    policy.rule_version = body.rule_version
-    policy.description = body.description
-    policy.parameters = body.parameters
+    for field, value in changes.items():
+        setattr(policy, field, value)
+
     audit_record(
         db,
         tenant_id=auth.tenant_id,
@@ -133,7 +144,7 @@ def update_policy(
         action="policy.updated",
         resource_type="policy",
         resource_id=policy_id,
-        detail={"old_rule_id": old_rule_id, "new_rule_id": body.rule_id},
+        detail={"old_rule_id": old_rule_id, "changes": list(changes.keys())},
         ip_address=request.client.host if request.client else None,
     )
     db.commit()
