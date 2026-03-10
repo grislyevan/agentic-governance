@@ -163,6 +163,8 @@ Write-Host "  Branding assets ready." -ForegroundColor Green
 # ── Step 6: Inno Setup compilation ──────────────────────────────────────
 
 Write-Host "`n[6/7] Compiling installer..." -ForegroundColor Yellow
+# Remove old installer so a stale artifact can't mask a compile failure
+Get-ChildItem "$DistDir\DetecServerSetup-*.exe" -ErrorAction SilentlyContinue | Remove-Item -Force
 & $iscc "$InstallerDir\detec-server-setup.iss"
 
 $setupExe = Get-ChildItem "$DistDir\DetecServerSetup-*.exe" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1

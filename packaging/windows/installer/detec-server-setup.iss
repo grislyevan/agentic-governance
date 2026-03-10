@@ -52,6 +52,9 @@ Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=
 Type: files; Name: "{commondesktop}\Detec Dashboard.lnk"
 
 [Code]
+function SetEnvironmentVariable(lpName: string; lpValue: string): BOOL;
+  external 'SetEnvironmentVariableW@kernel32.dll stdcall';
+
 const
   MIN_DISK_MB = 300;
 
