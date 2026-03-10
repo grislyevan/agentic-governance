@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +13,8 @@ from jsonschema import Draft202012Validator, ValidationError
 
 logger = logging.getLogger(__name__)
 
-SCHEMA_PATH = Path(__file__).resolve().parent.parent.parent / "schemas" / "canonical-event-schema.json"
+_BUNDLE_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent.parent))
+SCHEMA_PATH = _BUNDLE_DIR / "schemas" / "canonical-event-schema.json"
 
 
 class EventValidator:
