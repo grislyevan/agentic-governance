@@ -55,8 +55,12 @@ Type: files; Name: "{commondesktop}\Detec Dashboard.lnk"
 function SetEnvironmentVariable(lpName: string; lpValue: string): BOOL;
   external 'SetEnvironmentVariableW@kernel32.dll stdcall';
 
+function GetKeyState(nVirtKey: Integer): SmallInt;
+  external 'GetKeyState@user32.dll stdcall';
+
 const
   MIN_DISK_MB = 300;
+  VK_SHIFT = $10;
 
 var
   PreflightPage: TWizardPage;
@@ -82,9 +86,11 @@ var
   SummaryMemo: TNewMemo;
 
   LogMemo: TNewMemo;
+  FinishLabel: TNewStaticText;
 
   PreflightPassed: Boolean;
   InstallHadErrors: Boolean;
+  FinishPageCreated: Boolean;
   ChosenPort: string;
 
 { ── Helpers ────────────────────────────────────────────────────────── }
@@ -236,9 +242,9 @@ begin
 
   PreflightMemo.Lines.Add('');
   if PreflightPassed then
-    PreflightMemo.Lines.Add('  All checks passed. Click Next to continue.')
+    PreflightMemo.Lines.Add('  All clear. Ready when you are.')
   else
-    PreflightMemo.Lines.Add('  Some checks failed. Please resolve before continuing.');
+    PreflightMemo.Lines.Add('  A few things need attention before we continue.');
 
   WizardForm.Refresh;
 end;
@@ -250,12 +256,13 @@ var
   DbHeaderLabel: TNewStaticText;
 begin
   PreflightPassed := True;
+  FinishPageCreated := False;
   ChosenPort := '{#DefaultPort}';
 
   // ── Pre-flight Checks page (after License)
   PreflightPage := CreateCustomPage(wpLicense,
     'Pre-flight Checks',
-    'Verifying your system is ready for installation.');
+    'Checking that everything is in order.');
 
   PreflightMemo := TNewMemo.Create(PreflightPage);
   PreflightMemo.Parent := PreflightPage.Surface;
@@ -272,7 +279,7 @@ begin
   // ── Server Configuration page (after Preflight)
   ConfigPage := CreateCustomPage(PreflightPage.ID,
     'Server Configuration',
-    'Configure the server port and database backend.');
+    'Choose your port and database. Sensible defaults are pre-filled.');
 
   PortLabel := TNewStaticText.Create(ConfigPage);
   PortLabel.Parent := ConfigPage.Surface;
@@ -318,7 +325,7 @@ begin
   // ── Admin Account page (after Config)
   AdminPage := CreateCustomPage(ConfigPage.ID,
     'Administrator Account',
-    'Create the initial administrator account for the Detec dashboard.');
+    'Set up your first admin account for the dashboard.');
 
   AdminEmailLabel := TNewStaticText.Create(AdminPage);
   AdminEmailLabel.Parent := AdminPage.Surface;
@@ -356,7 +363,7 @@ begin
   // ── Summary page (after Admin, before Ready)
   SummaryPage := CreateCustomPage(AdminPage.ID,
     'Installation Summary',
-    'Review your settings before installation begins.');
+    'One last look before we get started.');
 
   SummaryMemo := TNewMemo.Create(SummaryPage);
   SummaryMemo.Parent := SummaryPage.Surface;
@@ -388,13 +395,26 @@ begin
   LogMemo.Visible := False;
 end;
 
+{ ── Helpers: keyboard state ─────────────────────────────────────────── }
+
+function IsShiftDown: Boolean;
+begin
+  Result := (GetKeyState(VK_SHIFT) < 0);
+end;
+
 { ── Open dashboard helper (must precede CurPageChanged) ────────────── }
 
 procedure OpenDashboard(Sender: TObject);
 var
   ErrorCode: Integer;
 begin
-  ShellExec('open', 'http://localhost:' + ChosenPort, '', '', SW_SHOW, ewNoWait, ErrorCode);
+  if IsShiftDown then
+    ShellExec('open', 'notepad.exe',
+      ExpandConstant('{sd}\ProgramData\Detec\server.log'),
+      '', SW_SHOW, ewNoWait, ErrorCode)
+  else
+    ShellExec('open', 'http://localhost:' + ChosenPort,
+      '', '', SW_SHOW, ewNoWait, ErrorCode);
 end;
 
 { ── Page navigation logic ──────────────────────────────────────────── }
@@ -442,16 +462,38 @@ begin
     SummaryMemo.Lines.Add('    - Install and start the Windows Service');
     SummaryMemo.Lines.Add('    - Configure Windows Firewall (TCP ' + Port + ')');
     SummaryMemo.Lines.Add('    - Create a desktop shortcut');
+    SummaryMemo.Lines.Add('    - Verify the dashboard is responding');
   end;
 
-  if CurPageID = wpFinished then
+  if (CurPageID = wpFinished) and (not FinishPageCreated) then
   begin
+    FinishPageCreated := True;
+
+    FinishLabel := TNewStaticText.Create(WizardForm);
+    FinishLabel.Parent := WizardForm.FinishedPage;
+    FinishLabel.AutoSize := False;
+    FinishLabel.WordWrap := True;
+    FinishLabel.SetBounds(
+      ScaleX(0),
+      WizardForm.FinishedLabel.Top + WizardForm.FinishedLabel.Height + ScaleY(12),
+      WizardForm.FinishedPage.Width, ScaleY(50)
+    );
+
+    if InstallHadErrors then
+      FinishLabel.Caption :=
+        'Installation completed with warnings. Check C:\ProgramData\Detec\server.log for details.'
+    else
+      FinishLabel.Caption :=
+        'Detec Server is running on port ' + ChosenPort +
+        '. Sign in with ' + GetAdminEmail + ' to get started.' + #13#10 +
+        'Next step: deploy agents from Settings > Download Agent.';
+
     Btn := TNewButton.Create(WizardForm);
     Btn.Parent := WizardForm.FinishedPage;
     Btn.Caption := 'Open Detec Dashboard';
     Btn.SetBounds(
       ScaleX(0),
-      WizardForm.FinishedLabel.Top + WizardForm.FinishedLabel.Height + ScaleY(20),
+      FinishLabel.Top + FinishLabel.Height + ScaleY(8),
       ScaleX(180), ScaleY(30)
     );
     Btn.OnClick := @OpenDashboard;
@@ -466,7 +508,7 @@ begin
   begin
     if not PreflightPassed then
     begin
-      MsgBox('Please resolve the failed checks before continuing.', mbError, MB_OK);
+      MsgBox('Some pre-flight checks need attention first.', mbError, MB_OK);
       Result := False;
     end;
   end;
@@ -475,13 +517,13 @@ begin
   begin
     if (StrToIntDef(GetUserPort, 0) < 1) or (StrToIntDef(GetUserPort, 0) > 65535) then
     begin
-      MsgBox('Please enter a valid port number (1-65535).', mbError, MB_OK);
+      MsgBox('That port number doesn''t look right. Enter a value between 1 and 65535.', mbError, MB_OK);
       Result := False;
       Exit;
     end;
     if IsPostgreSQL and (Trim(PgUrlEdit.Text) = '') then
     begin
-      MsgBox('Please enter a PostgreSQL connection URL.', mbError, MB_OK);
+      MsgBox('Please enter a PostgreSQL connection URL so we can connect.', mbError, MB_OK);
       Result := False;
       Exit;
     end;
@@ -492,25 +534,25 @@ begin
   begin
     if GetAdminEmail = '' then
     begin
-      MsgBox('Please enter an email address.', mbError, MB_OK);
+      MsgBox('We need an email address to create your admin account.', mbError, MB_OK);
       Result := False;
       Exit;
     end;
     if Pos('@', GetAdminEmail) = 0 then
     begin
-      MsgBox('Please enter a valid email address.', mbError, MB_OK);
+      MsgBox('That email looks incomplete. Make sure it includes an @.', mbError, MB_OK);
       Result := False;
       Exit;
     end;
     if Length(GetAdminPassword) < 8 then
     begin
-      MsgBox('Password must be at least 8 characters.', mbError, MB_OK);
+      MsgBox('Password needs at least 8 characters.', mbError, MB_OK);
       Result := False;
       Exit;
     end;
     if GetAdminPassword <> AdminPwConfirmEdit.Text then
     begin
-      MsgBox('Passwords do not match.', mbError, MB_OK);
+      MsgBox('Those passwords don''t match. Try again?', mbError, MB_OK);
       Result := False;
       Exit;
     end;
@@ -550,6 +592,12 @@ var
   AppDir, Port, SetupArgs, DbLabel, ShortcutFile, AdminEmail: string;
   WshShell: Variant;
   Shortcut: Variant;
+  HealthAttempt: Integer;
+  HealthOK: Boolean;
+  OutputFile, Line: string;
+  Lines: TArrayOfString;
+  I: Integer;
+  LogPath: string;
 begin
   if CurStep <> ssPostInstall then
     Exit;
@@ -562,9 +610,9 @@ begin
   LogMemo.Lines.Add('  Installing Detec Server');
   LogMemo.Lines.Add('');
 
-  LogStep('  [1/5]  Extracting files...               done');
+  LogStep('  [1/6]  Extracting files...               done');
 
-  LogStep('  [2/5]  Generating server configuration...');
+  LogStep('  [2/6]  Generating server configuration...');
   SetupArgs := 'setup --force --admin-email "' + AdminEmail +
                '" --port ' + Port;
   if IsPostgreSQL then
@@ -572,10 +620,10 @@ begin
   if RunCmdWithEnv(AppDir + '\detec-server.exe', SetupArgs, AppDir,
                    'DETEC_ADMIN_PASSWORD', GetAdminPassword) then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [2/5]  Generating server configuration... done'
+      '  [2/6]  Generating server configuration... done'
   else begin
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [2/5]  Generating server configuration... ERROR';
+      '  [2/6]  Generating server configuration... ERROR';
     InstallHadErrors := True;
     LogMemo.Lines.Add('');
     LogStep('  Setup failed. Files have been extracted to ' + AppDir);
@@ -586,37 +634,37 @@ begin
   end;
   WizardForm.Refresh;
 
-  LogStep('  [3/5]  Installing Windows Service...');
+  LogStep('  [3/6]  Installing Windows Service...');
   if RunCmd(AppDir + '\detec-server.exe', 'install', AppDir) then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [3/5]  Installing Windows Service...      done'
+      '  [3/6]  Installing Windows Service...      done'
   else begin
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [3/5]  Installing Windows Service...      ERROR';
+      '  [3/6]  Installing Windows Service...      ERROR';
     InstallHadErrors := True;
   end;
   WizardForm.Refresh;
 
-  LogStep('  [4/5]  Starting Detec Server...');
+  LogStep('  [4/6]  Starting Detec Server...');
   if RunCmd(AppDir + '\detec-server.exe', 'start', AppDir) then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [4/5]  Starting Detec Server...           done'
+      '  [4/6]  Starting Detec Server...           done'
   else begin
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [4/5]  Starting Detec Server...           ERROR';
+      '  [4/6]  Starting Detec Server...           ERROR';
     InstallHadErrors := True;
   end;
   WizardForm.Refresh;
 
-  LogStep('  [5/5]  Configuring firewall...');
+  LogStep('  [5/6]  Configuring firewall...');
   if RunCmd(ExpandConstant('{sys}\netsh.exe'),
          'advfirewall firewall add rule name="Detec Server" ' +
          'dir=in action=allow protocol=TCP localport=' + Port, '') then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [5/5]  Configuring firewall...            done'
+      '  [5/6]  Configuring firewall...            done'
   else begin
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [5/5]  Configuring firewall...            WARNING (non-critical)';
+      '  [5/6]  Configuring firewall...            WARNING (non-critical)';
   end;
   RunCmd(ExpandConstant('{sys}\netsh.exe'),
          'advfirewall firewall add rule name="Detec Gateway" ' +
@@ -634,6 +682,47 @@ begin
   except
   end;
 
+  // ── Step 6: Post-install health check ──────────────────────────────
+  LogStep('  [6/6]  Verifying dashboard is responding...');
+  HealthOK := False;
+  OutputFile := ExpandConstant('{tmp}\health-check.txt');
+  for HealthAttempt := 1 to 15 do
+  begin
+    if FileExists(OutputFile) then
+      DeleteFile(OutputFile);
+    Exec('powershell.exe',
+      '-NoProfile -Command "try { $r = Invoke-WebRequest -Uri ''http://localhost:' +
+      Port + '/docs'' -UseBasicParsing -TimeoutSec 2; ' +
+      'if ($r.StatusCode -eq 200) { ''OK'' | Out-File -Encoding ascii ''' +
+      OutputFile + ''' } } catch {}"',
+      '', SW_HIDE, ewWaitUntilTerminated, I);
+    if LoadStringsFromFile(OutputFile, Lines) then
+      for I := 0 to GetArrayLength(Lines) - 1 do
+      begin
+        Line := Lines[I];
+        if Pos('OK', Line) > 0 then
+        begin
+          HealthOK := True;
+          Break;
+        end;
+      end;
+    if HealthOK then
+      Break;
+    Sleep(1000);
+  end;
+
+  if HealthOK then
+    LogMemo.Lines[LogMemo.Lines.Count - 1] :=
+      '  [6/6]  Dashboard is responding.           done'
+  else begin
+    LogMemo.Lines[LogMemo.Lines.Count - 1] :=
+      '  [6/6]  Dashboard did not respond (15s).   WARNING';
+    LogMemo.Lines.Add('         Check C:\ProgramData\Detec\server.log');
+    InstallHadErrors := True;
+  end;
+  WizardForm.Refresh;
+
+  // ── Summary ────────────────────────────────────────────────────────
   if IsPostgreSQL then
     DbLabel := 'PostgreSQL'
   else
@@ -641,16 +730,23 @@ begin
 
   LogMemo.Lines.Add('');
   if InstallHadErrors then begin
-    LogStep('  Installation completed with errors.');
-    LogMemo.Lines.Add('  Some steps failed. The server may not be running.');
+    LogStep('  Installation completed with warnings.');
+    LogMemo.Lines.Add('  Some steps need attention. The server may not be running.');
     LogMemo.Lines.Add('  Check C:\ProgramData\Detec\server.log for details.');
     LogMemo.Lines.Add('');
   end else
-    LogStep('  Detec Server is running at http://localhost:' + Port);
+    LogStep('  Detec Server is up. Dashboard: http://localhost:' + Port);
   LogMemo.Lines.Add('');
   LogMemo.Lines.Add('  Sign in:     ' + AdminEmail);
   LogMemo.Lines.Add('  Database:    ' + DbLabel);
   LogMemo.Lines.Add('  Config:      C:\ProgramData\Detec\server.env');
+
+  // ── Persist install log ────────────────────────────────────────────
+  LogPath := ExpandConstant('{sd}\ProgramData\Detec\install.log');
+  ForceDirectories(ExtractFilePath(LogPath));
+  SaveStringsToFile(LogPath, LogMemo.Lines, False);
+  LogStep('');
+  LogStep('  Install log saved to C:\ProgramData\Detec\install.log');
 end;
 
 { ── Uninstall: offer to remove data directory ──────────────────────── }

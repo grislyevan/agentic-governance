@@ -138,6 +138,8 @@ API Client ────────────────────▶│ Mu
 - [x] Installer security: admin password passed via env var (not CLI), error tracking with early exit on setup failure, upgrade path stops service before file extraction
 - [x] `[dev]` optional-dependencies added to `pyproject.toml` for CI test runner
 - [x] Agent download packages bundled into installer: build pipeline builds agent exe, creates zip, places in `dist/packages/` so dashboard downloads work out of the box
+- [x] Installer UX polish: brand-voice copy on wizard subtitles and validation messages, post-install health check (polls dashboard for 15s), install log persisted to `C:\ProgramData\Detec\install.log`, finish page guidance text with duplicate-button fix, Shift-click easter egg to open server log
+- [x] Asset generator hardened: `_load_font()` fallback chain (bundled/system/Pillow), tagline text on sidebar image, graceful handling of headless Server Core
 
 **Files:** `api/`, `collector/output/`, `collector/agent/`, `collector/gui/`, `collector/compat/`, `packaging/macos/`, `packaging/windows/`, `docs/`, `docker-compose.yml`, `protocol/`, `legal/`
 

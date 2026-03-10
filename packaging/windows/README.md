@@ -27,13 +27,17 @@ The wizard walks the user through these steps:
 3. **Server configuration**: choose the API port (default 8000) and database backend (SQLite or PostgreSQL with connection URL)
 4. **Administrator account**: enter the admin email, password, and confirmation (validated for format and minimum length)
 5. **Installation summary**: review all chosen settings before proceeding
-6. **File extraction + post-install**: extracts the server bundle to `C:\Program Files\Detec\Server\`, generates secrets and the administrator account, installs and starts the Windows Service, configures firewall rules for both the API port and gateway port (8001), and creates a desktop shortcut
-7. **Finish page**: includes an "Open Detec Dashboard" button
+6. **File extraction + post-install**: extracts the server bundle to `C:\Program Files\Detec\Server\`, generates secrets and the administrator account, installs and starts the Windows Service, configures firewall rules for both the API port and gateway port (8001), creates a desktop shortcut, and verifies the dashboard is responding (polls for up to 15 seconds)
+7. **Finish page**: shows a context-aware summary (running port, admin email, next-step guidance) and an "Open Detec Dashboard" button. Hold Shift while clicking the button to open the server log in Notepad instead.
 
 #### Security
 
 - Admin credentials are passed to the setup process via environment variable, not on the command line, to prevent exposure in Task Manager or process listings.
 - If the setup step (config generation) fails, post-install halts early and displays manual recovery instructions.
+
+#### Install log
+
+The installer writes a log of all post-install steps to `C:\ProgramData\Detec\install.log`. This persists after the wizard closes, so support can diagnose failures after the fact.
 
 #### Upgrades
 
@@ -139,6 +143,7 @@ The service runs as "Detec Server", starts automatically on boot, and survives l
 | Database | `C:\ProgramData\Detec\detec.db` |
 | Config | `C:\ProgramData\Detec\server.env` |
 | Server log | `C:\ProgramData\Detec\server.log` (stdout/stderr when running as a service) |
+| Install log | `C:\ProgramData\Detec\install.log` (written by the GUI installer) |
 | Event log | Windows Event Log (Application, source "DetecServer") |
 
 ### Backup

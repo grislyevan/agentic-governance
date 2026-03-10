@@ -17,10 +17,32 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[3]
 ICON_SRC = ROOT / "branding" / "Icon.png"
 OUT_DIR = Path(__file__).resolve().parent
+FONTS_DIR = ROOT / "branding" / "fonts"
 
 SLATE_900 = (15, 23, 42)
 SLATE_100 = (241, 245, 249)
+SLATE_400 = (148, 163, 184)
 PRIMARY_500 = (99, 102, 241)
+
+TAGLINE = "Endpoint governance\nfor agentic AI"
+
+
+def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Try bundled font first, then system fonts, then Pillow default."""
+    candidates = [
+        FONTS_DIR / "Inter.ttf",
+        FONTS_DIR / "inter.ttf",
+        "arial.ttf",
+        "segoeui.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    for path in candidates:
+        try:
+            return ImageFont.truetype(str(path), size)
+        except OSError:
+            continue
+    return ImageFont.load_default(size=size)
 
 
 def generate_wizard_image() -> None:
@@ -35,23 +57,29 @@ def generate_wizard_image() -> None:
     y = 72
     canvas.paste(mark, (x, y), mark)
 
-    # Subtle separator line below the mark
     draw = ImageDraw.Draw(canvas)
     line_y = y + mark_size + 24
     draw.line([(32, line_y), (width - 32, line_y)], fill=PRIMARY_500, width=2)
 
-    # "Detec" text below the line (using a basic font)
+    # Brand name
     text_y = line_y + 16
-    try:
-        font = ImageFont.truetype("arial.ttf", 20)
-    except OSError:
-        try:
-            font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 20)
-        except OSError:
-            font = ImageFont.load_default()
-    bbox = draw.textbbox((0, 0), "Detec", font=font)
+    name_font = _load_font(20)
+    bbox = draw.textbbox((0, 0), "Detec", font=name_font)
     text_w = bbox[2] - bbox[0]
-    draw.text(((width - text_w) // 2, text_y), "Detec", fill=SLATE_100, font=font)
+    draw.text(((width - text_w) // 2, text_y), "Detec", fill=SLATE_100, font=name_font)
+
+    # Descriptor tagline in a smaller, muted weight
+    tagline_font = _load_font(10)
+    tagline_y = text_y + (bbox[3] - bbox[1]) + 10
+    draw.multiline_text(
+        (width // 2, tagline_y),
+        TAGLINE,
+        fill=SLATE_400,
+        font=tagline_font,
+        anchor="ma",
+        align="center",
+        spacing=3,
+    )
 
     canvas.save(OUT_DIR / "wizard-image.bmp", "BMP")
     print(f"  wizard-image.bmp ({width}x{height})")
@@ -76,6 +104,8 @@ def generate_wizard_small_image() -> None:
 if __name__ == "__main__":
     if not ICON_SRC.exists():
         raise FileNotFoundError(f"Master icon not found: {ICON_SRC}")
+    if not FONTS_DIR.exists():
+        print(f"  Note: {FONTS_DIR} not found; will use system fonts.")
     print("Generating installer assets...")
     generate_wizard_image()
     generate_wizard_small_image()
