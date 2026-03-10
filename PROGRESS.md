@@ -143,7 +143,7 @@ API Client ────────────────────▶│ Mu
 - [x] Policy configuration UI: create/edit/toggle policies from dashboard (owner/admin)
 - [x] Audit log page (read-only, paginated, from API)
 - [ ] Alerts and notifications: email or webhook on enforcement state change
-- [ ] Real-time updates via WebSocket or polling
+- [x] Real-time updates via 30s polling with pause/resume and "Updated Xs ago" indicator
 - [x] Accessible design (ARIA labels, keyboard nav, screen reader support)
 - [ ] Responsive design (mobile breakpoints)
 

@@ -1,6 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import useEndpoints from '../hooks/useEndpoints';
+import usePolling from '../hooks/usePolling';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
+import PollingStatus from '../components/PollingStatus';
 import SummaryCards from '../components/dashboard/SummaryCards';
 import FilterBar from '../components/dashboard/FilterBar';
 import EndpointContextBar from '../components/dashboard/EndpointContextBar';
@@ -17,6 +19,8 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
   const [activeTab, setActiveTab] = useState('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+
+  const { lastUpdated, paused, togglePause } = usePolling(refresh);
 
   useEffect(() => {
     if (refreshRef) refreshRef.current = refresh;
@@ -71,16 +75,11 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-detec-slate-100">Dashboard</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-detec-slate-100">Dashboard</h1>
+          <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
+        </div>
         {loading && <ApertureSpinner size="sm" label="Scanning" />}
-        {!loading && (
-          <button
-            onClick={refresh}
-            className="text-sm text-detec-slate-400 hover:text-detec-slate-200 transition-colors"
-          >
-            Refresh
-          </button>
-        )}
       </div>
 
       {error && (

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchEvents } from '../lib/api';
+import usePolling from '../hooks/usePolling';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
+import PollingStatus from '../components/PollingStatus';
 
 const PAGE_SIZE = 50;
 
@@ -152,22 +154,17 @@ export default function EventsPage({ searchQuery }) {
 
   useEffect(() => { load(); }, [load]);
 
+  const { lastUpdated, paused, togglePause } = usePolling(load);
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-detec-slate-100">Events</h1>
-        <div className="flex items-center gap-2">
-          {loading && <ApertureSpinner size="sm" label="Loading events" />}
-          <button
-            onClick={load}
-            disabled={loading}
-            className="text-xs text-detec-slate-400 hover:text-detec-slate-200 disabled:opacity-30 px-2 py-1"
-          >
-            Refresh
-          </button>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-detec-slate-100">Events</h1>
+          <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
         </div>
+        {loading && <ApertureSpinner size="sm" label="Loading events" />}
       </div>
 
       {/* Filters */}

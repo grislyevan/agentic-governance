@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchAuditLog } from '../lib/api';
+import usePolling from '../hooks/usePolling';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
+import PollingStatus from '../components/PollingStatus';
 
 export default function AuditLogPage() {
   const [logs, setLogs] = useState([]);
@@ -25,10 +27,15 @@ export default function AuditLogPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  const { lastUpdated, paused, togglePause } = usePolling(load);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-detec-slate-100">Audit Log</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-detec-slate-100">Audit Log</h1>
+          <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
+        </div>
         {loading && <ApertureSpinner size="sm" label="Loading audit log" />}
       </div>
 

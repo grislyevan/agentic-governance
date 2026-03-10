@@ -39,6 +39,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Dashboard auto-refresh polling**: All data pages (Dashboard, Events, Policies,
+  Audit Log) now auto-refresh every 30 seconds. A `usePolling` hook manages the
+  interval with an in-flight guard to prevent overlapping fetches. Each page shows
+  a live "Updated Xs ago" indicator with an animated pulse dot and a pause/play
+  toggle. Pausing stops the interval; resuming restarts it.
 - **Policy configuration UI**: The Policies page is now fully interactive for
   owner and admin roles. Create policies with rule ID, version, description,
   active toggle, and a JSON parameters editor. Edit existing policies inline.

@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import useAuth from '../hooks/useAuth';
 import { fetchPolicies, createPolicy, updatePolicy } from '../lib/api';
+import usePolling from '../hooks/usePolling';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
+import PollingStatus from '../components/PollingStatus';
 
 const DECISION_BADGES = {
   block:             'bg-red-900/40 text-red-400 border-red-700/40',
@@ -37,6 +39,8 @@ export default function PoliciesPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  const { lastUpdated, paused, togglePause } = usePolling(load);
+
   const handleToggleActive = async (policy) => {
     try {
       await updatePolicy(policy.id, { is_active: !policy.is_active });
@@ -49,7 +53,10 @@ export default function PoliciesPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-detec-slate-100">Policies</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-detec-slate-100">Policies</h1>
+          <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
+        </div>
         <div className="flex items-center gap-3">
           {loading && <ApertureSpinner size="sm" label="Loading policies" />}
           {canManage && (
