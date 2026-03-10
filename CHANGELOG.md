@@ -30,6 +30,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **macOS uninstaller**: `packaging/macos/uninstall.sh` cleanly removes the
+  Detec Agent: stops the LaunchAgent, deletes the app from `/Applications`,
+  removes config (`~/Library/Application Support/Detec/`), logs
+  (`~/Library/Logs/DetecAgent/`), state (`~/.agentic-gov/`), the Keychain
+  entry, and the installer receipt. Run with `sudo`.
+
 - **GUI agent loads agent.env**: The macOS menu bar app (`DaemonBridge`) now
   loads `~/Library/Application Support/Detec/agent.env` on startup so config
   written by `detec-agent setup` is picked up by the GUI app without manual

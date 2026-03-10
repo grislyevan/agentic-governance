@@ -69,6 +69,18 @@ Alternatively, store the API key in macOS Keychain:
 security add-generic-password -s "detec-agent" -a "api-key" -w "YOUR_KEY" -U
 ```
 
+### Uninstalling (macOS)
+
+To completely remove the Detec Agent, run the uninstaller script:
+
+```bash
+sudo bash packaging/macos/uninstall.sh
+```
+
+This stops the agent, removes the app from `/Applications`, deletes the
+LaunchAgent, config, logs, state directory, Keychain entry, and the
+installer receipt.
+
 ### macOS Permissions
 
 See [docs/macos-permissions.md](docs/macos-permissions.md) for a
@@ -277,7 +289,7 @@ When a policy triggers `process_kill`, the agent verifies the process command li
 
 | Directory | Purpose |
 |---|---|
-| `packaging/macos/` | Build scripts, PyInstaller spec, .pkg config, and PPPC profile for macOS packaged deployment |
+| `packaging/macos/` | Build scripts, PyInstaller spec, .pkg config, PPPC profile, and uninstaller for macOS packaged deployment |
 | `deploy/` | Platform-specific LaunchAgent/systemd/task templates for manual installs |
 | `docs/` | Permissions guide, MDM deployment guide |
 | `install/` | (Deprecated) Legacy install scripts; use `deploy/` or `packaging/` instead |
