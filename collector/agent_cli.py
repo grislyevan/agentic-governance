@@ -349,5 +349,22 @@ def main() -> None:
     args.func(args)
 
 
+def _start_as_windows_service() -> None:
+    """Called when the SCM starts us with no arguments (frozen exe only)."""
+    import servicemanager  # type: ignore[import-untyped]
+    from win_agent_service import DetecAgentService
+
+    servicemanager.Initialize()
+    servicemanager.PrepareToHostSingle(DetecAgentService)
+    servicemanager.StartServiceCtrlDispatcher()
+
+
 if __name__ == "__main__":
-    main()
+    if (
+        _IS_WINDOWS
+        and getattr(sys, "frozen", False)
+        and len(sys.argv) == 1
+    ):
+        _start_as_windows_service()
+    else:
+        main()
