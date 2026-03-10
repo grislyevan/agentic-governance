@@ -1,9 +1,12 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 import DetecLogo from '../components/branding/DetecLogo';
+import ResetPasswordPage from './ResetPasswordPage';
 
 export default function LoginPage() {
   const { login, register } = useAuth();
+  const navigate = useNavigate();
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -13,13 +16,21 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  if (mode === 'forgot') {
+    return <ResetPasswordPage onBack={() => setMode('login')} />;
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSubmitting(true);
     try {
       if (mode === 'login') {
-        await login(email, password);
+        const result = await login(email, password);
+        if (result?.tokens?.password_reset_required) {
+          navigate('/set-password?purpose=reset');
+          return;
+        }
       } else {
         await register(email, password, firstName, lastName, tenantName);
       }
@@ -119,6 +130,18 @@ export default function LoginPage() {
             >
               {submitting ? 'Please wait...' : mode === 'login' ? 'Sign in' : 'Create account'}
             </button>
+
+            {mode === 'login' && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setMode('forgot')}
+                  className="text-xs text-detec-slate-500 hover:text-detec-primary-400 transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
           </div>
 
           <p className="text-center text-sm text-detec-slate-500">

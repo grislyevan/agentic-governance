@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import secrets
 import uuid
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
@@ -13,8 +14,9 @@ from core.auth import hash_password
 from core.database import get_db
 from core.tenant import resolve_auth, require_role, get_tenant_filter
 from models.audit import AuditLog
+from models.auth_token import AuthToken
 from models.user import User
-from schemas.users import UserCreate, UserListResponse, UserOut, UserUpdate
+from schemas.users import UserCreate, UserCreateResponse, UserListResponse, UserOut, UserUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -73,13 +75,13 @@ def list_users(
     )
 
 
-@router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserCreateResponse, status_code=status.HTTP_201_CREATED)
 def create_user(
     body: UserCreate,
     db: Session = Depends(get_db),
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
-) -> UserOut:
+) -> UserCreateResponse:
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
 
@@ -91,11 +93,13 @@ def create_user(
             detail="A user with this email already exists",
         )
 
+    placeholder_password = hash_password(secrets.token_hex(32)) if not body.password else hash_password(body.password)
+
     user = User(
         id=str(uuid.uuid4()),
         tenant_id=auth.tenant_id,
         email=body.email,
-        hashed_password=hash_password(body.password),
+        hashed_password=placeholder_password,
         first_name=body.first_name,
         last_name=body.last_name,
         role=body.role,
@@ -103,14 +107,23 @@ def create_user(
         password_reset_required=True,
     )
     db.add(user)
+    db.flush()
+
+    raw_invite_token = None
+    if not body.password:
+        token_obj, raw_invite_token = AuthToken.create_invite_token(user.id)
+        db.add(token_obj)
+
     _audit(db, tenant_id=auth.tenant_id, actor_id=auth.user_id,
            action="user.created", resource_id=user.id,
-           detail={"email": body.email, "role": body.role})
+           detail={"email": body.email, "role": body.role, "invite": raw_invite_token is not None})
     db.commit()
     db.refresh(user)
 
     logger.info("User %s created by %s in tenant %s", user.email, auth.user_id, auth.tenant_id)
-    return UserOut.model_validate(user)
+    resp = UserCreateResponse.model_validate(user)
+    resp.invite_token = raw_invite_token
+    return resp
 
 
 @router.get("/{user_id}", response_model=UserOut)

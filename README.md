@@ -8,7 +8,7 @@ Endpoint telemetry and policy for agentic AI tool detection. This repo defines d
 
 - **playbook/** — Governance playbook and detection profiles
 - **collector/** — Endpoint telemetry collector (5-dimension confidence model, 12 scanners, HTTP + TCP emitters)
-- **api/** — Multi-tenant FastAPI backend (auth, endpoints, events, policies) + binary protocol gateway
+- **api/** — Multi-tenant FastAPI backend (auth, invite/reset, endpoints, events, policies, webhooks) + binary protocol gateway
 - **protocol/** — Shared binary wire protocol (msgpack framing, message types, connection base class)
 - **dashboard/** — Web UI for viewing detection results
 - **schemas/** — Event and config schemas

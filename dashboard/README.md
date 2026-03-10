@@ -28,7 +28,7 @@ dashboard/src/
   index.css                 Tailwind directives + base overrides
   parseNdjson.js            NDJSON parsing and event helpers
   lib/
-    api.js                  API client (endpoints, events, policies, audit log, users)
+    api.js                  API client (endpoints, events, policies, audit log, users, webhooks, auth flows)
     auth.js                 Token management (login, register, refresh, logout)
   hooks/
     useAuth.jsx             React auth context (user, login, logout, auto-refresh)
@@ -46,13 +46,15 @@ dashboard/src/
       ToolRow.jsx           Expandable row with overflow menu
       Pagination.jsx        Page navigation + rows-per-page
   pages/
-    LoginPage.jsx           Email/password login with registration toggle
+    LoginPage.jsx           Email/password login with registration toggle, forgot password
+    ResetPasswordPage.jsx   Forgot-password email form with copyable reset link
+    SetPasswordPage.jsx     Token-based password set (invite accept + password reset)
     DashboardPage.jsx       Full implementation with search, filters, refresh
     EventsPage.jsx          Full SOC event browser (filters, pagination, detail panel)
     PoliciesPage.jsx        Live policy list from API
     AuditLogPage.jsx        Live audit log table from API
-    AdminPage.jsx           User management (table, search, add/edit/deactivate)
-    SettingsPage.jsx        API URL and key configuration
+    AdminPage.jsx           User management (table, search, invite/edit/deactivate)
+    SettingsPage.jsx        API connection config + webhook management
 ```
 
 ## Authentication
@@ -62,7 +64,13 @@ The dashboard supports two auth methods:
 1. **JWT login** (primary): email + password via `POST /auth/login`. Tokens are stored in localStorage and auto-refreshed.
 2. **API key** (fallback): configured in Settings. Used when no JWT is available.
 
-User profile (first name, last name, role) is pulled from `GET /auth/me` and displayed in the top bar. The Admin page (visible to owner and admin roles) provides user management: listing, creating, editing, and deactivating users. Owner and admin roles see data across all tenants on read endpoints; analyst and viewer roles see only their own tenant's data. Logout clears tokens and returns to the login page.
+User profile (first name, last name, role) is pulled from `GET /auth/me` and displayed in the top bar. The Admin page (visible to owner and admin roles) provides user management: listing, inviting, editing, and deactivating users. Owner and admin roles see data across all tenants on read endpoints; analyst and viewer roles see only their own tenant's data. Logout clears tokens and returns to the login page.
+
+### Invite and password reset flows
+
+- **Invite**: Admins create users via the "Invite user" button (no temporary password). The API returns a one-time invite token. The admin copies the invite link and shares it. The new user visits `/set-password?token=...&purpose=invite` to set their password.
+- **Password reset**: The login page has a "Forgot password?" link. The user enters their email, receives a reset link (displayed in the UI until email is configured), and visits `/set-password?token=...&purpose=reset` to choose a new password.
+- **Login enforcement**: When a user with `password_reset_required=true` logs in, the dashboard redirects them to the set-password page.
 
 ## Data flow
 

@@ -60,7 +60,7 @@ export default function AdminPage() {
           onClick={() => { setEditingUser(null); setShowForm(true); }}
           className="rounded-lg bg-detec-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-detec-primary-500 transition-colors"
         >
-          Add user
+          Invite user
         </button>
       </div>
 
@@ -86,7 +86,6 @@ export default function AdminPage() {
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Provider</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Created</th>
               <th className="px-4 py-3 text-right">Actions</th>
@@ -95,12 +94,12 @@ export default function AdminPage() {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-detec-slate-500 text-sm">Loading...</td>
+                <td colSpan={6} className="px-4 py-10 text-center text-detec-slate-500 text-sm">Loading...</td>
               </tr>
             )}
             {!loading && users.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-detec-slate-500 text-sm">No users found.</td>
+                <td colSpan={6} className="px-4 py-10 text-center text-detec-slate-500 text-sm">No users found.</td>
               </tr>
             )}
             {!loading && users.map((u) => (
@@ -170,6 +169,7 @@ function UserRow({ u, currentUser, onEdit, onToggleActive }) {
   const initials = [u.first_name?.[0], u.last_name?.[0]].filter(Boolean).join('').toUpperCase() || u.email[0].toUpperCase();
   const isOwner = u.role === 'owner';
   const isSelf = u.id === currentUser?.id;
+  const isPending = u.password_reset_required;
 
   return (
     <tr className="border-b border-detec-slate-700/20 hover:bg-detec-slate-800/40 transition-colors">
@@ -187,15 +187,18 @@ function UserRow({ u, currentUser, onEdit, onToggleActive }) {
           {u.role}
         </span>
       </td>
-      <td className="px-4 py-3 text-detec-slate-500 text-xs">{u.auth_provider}</td>
       <td className="px-4 py-3">
-        {u.is_active ? (
-          <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Active
-          </span>
-        ) : (
+        {!u.is_active ? (
           <span className="inline-flex items-center gap-1 text-xs text-detec-slate-500">
             <span className="h-1.5 w-1.5 rounded-full bg-detec-slate-600" />Inactive
+          </span>
+        ) : isPending ? (
+          <span className="inline-flex items-center gap-1 text-xs text-amber-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />Invite pending
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Active
           </span>
         )}
       </td>
@@ -237,9 +240,10 @@ function UserFormModal({ user, currentUser, onClose, onSaved, onError }) {
   const [lastName, setLastName] = useState(user?.last_name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [role, setRole] = useState(user?.role || 'analyst');
-  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
+  const [inviteResult, setInviteResult] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -253,25 +257,91 @@ function UserFormModal({ user, currentUser, onClose, onSaved, onError }) {
         if (role !== user.role) patch.role = role;
         if (Object.keys(patch).length === 0) { onSaved(); return; }
         await updateUser(user.id, patch);
+        onSaved();
       } else {
         if (!firstName.trim()) { setFormError('First name is required'); setSubmitting(false); return; }
         if (!email.trim()) { setFormError('Email is required'); setSubmitting(false); return; }
-        if (password.length < 8) { setFormError('Password must be at least 8 characters'); setSubmitting(false); return; }
-        await createUser({
+        const result = await createUser({
           first_name: firstName.trim(),
           last_name: lastName.trim() || null,
           email: email.trim(),
           role,
-          password,
         });
+        if (result.invite_token) {
+          setInviteResult(result);
+        } else {
+          onSaved();
+        }
       }
-      onSaved();
     } catch (err) {
       setFormError(err.message);
     } finally {
       setSubmitting(false);
     }
   };
+
+  const inviteUrl = inviteResult
+    ? `${window.location.origin}/set-password?token=${inviteResult.invite_token}&purpose=invite`
+    : null;
+
+  const handleCopy = async () => {
+    if (!inviteUrl) return;
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard API unavailable
+    }
+  };
+
+  if (inviteResult) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => { onSaved(); }}>
+        <div
+          className="w-full max-w-md rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-6 shadow-2xl space-y-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-center">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-900/30 mb-2">
+              <svg className="h-6 w-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-semibold text-detec-slate-100">User invited</h2>
+            <p className="text-sm text-detec-slate-400 mt-1">
+              Share the invite link below with <strong className="text-detec-slate-200">{inviteResult.email}</strong>
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-detec-slate-400">Invite link</label>
+            <div className="flex items-start gap-2">
+              <code className="flex-1 rounded-lg bg-detec-slate-800 border border-detec-slate-700 px-3 py-2 text-xs text-detec-slate-300 break-all select-all">
+                {inviteUrl}
+              </code>
+              <button
+                onClick={handleCopy}
+                className="shrink-0 rounded-lg border border-detec-slate-700 px-3 py-2 text-xs text-detec-slate-400 hover:bg-detec-slate-800 transition-colors"
+              >
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+            <p className="text-xs text-detec-slate-600">This link expires in 24 hours.</p>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={() => { onSaved(); }}
+              className="rounded-lg bg-detec-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-detec-primary-500"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
@@ -280,7 +350,7 @@ function UserFormModal({ user, currentUser, onClose, onSaved, onError }) {
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold text-detec-slate-100 mb-4">
-          {isEdit ? 'Edit User' : 'Add User'}
+          {isEdit ? 'Edit User' : 'Invite User'}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -333,21 +403,9 @@ function UserFormModal({ user, currentUser, onClose, onSaved, onError }) {
           </div>
 
           {!isEdit && (
-            <div>
-              <label className="block text-xs font-medium text-detec-slate-400 mb-1">Temporary password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-2 text-sm text-detec-slate-200 focus:border-detec-primary-500 focus:outline-none"
-                required
-                minLength={8}
-                placeholder="Min. 8 characters"
-              />
-              <p className="mt-1 text-xs text-detec-slate-600">
-                Share this password securely. The user should change it on first login.
-              </p>
-            </div>
+            <p className="text-xs text-detec-slate-500">
+              An invite link will be generated. No temporary password needed.
+            </p>
           )}
 
           {formError && (
@@ -367,7 +425,7 @@ function UserFormModal({ user, currentUser, onClose, onSaved, onError }) {
               disabled={submitting}
               className="rounded-lg bg-detec-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-detec-primary-500 disabled:opacity-50"
             >
-              {submitting ? 'Saving...' : isEdit ? 'Save changes' : 'Create user'}
+              {submitting ? 'Saving...' : isEdit ? 'Save changes' : 'Send invite'}
             </button>
           </div>
         </form>

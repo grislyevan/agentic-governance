@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     # Heartbeat
     default_heartbeat_interval: int = 300
 
+    # Webhooks
+    webhook_delivery_timeout: int = 10
+    webhook_max_retries: int = 3
+
     # Seed data (created on first startup if DB is empty)
     seed_admin_email: str = "admin@example.com"
     seed_admin_password: str = "change-me"

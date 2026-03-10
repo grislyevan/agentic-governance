@@ -23,6 +23,8 @@
 | React/Vite dashboard (auth, live data, controls) | Done |
 | FastAPI backend (PostgreSQL, JWT, multi-tenancy) | Done |
 | User management API (CRUD, roles, auth_provider) | Done |
+| Invite + password reset flows (backend + dashboard) | Done |
+| Webhook alerts (CRUD, HMAC delivery, dispatcher) | Done |
 | macOS agent GUI (menu bar + status window) | Done |
 | macOS .app/.pkg packaging for MDM distribution | Done |
 | MDM deployment docs (Jamf, Endpoint Central) | Done |
@@ -139,7 +141,7 @@ API Client ────────────────────▶│ Mu
 **Goal:** Replace the prototype React app with a production-quality multi-tenant dashboard.
 
 - [x] Auth flows: login, register (JWT with auto-refresh, API key fallback)
-- [ ] Auth flows: invite, password reset
+- [x] Auth flows: invite tokens, password reset (forgot/reset/accept-invite endpoints, SetPasswordPage, ResetPasswordPage)
 - [x] User management: CRUD for tenant users, four-role model (owner/admin/analyst/viewer), Admin page UI
 - [ ] Org/tenant management: create org, invite members
 - [x] Endpoint management: multi-endpoint view with filter, status, signal bars
@@ -147,7 +149,7 @@ API Client ────────────────────▶│ Mu
 - [x] Policy list (read-only, from API)
 - [x] Policy configuration UI: create/edit/toggle policies from dashboard (owner/admin)
 - [x] Audit log page (read-only, paginated, from API)
-- [ ] Alerts and notifications: email or webhook on enforcement state change
+- [x] Webhook alerts: CRUD, HMAC-signed delivery, event type filtering, test endpoint, Settings UI
 - [x] Real-time updates via 30s polling with pause/resume and "Updated Xs ago" indicator
 - [x] Accessible design (ARIA labels, keyboard nav, screen reader support)
 - [ ] Responsive design (mobile breakpoints)

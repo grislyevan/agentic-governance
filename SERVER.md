@@ -262,10 +262,20 @@ The API includes several hardening measures for production use.
 
 API keys are hashed (SHA-256) before storage. The raw key is displayed **once** at creation time (in the seed log on first startup, or in the registration API response). It cannot be recovered from the database. If you lose the key, delete the user row and restart the API to re-seed, or register a new user.
 
+### Invite and password reset
+
+Admin-created users can be onboarded without sharing temporary passwords. When an admin creates a user via `POST /users` without a `password` field, the API generates a one-time invite token (24-hour expiry) and returns it in the response. The admin shares the invite link with the new user, who visits the link to set their password and activate their account.
+
+Password reset uses a similar flow: `POST /auth/forgot-password` creates a reset token (1-hour expiry). Until email delivery is configured, the token is returned in the response body. `POST /auth/reset-password` validates the token and updates the password. `POST /auth/accept-invite` works the same way for invite tokens.
+
+On login, the response includes a `password_reset_required` flag. The dashboard checks this and redirects the user to the set-password page if true.
+
+All token operations are audit-logged (`password.reset_requested`, `password.reset_completed`, `invite.accepted`).
+
 ### Rate limiting
 
-Auth endpoints (`/api/auth/login`, `/api/auth/register`, `/api/auth/refresh`) are rate-limited to prevent brute-force attacks:
-- Login and register: 5 requests per minute per IP
+Auth endpoints are rate-limited to prevent brute-force attacks:
+- Login, register, forgot-password, reset-password, accept-invite: 5 requests per minute per IP
 - Token refresh: 10 requests per minute per IP
 
 Rate limiting is provided by `slowapi`. Clients that exceed the limit receive HTTP 429 (Too Many Requests).
@@ -284,9 +294,10 @@ Users have a `role` field with four possible values:
 Sensitive endpoints enforce role checks:
 
 - **Owner only**: `DELETE /users/{id}` (deactivate user)
-- **Owner or admin**: `GET /users`, `POST /users`, `PATCH /users/{id}`, `POST /policies`, `PATCH /policies/{id}`, `POST /endpoints/enroll`
+- **Owner or admin**: `GET /users`, `POST /users`, `PATCH /users/{id}`, `POST /policies`, `PATCH /policies/{id}`, `POST /endpoints/enroll`, `GET/POST/PATCH/DELETE /webhooks`
 - **Owner, admin, or analyst**: `GET /audit-log`
 - **Any authenticated user**: read endpoints, read events, heartbeat
+- **Unauthenticated**: `POST /auth/forgot-password`, `POST /auth/reset-password`, `POST /auth/accept-invite`
 
 Users with insufficient privileges receive HTTP 403.
 
@@ -296,14 +307,35 @@ The seed user and self-registered users receive the `owner` role (they are tenan
 
 Owner and admin roles can read data across all tenants on query endpoints (events, endpoints, endpoint status, audit log, policies, users). This is read-only visibility for operational oversight; write and ingest endpoints remain strictly tenant-scoped so agents can only write to their own tenant. Analyst and viewer roles see only their own tenant's data. The logic is centralized in `get_tenant_filter()` in `api/core/tenant.py`.
 
+### Webhook alerts
+
+The API supports outbound HTTP webhooks for real-time event notifications. Configure webhooks via the dashboard Settings page or the REST API:
+
+- `GET /webhooks` - list webhooks for the tenant
+- `POST /webhooks` - create a webhook (URL, event types, active toggle)
+- `PATCH /webhooks/{id}` - update URL, events, or active state
+- `DELETE /webhooks/{id}` - remove a webhook
+- `POST /webhooks/{id}/test` - send a test payload to verify the endpoint
+
+Each webhook has an HMAC signing secret (auto-generated, prefixed `whsec_`). Deliveries include:
+- `X-Detec-Signature: sha256=<hmac>` header for payload verification
+- `X-Detec-Delivery-Id` header for idempotency
+- Retry: up to 3 attempts with exponential backoff (1s, 4s, 16s)
+
+Subscribe to specific event types (e.g., `enforcement.block`, `enforcement.approval_required`) or leave the events list empty to receive all events. Webhooks are dispatched when events are ingested via both the HTTP API and the TCP gateway.
+
+Webhook management requires the `owner` or `admin` role.
+
 ### Audit log
 
 All security-relevant actions are recorded in the `audit_log` table with actor, tenant, action, resource, IP address, and timestamp. Audited actions include:
 
 - `user.registered`, `user.login` (auth events)
 - `user.created`, `user.updated`, `user.deactivated` (user management)
+- `password.reset_requested`, `password.reset_completed`, `invite.accepted` (auth token events)
 - `policy.created`, `policy.updated` (policy changes)
 - `endpoint.enrolled`, `endpoint.key_rotated` (enrollment events)
+- `webhook.created`, `webhook.updated`, `webhook.deleted`, `webhook.tested` (webhook management)
 
 Query the audit log via `GET /audit-log` (requires admin or analyst role).
 
@@ -363,6 +395,13 @@ All settings are defined in `api/core/config.py` (pydantic-settings). Field name
 | `DEFAULT_HEARTBEAT_INTERVAL` | `300` | Default heartbeat interval in seconds for new endpoints. |
 | `DEBUG` | `false` | Enable debug mode. Do not use in production. |
 | `RUN_MIGRATIONS` | `true` | (Docker only) Set to `false` to skip automatic Alembic migrations on container start. |
+
+### Webhooks
+
+| Variable | Default | Description |
+|---|---|---|
+| `WEBHOOK_DELIVERY_TIMEOUT` | `10` | HTTP timeout in seconds for webhook delivery requests. |
+| `WEBHOOK_MAX_RETRIES` | `3` | Maximum retry attempts for failed webhook deliveries. |
 
 ### Binary protocol gateway
 

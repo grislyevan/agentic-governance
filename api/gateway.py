@@ -22,6 +22,7 @@ from core.database import SessionLocal
 from models.endpoint import Endpoint, ENDPOINT_STATUS_ACTIVE
 from models.event import Event
 from models.user import User, verify_api_key, API_KEY_PREFIX_LEN
+from webhooks.dispatcher import dispatch_event as _dispatch_webhooks
 
 from protocol import __version__ as PROTOCOL_VERSION
 from protocol.connection import BaseConnection
@@ -314,6 +315,12 @@ class AgentSession(BaseConnection):
             )
             db.add(event)
             db.commit()
+
+            try:
+                _dispatch_webhooks(db, self._tenant_id, event_data)
+            except Exception:
+                logger.warning("Webhook dispatch failed for event %s", event_id, exc_info=True)
+
             return True
         except IntegrityError:
             db.rollback()

@@ -11,7 +11,7 @@
 | Path | Purpose |
 |------|--------|
 | `collector/` | Python agent: scanners, confidence engine, policy, HTTP + TCP emitters. Entry: `main.py`; daemon: `--interval` + `--api-url` + `--api-key` + `--protocol tcp\|http`. Config: `config_loader.py` + `config/collector.json` + `AGENTIC_GOV_*` env. |
-| `api/` | FastAPI backend: auth (JWT + API key), events, endpoints, policies, users. Binary protocol gateway (`gateway.py`, port 8001). Config: `core/config.py` + `.env` (see root `.env.example`). |
+| `api/` | FastAPI backend: auth (JWT + API key, invite tokens, password reset), events, endpoints, policies, users, webhooks. Binary protocol gateway (`gateway.py`, port 8001). Config: `core/config.py` + `.env` (see root `.env.example`). |
 | `protocol/` | Shared binary wire protocol package (msgpack framing, message types, connection base class). Imported by both `api/` and `collector/`. |
 | `dashboard/` | React/Vite SOC UI. Build: `npm run build`; dev: `npm run dev` (proxies API). Served by FastAPI at root when built. |
 | `playbook/` | Governance playbook (versioned Markdown). Detection profiles, policy rules, lab methodology. |
@@ -46,7 +46,7 @@ Default dashboard login: `admin@example.com` / `change-me` (unless overridden by
 - **Config:** Collector: `collector/config_loader.py` + `collector/config/collector.json` + env. API: `api/core/config.py` + root or `api/.env`. Production: set `ENV=production` and strong `JWT_SECRET` / `SEED_ADMIN_PASSWORD`.
 - **Docs:** Agent deployment → [DEPLOY.md](DEPLOY.md). Central server → [SERVER.md](SERVER.md). Playbook → `playbook/PLAYBOOK-v0.4-*.md`. Progress → [PROGRESS.md](PROGRESS.md).
 - **Versioning:** Playbook uses semantic version in filename and `Version:` header; see `.cursor/rules/git-and-versioning.mdc` for commit/version discipline.
-- **Tests:** `pytest collector/tests/` (200 tests), `pytest api/tests/` (54), `pytest protocol/tests/` (45). Run separately to avoid package conflicts.
+- **Tests:** `pytest collector/tests/` (200 tests), `pytest api/tests/` (82), `pytest protocol/tests/` (45). Run separately to avoid package conflicts.
 
 ---
 

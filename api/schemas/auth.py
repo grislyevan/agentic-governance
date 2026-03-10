@@ -70,6 +70,47 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if len(v) > 128:
+            raise ValueError("Password must be at most 128 characters")
+        return v
+
+
+class AcceptInviteRequest(BaseModel):
+    token: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if len(v) > 128:
+            raise ValueError("Password must be at most 128 characters")
+        return v
+
+
+class PasswordResetResponse(BaseModel):
+    message: str
+    token: str | None = None
+
+
+class LoginResponse(TokenResponse):
+    password_reset_required: bool = False
+
+
 class UserResponse(BaseModel):
     id: str
     email: str
@@ -78,5 +119,6 @@ class UserResponse(BaseModel):
     role: str
     tenant_id: str
     auth_provider: str
+    password_reset_required: bool = False
 
     model_config = {"from_attributes": True}

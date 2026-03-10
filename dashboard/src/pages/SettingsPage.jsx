@@ -1,12 +1,25 @@
-import { useState, useRef, useEffect } from 'react';
-import { getApiConfig, setApiConfig } from '../lib/api';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { getApiConfig, setApiConfig, fetchWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook } from '../lib/api';
+import useAuth from '../hooks/useAuth';
+
+const EVENT_TYPES = [
+  'enforcement.block',
+  'enforcement.approval_required',
+  'enforcement.warn',
+  'enforcement.allow',
+  'tool.detected',
+  'tool.removed',
+];
 
 export default function SettingsPage() {
   const config = getApiConfig();
+  const { user } = useAuth();
   const [apiUrl, setApiUrl] = useState(config.apiUrl);
   const [apiKey, setApiKey] = useState(config.apiKey);
   const [saved, setSaved] = useState(false);
   const savedTimer = useRef(null);
+
+  const canManageWebhooks = user?.role === 'owner' || user?.role === 'admin';
 
   useEffect(() => {
     return () => { if (savedTimer.current) clearTimeout(savedTimer.current); };
@@ -23,7 +36,7 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-detec-slate-100">Settings</h1>
 
-      <div className="max-w-lg space-y-5">
+      <div className="max-w-2xl space-y-6">
         <div className="rounded-xl border border-detec-slate-700/50 bg-detec-slate-800/50 p-5 space-y-4">
           <h2 className="text-sm font-semibold text-detec-slate-300 uppercase tracking-wider">
             API Connection
@@ -74,6 +87,262 @@ export default function SettingsPage() {
             )}
           </div>
         </div>
+
+        {canManageWebhooks && <WebhooksSection />}
+      </div>
+    </div>
+  );
+}
+
+
+function WebhooksSection() {
+  const [webhooks, setWebhooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+
+  const loadWebhooks = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchWebhooks();
+      setWebhooks(data.items || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadWebhooks(); }, [loadWebhooks]);
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this webhook?')) return;
+    try {
+      await deleteWebhook(id);
+      loadWebhooks();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleTest = async (id) => {
+    try {
+      const result = await testWebhook(id);
+      if (result.success) {
+        setError(null);
+      } else {
+        setError('Test delivery failed. Check the webhook URL.');
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleToggle = async (webhook) => {
+    try {
+      await updateWebhook(webhook.id, { is_active: !webhook.is_active });
+      loadWebhooks();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-detec-slate-700/50 bg-detec-slate-800/50 p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-detec-slate-300 uppercase tracking-wider">
+          Webhooks
+        </h2>
+        <button
+          onClick={() => setShowForm(true)}
+          className="rounded-lg bg-detec-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-detec-primary-500 transition-colors"
+        >
+          Add webhook
+        </button>
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-detec-slate-500">Loading...</p>
+      ) : webhooks.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-detec-slate-700 bg-detec-slate-800/30 px-6 py-8 text-center">
+          <p className="text-sm text-detec-slate-500">No webhooks configured.</p>
+          <p className="text-xs text-detec-slate-600 mt-1">Add a webhook to receive event notifications.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {webhooks.map((wh) => (
+            <div
+              key={wh.id}
+              className="rounded-lg border border-detec-slate-700/40 bg-detec-slate-900/50 p-4 space-y-2"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <code className="text-sm text-detec-slate-200 break-all">{wh.url}</code>
+                  <div className="flex items-center gap-2 mt-1">
+                    {wh.is_active ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Active
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs text-detec-slate-500">
+                        <span className="h-1.5 w-1.5 rounded-full bg-detec-slate-600" />Paused
+                      </span>
+                    )}
+                    {wh.events.length > 0 && (
+                      <span className="text-xs text-detec-slate-500">
+                        {wh.events.length} event type{wh.events.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                    {wh.events.length === 0 && (
+                      <span className="text-xs text-detec-slate-500">All events</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => handleTest(wh.id)}
+                    className="rounded px-2 py-1 text-xs text-detec-slate-400 hover:bg-detec-slate-800 transition-colors"
+                  >
+                    Test
+                  </button>
+                  <button
+                    onClick={() => handleToggle(wh)}
+                    className="rounded px-2 py-1 text-xs text-detec-slate-400 hover:bg-detec-slate-800 transition-colors"
+                  >
+                    {wh.is_active ? 'Pause' : 'Resume'}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(wh.id)}
+                    className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-950/40 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+
+              <details className="group">
+                <summary className="text-xs text-detec-slate-500 cursor-pointer hover:text-detec-slate-400 transition-colors">
+                  Signing secret
+                </summary>
+                <code className="mt-1 block text-xs text-detec-slate-400 break-all select-all">
+                  {wh.secret}
+                </code>
+              </details>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showForm && (
+        <WebhookFormModal
+          onClose={() => setShowForm(false)}
+          onSaved={() => { setShowForm(false); loadWebhooks(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+
+function WebhookFormModal({ onClose, onSaved }) {
+  const [url, setUrl] = useState('');
+  const [selectedEvents, setSelectedEvents] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState(null);
+
+  const toggleEvent = (event) => {
+    setSelectedEvents(prev =>
+      prev.includes(event)
+        ? prev.filter(e => e !== event)
+        : [...prev, event]
+    );
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFormError(null);
+    if (!url.trim()) { setFormError('URL is required'); return; }
+
+    setSubmitting(true);
+    try {
+      await createWebhook({ url: url.trim(), events: selectedEvents });
+      onSaved();
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold text-detec-slate-100 mb-4">Add Webhook</h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-detec-slate-400 mb-1">Endpoint URL</label>
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://example.com/webhook"
+              required
+              className="w-full rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-2 text-sm text-detec-slate-200 focus:border-detec-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-detec-slate-400 mb-2">
+              Event types <span className="font-normal text-detec-slate-600">(leave empty for all)</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {EVENT_TYPES.map((evt) => (
+                <label
+                  key={evt}
+                  className="flex items-center gap-2 rounded-lg border border-detec-slate-700/40 bg-detec-slate-800/50 px-3 py-2 cursor-pointer hover:border-detec-primary-500/30 transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedEvents.includes(evt)}
+                    onChange={() => toggleEvent(evt)}
+                    className="rounded border-detec-slate-600 bg-detec-slate-900 text-detec-primary-500 focus:ring-detec-primary-500/30"
+                  />
+                  <span className="text-xs text-detec-slate-300">{evt}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {formError && (
+            <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{formError}</div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-detec-slate-700 px-4 py-2 text-sm text-detec-slate-400 hover:bg-detec-slate-800"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="rounded-lg bg-detec-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-detec-primary-500 disabled:opacity-50"
+            >
+              {submitting ? 'Creating...' : 'Create webhook'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

@@ -21,6 +21,7 @@ from core.tenant import get_tenant_id as _get_tenant_id, resolve_auth, get_tenan
 from models.endpoint import Endpoint
 from models.event import Event
 from schemas.events import EventIngest, EventListResponse, EventResponse
+from webhooks.dispatcher import dispatch_event as _dispatch_webhooks
 
 logger = logging.getLogger(__name__)
 
@@ -196,6 +197,12 @@ def ingest_event(
             return EventResponse.model_validate(existing)
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Duplicate event_id")
     db.refresh(event)
+
+    try:
+        _dispatch_webhooks(db, tenant_id, body.model_dump(mode="json"))
+    except Exception:
+        logger.warning("Webhook dispatch failed for event %s", body.event_id, exc_info=True)
+
     return EventResponse.model_validate(event)
 
 

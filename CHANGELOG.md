@@ -6,6 +6,62 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Invite token flow**: Admin-created users no longer need a temporary password.
+  `POST /users` without a password generates a one-time invite token (24hr expiry).
+  The response includes `invite_token` which the admin shares as a link. The
+  invited user visits `/set-password?token=...&purpose=invite` to set their
+  password and activate the account. Backend: `AuthToken` model
+  (`api/models/auth_token.py`), `POST /auth/accept-invite` endpoint. Dashboard:
+  `SetPasswordPage.jsx`, updated `AdminPage.jsx` with invite link modal.
+- **Password reset flow**: `POST /auth/forgot-password` creates a reset token
+  (1hr expiry) and returns it in the response body (email delivery deferred).
+  `POST /auth/reset-password` validates the token and updates the password.
+  Previous unused tokens are invalidated on each new request. Dashboard:
+  `ResetPasswordPage.jsx` with copyable reset link, "Forgot password?" link on
+  login page.
+- **Login enforcement for `password_reset_required`**: `POST /auth/login` now
+  returns a `password_reset_required` boolean. The dashboard redirects users
+  with this flag to the set-password page before granting access.
+- **Webhook alert system**: Outbound HTTP webhooks for event notifications.
+  `Webhook` model (`api/models/webhook.py`) stores URL, HMAC signing secret,
+  subscribed event types, and active toggle. CRUD endpoints at
+  `GET/POST/PATCH/DELETE /webhooks` plus `POST /webhooks/{id}/test`.
+  Dispatcher (`api/webhooks/dispatcher.py`) matches ingested events against
+  active webhooks by `decision_state`. Sender (`api/webhooks/sender.py`)
+  delivers payloads with `X-Detec-Signature` (HMAC-SHA256), delivery ID, and
+  3x retry with exponential backoff. Hooked into both HTTP event ingestion
+  (`api/routers/events.py`) and TCP gateway (`api/gateway.py`). Dashboard:
+  Webhooks section in Settings page with add, test, pause, delete, and
+  signing secret reveal.
+- **Alembic migrations**: `0002_auth_tokens` (auth_tokens table),
+  `0003_webhooks` (webhooks table).
+- **Test coverage**: 28 new tests across `test_auth_tokens.py` (14 tests:
+  forgot-password, reset-password, accept-invite, login enforcement,
+  create-user with invite) and `test_webhooks.py` (14 tests: CRUD, validation,
+  auth, dispatcher matching, payload building, HMAC signing). Total API tests:
+  82, all passing.
+
+### Changed
+
+- **`POST /auth/login` response**: Now returns `LoginResponse` (extends
+  `TokenResponse`) with `password_reset_required` field. Existing clients
+  that ignore the new field are unaffected.
+- **`POST /users` response**: Now returns `UserCreateResponse` (extends
+  `UserOut`) with optional `invite_token` field. Password field is now
+  optional on `UserCreate`; omitting it triggers the invite flow.
+- **`UserOut` schema**: Now includes `password_reset_required` field so the
+  Admin page can show "Invite pending" status.
+- **`UserResponse` schema** (`/auth/me`): Now includes `password_reset_required`
+  field.
+- **Admin page UI**: "Add user" button renamed to "Invite user". Temporary
+  password field removed. After creation, a modal shows a copyable invite link.
+  User table shows "Invite pending" (amber) status for users who have not yet
+  set their password. "Provider" column removed for cleaner layout.
+- **Settings page**: Expanded from API connection only to include a Webhooks
+  management section (visible to owner/admin roles).
+
 ### Fixed
 
 - **Windows agent service startup (3 fixes)**:

@@ -147,3 +147,54 @@ export async function updateUser(id, data) {
 export async function deleteUser(id) {
   return apiMutate('DELETE', `/users/${id}`);
 }
+
+// Auth: password reset + invite flows (unauthenticated)
+
+export async function forgotPassword(email) {
+  return apiMutatePublic('POST', '/auth/forgot-password', { email });
+}
+
+export async function resetPassword(token, newPassword) {
+  return apiMutatePublic('POST', '/auth/reset-password', { token, new_password: newPassword });
+}
+
+export async function acceptInvite(token, newPassword) {
+  return apiMutatePublic('POST', '/auth/accept-invite', { token, new_password: newPassword });
+}
+
+async function apiMutatePublic(method, path, body) {
+  const config = getApiConfig();
+  const url = `${config.apiUrl.replace(/\/+$/, '')}${path}`;
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Request failed (${res.status})`);
+  }
+  return res.json();
+}
+
+// Webhooks
+
+export async function fetchWebhooks() {
+  return apiFetch('/webhooks');
+}
+
+export async function createWebhook(data) {
+  return apiMutate('POST', '/webhooks', data);
+}
+
+export async function updateWebhook(id, data) {
+  return apiMutate('PATCH', `/webhooks/${id}`, data);
+}
+
+export async function deleteWebhook(id) {
+  return apiMutate('DELETE', `/webhooks/${id}`);
+}
+
+export async function testWebhook(id) {
+  return apiMutate('POST', `/webhooks/${id}/test`);
+}

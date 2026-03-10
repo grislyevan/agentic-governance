@@ -1,10 +1,11 @@
-"""Auth router: register, login, refresh, /me."""
+"""Auth router: register, login, refresh, /me, forgot/reset password, accept invite."""
 
 from __future__ import annotations
 
 import logging
 import re
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from slowapi import Limiter
@@ -24,13 +25,19 @@ from core.auth import (
 )
 from core.audit_logger import record as audit_record
 from core.database import get_db
+from models.auth_token import AuthToken, hash_token
 from models.tenant import Tenant
 from models.user import User, generate_api_key
 from schemas.auth import (
+    AcceptInviteRequest,
+    ForgotPasswordRequest,
     LoginRequest,
+    LoginResponse,
+    PasswordResetResponse,
     RefreshRequest,
     RegisterRequest,
     RegisterResponse,
+    ResetPasswordRequest,
     TokenResponse,
     UserResponse,
 )
@@ -111,9 +118,9 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
     )
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=LoginResponse)
 @limiter.limit("5/minute")
-def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
     user = db.query(User).filter(User.email == body.email).first()
     if not user or not verify_password(body.password, user.hashed_password):
         masked = body.email.split("@")[0][:2] + "***@" + body.email.split("@")[-1] if "@" in body.email else "***"
@@ -138,10 +145,143 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)) -
     user.refresh_jti = refresh_jti
     db.commit()
 
-    return TokenResponse(
+    return LoginResponse(
         access_token=create_access_token(user.id, user.tenant_id),
         refresh_token=refresh_tok,
+        password_reset_required=user.password_reset_required,
     )
+
+
+@router.post("/forgot-password", response_model=PasswordResetResponse)
+@limiter.limit("5/minute")
+def forgot_password(
+    request: Request,
+    body: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+) -> PasswordResetResponse:
+    """Request a password reset. Creates a reset token (valid 1 hour).
+
+    Always returns 200 to avoid leaking whether an email exists.
+    The token is returned in the response body until email delivery is wired up.
+    """
+    user = db.query(User).filter(User.email == body.email, User.is_active.is_(True)).first()
+    if not user:
+        return PasswordResetResponse(message="If that email is registered, a reset link has been created.")
+
+    db.query(AuthToken).filter(
+        AuthToken.user_id == user.id,
+        AuthToken.purpose == "reset",
+        AuthToken.used_at.is_(None),
+    ).update({"used_at": datetime.now(timezone.utc)})
+
+    token_obj, raw_token = AuthToken.create_reset_token(user.id)
+    db.add(token_obj)
+
+    audit_record(
+        db,
+        tenant_id=user.tenant_id,
+        actor_id=user.id,
+        action="password.reset_requested",
+        resource_type="user",
+        resource_id=user.id,
+        ip_address=request.client.host if request.client else None,
+    )
+    db.commit()
+
+    return PasswordResetResponse(
+        message="If that email is registered, a reset link has been created.",
+        token=raw_token,
+    )
+
+
+@router.post("/reset-password", response_model=PasswordResetResponse)
+@limiter.limit("5/minute")
+def reset_password(
+    request: Request,
+    body: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+) -> PasswordResetResponse:
+    """Reset password using a valid reset token."""
+    token_hash = hash_token(body.token)
+    token_obj = db.query(AuthToken).filter(
+        AuthToken.token_hash == token_hash,
+        AuthToken.purpose == "reset",
+    ).first()
+
+    if not token_obj or not token_obj.is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token",
+        )
+
+    user = db.query(User).filter(User.id == token_obj.user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token",
+        )
+
+    user.hashed_password = hash_password(body.new_password)
+    user.password_reset_required = False
+    token_obj.used_at = datetime.now(timezone.utc)
+
+    audit_record(
+        db,
+        tenant_id=user.tenant_id,
+        actor_id=user.id,
+        action="password.reset_completed",
+        resource_type="user",
+        resource_id=user.id,
+        ip_address=request.client.host if request.client else None,
+    )
+    db.commit()
+
+    return PasswordResetResponse(message="Password has been reset successfully.")
+
+
+@router.post("/accept-invite", response_model=PasswordResetResponse)
+@limiter.limit("5/minute")
+def accept_invite(
+    request: Request,
+    body: AcceptInviteRequest,
+    db: Session = Depends(get_db),
+) -> PasswordResetResponse:
+    """Accept an invite and set a password for the new user account."""
+    token_hash = hash_token(body.token)
+    token_obj = db.query(AuthToken).filter(
+        AuthToken.token_hash == token_hash,
+        AuthToken.purpose == "invite",
+    ).first()
+
+    if not token_obj or not token_obj.is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired invite token",
+        )
+
+    user = db.query(User).filter(User.id == token_obj.user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired invite token",
+        )
+
+    user.hashed_password = hash_password(body.new_password)
+    user.password_reset_required = False
+    token_obj.used_at = datetime.now(timezone.utc)
+
+    audit_record(
+        db,
+        tenant_id=user.tenant_id,
+        actor_id=user.id,
+        action="invite.accepted",
+        resource_type="user",
+        resource_id=user.id,
+        ip_address=request.client.host if request.client else None,
+    )
+    db.commit()
+
+    return PasswordResetResponse(message="Account activated. You can now sign in.")
 
 
 @router.post("/refresh", response_model=TokenResponse)

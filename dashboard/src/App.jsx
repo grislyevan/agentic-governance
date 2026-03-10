@@ -5,6 +5,7 @@ import Sidebar from './components/layout/Sidebar';
 import TopBar from './components/layout/TopBar';
 import ApertureSpinner from './components/branding/ApertureSpinner';
 import LoginPage from './pages/LoginPage';
+import SetPasswordPage from './pages/SetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import EventsPage from './pages/EventsPage';
 import PoliciesPage from './pages/PoliciesPage';
@@ -46,6 +47,10 @@ export default function App() {
         <span className="text-sm text-detec-slate-500">Connecting...</span>
       </div>
     );
+  }
+
+  if (location.pathname === '/set-password') {
+    return <SetPasswordPage onComplete={() => navigate('/')} />;
   }
 
   if (!isAuthenticated) {
