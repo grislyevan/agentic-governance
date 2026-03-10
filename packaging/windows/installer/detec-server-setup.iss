@@ -59,7 +59,7 @@ Type: files; Name: "{commondesktop}\Detec Dashboard.lnk"
 
 [Code]
 const
-  ADMIN_EMAIL = 'admin@localhost';
+  ADMIN_EMAIL = 'administrator@detec.local';
   MIN_DISK_MB = 300;
 
 var

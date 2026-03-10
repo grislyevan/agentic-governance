@@ -45,6 +45,14 @@ function authHeaders() {
   return {};
 }
 
+function extractDetail(data, fallback) {
+  const d = data.detail;
+  if (!d) return fallback;
+  if (typeof d === 'string') return d;
+  if (Array.isArray(d)) return d.map((e) => e.msg || JSON.stringify(e)).join('; ');
+  return JSON.stringify(d);
+}
+
 export async function loginRequest(email, password) {
   const res = await fetch(`${apiBase()}/auth/login`, {
     method: 'POST',
@@ -53,7 +61,7 @@ export async function loginRequest(email, password) {
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || `Login failed (${res.status})`);
+    throw new Error(extractDetail(data, `Login failed (${res.status})`));
   }
   const data = await res.json();
   storeTokens(data);
@@ -74,7 +82,7 @@ export async function registerRequest(email, password, firstName, lastName, tena
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || `Registration failed (${res.status})`);
+    throw new Error(extractDetail(data, `Registration failed (${res.status})`));
   }
   const data = await res.json();
   storeTokens(data);
