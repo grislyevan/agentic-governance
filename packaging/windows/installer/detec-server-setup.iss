@@ -564,13 +564,11 @@ begin
     if DirExists(DataDir) then
     begin
       if MsgBox(
-        'Do you also want to remove the Detec data directory?' + #13#10 +
-        #13#10 +
+        'Do you also want to remove the Detec data directory?' + #13#10 + #13#10 +
         'This will permanently delete:' + #13#10 +
         '  - Database (detec.db)' + #13#10 +
         '  - Configuration (server.env)' + #13#10 +
-        '  - Server logs (server.log)' + #13#10 +
-        #13#10 +
+        '  - Server logs (server.log)' + #13#10 + #13#10 +
         'Location: ' + DataDir,
         mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
       begin
