@@ -78,6 +78,13 @@ icons_dir = os.path.join(SPECPATH, 'icons')
 if os.path.isdir(icons_dir):
     datas.append((icons_dir, 'icons'))
 
+# Branding assets (Icon.icns loaded at runtime by statuswindow)
+_branding_dir = os.path.join(PROJECT_ROOT, 'branding')
+for _asset in ('Icon.icns', 'Icon.png'):
+    _asset_path = os.path.join(_branding_dir, _asset)
+    if os.path.exists(_asset_path):
+        datas.append((_asset_path, 'branding'))
+
 a = Analysis(
     [os.path.join(PROJECT_ROOT, 'collector', 'gui', 'menubar.py')],
     pathex=[

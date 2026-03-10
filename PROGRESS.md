@@ -104,6 +104,8 @@ API Client ────────────────────▶│ Mu
 - [x] Cross-platform abstraction layer (`collector/compat/`) — psutil-backed process, network, service, identity, and path abstraction; macOS/Linux/Windows dispatch; Cursor, Ollama, and Copilot scanners migrated
 - [x] User management API — CRUD endpoints for tenant users (first_name, last_name, email, role), owner/admin/analyst/viewer roles, auth_provider placeholder for future SSO/SAML, password_reset_required for email provisioning (`api/routers/users.py`, `api/schemas/users.py`)
 - [x] macOS agent GUI — rumps-based menu bar app with status window matching Detec branding, PyObjC NSWindow, Icon.icns from app bundle with programmatic fallback (`collector/gui/`)
+- [x] Windows agent GUI — pystray tray icon with tkinter status window, matching macOS design. Separate PyInstaller spec (`packaging/windows/detec-agent-gui.spec`)
+- [x] Branding icon assets — `branding/Icon.icns` (macOS), `branding/Icon.ico` (Windows, 7 sizes), `branding/Icon.png` (source)
 - [x] macOS .app bundle — PyInstaller spec, build script, icon from `branding/Icon.icns`, entitlements plist (`packaging/macos/`)
 - [x] macOS .pkg installer — pkgbuild/productbuild, pre/postinstall scripts, distribution XML, LaunchAgent configuration (`packaging/macos/`)
 - [x] MDM deployment documentation — Jamf Pro, Endpoint Central, generic MDM; PPPC profile template for Full Disk Access (`docs/mdm-deployment.md`, `docs/macos-permissions.md`)
@@ -124,6 +126,9 @@ API Client ────────────────────▶│ Mu
 - [x] Protocol test suite: 67 unit tests (wire, messages, connection, gateway, emitter) + end-to-end integration test
 - [x] BSL 1.1 license, Terms of Service, Software License Agreement (`LICENSE`, `legal/`)
 - [x] Installer EULAs aligned: Windows server (`packaging/windows/installer/license.txt`), macOS agent license screen (`packaging/macos/`)
+- [x] Windows agent service startup fixes: SCM dispatch for frozen exe, `signal.signal()` guard for non-main thread, 120s START_PENDING wait hint for slow module loading
+- [x] Schema validator uses `sys._MEIPASS` for PyInstaller bundles
+- [x] End-to-end deployment validated: macOS agent (18 events) + Windows agent service (6 events) both reporting to Windows Server VM
 
 **Files:** `api/`, `collector/output/`, `collector/agent/`, `collector/gui/`, `collector/compat/`, `packaging/macos/`, `packaging/windows/`, `docs/`, `docker-compose.yml`, `protocol/`, `legal/`
 

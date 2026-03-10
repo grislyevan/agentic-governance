@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime
 import logging
 import os
+import sys
 
 try:
     import warnings
@@ -104,14 +105,22 @@ class DetecStatusWindow:
         )
         self._window.setBackgroundColor_(bg_color)
 
-        # --- App icon (Icon.icns from bundle resources) ---
+        # --- App icon (Icon.icns from bundle or branding directory) ---
         logo_size = 110
         logo_image = None
+        icns_candidates = []
         bundle = NSBundle.mainBundle()
         if bundle and bundle.resourcePath():
-            icns_path = os.path.join(bundle.resourcePath(), "Icon.icns")
+            icns_candidates.append(os.path.join(bundle.resourcePath(), "Icon.icns"))
+        bundle_dir = getattr(sys, "_MEIPASS", None)
+        if bundle_dir:
+            icns_candidates.append(os.path.join(bundle_dir, "branding", "Icon.icns"))
+        repo_root = os.path.join(os.path.dirname(__file__), "..", "..")
+        icns_candidates.append(os.path.join(repo_root, "branding", "Icon.icns"))
+        for icns_path in icns_candidates:
             if os.path.exists(icns_path):
                 logo_image = NSImage.alloc().initWithContentsOfFile_(icns_path)
+                break
         if logo_image is None:
             logo_image = create_aperture_image(logo_size)
         logo_view = NSImageView.alloc().initWithFrame_(

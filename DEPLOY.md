@@ -21,7 +21,7 @@ Python dependencies bundled (no Python installation required on target machines)
 
 ```bash
 # Install build dependencies
-pip install -e ".[gui]"
+pip install -e ".[gui-mac]"
 pip install pyinstaller
 
 # Build the .app bundle
@@ -93,7 +93,7 @@ configuration profiles.
 
 ## Windows Deployment
 
-For Windows endpoints, the agent ships as a standalone `.exe` that runs as a Windows Service. No Python installation required on target machines.
+For Windows endpoints, the agent ships as a standalone `.exe` that runs as a Windows Service (headless) or as a system tray app with a status window (GUI mode). No Python installation required on target machines.
 
 ### Building the Agent
 
@@ -128,6 +128,24 @@ This produces `packaging/windows/dist/detec-agent/` containing `detec-agent.exe`
 
 The agent scans every 300 seconds by default and reports to the central server. It survives logoff and starts automatically on boot.
 
+**Note:** The first scan in a frozen PyInstaller bundle takes approximately 90-120 seconds while all scanner modules are loaded. The service reports `START_PENDING` to the SCM with a 120-second wait hint during this period. Subsequent scans complete faster.
+
+### GUI Mode (Windows tray app)
+
+For interactive use, build and run the GUI tray agent instead:
+
+```powershell
+# Build
+pip install pystray Pillow
+cd packaging\windows
+pyinstaller --clean --noconfirm detec-agent-gui.spec
+
+# Run (after setup)
+.\dist\detec-agent-gui\detec-agent-gui.exe
+```
+
+This shows a Detec icon in the notification area. Right-click for scan controls. Double-click (or "Show Status Window") opens a branded status window showing connection state, version, and build number.
+
 ### Managing the Agent Service
 
 ```powershell
@@ -156,8 +174,11 @@ From the repository root:
 # Headless agent only
 pip install -e .
 
-# With GUI support (macOS only)
-pip install -e ".[gui]"
+# With GUI support (macOS)
+pip install -e ".[gui-mac]"
+
+# With GUI support (Windows)
+pip install -e ".[gui-win]"
 ```
 
 This installs the **detec-agent** console script (and **detec-agent-gui**

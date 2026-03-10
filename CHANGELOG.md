@@ -8,6 +8,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Windows agent service startup (3 fixes)**:
+  - **SCM dispatch**: When the SCM started `detec-agent.exe` with no arguments,
+    the process printed argparse help and exited instead of calling
+    `StartServiceCtrlDispatcher`. Now detects frozen + no-args + Windows and
+    delegates to the service framework.
+  - **Signal registration crash**: `_run_daemon` called `signal.signal()` from a
+    background thread (the service wrapper runs the daemon in a thread), which
+    raises `ValueError`. Now caught so the daemon loop proceeds; the SCM handles
+    stop via the service stop event.
+  - **SCM timeout**: The frozen PyInstaller bundle takes >30s to import all
+    scanner modules, exceeding the SCM's default startup timeout. The service now
+    reports `SERVICE_START_PENDING` with a 120-second wait hint before the slow
+    import.
+- **Schema validator in PyInstaller bundles**: The event validator resolved the
+  schema path relative to `__file__`, which points inside `_internal/` in frozen
+  bundles. Now uses `sys._MEIPASS` when available, so the bundled `schemas/`
+  directory is found correctly.
+- **Inno Setup preprocessor error**: Lines starting with `#13` (Pascal character
+  constants) inside `[Code]` sections were interpreted as preprocessor directives.
+  Moved `#13#10` onto previous lines so no line begins with `#`.
+
 - **API test suite (35 of 53 failures)**: `test_gateway.py` created its own
   `StaticPool` in-memory SQLite engine and patched `core.database`, overwriting
   the conftest's shared engine. This caused test-to-test contamination where
@@ -39,6 +60,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Windows system tray agent**: New `detec-agent-gui.exe` for Windows provides a
+  notification-area icon (using pystray) and a tkinter status window matching the
+  macOS reference design. Shows connection status, logo, version, and year. Context
+  menu with status, scan-now, and quit. Separate PyInstaller spec
+  (`packaging/windows/detec-agent-gui.spec`) produces a windowed (non-console) build.
+- **Icon assets**: Generated `branding/Icon.ico` (7 sizes, 16-256px) from the macOS
+  iconset PNGs. Copied `branding/Icon.icns` to canonical location. Both are bundled
+  into their respective platform builds.
 - **Dashboard auto-refresh polling**: All data pages (Dashboard, Events, Policies,
   Audit Log) now auto-refresh every 30 seconds. A `usePolling` hook manages the
   interval with an in-flight guard to prevent overlapping fetches. Each page shows

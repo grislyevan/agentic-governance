@@ -134,23 +134,36 @@ Copy `C:\ProgramData\Detec\detec.db` while the service is running (SQLite WAL mo
 
 ### Firewall
 
-If agents connect from other machines, allow inbound TCP on port 8000:
+If agents connect from other machines, allow inbound TCP on the server ports:
 
 ```powershell
 New-NetFirewallRule -DisplayName "Detec Server" -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow
+New-NetFirewallRule -DisplayName "Detec Gateway" -Direction Inbound -Protocol TCP -LocalPort 8001 -Action Allow
 ```
+
+Port 8001 is only needed when agents use `--protocol tcp` (binary wire protocol).
 
 ---
 
 ## Detec Agent (Collector)
 
-### Quick Build
+### Quick Build (headless service)
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File packaging/windows/build-agent.ps1
 ```
 
 This produces `packaging/windows/dist/detec-agent/` containing `detec-agent.exe`.
+
+### Build GUI tray app
+
+```powershell
+pip install pystray Pillow
+cd packaging\windows
+pyinstaller --clean --noconfirm detec-agent-gui.spec
+```
+
+This produces `packaging/windows/dist/detec-agent-gui/` containing `detec-agent-gui.exe`. The GUI provides a system tray icon and status window. Double-click to launch; right-click the tray icon for scan controls and quit.
 
 ### One-shot scan (testing)
 
@@ -180,7 +193,7 @@ From an elevated (Administrator) command prompt:
 .\detec-agent.exe start
 ```
 
-The service runs as "Detec Agent" and scans every 300 seconds (configurable).
+The service runs as "Detec Agent" and scans every 300 seconds (configurable). The first scan in a frozen bundle takes 90-120 seconds while all scanner modules load; the service reports `START_PENDING` to the SCM during this period.
 
 ### Manage the agent service
 
