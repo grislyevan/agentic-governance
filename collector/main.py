@@ -738,8 +738,11 @@ def _run_daemon(args: argparse.Namespace) -> None:
         print(f"\nReceived signal {signum}, shutting down daemon…", file=sys.stderr)
         stop_event.set()
 
-    signal.signal(signal.SIGINT, _handle_signal)
-    signal.signal(signal.SIGTERM, _handle_signal)
+    try:
+        signal.signal(signal.SIGINT, _handle_signal)
+        signal.signal(signal.SIGTERM, _handle_signal)
+    except (ValueError, OSError):
+        pass
 
     heartbeat_thread = threading.Thread(
         target=_heartbeat_loop,
