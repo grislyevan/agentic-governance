@@ -18,15 +18,17 @@ This runs the full pipeline: dashboard build, PyInstaller bundle, branding asset
 
 ### What the installer does
 
-1. Extracts the pre-built server bundle to `C:\Program Files\Detec\Server\`
-2. Asks for an admin email address
-3. Generates secrets and configuration
-4. Installs and starts the Detec Server Windows Service
-5. Configures Windows Firewall (TCP 8000 inbound for HTTP, TCP 8001 inbound for binary protocol gateway)
-6. Creates a "Detec Dashboard" desktop shortcut
-7. Shows the generated admin credentials (password displayed once)
+The wizard walks the user through these steps:
 
-The installer also registers an uninstaller in Add/Remove Programs that stops the service, removes the service, cleans up the firewall rule, and deletes files.
+1. **License agreement**: accept the Detec Server EULA
+2. **Pre-flight checks**: validates disk space (300 MB minimum), port availability, detects existing installations or services
+3. **Server configuration**: choose the API port (default 8000) and database backend (SQLite or PostgreSQL with connection URL)
+4. **Installation summary**: review chosen settings before proceeding
+5. **File extraction + post-install**: extracts the server bundle to `C:\Program Files\Detec\Server\`, generates secrets and an `admin@localhost` administrator account, installs and starts the Windows Service, configures the firewall, and creates a desktop shortcut
+6. **Credentials page**: displays the generated admin password (shown once, user must save it)
+7. **Finish page**: includes an "Open Detec Dashboard" button
+
+The installer also registers an uninstaller in Add/Remove Programs that stops the service, removes the service, cleans up the firewall rule, deletes files, and optionally removes the data directory (`C:\ProgramData\Detec\`).
 
 ---
 
@@ -83,9 +85,11 @@ pyinstaller --clean --noconfirm detec-server.spec
 ```powershell
 cd dist\detec-server
 .\detec-server.exe setup --admin-email admin@yourorg.com
+.\detec-server.exe setup --admin-email admin@yourorg.com --port 9000
+.\detec-server.exe setup --admin-email admin@yourorg.com --database-url "postgresql://user:pass@host:5432/detec"
 ```
 
-This generates a `server.env` in `C:\ProgramData\Detec\` with a random JWT secret and seed admin password. Save the password shown on screen.
+This generates a `server.env` in `C:\ProgramData\Detec\` with a random JWT secret and seed admin password. The `--port` flag sets the API port (default 8000). The `--database-url` flag overrides the default SQLite database with a PostgreSQL connection string. Save the password shown on screen.
 
 ### Run in foreground (testing)
 
