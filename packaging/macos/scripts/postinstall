@@ -81,6 +81,15 @@ chown -R "$REAL_USER:$REAL_GROUP" "$LOG_DIR"
 chown -R "$REAL_USER:$REAL_GROUP" "$STATE_DIR"
 chown -R "$REAL_USER:$REAL_GROUP" "$APP_SUPPORT_DIR"
 
+# Copy baked-in config from the .app bundle if present.
+BAKED_ENV="${APP_PATH}/Contents/Resources/config/agent.env"
+if [ -f "$BAKED_ENV" ]; then
+    cp "$BAKED_ENV" "$APP_SUPPORT_DIR/agent.env"
+    chmod 600 "$APP_SUPPORT_DIR/agent.env"
+    chown "$REAL_USER:$REAL_GROUP" "$APP_SUPPORT_DIR/agent.env"
+    echo "  Pre-configured agent.env installed to $APP_SUPPORT_DIR/"
+fi
+
 # Load the LaunchAgent as the real user (not root).
 REAL_UID="$(id -u "$REAL_USER")"
 echo "  Loading LaunchAgent for UID $REAL_UID..."
@@ -88,6 +97,10 @@ launchctl bootstrap "gui/$REAL_UID" "$PLIST_PATH" 2>/dev/null || \
     sudo -u "$REAL_USER" launchctl load "$PLIST_PATH" 2>/dev/null || true
 
 echo "Detec Agent: post-install complete."
-echo "  The agent will start automatically at login."
-echo "  Run 'detec-agent setup' to configure the API URL and key."
+if [ -f "$BAKED_ENV" ]; then
+    echo "  Server config was pre-loaded. The agent will connect automatically."
+else
+    echo "  The agent will start automatically at login."
+    echo "  Run 'detec-agent setup' to configure the API URL and key."
+fi
 exit 0

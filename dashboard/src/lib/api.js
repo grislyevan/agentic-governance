@@ -177,6 +177,45 @@ async function apiMutatePublic(method, path, body) {
   return res.json();
 }
 
+// Agent download
+
+export async function downloadAgent({ platform, interval, protocol }) {
+  const config = getApiConfig();
+  const params = new URLSearchParams({ platform });
+  if (interval) params.set('interval', interval);
+  if (protocol) params.set('protocol', protocol);
+  const url = `${config.apiUrl.replace(/\/+$/, '')}/agent/download?${params}`;
+
+  const headers = {};
+  if (config.apiKey) headers['X-Api-Key'] = config.apiKey;
+
+  const res = await fetch(url, { headers });
+  if (res.status === 404) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || 'No pre-built package available for this platform.');
+  }
+  if (res.status === 401 || res.status === 403) {
+    throw new Error('Authentication failed. An API key with admin or owner role is required.');
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Download failed (${res.status})`);
+  }
+
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const filename = match ? match[1] : `detec-agent-${platform}.zip`;
+
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+}
+
 // Webhooks
 
 export async function fetchWebhooks() {

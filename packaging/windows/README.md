@@ -174,6 +174,10 @@ cd dist\detec-agent
 
 ### Configure the agent
 
+**Option A: Download pre-configured from the dashboard** (zero-touch). In the Detec dashboard, go to Settings, select Windows, and click "Download Agent". The resulting zip contains the agent plus a `collector.json` with the server URL and API key already filled in. Extract to `C:\Program Files\Detec\`, copy `collector.json` to `%PROGRAMDATA%\Detec\`, and install the service. No manual setup required.
+
+**Option B: Manual setup.** After extracting the agent:
+
 ```powershell
 # HTTP transport (default)
 .\detec-agent.exe setup --api-url http://server:8000/api --api-key YOUR_KEY --interval 300
@@ -183,6 +187,12 @@ cd dist\detec-agent
 ```
 
 This writes `C:\ProgramData\Detec\Agent\agent.env` with the API URL, key, scan interval, and transport protocol.
+
+**Option C: Pre-configured build.** Build the agent with config baked in:
+
+```powershell
+powershell -File packaging/windows/build-agent.ps1 -ApiUrl "http://server:8000/api" -ApiKey "YOUR_KEY"
+```
 
 ### Install as a Windows Service
 

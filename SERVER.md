@@ -417,6 +417,26 @@ When enabled, the gateway listens for persistent agent connections using the Det
 
 ---
 
+## Agent downloads
+
+The server can generate pre-configured agent packages via the dashboard or the API. Admins download a zip bundle containing the platform installer plus `agent.env` and `collector.json` with the server URL and API key already embedded, so agents connect automatically after install.
+
+### Setup
+
+Place pre-built agent packages in `dist/packages/` at the repo root (or next to the API working directory):
+
+| Platform | Expected filename |
+|----------|------------------|
+| macOS | `DetecAgent-latest.pkg` or `DetecAgent.pkg` |
+| Windows | `detec-agent.zip` |
+| Linux | `detec-agent-linux.tar.gz` |
+
+### Endpoint
+
+`GET /api/agent/download?platform=macos` (requires `X-Api-Key` with owner or admin role). See [DEPLOY.md](DEPLOY.md) for full usage.
+
+---
+
 ## First API key
 
 On first startup, the API seeds one tenant and one admin user with a randomly generated API key. The **raw key is printed once in the server log** and cannot be recovered from the database afterward (it is stored as a SHA-256 hash).

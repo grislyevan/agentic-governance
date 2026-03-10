@@ -128,6 +128,7 @@ API Client ────────────────────▶│ Mu
 - [x] Protocol test suite: 67 unit tests (wire, messages, connection, gateway, emitter) + end-to-end integration test
 - [x] BSL 1.1 license, Terms of Service, Software License Agreement (`LICENSE`, `legal/`)
 - [x] Installer EULAs aligned: Windows server (`packaging/windows/installer/license.txt`), macOS agent license screen (`packaging/macos/`)
+- [x] Zero-touch agent deployment: server generates pre-configured agent packages via dashboard/API (`GET /api/agent/download`), config loader auto-discovers platform-specific paths, build scripts accept optional baked-in config
 - [x] Windows agent service startup fixes: SCM dispatch for frozen exe, `signal.signal()` guard for non-main thread, 120s START_PENDING wait hint for slow module loading
 - [x] Schema validator uses `sys._MEIPASS` for PyInstaller bundles
 - [x] End-to-end deployment validated: macOS agent (18 events) + Windows agent service (6 events) both reporting to Windows Server VM

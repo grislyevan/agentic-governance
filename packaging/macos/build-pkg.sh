@@ -47,6 +47,23 @@ if [ ! -d "$APP_PATH" ]; then
     exit 1
 fi
 
+# ---- Optional: bake in server config ----
+# When API_URL and API_KEY are set, write agent.env into the .app bundle
+# so the postinstall script can copy it to ~/Library/Application Support/Detec/.
+if [ -n "${API_URL:-}" ] && [ -n "${API_KEY:-}" ]; then
+    BAKED_CONFIG_DIR="$APP_PATH/Contents/Resources/config"
+    mkdir -p "$BAKED_CONFIG_DIR"
+    cat > "$BAKED_CONFIG_DIR/agent.env" << AGENTENV
+AGENTIC_GOV_API_URL=${API_URL}
+AGENTIC_GOV_API_KEY=${API_KEY}
+AGENTIC_GOV_INTERVAL=${AGENT_INTERVAL:-300}
+AGENTIC_GOV_PROTOCOL=${AGENT_PROTOCOL:-http}
+AGENTENV
+    echo "  Baked server config into $BAKED_CONFIG_DIR/agent.env"
+else
+    echo "  No API_URL/API_KEY set; building generic package (manual setup required)."
+fi
+
 # ---- Clean staging area ----
 rm -rf "$PKG_DIR"
 mkdir -p "$PKG_DIR"

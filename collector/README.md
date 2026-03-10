@@ -11,12 +11,20 @@ From the **repository root**: `pip install -e .` installs the **detec-agent** co
 The collector supports three layers of configuration, applied in order of
 increasing priority:
 
-1. **Config file** — `collector/config/collector.json` (optional)
+1. **Config file** — `collector/config/collector.json` or platform-specific path (optional)
 2. **Environment variables** — prefixed with `AGENTIC_GOV_`
 3. **CLI flags** — e.g. `--sensitivity Tier2`
 
-If no config file exists, the collector falls back to its built-in code
-defaults — the same behaviour as before this feature was added.
+If no config file exists at the default path, the collector searches
+platform-specific locations before falling back to code defaults:
+
+| Platform | Search paths |
+|----------|-------------|
+| macOS | `~/Library/Application Support/Detec/collector.json`, `~/Library/Application Support/Detec/agent.env` |
+| Windows | `%PROGRAMDATA%\Detec\collector.json` |
+| Linux | `~/.config/detec/collector.json`, `~/.config/detec/agent.env` |
+
+Both JSON (`.json`) and environment (`.env`, KEY=VALUE format with `AGENTIC_GOV_` prefix) files are supported. These platform paths are where the server-generated agent download places its pre-filled config, enabling zero-touch setup after install. See [DEPLOY.md](../DEPLOY.md) for the dashboard download flow.
 
 ### Config file
 

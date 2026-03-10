@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getApiConfig, setApiConfig, fetchWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook } from '../lib/api';
+import { getApiConfig, setApiConfig, fetchWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, downloadAgent } from '../lib/api';
 import useAuth from '../hooks/useAuth';
 
 const EVENT_TYPES = [
@@ -88,7 +88,129 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {canManageWebhooks && <AgentDownloadSection />}
+
         {canManageWebhooks && <WebhooksSection />}
+      </div>
+    </div>
+  );
+}
+
+
+const PLATFORMS = [
+  { value: 'macos', label: 'macOS' },
+  { value: 'windows', label: 'Windows' },
+  { value: 'linux', label: 'Linux' },
+];
+
+function AgentDownloadSection() {
+  const [platform, setPlatform] = useState('macos');
+  const [interval, setInterval_] = useState('300');
+  const [protocol, setProtocol] = useState('http');
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const successTimer = useRef(null);
+
+  useEffect(() => {
+    return () => { if (successTimer.current) clearTimeout(successTimer.current); };
+  }, []);
+
+  const handleDownload = async () => {
+    setError(null);
+    setSuccess(false);
+    setDownloading(true);
+    try {
+      await downloadAgent({
+        platform,
+        interval: interval || undefined,
+        protocol: protocol || undefined,
+      });
+      setSuccess(true);
+      if (successTimer.current) clearTimeout(successTimer.current);
+      successTimer.current = setTimeout(() => setSuccess(false), 4000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-detec-slate-700/50 bg-detec-slate-800/50 p-5 space-y-4">
+      <h2 className="text-sm font-semibold text-detec-slate-300 uppercase tracking-wider">
+        Download Agent
+      </h2>
+      <p className="text-xs text-detec-slate-500">
+        Download a pre-configured agent package. The server URL and your API key are
+        embedded automatically, so the agent connects with zero manual setup after install.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <label className="block space-y-1.5">
+          <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">
+            Platform
+          </span>
+          <select
+            value={platform}
+            onChange={(e) => setPlatform(e.target.value)}
+            className="w-full bg-detec-slate-900 border border-detec-slate-700 rounded-lg px-3 py-2 text-sm text-detec-slate-200 focus:outline-none focus:border-detec-primary-500/50 transition-colors"
+          >
+            {PLATFORMS.map((p) => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block space-y-1.5">
+          <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">
+            Interval (sec)
+          </span>
+          <input
+            type="number"
+            min="30"
+            max="86400"
+            value={interval}
+            onChange={(e) => setInterval_(e.target.value)}
+            className="w-full bg-detec-slate-900 border border-detec-slate-700 rounded-lg px-3 py-2 text-sm text-detec-slate-200 focus:outline-none focus:border-detec-primary-500/50 transition-colors"
+          />
+        </label>
+
+        <label className="block space-y-1.5">
+          <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">
+            Protocol
+          </span>
+          <select
+            value={protocol}
+            onChange={(e) => setProtocol(e.target.value)}
+            className="w-full bg-detec-slate-900 border border-detec-slate-700 rounded-lg px-3 py-2 text-sm text-detec-slate-200 focus:outline-none focus:border-detec-primary-500/50 transition-colors"
+          >
+            <option value="http">HTTP</option>
+            <option value="tcp">TCP (binary protocol)</option>
+          </select>
+        </label>
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
+      )}
+
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleDownload}
+          disabled={downloading}
+          className="px-4 py-2 bg-detec-primary-500 hover:bg-detec-primary-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+        >
+          {downloading ? 'Preparing...' : 'Download Agent'}
+        </button>
+        {success && (
+          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-detec-teal-500 detec-toast-enter">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12" className="detec-checkmark" />
+            </svg>
+            Download started
+          </span>
+        )}
       </div>
     </div>
   );

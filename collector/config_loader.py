@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import socket
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -75,16 +76,94 @@ def _parse_bool(value: str) -> bool:
     return value.strip().lower() in ("1", "true", "yes", "on")
 
 
+def _platform_config_paths() -> list[Path]:
+    """Return platform-specific config search paths (highest priority first).
+
+    These are locations where a server-generated installer may drop
+    agent.env or collector.json so the agent auto-discovers them.
+    """
+    paths: list[Path] = []
+    if sys.platform == "darwin":
+        app_support = Path.home() / "Library" / "Application Support" / "Detec"
+        paths.append(app_support / "collector.json")
+        paths.append(app_support / "agent.env")
+    elif sys.platform == "win32":
+        program_data = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "Detec"
+        paths.append(program_data / "collector.json")
+    else:
+        config_home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+        detec_dir = config_home / "detec"
+        paths.append(detec_dir / "collector.json")
+        paths.append(detec_dir / "agent.env")
+    return paths
+
+
+def _parse_env_file(path: Path) -> dict[str, Any]:
+    """Parse a KEY=VALUE env file, ignoring comments and blank lines."""
+    result: dict[str, Any] = {}
+    try:
+        with open(path) as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip()
+                if key.startswith(ENV_PREFIX):
+                    config_key = key[len(ENV_PREFIX):].lower()
+                    if config_key in _BOOL_KEYS:
+                        result[config_key] = _parse_bool(value)
+                    elif config_key in _INT_KEYS:
+                        try:
+                            result[config_key] = int(value)
+                        except ValueError:
+                            pass
+                    else:
+                        result[config_key] = value
+    except OSError as exc:
+        logger.debug("Cannot read env file %s: %s", path, exc)
+    return result
+
+
 def load_config_file(path: Path | None = None) -> dict[str, Any]:
-    """Load collector JSON config, returning ``{}`` when the file is absent."""
+    """Load collector JSON config, returning ``{}`` when the file is absent.
+
+    When no explicit *path* is given and the default
+    ``collector/config/collector.json`` does not exist, falls back to
+    platform-specific search paths (e.g. ~/Library/Application
+    Support/Detec/ on macOS).  Both .json and .env files are supported.
+    """
     p = path or DEFAULT_CONFIG_PATH
-    if not p.exists():
+    if p.exists():
+        return _load_json_config(p)
+
+    if path is not None:
         return {}
+
+    for candidate in _platform_config_paths():
+        if not candidate.exists():
+            continue
+        if candidate.suffix == ".json":
+            cfg = _load_json_config(candidate)
+        else:
+            cfg = _parse_env_file(candidate)
+        if cfg:
+            logger.info("Loaded config from platform path: %s", candidate)
+            return cfg
+
+    return {}
+
+
+def _load_json_config(p: Path) -> dict[str, Any]:
+    """Load and validate a single JSON config file."""
     try:
         with open(p) as fh:
             data = json.load(fh)
         if not isinstance(data, dict):
-            logger.warning("Config file %s does not contain a JSON object — ignored", p)
+            logger.warning("Config file %s does not contain a JSON object - ignored", p)
             return {}
         return {k: v for k, v in data.items() if not k.startswith("_") and k != "config_version"}
     except (json.JSONDecodeError, OSError) as exc:

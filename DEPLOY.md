@@ -6,10 +6,71 @@ This guide covers installing and running the **Detec Agent** (endpoint collector
 
 | Method | Use Case | Details |
 |---|---|---|
+| **Dashboard download** | Zero-touch: pre-configured package from the server | [Download from Dashboard](#download-from-dashboard) |
 | `.pkg` installer | MDM-managed macOS fleets (Jamf, Endpoint Central) | [Packaged Deployment](#packaged-deployment-macos) |
 | `.exe` Windows Service | Windows endpoints | [Windows Deployment](#windows-deployment) |
 | `pip install` | Development, Linux, manual installs | [Manual Install](#manual-install) |
 | CLI only (headless) | Servers, CI, containers | [Manual Install](#manual-install) |
+
+## Download from Dashboard
+
+The fastest way to deploy agents. The central server generates a zip bundle containing the platform installer plus pre-filled configuration, so the agent connects automatically after install with zero manual setup.
+
+### Prerequisites
+
+- A running Detec central server (see [SERVER.md](SERVER.md))
+- A pre-built agent package placed in `dist/packages/` on the server:
+  - macOS: `DetecAgent-latest.pkg` (or `DetecAgent.pkg`)
+  - Windows: `detec-agent.zip`
+  - Linux: `detec-agent-linux.tar.gz`
+- An admin or owner account with an API key
+
+### From the Dashboard UI
+
+1. Log in to the Detec dashboard.
+2. Go to **Settings**.
+3. In the **Download Agent** section, select the target platform (macOS, Windows, or Linux).
+4. Optionally adjust the scan interval and transport protocol.
+5. Click **Download Agent**.
+6. A zip file downloads containing the installer, `agent.env`, `collector.json`, and a platform-specific README.
+7. Transfer the zip to the target machine, extract, and run the installer. The agent connects to the server automatically.
+
+### Via the API
+
+```bash
+# Download a pre-configured macOS agent package
+curl -O -J \
+  -H "X-Api-Key: YOUR_ADMIN_API_KEY" \
+  "https://your-server.example.com/api/agent/download?platform=macos"
+
+# With custom interval and TCP protocol
+curl -O -J \
+  -H "X-Api-Key: YOUR_ADMIN_API_KEY" \
+  "https://your-server.example.com/api/agent/download?platform=windows&interval=600&protocol=tcp"
+```
+
+Query parameters:
+- `platform` (required): `macos`, `windows`, or `linux`
+- `interval` (optional, default 300): scan interval in seconds (30-86400)
+- `protocol` (optional, default `http`): `http` or `tcp`
+
+The endpoint requires `X-Api-Key` authentication with an `owner` or `admin` role. The API key you provide is the key that gets embedded in the agent config.
+
+### Building Pre-Configured Packages
+
+You can also build pre-configured packages directly (useful for MDM or automated fleet deployment):
+
+**macOS:**
+```bash
+API_URL="https://server.example.com/api" API_KEY="YOUR_KEY" bash packaging/macos/build-pkg.sh
+```
+
+**Windows:**
+```powershell
+powershell -File packaging/windows/build-agent.ps1 -ApiUrl "https://server.example.com/api" -ApiKey "YOUR_KEY"
+```
+
+When the environment variables (macOS) or parameters (Windows) are provided, the build scripts embed `agent.env` / `collector.json` into the installer. The postinstall script copies the config to the platform-specific location automatically. When the variables are not provided, behavior is unchanged (generic package, manual setup required).
 
 ## Packaged Deployment (macOS)
 

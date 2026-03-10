@@ -31,6 +31,20 @@ Before deploying to your fleet, ensure the following:
 The agent needs two values at minimum: `api_url` and `api_key`. There
 are several ways to deliver these to managed endpoints:
 
+### Option 0: Pre-configured package from the server (recommended)
+
+Build the `.pkg` with the server URL and API key baked in. The postinstall script copies the config to `~/Library/Application Support/Detec/agent.env` automatically; no additional MDM scripts or profiles needed.
+
+**From the dashboard:** Go to Settings > Download Agent, select macOS, and download. The zip contains a `.pkg` with embedded config plus standalone `agent.env` and `collector.json` files.
+
+**From the build machine:**
+
+```bash
+API_URL="https://detec-api.yourorg.com/api" API_KEY="YOUR_FLEET_KEY" bash packaging/macos/build-pkg.sh
+```
+
+Upload the resulting `.pkg` to your MDM for distribution. Agents connect automatically after install.
+
 ### Option 1: Config file via MDM script
 
 Deploy a script that writes the config file before or after installation:
