@@ -13,6 +13,7 @@
     </allowed-os-versions>
 
     <welcome file="welcome.html" mime-type="text/html"/>
+    <license file="license.html" mime-type="text/html"/>
     <readme file="readme.html" mime-type="text/html"/>
 
     <choices-outline>

@@ -96,3 +96,9 @@ SOC operator console for monitoring detected AI tools, confidence scoring, and p
 - **User management**: Admin page for creating, editing, and deactivating users. Four roles: owner, admin, analyst, viewer. Gated to owner/admin.
 
 The dashboard is served directly by FastAPI from `dashboard/dist/`. Build it with `cd dashboard && npm run build`. For development with hot reload: `cd dashboard && npm run dev` (Vite dev server on port 5173 proxies API calls to FastAPI on port 8000). See [dashboard/README.md](dashboard/README.md).
+
+## License
+
+This project is licensed under the [Business Source License 1.1](LICENSE). You may copy, modify, create derivative works, and use the software in production, provided you do not offer it as a competing hosted or managed service. On the Change Date (March 9, 2030), the software becomes available under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+
+See [LICENSE](LICENSE) for the full license text, [legal/LICENSE-AGREEMENT.md](legal/LICENSE-AGREEMENT.md) for the Software License Agreement, and [legal/TERMS-OF-SERVICE.md](legal/TERMS-OF-SERVICE.md) for the Terms of Service.

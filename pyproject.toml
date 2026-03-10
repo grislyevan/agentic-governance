@@ -8,6 +8,10 @@ version = "0.3.0"
 description = "Detec endpoint agent — agentic AI tool detection and governance"
 readme = "README.md"
 requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Detec", email = "legal@detec.io"},
+]
 dependencies = [
     "jsonschema>=4.20.0",
     "watchdog>=4.0.0",

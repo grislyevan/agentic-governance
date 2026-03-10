@@ -1,39 +1,73 @@
-DETEC SERVER SOFTWARE LICENSE AGREEMENT
+DETEC SOFTWARE LICENSE AGREEMENT
 
 Copyright (c) 2026 Detec. All rights reserved.
 
-By installing or using this software, you agree to the following terms:
+This software is licensed under the Business Source License 1.1
+(BSL 1.1). The full license text is available in the LICENSE file
+at the root of the software distribution and at:
+https://github.com/grislyevan/agentic-governance/blob/main/LICENSE
+
+By installing or using this software, you agree to the terms of
+the BSL 1.1 and the Detec Software License Agreement, available at:
+https://github.com/grislyevan/agentic-governance/blob/main/legal/LICENSE-AGREEMENT.md
+
+SUMMARY OF KEY TERMS:
 
 1. LICENSE GRANT
-   You are granted a non-exclusive, non-transferable license to install
-   and use the Detec Server software on a single server or cluster of
-   servers within your organization.
+   You are granted a non-exclusive, non-transferable license to
+   install and use the Detec software within your organization for
+   internal endpoint security and governance purposes.
 
-2. RESTRICTIONS
-   You may not reverse-engineer, decompile, or disassemble the software.
-   You may not redistribute the software to third parties without prior
-   written consent.
+2. ADDITIONAL USE GRANT
+   You may use this software in production provided that you do not
+   use it to offer a commercial product or service that competes
+   with Detec's products or services. Internal use, evaluation,
+   development, and testing are always permitted.
 
-3. DATA COLLECTION
-   The Detec Server collects endpoint telemetry data as configured by
-   your organization's policies. All data is stored locally on your
-   infrastructure. No data is transmitted to Detec or any third party
-   unless explicitly configured by your administrator.
+3. CHANGE DATE AND CHANGE LICENSE
+   On March 9, 2030, this software becomes available under the
+   Apache License, Version 2.0.
 
-4. WARRANTY DISCLAIMER
+4. RESTRICTIONS
+   You may not reverse-engineer, decompile, or disassemble any
+   compiled component of the software, except as permitted by law.
+   You may not redistribute the software to third parties as a
+   competing hosted or managed service without a commercial license.
+
+5. DATA COLLECTION
+   The Detec endpoint agent collects telemetry data locally on
+   each endpoint to score agentic AI tool detections. Raw telemetry
+   (process details, file paths, network connections) is used only
+   for local confidence scoring and is NOT transmitted to the server.
+
+   The agent transmits structured event metadata (tool name,
+   confidence score, policy decisions, actor ID, endpoint ID,
+   timestamps) to the Detec server.
+
+   For on-premises deployments, all data is stored on your
+   infrastructure. No data is transmitted to Detec or any third
+   party unless explicitly configured by your administrator.
+
+6. WARRANTY DISCLAIMER
    THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
-   EXPRESS OR IMPLIED. DETEC DISCLAIMS ALL WARRANTIES INCLUDING, WITHOUT
-   LIMITATION, WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-   PARTICULAR PURPOSE.
+   EXPRESS OR IMPLIED. DETEC DISCLAIMS ALL WARRANTIES INCLUDING,
+   WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY AND FITNESS
+   FOR A PARTICULAR PURPOSE.
 
-5. LIMITATION OF LIABILITY
+7. LIMITATION OF LIABILITY
    IN NO EVENT SHALL DETEC BE LIABLE FOR ANY INDIRECT, INCIDENTAL,
-   SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OF OR
-   INABILITY TO USE THE SOFTWARE.
+   SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING OUT OF THE
+   USE OF OR INABILITY TO USE THE SOFTWARE.
 
-6. TERMINATION
+8. TERMINATION
    This license is effective until terminated. It terminates
-   automatically if you fail to comply with any term. Upon termination,
-   you must destroy all copies of the software.
+   automatically if you fail to comply with any material term.
+   Upon termination, you must uninstall the software from all
+   endpoints and destroy all copies.
+
+For the complete license terms, see:
+  - LICENSE (BSL 1.1): Root of software distribution
+  - License Agreement: legal/LICENSE-AGREEMENT.md
+  - Terms of Service: legal/TERMS-OF-SERVICE.md
 
 For questions about this license, contact: legal@detec.io

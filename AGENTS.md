@@ -20,6 +20,7 @@
 | `packaging/` | Installer builds: macOS .app/.pkg, Windows agent + server (PyInstaller, Inno Setup). |
 | `docs/` | MDM deployment, macOS permissions. |
 | `branding/` | Logos, guidelines, agent-v1 UI reference. |
+| `legal/` | Terms of Service, Software License Agreement. Root `LICENSE` has BSL 1.1. |
 | `lab-runs/`, `init-issues/` | Lab results and backlog. |
 
 ---

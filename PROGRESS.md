@@ -26,6 +26,7 @@
 | macOS agent GUI (menu bar + status window) | Done |
 | macOS .app/.pkg packaging for MDM distribution | Done |
 | MDM deployment docs (Jamf, Endpoint Central) | Done |
+| BSL 1.1 license + ToS + License Agreement | Done |
 | SaaS frontend (auth, org management) | In progress |
 | Cloud deployment + CI/CD | Not started |
 | Billing + enterprise features | Not started |
@@ -121,8 +122,10 @@ API Client ────────────────────▶│ Mu
 - [x] TCP emitter (`collector/output/tcp_emitter.py`): persistent connection, auto-reconnect with backoff, batching (50 events/1s), ack tracking, local buffer fallback
 - [x] Protocol integration: `--protocol tcp` flag, gateway auto-starts in API lifespan, config loader + CLI support, PyInstaller specs updated
 - [x] Protocol test suite: 67 unit tests (wire, messages, connection, gateway, emitter) + end-to-end integration test
+- [x] BSL 1.1 license, Terms of Service, Software License Agreement (`LICENSE`, `legal/`)
+- [x] Installer EULAs aligned: Windows server (`packaging/windows/installer/license.txt`), macOS agent license screen (`packaging/macos/`)
 
-**Files:** `api/`, `collector/output/`, `collector/agent/`, `collector/gui/`, `collector/compat/`, `packaging/macos/`, `packaging/windows/`, `docs/`, `docker-compose.yml`, `protocol/`
+**Files:** `api/`, `collector/output/`, `collector/agent/`, `collector/gui/`, `collector/compat/`, `packaging/macos/`, `packaging/windows/`, `docs/`, `docker-compose.yml`, `protocol/`, `legal/`
 
 ---
 
