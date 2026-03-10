@@ -62,7 +62,7 @@ def cmd_setup(args: argparse.Namespace) -> None:
         return
 
     jwt_secret = secrets.token_hex(32)
-    seed_password = secrets.token_urlsafe(16)
+    seed_password = getattr(args, "admin_password", None) or secrets.token_urlsafe(16)
 
     api_port = getattr(args, "port", 8000)
     gateway_port = getattr(args, "gateway_port", 8001)
@@ -286,6 +286,7 @@ def main() -> None:
         "--admin-email", default="admin@example.com",
         help="Email for the seed admin user (default: admin@example.com)",
     )
+    p_setup.add_argument("--admin-password", dest="admin_password", default=None, help="Password for the seed admin (default: auto-generated)")
     p_setup.add_argument("--port", type=int, default=8000, help="API server port (default: 8000)")
     p_setup.add_argument("--database-url", dest="database_url", default=None, help="Database connection URL (default: SQLite)")
     p_setup.add_argument("--gateway-port", dest="gateway_port", type=int, default=8001, help="Binary protocol gateway port (default: 8001)")

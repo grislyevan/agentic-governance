@@ -1,15 +1,8 @@
 ; Detec Server - Inno Setup Installer Script
 ;
-; Produces a single DetecServerSetup.exe that:
-;   1. Shows a license agreement
-;   2. Runs pre-flight checks (disk, port, existing install)
-;   3. Lets the user configure port and database
-;   4. Extracts the pre-built detec-server bundle
-;   5. Runs first-time setup (generates secrets + admin credentials)
-;   6. Installs and starts the Windows Service
-;   7. Configures the Windows Firewall
-;   8. Creates a desktop shortcut
-;   9. Shows generated admin credentials
+; Wizard flow:
+;   Welcome > License > Pre-flight Checks > Server Configuration >
+;   Admin Account > Ready > Installing (progress) > Summary > Finish
 ;
 ; Build (from repo root):
 ;   powershell -ExecutionPolicy Bypass -File packaging\windows\build-installer.ps1
@@ -59,13 +52,12 @@ Type: files; Name: "{commondesktop}\Detec Dashboard.lnk"
 
 [Code]
 const
-  ADMIN_EMAIL = 'administrator@detec.local';
   MIN_DISK_MB = 300;
 
 var
-  { Custom pages }
   PreflightPage: TWizardPage;
   PreflightMemo: TNewMemo;
+
   ConfigPage: TWizardPage;
   PortEdit: TNewEdit;
   PortLabel: TNewStaticText;
@@ -73,11 +65,20 @@ var
   DbPgRadio: TNewRadioButton;
   PgUrlLabel: TNewStaticText;
   PgUrlEdit: TNewEdit;
-  CredentialsPage: TWizardPage;
-  CredsMemo: TNewMemo;
+
+  AdminPage: TWizardPage;
+  AdminEmailLabel: TNewStaticText;
+  AdminEmailEdit: TNewEdit;
+  AdminPwLabel: TNewStaticText;
+  AdminPwEdit: TPasswordEdit;
+  AdminPwConfirmLabel: TNewStaticText;
+  AdminPwConfirmEdit: TPasswordEdit;
+
+  SummaryPage: TWizardPage;
+  SummaryMemo: TNewMemo;
+
   LogMemo: TNewMemo;
 
-  { State }
   PreflightPassed: Boolean;
   ChosenPort: string;
 
@@ -96,29 +97,7 @@ procedure LogStep(const Msg: string);
 begin
   LogMemo.Lines.Add(Msg);
   LogMemo.SelStart := Length(LogMemo.Text);
-  WizardForm.StatusLabel.Caption := Msg;
   WizardForm.Refresh;
-end;
-
-function ReadPasswordFromEnv: string;
-var
-  Lines: TArrayOfString;
-  I, P: Integer;
-  Line, EnvFile: string;
-begin
-  Result := '(could not read)';
-  EnvFile := ExpandConstant('{sd}\ProgramData\Detec\server.env');
-  if LoadStringsFromFile(EnvFile, Lines) then
-    for I := 0 to GetArrayLength(Lines) - 1 do
-    begin
-      Line := Trim(Lines[I]);
-      P := Pos('SEED_ADMIN_PASSWORD=', Line);
-      if P = 1 then
-      begin
-        Result := Copy(Line, 21, Length(Line));
-        Break;
-      end;
-    end;
 end;
 
 function GetUserPort: string;
@@ -128,12 +107,20 @@ begin
     Result := '{#DefaultPort}';
 end;
 
+function GetAdminEmail: string;
+begin
+  Result := Trim(AdminEmailEdit.Text);
+end;
+
+function GetAdminPassword: string;
+begin
+  Result := AdminPwEdit.Text;
+end;
+
 function IsPostgreSQL: Boolean;
 begin
   Result := DbPgRadio.Checked;
 end;
-
-{ ── Database radio toggle ──────────────────────────────────────────── }
 
 procedure OnDbRadioClick(Sender: TObject);
 begin
@@ -157,7 +144,6 @@ begin
   PreflightPassed := True;
   Port := GetUserPort;
 
-  { Check 1: Disk space }
   PreflightMemo.Lines.Add('  Checking disk space...');
   WizardForm.Refresh;
   if GetSpaceOnDisk(ExpandConstant('{sd}'), True, FreeMB, TotalMB) then
@@ -176,7 +162,6 @@ begin
     PreflightMemo.Lines[PreflightMemo.Lines.Count - 1] :=
       '  [PASS]  Disk space: could not determine (continuing)';
 
-  { Check 2: Port availability }
   PreflightMemo.Lines.Add('  Checking port ' + Port + '...');
   WizardForm.Refresh;
   PortInUse := False;
@@ -206,7 +191,6 @@ begin
     PreflightMemo.Lines[PreflightMemo.Lines.Count - 1] :=
       '  [PASS]  Port ' + Port + ' is available';
 
-  { Check 3: Existing service }
   PreflightMemo.Lines.Add('  Checking for existing service...');
   WizardForm.Refresh;
   ServiceExists := False;
@@ -221,7 +205,6 @@ begin
     PreflightMemo.Lines[PreflightMemo.Lines.Count - 1] :=
       '  [PASS]  No existing service found';
 
-  // Check 4: Existing installation (use literal path; app dir not available yet)
   PreflightMemo.Lines.Add('  Checking for previous installation...');
   WizardForm.Refresh;
   InstallExists := FileExists(ExpandConstant('{autopf}\Detec\Server\detec-server.exe'));
@@ -233,7 +216,6 @@ begin
     PreflightMemo.Lines[PreflightMemo.Lines.Count - 1] :=
       '  [PASS]  No previous installation found';
 
-  { Summary }
   PreflightMemo.Lines.Add('');
   if PreflightPassed then
     PreflightMemo.Lines.Add('  All checks passed. Click Next to continue.')
@@ -246,11 +228,13 @@ end;
 { ── InitializeWizard ───────────────────────────────────────────────── }
 
 procedure InitializeWizard;
+var
+  DbHeaderLabel: TNewStaticText;
 begin
   PreflightPassed := True;
   ChosenPort := '{#DefaultPort}';
 
-  { ── Pre-flight Checks page (after License) ── }
+  // ── Pre-flight Checks page (after License)
   PreflightPage := CreateCustomPage(wpLicense,
     'Pre-flight Checks',
     'Verifying your system is ready for installation.');
@@ -267,7 +251,7 @@ begin
   PreflightMemo.Color := $003B291E;
   PreflightMemo.Font.Color := $00F9F5F1;
 
-  { ── Server Configuration page (after Preflight) ── }
+  // ── Server Configuration page (after Preflight)
   ConfigPage := CreateCustomPage(PreflightPage.ID,
     'Server Configuration',
     'Configure the server port and database backend.');
@@ -282,44 +266,100 @@ begin
   PortEdit.Text := '{#DefaultPort}';
   PortEdit.SetBounds(ScaleX(110), ScaleY(5), ScaleX(80), ScaleY(22));
 
-  { Database section }
+  DbHeaderLabel := TNewStaticText.Create(ConfigPage);
+  DbHeaderLabel.Parent := ConfigPage.Surface;
+  DbHeaderLabel.Caption := 'Database:';
+  DbHeaderLabel.SetBounds(0, ScaleY(40), ScaleX(100), ScaleY(18));
+
   DbSqliteRadio := TNewRadioButton.Create(ConfigPage);
   DbSqliteRadio.Parent := ConfigPage.Surface;
   DbSqliteRadio.Caption := 'SQLite (recommended for 1-10 endpoints, zero configuration)';
   DbSqliteRadio.Checked := True;
-  DbSqliteRadio.SetBounds(0, ScaleY(52), ConfigPage.SurfaceWidth, ScaleY(20));
+  DbSqliteRadio.SetBounds(ScaleX(12), ScaleY(60), ConfigPage.SurfaceWidth - ScaleX(12), ScaleY(20));
   DbSqliteRadio.OnClick := @OnDbRadioClick;
 
   DbPgRadio := TNewRadioButton.Create(ConfigPage);
   DbPgRadio.Parent := ConfigPage.Surface;
   DbPgRadio.Caption := 'PostgreSQL (recommended for 10+ endpoints)';
-  DbPgRadio.SetBounds(0, ScaleY(76), ConfigPage.SurfaceWidth, ScaleY(20));
+  DbPgRadio.SetBounds(ScaleX(12), ScaleY(84), ConfigPage.SurfaceWidth - ScaleX(12), ScaleY(20));
   DbPgRadio.OnClick := @OnDbRadioClick;
 
   PgUrlLabel := TNewStaticText.Create(ConfigPage);
   PgUrlLabel.Parent := ConfigPage.Surface;
   PgUrlLabel.Caption := 'Connection URL:';
-  PgUrlLabel.SetBounds(ScaleX(20), ScaleY(104), ScaleX(110), ScaleY(18));
+  PgUrlLabel.SetBounds(ScaleX(28), ScaleY(112), ScaleX(110), ScaleY(18));
   PgUrlLabel.Visible := False;
 
   PgUrlEdit := TNewEdit.Create(ConfigPage);
   PgUrlEdit.Parent := ConfigPage.Surface;
   PgUrlEdit.Text := 'postgresql://user:pass@localhost:5432/detec';
-  PgUrlEdit.SetBounds(ScaleX(130), ScaleY(101),
-    ConfigPage.SurfaceWidth - ScaleX(134), ScaleY(22));
+  PgUrlEdit.SetBounds(ScaleX(140), ScaleY(109),
+    ConfigPage.SurfaceWidth - ScaleX(144), ScaleY(22));
   PgUrlEdit.Visible := False;
 
-  { ── Progress log on the installing page ── }
+  // ── Admin Account page (after Config)
+  AdminPage := CreateCustomPage(ConfigPage.ID,
+    'Administrator Account',
+    'Create the initial administrator account for the Detec dashboard.');
+
+  AdminEmailLabel := TNewStaticText.Create(AdminPage);
+  AdminEmailLabel.Parent := AdminPage.Surface;
+  AdminEmailLabel.Caption := 'Email address:';
+  AdminEmailLabel.SetBounds(0, ScaleY(8), ScaleX(120), ScaleY(18));
+
+  AdminEmailEdit := TNewEdit.Create(AdminPage);
+  AdminEmailEdit.Parent := AdminPage.Surface;
+  AdminEmailEdit.Text := '';
+  AdminEmailEdit.SetBounds(ScaleX(130), ScaleY(5),
+    AdminPage.SurfaceWidth - ScaleX(134), ScaleY(22));
+
+  AdminPwLabel := TNewStaticText.Create(AdminPage);
+  AdminPwLabel.Parent := AdminPage.Surface;
+  AdminPwLabel.Caption := 'Password:';
+  AdminPwLabel.SetBounds(0, ScaleY(42), ScaleX(120), ScaleY(18));
+
+  AdminPwEdit := TPasswordEdit.Create(AdminPage);
+  AdminPwEdit.Parent := AdminPage.Surface;
+  AdminPwEdit.Text := '';
+  AdminPwEdit.SetBounds(ScaleX(130), ScaleY(39),
+    AdminPage.SurfaceWidth - ScaleX(134), ScaleY(22));
+
+  AdminPwConfirmLabel := TNewStaticText.Create(AdminPage);
+  AdminPwConfirmLabel.Parent := AdminPage.Surface;
+  AdminPwConfirmLabel.Caption := 'Confirm password:';
+  AdminPwConfirmLabel.SetBounds(0, ScaleY(76), ScaleX(120), ScaleY(18));
+
+  AdminPwConfirmEdit := TPasswordEdit.Create(AdminPage);
+  AdminPwConfirmEdit.Parent := AdminPage.Surface;
+  AdminPwConfirmEdit.Text := '';
+  AdminPwConfirmEdit.SetBounds(ScaleX(130), ScaleY(73),
+    AdminPage.SurfaceWidth - ScaleX(134), ScaleY(22));
+
+  // ── Summary page (after Admin, before Ready)
+  SummaryPage := CreateCustomPage(AdminPage.ID,
+    'Installation Summary',
+    'Review your settings before installation begins.');
+
+  SummaryMemo := TNewMemo.Create(SummaryPage);
+  SummaryMemo.Parent := SummaryPage.Surface;
+  SummaryMemo.SetBounds(0, 0,
+    SummaryPage.SurfaceWidth,
+    SummaryPage.SurfaceHeight - ScaleY(4));
+  SummaryMemo.ReadOnly := True;
+  SummaryMemo.ScrollBars := ssVertical;
+  SummaryMemo.Font.Name := 'Consolas';
+  SummaryMemo.Font.Size := 10;
+  SummaryMemo.Color := $003B291E;
+  SummaryMemo.Font.Color := $00F9F5F1;
+
+  // ── Progress log (overlays the Installing page entirely)
   LogMemo := TNewMemo.Create(WizardForm);
   LogMemo.Parent := WizardForm.InnerPage;
   LogMemo.SetBounds(
     WizardForm.StatusLabel.Left,
-    WizardForm.ProgressGauge.Top + WizardForm.ProgressGauge.Height + ScaleY(12),
+    WizardForm.StatusLabel.Top,
     WizardForm.StatusLabel.Width,
-    WizardForm.InnerPage.ClientHeight
-      - WizardForm.ProgressGauge.Top
-      - WizardForm.ProgressGauge.Height
-      - ScaleY(20)
+    WizardForm.InnerPage.ClientHeight - WizardForm.StatusLabel.Top - ScaleY(4)
   );
   LogMemo.ReadOnly := True;
   LogMemo.ScrollBars := ssVertical;
@@ -328,26 +368,9 @@ begin
   LogMemo.Color := $003B291E;
   LogMemo.Font.Color := $00F9F5F1;
   LogMemo.Visible := False;
-
-  { ── Credentials page (after Installing) ── }
-  CredentialsPage := CreateCustomPage(wpInstalling,
-    'Administrator Credentials',
-    'Save these credentials now. The password cannot be recovered later.');
-
-  CredsMemo := TNewMemo.Create(CredentialsPage);
-  CredsMemo.Parent := CredentialsPage.Surface;
-  CredsMemo.SetBounds(0, 0,
-    CredentialsPage.SurfaceWidth,
-    CredentialsPage.SurfaceHeight - ScaleY(4));
-  CredsMemo.ReadOnly := True;
-  CredsMemo.ScrollBars := ssVertical;
-  CredsMemo.Font.Name := 'Consolas';
-  CredsMemo.Font.Size := 11;
-  CredsMemo.Color := $003B291E;
-  CredsMemo.Font.Color := $00F9F5F1;
 end;
 
-{ ── Finish page: open dashboard (must precede CurPageChanged) ──────── }
+{ ── Open dashboard helper (must precede CurPageChanged) ────────────── }
 
 procedure OpenDashboard(Sender: TObject);
 var
@@ -361,15 +384,48 @@ end;
 procedure CurPageChanged(CurPageID: Integer);
 var
   Btn: TNewButton;
+  Port, DbDesc, PwMask: string;
 begin
-  { Hide the progress log when not on the Installing page }
-  LogMemo.Visible := (CurPageID = wpInstalling);
+  // Show LogMemo only on the Installing page; hide built-in widgets
+  if CurPageID = wpInstalling then
+  begin
+    LogMemo.Visible := True;
+    WizardForm.ProgressGauge.Visible := False;
+    WizardForm.StatusLabel.Visible := False;
+  end else
+    LogMemo.Visible := False;
 
-  { Run preflight checks when entering that page }
   if CurPageID = PreflightPage.ID then
     RunPreflightChecks;
 
-  { "Open Dashboard" button on Finish page }
+  // Populate Summary page
+  if CurPageID = SummaryPage.ID then
+  begin
+    Port := GetUserPort;
+    if IsPostgreSQL then
+      DbDesc := 'PostgreSQL'
+    else
+      DbDesc := 'SQLite (C:\ProgramData\Detec\detec.db)';
+    PwMask := StringOfChar('*', Length(GetAdminPassword));
+
+    SummaryMemo.Lines.Clear;
+    SummaryMemo.Lines.Add('');
+    SummaryMemo.Lines.Add('  Install directory:');
+    SummaryMemo.Lines.Add('    ' + ExpandConstant('{autopf}\Detec\Server'));
+    SummaryMemo.Lines.Add('');
+    SummaryMemo.Lines.Add('  Server port:  ' + Port);
+    SummaryMemo.Lines.Add('  Database:     ' + DbDesc);
+    SummaryMemo.Lines.Add('');
+    SummaryMemo.Lines.Add('  Admin email:  ' + GetAdminEmail);
+    SummaryMemo.Lines.Add('  Admin pass:   ' + PwMask);
+    SummaryMemo.Lines.Add('');
+    SummaryMemo.Lines.Add('  After extraction the installer will:');
+    SummaryMemo.Lines.Add('    - Generate configuration and admin account');
+    SummaryMemo.Lines.Add('    - Install and start the Windows Service');
+    SummaryMemo.Lines.Add('    - Configure Windows Firewall (TCP ' + Port + ')');
+    SummaryMemo.Lines.Add('    - Create a desktop shortcut');
+  end;
+
   if CurPageID = wpFinished then
   begin
     Btn := TNewButton.Create(WizardForm);
@@ -378,8 +434,7 @@ begin
     Btn.SetBounds(
       ScaleX(0),
       WizardForm.FinishedLabel.Top + WizardForm.FinishedLabel.Height + ScaleY(20),
-      ScaleX(180),
-      ScaleY(30)
+      ScaleX(180), ScaleY(30)
     );
     Btn.OnClick := @OpenDashboard;
   end;
@@ -389,63 +444,92 @@ function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
 
-  { Block navigation from preflight if checks failed }
   if CurPageID = PreflightPage.ID then
   begin
     if not PreflightPassed then
     begin
-      MsgBox('Please resolve the failed checks before continuing.',
-             mbError, MB_OK);
+      MsgBox('Please resolve the failed checks before continuing.', mbError, MB_OK);
       Result := False;
     end;
   end;
 
-  { Validate port input }
   if CurPageID = ConfigPage.ID then
   begin
-    if (StrToIntDef(GetUserPort, 0) < 1) or
-       (StrToIntDef(GetUserPort, 0) > 65535) then
+    if (StrToIntDef(GetUserPort, 0) < 1) or (StrToIntDef(GetUserPort, 0) > 65535) then
     begin
-      MsgBox('Please enter a valid port number (1-65535).',
-             mbError, MB_OK);
+      MsgBox('Please enter a valid port number (1-65535).', mbError, MB_OK);
       Result := False;
       Exit;
     end;
     if IsPostgreSQL and (Trim(PgUrlEdit.Text) = '') then
     begin
-      MsgBox('Please enter a PostgreSQL connection URL.',
-             mbError, MB_OK);
+      MsgBox('Please enter a PostgreSQL connection URL.', mbError, MB_OK);
       Result := False;
       Exit;
     end;
     ChosenPort := GetUserPort;
   end;
+
+  if CurPageID = AdminPage.ID then
+  begin
+    if GetAdminEmail = '' then
+    begin
+      MsgBox('Please enter an email address.', mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
+    if Pos('@', GetAdminEmail) = 0 then
+    begin
+      MsgBox('Please enter a valid email address.', mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
+    if Length(GetAdminPassword) < 8 then
+    begin
+      MsgBox('Password must be at least 8 characters.', mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
+    if GetAdminPassword <> AdminPwConfirmEdit.Text then
+    begin
+      MsgBox('Passwords do not match.', mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
+  end;
+end;
+
+{ ── Skip the built-in Ready page (we use our own Summary page) ───── }
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := (PageID = wpReady);
 end;
 
 { ── Post-install actions ───────────────────────────────────────────── }
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  AppDir, Port, Password, SetupArgs, DbLabel, ShortcutFile: string;
+  AppDir, Port, SetupArgs, DbLabel, ShortcutFile, AdminEmail: string;
   WshShell: Variant;
   Shortcut: Variant;
 begin
   if CurStep <> ssPostInstall then
     Exit;
 
-  LogMemo.Visible := True;
   AppDir := ExpandConstant('{app}');
   Port := ChosenPort;
+  AdminEmail := GetAdminEmail;
 
   LogMemo.Lines.Add('  Installing Detec Server');
   LogMemo.Lines.Add('');
 
-  { Step 1: extraction is done by Inno Setup }
   LogStep('  [1/5]  Extracting files...               done');
 
-  { Step 2: Setup }
   LogStep('  [2/5]  Generating server configuration...');
-  SetupArgs := 'setup --force --admin-email ' + ADMIN_EMAIL + ' --port ' + Port;
+  SetupArgs := 'setup --force --admin-email "' + AdminEmail +
+               '" --admin-password "' + GetAdminPassword +
+               '" --port ' + Port;
   if IsPostgreSQL then
     SetupArgs := SetupArgs + ' --database-url "' + Trim(PgUrlEdit.Text) + '"';
   if RunCmd(AppDir + '\detec-server.exe', SetupArgs, AppDir) then
@@ -456,7 +540,6 @@ begin
       '  [2/5]  Generating server configuration... ERROR';
   WizardForm.Refresh;
 
-  { Step 3: Install service }
   LogStep('  [3/5]  Installing Windows Service...');
   if RunCmd(AppDir + '\detec-server.exe', 'install', AppDir) then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
@@ -466,7 +549,6 @@ begin
       '  [3/5]  Installing Windows Service...      ERROR';
   WizardForm.Refresh;
 
-  { Step 4: Start service }
   LogStep('  [4/5]  Starting Detec Server...');
   if RunCmd(AppDir + '\detec-server.exe', 'start', AppDir) then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
@@ -476,7 +558,6 @@ begin
       '  [4/5]  Starting Detec Server...           ERROR';
   WizardForm.Refresh;
 
-  { Step 5: Firewall + shortcut }
   LogStep('  [5/5]  Configuring firewall...');
   RunCmd(ExpandConstant('{sys}\netsh.exe'),
          'advfirewall firewall add rule name="Detec Server" ' +
@@ -485,7 +566,6 @@ begin
     '  [5/5]  Configuring firewall...            done';
   WizardForm.Refresh;
 
-  { Create desktop shortcut with the chosen port }
   try
     ShortcutFile := ExpandConstant('{commondesktop}\Detec Dashboard.lnk');
     WshShell := CreateOleObject('WScript.Shell');
@@ -497,62 +577,17 @@ begin
   except
   end;
 
-  LogMemo.Lines.Add('');
-  LogStep('  Detec Server is running at http://localhost:' + Port);
-
-  { Populate credentials page }
-  Password := ReadPasswordFromEnv;
   if IsPostgreSQL then
     DbLabel := 'PostgreSQL'
   else
-    DbLabel := 'SQLite (C:\ProgramData\Detec\detec.db)';
+    DbLabel := 'SQLite';
 
-  CredsMemo.Lines.Add('');
-  CredsMemo.Lines.Add('  Detec Server is running!');
-  CredsMemo.Lines.Add('');
-  CredsMemo.Lines.Add('  Dashboard:       http://localhost:' + Port);
-  CredsMemo.Lines.Add('  Database:        ' + DbLabel);
-  CredsMemo.Lines.Add('');
-  CredsMemo.Lines.Add('  -----------------------------------------------');
-  CredsMemo.Lines.Add('');
-  CredsMemo.Lines.Add('  Sign in with:    ' + ADMIN_EMAIL);
-  CredsMemo.Lines.Add('  Password:        ' + Password);
-  CredsMemo.Lines.Add('');
-  CredsMemo.Lines.Add('  SAVE THIS PASSWORD. It will not be shown again.');
-  CredsMemo.Lines.Add('');
-  CredsMemo.Lines.Add('  -----------------------------------------------');
-  CredsMemo.Lines.Add('  Config:    C:\ProgramData\Detec\server.env');
-  CredsMemo.Lines.Add('  Logs:      C:\ProgramData\Detec\server.log');
-end;
-
-{ ── Ready page summary ─────────────────────────────────────────────── }
-
-function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo,
-  MemoTypeInfo, MemoComponentsInfo, MemoGroupInfo, MemoTasksInfo: string): string;
-var
-  Port, DbDesc: string;
-begin
-  Port := GetUserPort;
-  if IsPostgreSQL then
-    DbDesc := 'PostgreSQL'
-  else
-    DbDesc := 'SQLite (C:\ProgramData\Detec\detec.db)';
-
-  Result :=
-    'Detec Server will be installed with these settings:' + NewLine +
-    NewLine +
-    Space + 'Install directory:' + NewLine +
-    Space + Space + ExpandConstant('{autopf}\Detec\Server') + NewLine +
-    NewLine +
-    Space + 'Server port: ' + Port + NewLine +
-    Space + 'Database: ' + DbDesc + NewLine +
-    Space + 'Admin account: ' + ADMIN_EMAIL + NewLine +
-    NewLine +
-    Space + 'After file extraction, the installer will:' + NewLine +
-    Space + Space + 'Generate configuration and admin account' + NewLine +
-    Space + Space + 'Install and start the Detec Server Windows Service' + NewLine +
-    Space + Space + 'Configure Windows Firewall (TCP ' + Port + ' inbound)' + NewLine +
-    Space + Space + 'Create a "Detec Dashboard" desktop shortcut';
+  LogMemo.Lines.Add('');
+  LogStep('  Detec Server is running at http://localhost:' + Port);
+  LogMemo.Lines.Add('');
+  LogMemo.Lines.Add('  Sign in:     ' + AdminEmail);
+  LogMemo.Lines.Add('  Database:    ' + DbLabel);
+  LogMemo.Lines.Add('  Config:      C:\ProgramData\Detec\server.env');
 end;
 
 { ── Uninstall: offer to remove data directory ──────────────────────── }
