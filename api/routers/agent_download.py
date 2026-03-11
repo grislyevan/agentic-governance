@@ -218,7 +218,9 @@ def _build_zip(pkg_path: Path, api_url: str, api_key: str, interval: int,
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.write(pkg_path, pkg_path.name)
+        # Store the installer as-is; it's already compressed (.pkg/.zip/.tar.gz)
+        # and re-deflating wastes minutes of CPU for zero size savings.
+        zf.write(pkg_path, pkg_path.name, compress_type=zipfile.ZIP_STORED)
         zf.writestr("agent.env", env_content)
         zf.writestr("collector.json", json_content)
         if readme:

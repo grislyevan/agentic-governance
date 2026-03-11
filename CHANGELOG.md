@@ -64,6 +64,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Agent download performance**: `_build_zip()` used `ZIP_DEFLATED` to re-compress
+  the already-compressed platform installer (`.zip`/`.pkg`/`.tar.gz`) when building
+  the download bundle. Re-compressing compressed data wasted minutes of CPU time for
+  zero size savings, causing browser downloads to hang or time out. The package file
+  is now stored with `ZIP_STORED` (no re-compression); config files still use deflate.
 - **Windows agent service startup (3 fixes)**:
   - **SCM dispatch**: When the SCM started `detec-agent.exe` with no arguments,
     the process printed argparse help and exited instead of calling
