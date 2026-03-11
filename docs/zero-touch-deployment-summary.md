@@ -31,11 +31,11 @@ Each tenant gets a shared agent key stored on the `Tenant` model. This key is:
 - `api/core/tenant.py` - `resolve_auth()` now recognizes tenant agent keys as a third auth method (after JWT and user API keys), assigning the `"agent"` role
 - `api/main.py` - Seed function generates an agent key for the default tenant
 
-### 2. Reworked Agent Download Router
+### 2. Agent Download Router
 
-The `GET /api/agent/download` endpoint was reworked to accept JWT authentication (previously required a raw `X-Api-Key` header). The server now looks up the tenant's agent key internally and embeds it in the package. No API key needs to leave the server.
+The `GET /api/agent/download` endpoint accepts JWT or API key authentication. The server looks up the tenant's agent key internally, locates the pre-built installer in `dist/packages/`, and wraps it in a zip with pre-filled config files. No API key needs to leave the server.
 
-**New endpoints added:**
+**Endpoints:**
 
 | Endpoint | Auth | Purpose |
 |---|---|---|
@@ -46,6 +46,26 @@ The `GET /api/agent/download` endpoint was reworked to accept JWT authentication
 | `POST /api/agent/key/rotate` | JWT or API key (owner/admin) | Rotate the tenant agent key |
 
 **File:** `api/routers/agent_download.py`
+
+**How the download zip is built** (`_build_zip()`):
+1. Finds the platform installer in `_DIST_DIR` (`dist/packages/` relative to server exe or repo root)
+2. Writes it into the zip with `ZIP_STORED` (no re-compression; the installer is already compressed)
+3. Generates `agent.env` and `collector.json` with the tenant agent key, API URL (derived from the request), interval, and protocol
+4. Includes a platform-specific `README.md`
+
+**Package lookup paths** (`_DIST_DIR`):
+- **PyInstaller (frozen):** `<server.exe parent>/dist/packages/`  (e.g. `C:\Program Files\Detec\Server\dist\packages\`)
+- **Development (source):** `<repo root>/dist/packages/`
+
+**Expected filenames:**
+
+| Platform | Candidates |
+|---|---|
+| Windows | `detec-agent.zip` |
+| macOS | `DetecAgent-latest.pkg`, `DetecAgent.pkg` |
+| Linux | `detec-agent-linux.tar.gz` |
+
+If no matching file is found, the endpoint returns HTTP 404 with a message telling you what to place where.
 
 ### 3. Email Enrollment
 
@@ -71,7 +91,7 @@ Requires SMTP configuration (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWO
 The Settings page now has a unified "Deploy Agent" section with:
 
 - Platform, interval, and protocol selectors (unchanged)
-- **Download Agent** button (now uses JWT auth instead of requiring a raw API key)
+- **Download Agent** button (uses JWT auth; server embeds tenant agent key automatically)
 - **Email to User** subsection with email input and "Send Download Link" button
 - Success/error feedback for both actions
 
@@ -98,6 +118,8 @@ Both `.json` and `.env` (KEY=VALUE) formats are supported. Precedence: CLI > env
 **macOS** (`packaging/macos/build-pkg.sh`): Accepts `API_URL`, `API_KEY`, `AGENT_INTERVAL`, `AGENT_PROTOCOL` env vars. When set, bakes an `agent.env` into the `.app` bundle. The `postinstall` script copies it to `~/Library/Application Support/Detec/`.
 
 **Windows** (`packaging/windows/build-agent.ps1`): Accepts `-ApiUrl` and `-ApiKey` parameters. When provided, writes a `collector.json` into the PyInstaller dist folder.
+
+**Windows installer** (`packaging/windows/build-installer.ps1`): Full pipeline that builds the dashboard, server exe, agent exe, zips the agent into `dist/packages/detec-agent.zip`, generates branding assets, and compiles the Inno Setup installer. The agent zip is bundled inside the server's `dist/packages/` directory so downloads work from the dashboard immediately after install.
 
 ### 7. Tests
 
@@ -150,9 +172,50 @@ GET /api/agent/download          GET /api/agent/download/{token}
   POST /api/endpoints/heartbeat
 ```
 
+## Troubleshooting
+
+### "No pre-built agent package found" (HTTP 404)
+
+The server can't find the installer file in `dist/packages/`. Check:
+
+1. **Windows installer deployments:** The `build-installer.ps1` pipeline bundles `detec-agent.zip` into `dist/packages/` automatically. If you rebuilt the server without the full pipeline, the packages directory may be empty. Re-run `build-installer.ps1` or manually place the zip.
+2. **Source/dev deployments:** Create `<repo>/dist/packages/` and place the platform installer there.
+3. **Verify the file exists:** On the server, check `<server exe dir>\dist\packages\` (frozen) or `<repo root>/dist/packages/` (source). The exact expected filenames are listed above.
+
+### Downloads hang or time out
+
+The download zip bundles the platform installer (which can be 13+ MB) with config files. If downloads are slow:
+
+1. **Check compression:** The installer must be stored with `ZIP_STORED` (no re-compression). If `_build_zip()` uses `ZIP_DEFLATED` for the package file, re-compressing an already-compressed archive burns CPU for zero savings and causes timeouts. This was fixed in commit `5a7878b`.
+2. **Network throughput:** VM-to-host networks (UTM, Hyper-V, etc.) can be slow. A 14 MB download at ~120 KB/s takes about 2 minutes, which is normal for virtualized networking.
+
+### Stale agent instances on the server
+
+If you see multiple `detec-agent` processes or directories:
+
+1. **Check Windows services:** `Get-Service | Where-Object { $_.Name -match 'Detec' }` shows registered services. The server should have `DetecServer`; only endpoints that are also monitored need `DetecAgent`.
+2. **Check service paths:** `Get-WmiObject Win32_Service | Where-Object { $_.Name -match 'Detec' } | Select-Object Name, PathName` shows where each service binary lives. Services pointing to `packaging\windows\dist\` are stale dev artifacts. Stop and remove them with `sc.exe stop DetecAgent && sc.exe delete DetecAgent`.
+3. **Clean `dist/packages/`:** This directory should contain only the zip/pkg/tar.gz files, not unzipped directories. Remove any `detec-agent\` subdirectory from `dist\packages\` on the server.
+
+### Server configuration
+
+The server reads its config from `C:\ProgramData\Detec\server.env` (Windows) or the platform equivalent. Key settings:
+
+| Variable | Purpose |
+|---|---|
+| `JWT_SECRET` | Signs auth tokens (auto-generated by `detec-server setup`) |
+| `SEED_ADMIN_EMAIL` | Admin login email (set during install wizard) |
+| `SEED_ADMIN_PASSWORD` | Admin password (set during install, not recoverable) |
+| `ENV` | Set to `production` to enable HSTS, CSP headers, and require strong secrets |
+| `API_PORT` | Server port (default 8000) |
+| `GATEWAY_PORT` | Binary protocol port (default 8001) |
+
+The database is at `C:\ProgramData\Detec\detec.db` (SQLite) by default.
+
 ## Commits
 
 1. `c96eba9` - feat: add zero-touch agent deployment via server-generated packages
 2. `e0990f6` - feat: tenant agent key, email enrollment, and token-based download
 3. `431a27e` - fix: remove stale hashed agent key columns from previous session
-4. fix: use ZIP_STORED for agent packages to prevent download timeouts (the inner installer is already compressed; re-deflating wasted CPU for zero savings)
+4. `5a7878b` - fix: use ZIP_STORED for agent packages to prevent download timeouts
+5. `f6637c1` - fix: SaveStringsToFile type mismatch in Inno Setup installer script
