@@ -134,7 +134,7 @@ API Client ────────────────────▶│ Mu
 - [x] Windows agent service startup fixes: SCM dispatch for frozen exe, `signal.signal()` guard for non-main thread, 120s START_PENDING wait hint for slow module loading
 - [x] Schema validator uses `sys._MEIPASS` for PyInstaller bundles
 - [x] End-to-end deployment validated: macOS agent (18 events) + Windows agent service (6 events) both reporting to Windows Server VM
-- [x] Windows GUI installer (`DetecServerSetup.exe`): branded Inno Setup wizard, pre-flight checks, admin account creation, service install, firewall rules, desktop shortcut, uninstaller
+- [x] Windows GUI installer (`DetecServerSetup.exe`): dark-themed (Slate 900) Inno Setup wizard with indigo accent bar, pre-flight checks, admin account creation, service install, firewall rules, desktop shortcut, uninstaller
 - [x] Installer security: admin password passed via env var (not CLI), error tracking with early exit on setup failure, upgrade path stops service before file extraction
 - [x] `[dev]` optional-dependencies added to `pyproject.toml` for CI test runner
 - [x] Agent download packages bundled into installer: build pipeline builds agent exe, creates zip, places in `dist/packages/` so dashboard downloads work out of the box

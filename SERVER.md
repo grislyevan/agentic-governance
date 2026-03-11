@@ -101,7 +101,7 @@ Build the installer on your build machine (requires Python 3.11+, Node.js 22+, a
 powershell -ExecutionPolicy Bypass -File packaging\windows\build-installer.ps1
 ```
 
-This produces `packaging/windows/dist/DetecServerSetup-0.1.0.exe`. The wizard handles license acceptance, pre-flight checks, server configuration (port, database), admin account creation, service installation, firewall rules, and a desktop shortcut. See [packaging/windows/README.md](packaging/windows/README.md) for full details.
+This produces `packaging/windows/dist/DetecServerSetup-0.1.0.exe`. The installer uses a full dark theme (Slate 900) and walks through: Welcome, License, Pre-flight checks, Server configuration (port, database), Admin account, Summary, Installation, and Finish. See [packaging/windows/README.md](packaging/windows/README.md) for full details.
 
 ### Manual build (alternative)
 

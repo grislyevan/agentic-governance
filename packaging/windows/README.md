@@ -2,33 +2,38 @@
 
 Build and install Detec components as Windows Services.
 
-## GUI Installer (recommended for clients)
+## GUI Installers (recommended for clients)
 
-Ship a single `DetecServerSetup.exe` to clients. They double-click it and follow a branded wizard; no PowerShell required.
+Both installers use a full dark theme (Slate 900 background, Soft Indigo accent bar, Segoe UI header typography) built with [Inno Setup 6](https://jrsoftware.org/isdl.php). They support `/VERYSILENT` for fully headless deployment.
 
-### Building the installer
+### Building
 
-On your build machine (requires Python 3.11+, Node.js 22+, and [Inno Setup 6](https://jrsoftware.org/isdl.php)):
+On your build machine (requires Python 3.11+, Node.js 22+, and Inno Setup 6):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File packaging\windows\build-installer.ps1
 ```
 
-This runs the full pipeline: dashboard build, server PyInstaller bundle, agent PyInstaller bundle + zip, branding asset generation, and Inno Setup compilation. Output: `packaging/windows/dist/DetecServerSetup-0.1.0.exe`.
+This runs the full pipeline: dashboard build, server PyInstaller bundle, agent PyInstaller bundle + zip, branding asset generation, and Inno Setup compilation. Output: `packaging/windows/dist/DetecServerSetup-0.1.0.exe` and `DetecAgentSetup-0.3.0.exe`.
 
-The installer bundles the Windows agent package (`detec-agent.zip`) inside `dist/packages/` so agent downloads work from the dashboard immediately after install. To also include macOS agent downloads, build the .pkg on a Mac (`bash packaging/macos/build-pkg.sh`) and place it at `dist/DetecAgent-latest.pkg` or `dist/DetecAgent.pkg` before running `build-installer.ps1`.
+The server installer bundles the Windows agent package (`detec-agent.zip`) inside `dist/packages/` so agent downloads work from the dashboard immediately after install. To also include macOS agent downloads, build the .pkg on a Mac (`bash packaging/macos/build-pkg.sh`) and place it at `dist/DetecAgent-latest.pkg` or `dist/DetecAgent.pkg` before running `build-installer.ps1`.
 
-### What the installer does
+### Server installer (`DetecServerSetup.exe`)
 
 The wizard walks the user through these steps:
 
-1. **License agreement**: accept the Detec Server EULA
-2. **Pre-flight checks**: validates disk space (300 MB minimum), port availability (via `Get-NetTCPConnection`), detects existing installations or services
-3. **Server configuration**: choose the API port (default 8000) and database backend (SQLite or PostgreSQL with connection URL)
-4. **Administrator account**: enter the admin email, password, and confirmation (validated for format and minimum length)
-5. **Installation summary**: review all chosen settings before proceeding
-6. **File extraction + post-install**: extracts the server bundle to `C:\Program Files\Detec\Server\`, generates secrets and the administrator account, installs and starts the Windows Service, configures firewall rules for both the API port and gateway port (8001), creates a desktop shortcut, and verifies the dashboard is responding (polls for up to 15 seconds)
-7. **Finish page**: shows a context-aware summary (running port, admin email, next-step guidance) and an "Open Detec Dashboard" button. Hold Shift while clicking the button to open the server log in Notepad instead.
+1. **Welcome**
+2. **License agreement**: accept the Detec Server EULA
+3. **Pre-flight checks**: validates disk space (300 MB minimum), port availability (via `Get-NetTCPConnection`), detects existing installations or services
+4. **Server configuration**: choose the API port (default 8000) and database backend (SQLite or PostgreSQL with connection URL)
+5. **Administrator account**: enter the admin email, password, and confirmation (validated for format and minimum length)
+6. **Installation summary**: review all chosen settings before proceeding
+7. **File extraction + post-install**: extracts the server bundle to `C:\Program Files\Detec\Server\`, generates secrets and the administrator account, installs and starts the Windows Service, configures firewall rules for both the API port and gateway port (8001), creates a desktop shortcut, and verifies the dashboard is responding (polls for up to 15 seconds)
+8. **Finish page**: shows a context-aware summary (running port, admin email, next-step guidance) and an "Open Detec Dashboard" button. Hold Shift while clicking the button to open the server log in Notepad instead.
+
+### Agent installer (`DetecAgentSetup.exe`)
+
+No wizard pages. The installer shows only a branded progress log during install, then auto-closes with a brief countdown. When downloaded from the Detec Server dashboard, the installer has tenant configuration (API URL, key, interval) embedded and applies it automatically (zero-touch). If no embedded config is found, the agent installs but requires manual setup via `detec-agent setup`.
 
 #### Security
 
