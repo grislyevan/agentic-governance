@@ -1153,6 +1153,8 @@ This section maps playbook components to the infrastructure and tools required f
 | Identity / Access | IdP integration, endpoint management agent, OS session telemetry | Map endpoint user → org identity → account type; requires MDM or identity agent |
 | Behavior | Derived from correlated process + file + network temporal sequences | Built in attribution engine, not a raw telemetry source |
 
+**Architecture design:** The telemetry collection layer now has a concrete implementation design covering three provider tiers (EDR integration, native OS frameworks, polling fallback), an agent-side event store, and a server-side EDR enrichment pipeline. See [`docs/architecture-event-driven-telemetry.md`](../docs/architecture-event-driven-telemetry.md) for the full specification, including provider interfaces, scanner integration changes, behavioral sequence engine design, and phasing.
+
 ### 11.2 Attribution and Policy Engine
 
 | Component | Function | Integration Points |
