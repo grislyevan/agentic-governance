@@ -70,7 +70,39 @@
     "evidence": { "$ref": "#/$defs/evidence" },
     "enforcement": { "$ref": "#/$defs/enforcement" },
     "outcome": { "$ref": "#/$defs/outcome" },
-    "severity": { "$ref": "#/$defs/severity" }
+    "severity": { "$ref": "#/$defs/severity" },
+    "telemetry_providers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Provider identifier (e.g., 'detec-agent', 'crowdstrike')."
+          },
+          "type": {
+            "type": "string",
+            "enum": ["polling", "edr", "native"],
+            "description": "Provider category."
+          },
+          "layers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["process", "file", "network", "identity", "behavior"]
+            },
+            "description": "Telemetry layers this provider contributed to."
+          },
+          "query_window": {
+            "type": "string",
+            "description": "ISO 8601 interval of the EDR query window, if applicable."
+          }
+        },
+        "required": ["name", "type", "layers"],
+        "additionalProperties": false
+      },
+      "description": "Telemetry providers that contributed to this detection."
+    }
   },
   "required": [
     "event_id",

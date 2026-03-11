@@ -40,7 +40,8 @@ MODEL_EXTENSIONS = frozenset({".gguf", ".safetensors", ".bin", ".ggml"})
 class LMStudioScanner(BaseScanner):
     """Detects LM Studio via five-layer signal model."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, event_store=None, **kwargs) -> None:
+        super().__init__(event_store=event_store, **kwargs)
         self._paths = get_tool_paths("lm_studio")
 
     @property

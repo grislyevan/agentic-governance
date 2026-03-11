@@ -84,6 +84,24 @@ class Settings(BaseSettings):
     seed_admin_password: str = "change-me"
     seed_tenant_name: str = "Default"
 
+    # EDR Integration
+    edr_provider: str = ""
+    edr_api_base: str = ""
+    edr_client_id: str = ""
+    edr_client_secret: str = ""
+    edr_enrichment_enabled: bool = False
+    edr_query_window_before_seconds: int = 300
+    edr_query_window_after_seconds: int = 60
+
+    @property
+    def edr_configured(self) -> bool:
+        return bool(
+            self.edr_provider
+            and self.edr_api_base
+            and self.edr_client_id
+            and self.edr_client_secret
+        )
+
     @model_validator(mode="after")
     def _apply_default_database_url(self) -> "Settings":
         if not self.database_url:

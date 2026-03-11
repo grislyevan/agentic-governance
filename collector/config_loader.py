@@ -31,6 +31,7 @@ _ARGPARSE_KEYS = {
     "interval", "api_url", "api_key",
     "report_all", "verbose", "dry_run",
     "protocol", "gateway_host", "gateway_port",
+    "telemetry_provider",
 }
 
 _BOOL_KEYS = {"report_all", "verbose", "dry_run"}
@@ -52,6 +53,7 @@ ENV_MAP: dict[str, str] = {
     "protocol":               f"{ENV_PREFIX}PROTOCOL",
     "gateway_host":           f"{ENV_PREFIX}GATEWAY_HOST",
     "gateway_port":           f"{ENV_PREFIX}GATEWAY_PORT",
+    "telemetry_provider":     f"{ENV_PREFIX}TELEMETRY_PROVIDER",
 }
 
 CODE_DEFAULTS: dict[str, Any] = {
@@ -69,6 +71,7 @@ CODE_DEFAULTS: dict[str, Any] = {
     "protocol": "http",
     "gateway_host": None,
     "gateway_port": 8001,
+    "telemetry_provider": "auto",
 }
 
 

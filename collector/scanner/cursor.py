@@ -36,7 +36,8 @@ class CursorScanner(BaseScanner):
 
     _dynamic_tool_class: str = "A"
 
-    def __init__(self) -> None:
+    def __init__(self, *, event_store=None, **kwargs) -> None:
+        super().__init__(event_store=event_store, **kwargs)
         self._paths: ToolPaths = get_tool_paths("cursor")
 
     @property

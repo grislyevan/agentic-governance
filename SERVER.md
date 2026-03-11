@@ -429,6 +429,22 @@ All settings are defined in `api/core/config.py` (pydantic-settings). Field name
 
 When enabled, the gateway listens for persistent agent connections using the Detec wire protocol (length-prefixed msgpack frames). Agents authenticate with the same API key used for HTTP. In production, provide TLS certificates or terminate TLS at the network layer (load balancer, reverse proxy). See [DEPLOY.md](DEPLOY.md) for agent-side configuration.
 
+### EDR integration
+
+Server-side enrichment of detection events using enterprise EDR platforms (CrowdStrike Falcon, SentinelOne, Microsoft Defender). When enabled, the server queries the configured EDR for process and network events around each detection, removes polling-related confidence penalties where EDR evidence exists, and rescores confidence. Enrichment runs as an async background task and does not block event ingestion.
+
+| Variable | Default | Description |
+|---|---|---|
+| `EDR_PROVIDER` | _(none)_ | EDR provider name (`crowdstrike`). Leave empty to disable. |
+| `EDR_API_BASE` | _(none)_ | EDR API base URL (e.g., `https://api.crowdstrike.com`). |
+| `EDR_CLIENT_ID` | _(none)_ | OAuth2 client ID for the EDR API. |
+| `EDR_CLIENT_SECRET` | _(none)_ | OAuth2 client secret for the EDR API. |
+| `EDR_ENRICHMENT_ENABLED` | `false` | Master switch for EDR enrichment. Set to `true` to enable. |
+| `EDR_QUERY_WINDOW_BEFORE_SECONDS` | `300` | Seconds before the detection timestamp to query EDR events (default: 5 minutes). |
+| `EDR_QUERY_WINDOW_AFTER_SECONDS` | `60` | Seconds after the detection timestamp to query EDR events (default: 1 minute). |
+
+All four credentials (`EDR_PROVIDER`, `EDR_API_BASE`, `EDR_CLIENT_ID`, `EDR_CLIENT_SECRET`) must be set and `EDR_ENRICHMENT_ENABLED` must be `true` for enrichment to activate. The agent requires no changes for EDR enrichment; it continues to emit events via the existing HTTP or TCP transport.
+
 ### SMTP (email enrollment)
 
 | Variable | Default | Description |

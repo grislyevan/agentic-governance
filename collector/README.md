@@ -56,10 +56,13 @@ Every config key can be overridden with an `AGENTIC_GOV_`-prefixed variable:
 | `protocol`               | `AGENTIC_GOV_PROTOCOL`               | string  |
 | `gateway_host`           | `AGENTIC_GOV_GATEWAY_HOST`           | string  |
 | `gateway_port`           | `AGENTIC_GOV_GATEWAY_PORT`           | integer |
+| `telemetry_provider`     | `AGENTIC_GOV_TELEMETRY_PROVIDER`     | string  |
 | `verbose`                | `AGENTIC_GOV_VERBOSE`                | boolean |
 | `dry_run`                | `AGENTIC_GOV_DRY_RUN`                | boolean |
 
 `protocol` selects the transport: `http` (default, uses HttpEmitter) or `tcp` (uses TcpEmitter with binary wire protocol on port 8001). When `protocol=tcp`, `gateway_host` defaults to the hostname from `api_url` and `gateway_port` defaults to `8001`.
+
+`telemetry_provider` controls how the agent collects telemetry: `auto` (default, probe for native OS frameworks then fall back to polling), `native` (require native OS framework, fail if unavailable), or `polling` (force psutil polling only). Currently only the polling provider is implemented; native providers (ESF, ETW, eBPF) will be added in future releases.
 
 Booleans accept `1`, `true`, `yes`, or `on` (case-insensitive) as truthy.
 

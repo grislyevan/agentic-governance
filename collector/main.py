@@ -36,6 +36,8 @@ if _COLLECTOR_DIR not in sys.path:
 
 from config_loader import argparse_defaults
 from engine.confidence import classify_confidence, compute_confidence
+from providers import get_best_provider
+from telemetry.event_store import EventStore
 from engine.container import is_containerized as check_containerized
 from engine.policy import NetworkContext, PolicyDecision, evaluate_policy
 from enforcement.enforcer import Enforcer, EnforcementResult
@@ -545,19 +547,28 @@ def run_scan(
             print(f"Network allowlist: {len(network_allowlist)} entries")
         print("-" * 60)
 
+    # Create event store and start telemetry provider
+    event_store = EventStore()
+    provider = get_best_provider(getattr(args, "telemetry_provider", "auto"))
+    provider.start(event_store)
+
     scanners = [
-        ClaudeCodeScanner(),
-        OllamaScanner(),
-        CursorScanner(),
-        CopilotScanner(),
-        OpenInterpreterScanner(),
-        OpenClawScanner(),
-        AiderScanner(),
-        LMStudioScanner(),
-        ContinueScanner(),
-        GPTPilotScanner(),
-        ClineScanner(),
+        ClaudeCodeScanner(event_store=event_store),
+        OllamaScanner(event_store=event_store),
+        CursorScanner(event_store=event_store),
+        CopilotScanner(event_store=event_store),
+        OpenInterpreterScanner(event_store=event_store),
+        OpenClawScanner(event_store=event_store),
+        AiderScanner(event_store=event_store),
+        LMStudioScanner(event_store=event_store),
+        ContinueScanner(event_store=event_store),
+        GPTPilotScanner(event_store=event_store),
+        ClineScanner(event_store=event_store),
     ]
+
+    # Poll telemetry before scan (PollingProvider populates event store on-demand)
+    if hasattr(provider, "poll"):
+        provider.poll()
 
     # Stage 1: collect
     detected_scans, detected_tools, scan_failures = _collect_scan_results(
@@ -595,6 +606,8 @@ def run_scan(
             emitter=emitter,
             verbose=args.verbose,
         )
+
+    provider.stop()
 
     stats = emitter.stats
     if args.verbose:
@@ -856,6 +869,12 @@ def main() -> None:
     parser.add_argument(
         "--gateway-port", dest="gateway_port", type=int, default=8001,
         help="Gateway port for TCP protocol (default: 8001)",
+    )
+    parser.add_argument(
+        "--telemetry-provider",
+        choices=["auto", "native", "polling"],
+        default="auto",
+        help="Telemetry provider preference (default: auto)",
     )
 
     # Centralized config: code defaults < config file < env vars < CLI

@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import desc, func
@@ -102,11 +102,56 @@ def _verify_signature(body: EventIngest, db: Session, tenant_id: str) -> bool | 
         return False
 
 
+def _run_edr_enrichment(event_payload: dict[str, object]) -> None:
+    """Background task: run EDR enrichment."""
+    import asyncio
+    from core.config import settings as _settings
+
+    if not _settings.edr_enrichment_enabled or not _settings.edr_configured:
+        return
+    if event_payload.get("event_type") != "detection.observed":
+        return
+
+    async def _do_enrich() -> None:
+        try:
+            from integrations.enrichment import enrich_detection
+            from integrations.crowdstrike import CrowdStrikeProvider
+
+            if _settings.edr_provider.lower() != "crowdstrike":
+                return
+            provider = CrowdStrikeProvider(
+                api_base=_settings.edr_api_base,
+                client_id=_settings.edr_client_id,
+                client_secret=_settings.edr_client_secret,
+            )
+            result = await enrich_detection(
+                event_payload=event_payload,
+                provider=provider,
+                settings=_settings,
+            )
+            if result and result.band_changed:
+                logger.info(
+                    "EDR enrichment changed band for event %s: %.4f -> %.4f",
+                    event_payload.get("event_id"),
+                    result.original_confidence,
+                    result.enriched_confidence,
+                )
+        except Exception:
+            logger.warning(
+                "EDR enrichment failed for event %s",
+                event_payload.get("event_id"),
+                exc_info=True,
+            )
+
+    asyncio.run(_do_enrich())
+
+
 @router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("120/minute")
 def ingest_event(
     request: Request,
     body: EventIngest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
@@ -210,6 +255,16 @@ def ingest_event(
         _dispatch_webhooks(db, tenant_id, body.model_dump(mode="json"))
     except Exception:
         logger.warning("Webhook dispatch failed for event %s", body.event_id, exc_info=True)
+
+    try:
+        from core.config import settings as _cfg
+        if _cfg.edr_enrichment_enabled and _cfg.edr_configured:
+            background_tasks.add_task(
+                _run_edr_enrichment,
+                body.model_dump(mode="json"),
+            )
+    except Exception:
+        logger.debug("EDR enrichment hook failed to queue", exc_info=True)
 
     return EventResponse.model_validate(event)
 

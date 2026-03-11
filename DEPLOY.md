@@ -304,6 +304,20 @@ When using `--protocol tcp`, the agent derives `gateway_host` from the `api_url`
 
 Environment variables: `AGENTIC_GOV_PROTOCOL` (`http` or `tcp`), `AGENTIC_GOV_GATEWAY_HOST`, `AGENTIC_GOV_GATEWAY_PORT`.
 
+### Telemetry provider
+
+The agent supports pluggable telemetry providers that control how process and network data is collected. Currently only the polling provider (psutil snapshots) is available; native OS providers (macOS ESF, Windows ETW, Linux eBPF) will be added in future releases.
+
+```bash
+# Default: auto-detect best available provider (currently always polling)
+detec-agent --interval 300 --api-url http://server:8000/api --api-key YOUR_KEY
+
+# Force polling only (useful for testing or constrained environments)
+detec-agent --interval 300 --api-url http://server:8000/api --api-key YOUR_KEY --telemetry-provider polling
+```
+
+Environment variable: `AGENTIC_GOV_TELEMETRY_PROVIDER` (`auto`, `native`, or `polling`).
+
 ## Auto-start at boot / logon
 
 Templates are in **[deploy/](deploy/)**. Use the one for your platform.

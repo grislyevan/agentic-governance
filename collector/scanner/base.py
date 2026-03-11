@@ -6,7 +6,10 @@ import logging
 import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from telemetry.event_store import EventStore
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +52,9 @@ class ScanResult:
 
 class BaseScanner(ABC):
     """Abstract base for tool-specific scanners."""
+
+    def __init__(self, event_store: EventStore | None = None) -> None:
+        self._event_store = event_store
 
     @property
     @abstractmethod

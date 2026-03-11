@@ -1,6 +1,6 @@
 # Agentic Governance — Progress Tracker
 
-**Last updated:** 2026-03-10  
+**Last updated:** 2026-03-11  
 **Current phase:** M2 — Backend API + Dashboard + Agent Packaging  
 **Ultimate goal:** Production SaaS for agentic AI endpoint governance
 
@@ -140,8 +140,11 @@ API Client ────────────────────▶│ Mu
 - [x] Agent download packages bundled into installer: build pipeline builds agent exe, creates zip, places in `dist/packages/` so dashboard downloads work out of the box
 - [x] Installer UX polish: brand-voice copy on wizard subtitles and validation messages, post-install health check (polls dashboard for 15s), install log persisted to `C:\ProgramData\Detec\install.log`, finish page guidance text with duplicate-button fix, Shift-click easter egg to open server log
 - [x] Asset generator hardened: `_load_font()` fallback chain (bundled/system/Pillow), tagline text on sidebar image, graceful handling of headless Server Core
+- [x] Event-driven telemetry foundation (agent-side): `EventStore` ring buffer, `TelemetryProvider` interface, `PollingProvider` (psutil-based fallback), provider registry with `--telemetry-provider auto|native|polling` CLI flag, `BaseScanner` event store injection, all 11 scanners wired
+- [x] Server-side EDR enrichment: `EDRProvider` interface, CrowdStrike Falcon stub (OAuth2, token caching), enrichment pipeline (penalty removal, confidence rescoring, band change detection), `telemetry_providers` schema extension, `BackgroundTasks` hook on event ingestion, EDR config in `api/core/config.py`
+- [x] 43 new tests: EventStore (14), PollingProvider/registry (12), enrichment pipeline (7), CrowdStrike provider (5), schema validation (5)
 
-**Files:** `api/`, `collector/output/`, `collector/agent/`, `collector/gui/`, `collector/compat/`, `packaging/macos/`, `packaging/windows/`, `docs/`, `docker-compose.yml`, `protocol/`, `legal/`
+**Files:** `api/`, `api/integrations/`, `collector/output/`, `collector/agent/`, `collector/gui/`, `collector/compat/`, `collector/telemetry/`, `collector/providers/`, `packaging/macos/`, `packaging/windows/`, `docs/`, `docker-compose.yml`, `protocol/`, `legal/`, `schemas/`
 
 ---
 
