@@ -1,7 +1,8 @@
 ; Detec Agent - Inno Setup Installer Script
 ;
-; Wizard flow:
-;   Welcome > License > Installing (progress) > Finish
+; UI: Full dark theme (Slate 900) with branded header and indigo accent.
+; Shows a clean progress log during install, then auto-closes with a
+; brief countdown. No wizard pages. Supports /VERYSILENT for headless.
 ;
 ; Config embedding (zero-touch):
 ;   When downloaded from the Detec Server dashboard, this installer has
@@ -33,10 +34,10 @@ AppSupportURL={#AppURL}
 DefaultDirName={autopf}\Detec\Agent
 DisableDirPage=yes
 DisableProgramGroupPage=yes
+DisableWelcomePage=yes
 OutputDir=..\dist
 OutputBaseFilename=DetecAgentSetup-{#AppVersion}
 UninstallDisplayIcon={app}\detec-agent.exe
-LicenseFile=license.txt
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -47,6 +48,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 CloseApplications=yes
+SetupWindowTitle=Detec Agent
 
 [Files]
 Source: "..\dist\detec-agent\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -65,10 +67,8 @@ Filename: "{app}\detec-agent.exe"; Parameters: "remove"; Flags: runhidden waitun
 [Code]
 var
   LogMemo: TNewMemo;
-  FinishLabel: TNewStaticText;
   InstallHadErrors: Boolean;
   ConfigExtracted: Boolean;
-  FinishPageCreated: Boolean;
 
 { ── Helpers ────────────────────────────────────────────────────────── }
 
@@ -88,14 +88,46 @@ begin
   WizardForm.Refresh;
 end;
 
+function PadRight(const S: string; Len: Integer): string;
+begin
+  Result := S;
+  while Length(Result) < Len do
+    Result := Result + ' ';
+end;
+
 { ── InitializeWizard ───────────────────────────────────────────────── }
 
 procedure InitializeWizard;
+var
+  AccentBar: TPanel;
 begin
-  FinishPageCreated := False;
   InstallHadErrors := False;
   ConfigExtracted := False;
 
+  { Dark theme: Slate 900 (#0f172a) everywhere }
+  WizardForm.Color := $002A170F;
+  WizardForm.MainPanel.Color := $002A170F;
+  WizardForm.InnerPage.Color := $002A170F;
+  WizardForm.Bevel.Visible := False;
+  WizardForm.Bevel1.Visible := False;
+
+  { Header typography }
+  WizardForm.PageNameLabel.Font.Name := 'Segoe UI';
+  WizardForm.PageNameLabel.Font.Size := 12;
+  WizardForm.PageNameLabel.Font.Color := $00F9F5F1;
+  WizardForm.PageDescriptionLabel.Font.Name := 'Segoe UI';
+  WizardForm.PageDescriptionLabel.Font.Color := $00B8A394;
+
+  { Indigo accent bar at the bottom of the header panel }
+  AccentBar := TPanel.Create(WizardForm);
+  AccentBar.Parent := WizardForm.MainPanel;
+  AccentBar.SetBounds(
+    0, WizardForm.MainPanel.ClientHeight - ScaleY(2),
+    WizardForm.MainPanel.ClientWidth, ScaleY(2));
+  AccentBar.Color := $00F16663;
+  AccentBar.BevelOuter := bvNone;
+
+  { Progress log }
   LogMemo := TNewMemo.Create(WizardForm);
   LogMemo.Parent := WizardForm.InnerPage;
   LogMemo.SetBounds(
@@ -107,8 +139,8 @@ begin
   LogMemo.ReadOnly := True;
   LogMemo.ScrollBars := ssVertical;
   LogMemo.Font.Name := 'Consolas';
-  LogMemo.Font.Size := 9;
-  LogMemo.Color := $003B291E;
+  LogMemo.Font.Size := 10;
+  LogMemo.Color := $002A170F;
   LogMemo.Font.Color := $00F9F5F1;
   LogMemo.Visible := False;
 end;
@@ -175,46 +207,23 @@ procedure CurPageChanged(CurPageID: Integer);
 begin
   if CurPageID = wpInstalling then
   begin
+    WizardForm.PageNameLabel.Caption := 'Detec Agent';
+    WizardForm.PageDescriptionLabel.Caption := 'v{#AppVersion}';
     LogMemo.Visible := True;
     WizardForm.ProgressGauge.Visible := False;
     WizardForm.StatusLabel.Visible := False;
+    WizardForm.BackButton.Visible := False;
+    WizardForm.NextButton.Visible := False;
+    WizardForm.CancelButton.Visible := False;
   end else
     LogMemo.Visible := False;
-
-  if (CurPageID = wpFinished) and (not FinishPageCreated) then
-  begin
-    FinishPageCreated := True;
-
-    FinishLabel := TNewStaticText.Create(WizardForm);
-    FinishLabel.Parent := WizardForm.FinishedPage;
-    FinishLabel.AutoSize := False;
-    FinishLabel.WordWrap := True;
-    FinishLabel.SetBounds(
-      ScaleX(0),
-      WizardForm.FinishedLabel.Top + WizardForm.FinishedLabel.Height + ScaleY(12),
-      WizardForm.FinishedPage.Width, ScaleY(60)
-    );
-
-    if InstallHadErrors then
-      FinishLabel.Caption :=
-        'Installation completed with warnings.' + #13#10 +
-        'Check C:\ProgramData\Detec\Agent\install.log for details.'
-    else if ConfigExtracted then
-      FinishLabel.Caption :=
-        'Detec Agent is running and connected to your server.' + #13#10 +
-        'The agent icon should now be visible in the system tray.'
-    else
-      FinishLabel.Caption :=
-        'Detec Agent is installed but no server configuration was found.' + #13#10 +
-        'Run: detec-agent setup --api-url <URL> --api-key <KEY>';
-  end;
 end;
 
-{ ── Skip the built-in Ready page (nothing to configure) ───────────── }
+{ ── Skip everything except the Installing page ────────────────────── }
 
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
-  Result := (PageID = wpReady);
+  Result := (PageID = wpReady) or (PageID = wpFinished);
 end;
 
 { ── Pre-install: stop running service/GUI to avoid locked files ────── }
@@ -253,64 +262,57 @@ begin
   DataDir := ExpandConstant('{sd}\ProgramData\Detec\Agent');
   InstallHadErrors := False;
 
-  LogMemo.Lines.Add('  Installing Detec Agent');
-  LogMemo.Lines.Add('');
+  LogStep('  Detec Agent v{#AppVersion}');
+  LogStep('');
 
-  // Step 1: files already extracted by Inno Setup
-  LogStep('  [1/4]  Extracting files...               done');
+  LogStep('  ' + PadRight('Extracting files', 40) + 'done');
 
-  // Step 2: extract embedded config from the installer EXE
-  LogStep('  [2/4]  Extracting server configuration...');
+  LogStep('  Applying server configuration...');
   ExtractEmbeddedConfig;
   if ConfigExtracted then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [2/4]  Server configuration applied.      done'
+      '  ' + PadRight('Applying server configuration', 40) + 'done'
   else
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [2/4]  No embedded configuration found.   skipped';
+      '  ' + PadRight('Server configuration', 40) + 'skipped';
   WizardForm.Refresh;
 
-  // Step 3: register the Windows Service
-  LogStep('  [3/4]  Installing Windows Service...');
+  LogStep('  Installing Windows Service...');
   if RunCmd(AppDir + '\detec-agent.exe', 'install', AppDir) then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [3/4]  Installing Windows Service...      done'
+      '  ' + PadRight('Installing Windows Service', 40) + 'done'
   else begin
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [3/4]  Installing Windows Service...      ERROR';
+      '  ' + PadRight('Installing Windows Service', 40) + 'FAIL';
     InstallHadErrors := True;
   end;
   WizardForm.Refresh;
 
-  // Step 4: start the service
-  LogStep('  [4/4]  Starting Detec Agent...');
+  LogStep('  Starting agent...');
   if RunCmd(AppDir + '\detec-agent.exe', 'start', AppDir) then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [4/4]  Starting Detec Agent...            done'
+      '  ' + PadRight('Starting agent', 40) + 'done'
   else begin
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [4/4]  Starting Detec Agent...            ERROR';
+      '  ' + PadRight('Starting agent', 40) + 'FAIL';
     InstallHadErrors := True;
   end;
   WizardForm.Refresh;
 
-  // Summary
-  LogMemo.Lines.Add('');
-  if InstallHadErrors then begin
-    LogStep('  Installation completed with warnings.');
-    LogMemo.Lines.Add('  Some steps need attention.');
-  end else if ConfigExtracted then
-    LogStep('  Detec Agent is installed and connected.')
+  LogStep('');
+  if InstallHadErrors then
+    LogStep('  Completed with warnings.')
+  else if ConfigExtracted then
+    LogStep('  Agent is running and connected.')
   else begin
-    LogStep('  Detec Agent is installed.');
-    LogMemo.Lines.Add('  Configure: detec-agent setup --api-url <URL> --api-key <KEY>');
+    LogStep('  Agent is installed.');
+    LogStep('  Run: detec-agent setup --api-url <URL> --api-key <KEY>');
   end;
 
-  LogMemo.Lines.Add('');
-  LogMemo.Lines.Add('  Install directory:  ' + AppDir);
-  LogMemo.Lines.Add('  Data directory:     ' + DataDir);
+  LogStep('');
+  LogStep('  ' + PadRight('Install', 10) + AppDir);
+  LogStep('  ' + PadRight('Data', 10) + DataDir);
 
-  // Persist install log
   LogPath := DataDir + '\install.log';
   ForceDirectories(DataDir);
   SetArrayLength(Lines, LogMemo.Lines.Count);
@@ -318,7 +320,20 @@ begin
     Lines[I] := LogMemo.Lines[I];
   SaveStringsToFile(LogPath, Lines, False);
   LogStep('');
-  LogStep('  Install log saved to ' + LogPath);
+  LogStep('  ' + PadRight('Log', 10) + LogPath);
+
+  LogStep('');
+  for I := 3 downto 1 do
+  begin
+    if I = 3 then
+      LogStep('  Closing in ' + IntToStr(I) + '...')
+    else begin
+      LogMemo.Lines[LogMemo.Lines.Count - 1] :=
+        '  Closing in ' + IntToStr(I) + '...';
+      WizardForm.Refresh;
+    end;
+    Sleep(1000);
+  end;
 end;
 
 { ── Uninstall: kill GUI, offer to remove data directory ──────────── }
