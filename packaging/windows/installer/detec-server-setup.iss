@@ -1,8 +1,8 @@
 ; Detec Server - Inno Setup Installer Script
 ;
-; Wizard flow:
-;   Welcome > License > Pre-flight Checks > Server Configuration >
-;   Admin Account > Ready > Installing (progress) > Summary > Finish
+; UI: Full dark theme (Slate 900) with branded header and indigo accent.
+; Wizard flow: Welcome > License > Pre-flight > Config > Admin >
+; Summary > Installing (progress log) > Finish.
 ;
 ; Build (from repo root):
 ;   powershell -ExecutionPolicy Bypass -File packaging\windows\build-installer.ps1
@@ -38,6 +38,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 CloseApplications=yes
+SetupWindowTitle=Detec Server
 
 [Files]
 Source: "..\dist\detec-server\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -120,6 +121,13 @@ begin
   LogMemo.Lines.Add(Msg);
   LogMemo.SelStart := Length(LogMemo.Text);
   WizardForm.Refresh;
+end;
+
+function PadRight(const S: string; Len: Integer): string;
+begin
+  Result := S;
+  while Length(Result) < Len do
+    Result := Result + ' ';
 end;
 
 function GetUserPort: string;
@@ -254,12 +262,47 @@ end;
 procedure InitializeWizard;
 var
   DbHeaderLabel: TNewStaticText;
+  AccentBar: TPanel;
 begin
   PreflightPassed := True;
   FinishPageCreated := False;
   ChosenPort := '{#DefaultPort}';
 
-  // ── Pre-flight Checks page (after License)
+  { ── Dark theme: Slate 900 (#0f172a) everywhere ──────────────────── }
+  WizardForm.Color := $002A170F;
+  WizardForm.MainPanel.Color := $002A170F;
+  WizardForm.InnerPage.Color := $002A170F;
+  WizardForm.Bevel.Visible := False;
+  WizardForm.Bevel1.Visible := False;
+
+  { Header typography }
+  WizardForm.PageNameLabel.Font.Name := 'Segoe UI';
+  WizardForm.PageNameLabel.Font.Size := 12;
+  WizardForm.PageNameLabel.Font.Color := $00F9F5F1;
+  WizardForm.PageDescriptionLabel.Font.Name := 'Segoe UI';
+  WizardForm.PageDescriptionLabel.Font.Color := $00B8A394;
+
+  { License page }
+  WizardForm.LicenseMemo.Color := $002A170F;
+  WizardForm.LicenseMemo.Font.Color := $00B8A394;
+  WizardForm.LicenseAcceptedRadio.Font.Color := $00F9F5F1;
+  WizardForm.LicenseNotAcceptedRadio.Font.Color := $00F9F5F1;
+  WizardForm.LicenseLabel1.Font.Color := $00F9F5F1;
+
+  { Finish page labels (styled before controls are added in CurPageChanged) }
+  WizardForm.FinishedHeadingLabel.Font.Color := $00F9F5F1;
+  WizardForm.FinishedLabel.Font.Color := $00B8A394;
+
+  { Indigo accent bar at the bottom of the header panel }
+  AccentBar := TPanel.Create(WizardForm);
+  AccentBar.Parent := WizardForm.MainPanel;
+  AccentBar.SetBounds(
+    0, WizardForm.MainPanel.ClientHeight - ScaleY(2),
+    WizardForm.MainPanel.ClientWidth, ScaleY(2));
+  AccentBar.Color := $00F16663;
+  AccentBar.BevelOuter := bvNone;
+
+  { ── Pre-flight Checks page (after License) ─────────────────────── }
   PreflightPage := CreateCustomPage(wpLicense,
     'Pre-flight Checks',
     'Checking that everything is in order.');
@@ -273,10 +316,10 @@ begin
   PreflightMemo.ScrollBars := ssVertical;
   PreflightMemo.Font.Name := 'Consolas';
   PreflightMemo.Font.Size := 10;
-  PreflightMemo.Color := $003B291E;
+  PreflightMemo.Color := $002A170F;
   PreflightMemo.Font.Color := $00F9F5F1;
 
-  // ── Server Configuration page (after Preflight)
+  { ── Server Configuration page (after Preflight) ────────────────── }
   ConfigPage := CreateCustomPage(PreflightPage.ID,
     'Server Configuration',
     'Choose your port and database. Sensible defaults are pre-filled.');
@@ -285,16 +328,20 @@ begin
   PortLabel.Parent := ConfigPage.Surface;
   PortLabel.Caption := 'Server port:';
   PortLabel.SetBounds(0, ScaleY(8), ScaleX(100), ScaleY(18));
+  PortLabel.Font.Color := $00F9F5F1;
 
   PortEdit := TNewEdit.Create(ConfigPage);
   PortEdit.Parent := ConfigPage.Surface;
   PortEdit.Text := '{#DefaultPort}';
   PortEdit.SetBounds(ScaleX(110), ScaleY(5), ScaleX(80), ScaleY(22));
+  PortEdit.Color := $003B291E;
+  PortEdit.Font.Color := $00F9F5F1;
 
   DbHeaderLabel := TNewStaticText.Create(ConfigPage);
   DbHeaderLabel.Parent := ConfigPage.Surface;
   DbHeaderLabel.Caption := 'Database:';
   DbHeaderLabel.SetBounds(0, ScaleY(40), ScaleX(100), ScaleY(18));
+  DbHeaderLabel.Font.Color := $00F9F5F1;
 
   DbSqliteRadio := TNewRadioButton.Create(ConfigPage);
   DbSqliteRadio.Parent := ConfigPage.Surface;
@@ -302,18 +349,21 @@ begin
   DbSqliteRadio.Checked := True;
   DbSqliteRadio.SetBounds(ScaleX(12), ScaleY(60), ConfigPage.SurfaceWidth - ScaleX(12), ScaleY(20));
   DbSqliteRadio.OnClick := @OnDbRadioClick;
+  DbSqliteRadio.Font.Color := $00F9F5F1;
 
   DbPgRadio := TNewRadioButton.Create(ConfigPage);
   DbPgRadio.Parent := ConfigPage.Surface;
   DbPgRadio.Caption := 'PostgreSQL (recommended for 10+ endpoints)';
   DbPgRadio.SetBounds(ScaleX(12), ScaleY(84), ConfigPage.SurfaceWidth - ScaleX(12), ScaleY(20));
   DbPgRadio.OnClick := @OnDbRadioClick;
+  DbPgRadio.Font.Color := $00F9F5F1;
 
   PgUrlLabel := TNewStaticText.Create(ConfigPage);
   PgUrlLabel.Parent := ConfigPage.Surface;
   PgUrlLabel.Caption := 'Connection URL:';
   PgUrlLabel.SetBounds(ScaleX(28), ScaleY(112), ScaleX(110), ScaleY(18));
   PgUrlLabel.Visible := False;
+  PgUrlLabel.Font.Color := $00F9F5F1;
 
   PgUrlEdit := TNewEdit.Create(ConfigPage);
   PgUrlEdit.Parent := ConfigPage.Surface;
@@ -321,8 +371,10 @@ begin
   PgUrlEdit.SetBounds(ScaleX(140), ScaleY(109),
     ConfigPage.SurfaceWidth - ScaleX(144), ScaleY(22));
   PgUrlEdit.Visible := False;
+  PgUrlEdit.Color := $003B291E;
+  PgUrlEdit.Font.Color := $00F9F5F1;
 
-  // ── Admin Account page (after Config)
+  { ── Admin Account page (after Config) ──────────────────────────── }
   AdminPage := CreateCustomPage(ConfigPage.ID,
     'Administrator Account',
     'Set up your first admin account for the dashboard.');
@@ -331,36 +383,45 @@ begin
   AdminEmailLabel.Parent := AdminPage.Surface;
   AdminEmailLabel.Caption := 'Email address:';
   AdminEmailLabel.SetBounds(0, ScaleY(8), ScaleX(120), ScaleY(18));
+  AdminEmailLabel.Font.Color := $00F9F5F1;
 
   AdminEmailEdit := TNewEdit.Create(AdminPage);
   AdminEmailEdit.Parent := AdminPage.Surface;
   AdminEmailEdit.Text := '';
   AdminEmailEdit.SetBounds(ScaleX(130), ScaleY(5),
     AdminPage.SurfaceWidth - ScaleX(134), ScaleY(22));
+  AdminEmailEdit.Color := $003B291E;
+  AdminEmailEdit.Font.Color := $00F9F5F1;
 
   AdminPwLabel := TNewStaticText.Create(AdminPage);
   AdminPwLabel.Parent := AdminPage.Surface;
   AdminPwLabel.Caption := 'Password:';
   AdminPwLabel.SetBounds(0, ScaleY(42), ScaleX(120), ScaleY(18));
+  AdminPwLabel.Font.Color := $00F9F5F1;
 
   AdminPwEdit := TPasswordEdit.Create(AdminPage);
   AdminPwEdit.Parent := AdminPage.Surface;
   AdminPwEdit.Text := '';
   AdminPwEdit.SetBounds(ScaleX(130), ScaleY(39),
     AdminPage.SurfaceWidth - ScaleX(134), ScaleY(22));
+  AdminPwEdit.Color := $003B291E;
+  AdminPwEdit.Font.Color := $00F9F5F1;
 
   AdminPwConfirmLabel := TNewStaticText.Create(AdminPage);
   AdminPwConfirmLabel.Parent := AdminPage.Surface;
   AdminPwConfirmLabel.Caption := 'Confirm password:';
   AdminPwConfirmLabel.SetBounds(0, ScaleY(76), ScaleX(120), ScaleY(18));
+  AdminPwConfirmLabel.Font.Color := $00F9F5F1;
 
   AdminPwConfirmEdit := TPasswordEdit.Create(AdminPage);
   AdminPwConfirmEdit.Parent := AdminPage.Surface;
   AdminPwConfirmEdit.Text := '';
   AdminPwConfirmEdit.SetBounds(ScaleX(130), ScaleY(73),
     AdminPage.SurfaceWidth - ScaleX(134), ScaleY(22));
+  AdminPwConfirmEdit.Color := $003B291E;
+  AdminPwConfirmEdit.Font.Color := $00F9F5F1;
 
-  // ── Summary page (after Admin, before Ready)
+  { ── Summary page (after Admin, before Ready) ───────────────────── }
   SummaryPage := CreateCustomPage(AdminPage.ID,
     'Installation Summary',
     'One last look before we get started.');
@@ -374,10 +435,10 @@ begin
   SummaryMemo.ScrollBars := ssVertical;
   SummaryMemo.Font.Name := 'Consolas';
   SummaryMemo.Font.Size := 10;
-  SummaryMemo.Color := $003B291E;
+  SummaryMemo.Color := $002A170F;
   SummaryMemo.Font.Color := $00F9F5F1;
 
-  // ── Progress log (overlays the Installing page entirely)
+  { ── Progress log (overlays the Installing page entirely) ────────── }
   LogMemo := TNewMemo.Create(WizardForm);
   LogMemo.Parent := WizardForm.InnerPage;
   LogMemo.SetBounds(
@@ -389,8 +450,8 @@ begin
   LogMemo.ReadOnly := True;
   LogMemo.ScrollBars := ssVertical;
   LogMemo.Font.Name := 'Consolas';
-  LogMemo.Font.Size := 9;
-  LogMemo.Color := $003B291E;
+  LogMemo.Font.Size := 10;
+  LogMemo.Color := $002A170F;
   LogMemo.Font.Color := $00F9F5F1;
   LogMemo.Visible := False;
 end;
@@ -424,9 +485,10 @@ var
   Btn: TNewButton;
   Port, DbDesc, PwMask: string;
 begin
-  // Show LogMemo only on the Installing page; hide built-in widgets
   if CurPageID = wpInstalling then
   begin
+    WizardForm.PageNameLabel.Caption := 'Detec Server';
+    WizardForm.PageDescriptionLabel.Caption := 'v{#AppVersion}';
     LogMemo.Visible := True;
     WizardForm.ProgressGauge.Visible := False;
     WizardForm.StatusLabel.Visible := False;
@@ -469,10 +531,14 @@ begin
   begin
     FinishPageCreated := True;
 
+    WizardForm.PageNameLabel.Caption := 'Detec Server';
+    WizardForm.PageDescriptionLabel.Caption := 'Installation complete';
+
     FinishLabel := TNewStaticText.Create(WizardForm);
     FinishLabel.Parent := WizardForm.FinishedPage;
     FinishLabel.AutoSize := False;
     FinishLabel.WordWrap := True;
+    FinishLabel.Font.Color := $00F9F5F1;
     FinishLabel.SetBounds(
       ScaleX(0),
       WizardForm.FinishedLabel.Top + WizardForm.FinishedLabel.Height + ScaleY(12),
@@ -607,12 +673,12 @@ begin
   AdminEmail := GetAdminEmail;
   InstallHadErrors := False;
 
-  LogMemo.Lines.Add('  Installing Detec Server');
-  LogMemo.Lines.Add('');
+  LogStep('  Detec Server v{#AppVersion}');
+  LogStep('');
 
-  LogStep('  [1/6]  Extracting files...               done');
+  LogStep('  ' + PadRight('Extracting files', 40) + 'done');
 
-  LogStep('  [2/6]  Generating server configuration...');
+  LogStep('  Generating configuration...');
   SetupArgs := 'setup --force --admin-email "' + AdminEmail +
                '" --port ' + Port;
   if IsPostgreSQL then
@@ -620,52 +686,50 @@ begin
   if RunCmdWithEnv(AppDir + '\detec-server.exe', SetupArgs, AppDir,
                    'DETEC_ADMIN_PASSWORD', GetAdminPassword) then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [2/6]  Generating server configuration... done'
+      '  ' + PadRight('Generating configuration', 40) + 'done'
   else begin
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [2/6]  Generating server configuration... ERROR';
+      '  ' + PadRight('Generating configuration', 40) + 'FAIL';
     InstallHadErrors := True;
-    LogMemo.Lines.Add('');
-    LogStep('  Setup failed. Files have been extracted to ' + AppDir);
-    LogStep('  You can re-run setup manually:');
-    LogStep('    detec-server.exe setup --admin-email ' + AdminEmail);
+    LogStep('');
+    LogStep('  Setup failed. Files extracted to ' + AppDir);
+    LogStep('  Re-run: detec-server.exe setup --admin-email ' + AdminEmail);
     WizardForm.Refresh;
     Exit;
   end;
   WizardForm.Refresh;
 
-  LogStep('  [3/6]  Installing Windows Service...');
+  LogStep('  Installing Windows Service...');
   if RunCmd(AppDir + '\detec-server.exe', 'install', AppDir) then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [3/6]  Installing Windows Service...      done'
+      '  ' + PadRight('Installing Windows Service', 40) + 'done'
   else begin
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [3/6]  Installing Windows Service...      ERROR';
+      '  ' + PadRight('Installing Windows Service', 40) + 'FAIL';
     InstallHadErrors := True;
   end;
   WizardForm.Refresh;
 
-  LogStep('  [4/6]  Starting Detec Server...');
+  LogStep('  Starting server...');
   if RunCmd(AppDir + '\detec-server.exe', 'start', AppDir) then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [4/6]  Starting Detec Server...           done'
+      '  ' + PadRight('Starting server', 40) + 'done'
   else begin
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [4/6]  Starting Detec Server...           ERROR';
+      '  ' + PadRight('Starting server', 40) + 'FAIL';
     InstallHadErrors := True;
   end;
   WizardForm.Refresh;
 
-  LogStep('  [5/6]  Configuring firewall...');
+  LogStep('  Configuring firewall...');
   if RunCmd(ExpandConstant('{sys}\netsh.exe'),
          'advfirewall firewall add rule name="Detec Server" ' +
          'dir=in action=allow protocol=TCP localport=' + Port, '') then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [5/6]  Configuring firewall...            done'
-  else begin
+      '  ' + PadRight('Configuring firewall', 40) + 'done'
+  else
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [5/6]  Configuring firewall...            WARNING (non-critical)';
-  end;
+      '  ' + PadRight('Configuring firewall', 40) + 'skipped';
   RunCmd(ExpandConstant('{sys}\netsh.exe'),
          'advfirewall firewall add rule name="Detec Gateway" ' +
          'dir=in action=allow protocol=TCP localport=8001', '');
@@ -682,8 +746,7 @@ begin
   except
   end;
 
-  // ── Step 6: Post-install health check ──────────────────────────────
-  LogStep('  [6/6]  Verifying dashboard is responding...');
+  LogStep('  Verifying dashboard...');
   HealthOK := False;
   OutputFile := ExpandConstant('{tmp}\health-check.txt');
   for HealthAttempt := 1 to 15 do
@@ -713,35 +776,31 @@ begin
 
   if HealthOK then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [6/6]  Dashboard is responding.           done'
+      '  ' + PadRight('Verifying dashboard', 40) + 'done'
   else begin
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  [6/6]  Dashboard did not respond (15s).   WARNING';
-    LogMemo.Lines.Add('         Check C:\ProgramData\Detec\server.log');
+      '  ' + PadRight('Verifying dashboard', 40) + 'warning';
+    LogStep('  Check C:\ProgramData\Detec\server.log');
     InstallHadErrors := True;
   end;
   WizardForm.Refresh;
 
-  // ── Summary ────────────────────────────────────────────────────────
   if IsPostgreSQL then
     DbLabel := 'PostgreSQL'
   else
     DbLabel := 'SQLite';
 
-  LogMemo.Lines.Add('');
-  if InstallHadErrors then begin
-    LogStep('  Installation completed with warnings.');
-    LogMemo.Lines.Add('  Some steps need attention. The server may not be running.');
-    LogMemo.Lines.Add('  Check C:\ProgramData\Detec\server.log for details.');
-    LogMemo.Lines.Add('');
-  end else
-    LogStep('  Detec Server is up. Dashboard: http://localhost:' + Port);
-  LogMemo.Lines.Add('');
-  LogMemo.Lines.Add('  Sign in:     ' + AdminEmail);
-  LogMemo.Lines.Add('  Database:    ' + DbLabel);
-  LogMemo.Lines.Add('  Config:      C:\ProgramData\Detec\server.env');
+  LogStep('');
+  if InstallHadErrors then
+    LogStep('  Completed with warnings.')
+  else
+    LogStep('  Server is up. Dashboard: http://localhost:' + Port);
 
-  // ── Persist install log ────────────────────────────────────────────
+  LogStep('');
+  LogStep('  ' + PadRight('Sign in', 12) + AdminEmail);
+  LogStep('  ' + PadRight('Database', 12) + DbLabel);
+  LogStep('  ' + PadRight('Config', 12) + 'C:\ProgramData\Detec\server.env');
+
   LogPath := ExpandConstant('{sd}\ProgramData\Detec\install.log');
   ForceDirectories(ExtractFilePath(LogPath));
   SetArrayLength(Lines, LogMemo.Lines.Count);
@@ -749,7 +808,7 @@ begin
     Lines[I] := LogMemo.Lines[I];
   SaveStringsToFile(LogPath, Lines, False);
   LogStep('');
-  LogStep('  Install log saved to C:\ProgramData\Detec\install.log');
+  LogStep('  ' + PadRight('Log', 12) + LogPath);
 end;
 
 { ── Uninstall: offer to remove data directory ──────────────────────── }
