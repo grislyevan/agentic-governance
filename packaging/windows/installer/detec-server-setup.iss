@@ -744,7 +744,10 @@ begin
   // ── Persist install log ────────────────────────────────────────────
   LogPath := ExpandConstant('{sd}\ProgramData\Detec\install.log');
   ForceDirectories(ExtractFilePath(LogPath));
-  SaveStringsToFile(LogPath, LogMemo.Lines, False);
+  SetArrayLength(Lines, LogMemo.Lines.Count);
+  for I := 0 to LogMemo.Lines.Count - 1 do
+    Lines[I] := LogMemo.Lines[I];
+  SaveStringsToFile(LogPath, Lines, False);
   LogStep('');
   LogStep('  Install log saved to C:\ProgramData\Detec\install.log');
 end;
