@@ -1543,6 +1543,8 @@ Classification:
 - Must be calibrated through lab replay runs (Section 12)
 - Per-tool weight adjustments permitted when empirically justified
 - All calibration changes must be versioned and traceable
+- **Automated regression:** The calibration replay harness (`collector/tests/test_calibration.py`) validates all lab-run fixtures against current weights on every push and PR to main via the "Calibration Regression" CI job. Weight changes that regress any tool's band assignment are blocked. See [`docs/architecture-calibration-pipeline.md`](../docs/architecture-calibration-pipeline.md) for the full pipeline design.
+- **Adding fixtures:** After each lab run, create a JSON fixture in `collector/tests/fixtures/lab_runs/` with observed signal strengths, penalties, and expected band. The harness discovers new fixtures automatically.
 
 ### Empirical Calibration Data (from LAB-RUN-001)
 

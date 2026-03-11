@@ -166,10 +166,23 @@ This keeps the formula deterministic and auditable. The optimization selects wei
 
 ---
 
-## 5. Files
+## 5. CI Automation
+
+The replay harness runs automatically in GitHub Actions (`.github/workflows/ci.yml`):
+
+- **Dedicated job:** "Calibration Regression" runs `pytest collector/tests/test_calibration.py -v` on every push and PR to main. Failures surface as a separate check, distinct from the general collector test suite.
+- **General test suite:** The calibration tests also run as part of the "Collector Tests" job (`pytest collector/tests/`), providing redundant coverage.
+- **Trigger scope:** Both jobs run on every code change, not filtered by path. This is intentional: a scanner logic change, a dependency update, or a seemingly unrelated refactor could affect confidence scoring. The harness is fast (<1 second) so there is no cost to running it on every change.
+
+No manual invocation is needed. The three triggers described in Section 2.1 (weight changes, new fixtures, scanner logic changes) are all covered by "every push and PR to main."
+
+---
+
+## 6. Files
 
 | File | Purpose |
 |------|---------|
 | `docs/architecture-calibration-pipeline.md` | This document |
 | `collector/tests/fixtures/lab_runs/*.json` | Structured fixture files from lab run data |
 | `collector/tests/test_calibration.py` | Replay harness: loads fixtures, validates scores and bands |
+| `.github/workflows/ci.yml` | CI pipeline with dedicated "Calibration Regression" job |

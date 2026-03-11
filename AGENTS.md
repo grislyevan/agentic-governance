@@ -10,8 +10,11 @@
 
 | Path | Purpose |
 |------|--------|
-| `collector/` | Python agent: scanners, confidence engine, policy, HTTP + TCP emitters. Entry: `main.py`; daemon: `--interval` + `--api-url` + `--api-key` + `--protocol tcp\|http`. Config: `config_loader.py` + `config/collector.json` + `AGENTIC_GOV_*` env. |
-| `api/` | FastAPI backend: auth (JWT + API key, invite tokens, password reset), events, endpoints, policies, users, webhooks. Binary protocol gateway (`gateway.py`, port 8001). Config: `core/config.py` + `.env` (see root `.env.example`). |
+| `collector/` | Python agent: scanners, confidence engine, policy, HTTP + TCP emitters, telemetry providers. Entry: `main.py`; daemon: `--interval` + `--api-url` + `--api-key` + `--protocol tcp\|http` + `--telemetry-provider auto\|native\|polling`. Config: `config_loader.py` + `config/collector.json` + `AGENTIC_GOV_*` env. |
+| `collector/telemetry/` | Event store (thread-safe ring buffer) and typed event classes (`ProcessExecEvent`, `NetworkConnectEvent`, `FileChangeEvent`). Decouples telemetry collection from scanner consumption. |
+| `collector/providers/` | Telemetry provider interface and implementations. `PollingProvider` (psutil-based, always available), provider registry (`get_best_provider()`). Native OS providers (ESF, ETW, eBPF) will be added here. |
+| `api/` | FastAPI backend: auth (JWT + API key, invite tokens, password reset), events, endpoints, policies, users, webhooks, EDR enrichment. Binary protocol gateway (`gateway.py`, port 8001). Config: `core/config.py` + `.env` (see root `.env.example`). |
+| `api/integrations/` | Server-side EDR enrichment: `EDRProvider` interface, CrowdStrike Falcon stub, enrichment pipeline for rescoring confidence with EDR telemetry. |
 | `protocol/` | Shared binary wire protocol package (msgpack framing, message types, connection base class). Imported by both `api/` and `collector/`. |
 | `dashboard/` | React/Vite SOC UI. Build: `npm run build`; dev: `npm run dev` (proxies API). Served by FastAPI at root when built. |
 | `playbook/` | Governance playbook (versioned Markdown). Detection profiles, policy rules, lab methodology. |
@@ -46,7 +49,8 @@ Default dashboard login: `admin@example.com` / `change-me` (unless overridden by
 - **Config:** Collector: `collector/config_loader.py` + `collector/config/collector.json` + env. API: `api/core/config.py` + root or `api/.env`. Production: set `ENV=production` and strong `JWT_SECRET` / `SEED_ADMIN_PASSWORD`.
 - **Docs:** Agent deployment → [DEPLOY.md](DEPLOY.md). Central server → [SERVER.md](SERVER.md). Playbook → `playbook/PLAYBOOK-v0.4-*.md`. Progress → [PROGRESS.md](PROGRESS.md).
 - **Versioning:** Playbook uses semantic version in filename and `Version:` header; see `.cursor/rules/git-and-versioning.mdc` for commit/version discipline.
-- **Tests:** `pytest collector/tests/` (200 tests), `pytest api/tests/` (82), `pytest protocol/tests/` (45). Run separately to avoid package conflicts.
+- **Tests:** `pytest collector/tests/` (233 tests), `pytest api/tests/` (122), `pytest protocol/tests/` (45). Run separately to avoid package conflicts.
+- **Calibration:** `pytest collector/tests/test_calibration.py -v` runs the replay harness against 8 lab-run fixtures. Runs automatically in CI as a dedicated "Calibration Regression" job on every push/PR to main. Run it locally before changing weights or penalties in `engine/confidence.py`. Add new fixtures to `collector/tests/fixtures/lab_runs/` after each lab run.
 
 ---
 
