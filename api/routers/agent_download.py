@@ -112,33 +112,90 @@ def _build_collector_json(api_url: str, api_key: str, interval: int, protocol: s
     return json.dumps(cfg, indent=2) + "\n"
 
 
+_MACOS_INSTALL_SH = """\
+#!/bin/bash
+# Detec Agent installer for macOS.
+# Places server configuration, then runs the .pkg installer.
+# Usage: bash install.sh
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONFIG_DIR="$HOME/Library/Application Support/Detec"
+
+# Find the .pkg in the same directory as this script.
+PKG=""
+for f in "$SCRIPT_DIR"/DetecAgent*.pkg; do
+    [ -f "$f" ] && PKG="$f" && break
+done
+if [ -z "$PKG" ]; then
+    echo "ERROR: No .pkg installer found next to this script."
+    exit 1
+fi
+
+echo "=== Detec Agent Install ==="
+echo "Package:  $(basename "$PKG")"
+echo ""
+
+# Place server config before the installer runs, so the agent can
+# connect immediately when the LaunchAgent starts.
+mkdir -p "$CONFIG_DIR"
+if [ -f "$SCRIPT_DIR/agent.env" ]; then
+    cp "$SCRIPT_DIR/agent.env" "$CONFIG_DIR/agent.env"
+    chmod 600 "$CONFIG_DIR/agent.env"
+    echo "  Config installed: $CONFIG_DIR/agent.env"
+fi
+if [ -f "$SCRIPT_DIR/collector.json" ]; then
+    cp "$SCRIPT_DIR/collector.json" "$CONFIG_DIR/collector.json"
+    chmod 600 "$CONFIG_DIR/collector.json"
+    echo "  Config installed: $CONFIG_DIR/collector.json"
+fi
+
+echo ""
+echo "Running installer (you will be prompted for your password)..."
+sudo installer -pkg "$PKG" -target /
+
+echo ""
+echo "=== Install complete ==="
+echo "The Detec Agent is now running and will connect to your server automatically."
+echo "To check status:  open '/Applications/Detec Agent.app'"
+echo "Logs:             ~/Library/Logs/DetecAgent/agent.log"
+"""
+
 _README_TEMPLATE: dict[str, str] = {
     "macos": """\
 # Detec Agent - macOS
 
 ## Quick Start
 
-1. Double-click `DetecAgent.pkg` (or the versioned .pkg) to install.
-2. The agent is pre-configured to connect to your server automatically.
-3. Configuration is placed in `~/Library/Application Support/Detec/`.
+1. Extract this zip.
+2. Open Terminal, cd into the extracted folder, and run:
 
-If you need to adjust settings later, edit `~/Library/Application Support/Detec/agent.env`
-or run `detec-agent setup --api-url ... --api-key ...`.
+       bash install.sh
+
+3. Enter your password when prompted. The agent installs, starts, and
+   connects to your server automatically. No further setup required.
+
+If you prefer a manual install, double-click the .pkg and then copy
+the config files yourself (see Manual Config below).
 
 ## Files Included
 
-- `DetecAgent.pkg` (or versioned .pkg) - macOS installer
-- `agent.env` - Pre-filled environment config (copy to ~/Library/Application Support/Detec/)
+- `install.sh` - One-step installer (places config, runs .pkg)
+- `DetecAgent.pkg` (or versioned .pkg) - macOS installer package
+- `agent.env` - Pre-filled server config
 - `collector.json` - Pre-filled JSON config
 - This README
 
-## Manual Config Installation
+## Manual Config
 
-If the installer does not place the config automatically, copy it yourself:
+If you ran the .pkg directly instead of using install.sh:
 
     mkdir -p ~/Library/Application\\ Support/Detec
     cp agent.env ~/Library/Application\\ Support/Detec/agent.env
     cp collector.json ~/Library/Application\\ Support/Detec/collector.json
+
+Then relaunch the agent or wait for the next scan cycle.
 """,
     "windows": """\
 # Detec Agent - Windows (zip fallback)
@@ -254,6 +311,10 @@ def _build_zip(pkg_path: Path, api_url: str, api_key: str, interval: int,
         zf.write(pkg_path, pkg_path.name, compress_type=zipfile.ZIP_STORED)
         zf.writestr("agent.env", env_content)
         zf.writestr("collector.json", json_content)
+        if platform == "macos":
+            info = zipfile.ZipInfo("install.sh")
+            info.external_attr = 0o755 << 16  # rwxr-xr-x
+            zf.writestr(info, _MACOS_INSTALL_SH)
         if readme:
             zf.writestr("README.md", readme)
     buf.seek(0)

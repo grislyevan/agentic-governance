@@ -35,7 +35,7 @@ are several ways to deliver these to managed endpoints:
 
 Build the `.pkg` with the server URL and tenant agent key baked in. The postinstall script copies the config to `~/Library/Application Support/Detec/agent.env` automatically; no additional MDM scripts or profiles needed.
 
-**From the dashboard:** Go to Settings > Deploy Agent, select macOS, and click "Download Agent". The zip contains a `.pkg` with embedded config plus standalone `agent.env` and `collector.json` files. The tenant agent key is embedded automatically. You can also email a download link directly to end users from the same section.
+**From the dashboard:** Go to Settings > Deploy Agent, select macOS, and click "Download Agent". The zip contains the `.pkg` installer, `agent.env`, `collector.json`, an `install.sh` wrapper script, and a README. The tenant agent key is embedded automatically. Run `bash install.sh` on the target Mac for a one-step install (places config, runs the `.pkg`, agent starts and connects). You can also email a download link directly to end users from the same section.
 
 **From the build machine:**
 

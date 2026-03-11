@@ -82,12 +82,20 @@ chown -R "$REAL_USER:$REAL_GROUP" "$STATE_DIR"
 chown -R "$REAL_USER:$REAL_GROUP" "$APP_SUPPORT_DIR"
 
 # Copy baked-in config from the .app bundle if present.
-BAKED_ENV="${APP_PATH}/Contents/Resources/config/agent.env"
+BAKED_CONFIG_DIR="${APP_PATH}/Contents/Resources/config"
+BAKED_ENV="${BAKED_CONFIG_DIR}/agent.env"
+BAKED_JSON="${BAKED_CONFIG_DIR}/collector.json"
 if [ -f "$BAKED_ENV" ]; then
     cp "$BAKED_ENV" "$APP_SUPPORT_DIR/agent.env"
     chmod 600 "$APP_SUPPORT_DIR/agent.env"
     chown "$REAL_USER:$REAL_GROUP" "$APP_SUPPORT_DIR/agent.env"
     echo "  Pre-configured agent.env installed to $APP_SUPPORT_DIR/"
+fi
+if [ -f "$BAKED_JSON" ]; then
+    cp "$BAKED_JSON" "$APP_SUPPORT_DIR/collector.json"
+    chmod 600 "$APP_SUPPORT_DIR/collector.json"
+    chown "$REAL_USER:$REAL_GROUP" "$APP_SUPPORT_DIR/collector.json"
+    echo "  Pre-configured collector.json installed to $APP_SUPPORT_DIR/"
 fi
 
 # Load the LaunchAgent as the real user (not root).
@@ -97,8 +105,8 @@ launchctl bootstrap "gui/$REAL_UID" "$PLIST_PATH" 2>/dev/null || \
     sudo -u "$REAL_USER" launchctl load "$PLIST_PATH" 2>/dev/null || true
 
 echo "Detec Agent: post-install complete."
-if [ -f "$BAKED_ENV" ]; then
-    echo "  Server config was pre-loaded. The agent will connect automatically."
+if [ -f "$BAKED_ENV" ] || [ -f "$APP_SUPPORT_DIR/agent.env" ]; then
+    echo "  Server config found. The agent will connect automatically."
 else
     echo "  The agent will start automatically at login."
     echo "  Run 'detec-agent setup' to configure the API URL and key."

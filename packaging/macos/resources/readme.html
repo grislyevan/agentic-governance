@@ -22,18 +22,22 @@
 </table>
 
 <h2>Configuration</h2>
-<p>After installation, configure the agent with your organization's API
-endpoint. Create or edit <code>~/.agentic-gov/config.json</code>:</p>
+<p>If you downloaded this package from the Detec dashboard, run the
+included <code>install.sh</code> script instead of double-clicking the
+<code>.pkg</code> directly. The script places your server configuration
+automatically so the agent connects with no manual setup.</p>
 
-<pre style="background:#f1f5f9; padding:10px; border-radius:6px; font-size:12px;">{
-  "api_url": "https://your-detec-server.example.com",
-  "api_key": "your-api-key",
-  "interval": 300,
-  "sensitivity": "Tier0"
-}</pre>
+<p>For manual installs, configure the agent by placing config files in
+<code>~/Library/Application Support/Detec/</code>:</p>
 
-<p>Alternatively, set environment variables <code>AGENTIC_GOV_API_URL</code>
-and <code>AGENTIC_GOV_API_KEY</code>, or store the API key in the macOS
+<ul style="font-size:13px;">
+  <li><code>agent.env</code> (KEY=VALUE format with <code>AGENTIC_GOV_</code> prefix)</li>
+  <li><code>collector.json</code> (JSON format)</li>
+</ul>
+
+<p>Alternatively, run <code>detec-agent setup --api-url ... --api-key ...</code>,
+set environment variables (<code>AGENTIC_GOV_API_URL</code>,
+<code>AGENTIC_GOV_API_KEY</code>), or store the API key in the macOS
 Keychain (service: <code>detec-agent</code>, account: <code>api-key</code>).</p>
 
 <h2>Permissions</h2>
@@ -42,13 +46,15 @@ to Detec Agent in System Settings. Your IT administrator may push this
 permission automatically via an MDM configuration profile.</p>
 
 <h2>Uninstalling</h2>
-<p>To remove the agent:</p>
+<p>To remove the agent, run the uninstaller script:</p>
+<pre style="background:#f1f5f9; padding:10px; border-radius:6px; font-size:12px;">sudo bash /path/to/packaging/macos/uninstall.sh</pre>
+<p>Or manually:</p>
 <ol style="font-size:13px;">
   <li>Quit Detec Agent from the menu bar</li>
   <li>Run: <code>launchctl bootout gui/$(id -u)/com.detec.agent</code></li>
   <li>Delete <code>/Applications/Detec Agent.app</code></li>
   <li>Delete <code>~/Library/LaunchAgents/com.detec.agent.plist</code></li>
-  <li>(Optional) Delete <code>~/.agentic-gov/</code> to remove state and config</li>
+  <li>(Optional) Delete <code>~/.agentic-gov/</code> and <code>~/Library/Application Support/Detec/</code></li>
 </ol>
 
 </body>

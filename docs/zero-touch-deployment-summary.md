@@ -51,7 +51,8 @@ The `GET /api/agent/download` endpoint accepts JWT or API key authentication. Th
 1. Finds the platform installer in `_DIST_DIR` (`dist/packages/` relative to server exe or repo root)
 2. Writes it into the zip with `ZIP_STORED` (no re-compression; the installer is already compressed)
 3. Generates `agent.env` and `collector.json` with the tenant agent key, API URL (derived from the request), interval, and protocol
-4. Includes a platform-specific `README.md`
+4. For macOS, includes `install.sh` (a wrapper that places config then runs the `.pkg` installer for a one-step install)
+5. Includes a platform-specific `README.md`
 
 **Package lookup paths** (`_DIST_DIR`):
 - **PyInstaller (frozen):** `<server.exe parent>/dist/packages/`  (e.g. `C:\Program Files\Detec\Server\dist\packages\`)
@@ -61,7 +62,7 @@ The `GET /api/agent/download` endpoint accepts JWT or API key authentication. Th
 
 | Platform | Candidates |
 |---|---|
-| Windows | `detec-agent.zip` |
+| Windows | `DetecAgentSetup.exe`, `detec-agent.zip` |
 | macOS | `DetecAgent-latest.pkg`, `DetecAgent.pkg` |
 | Linux | `detec-agent-linux.tar.gz` |
 
@@ -162,7 +163,7 @@ GET /api/agent/download          GET /api/agent/download/{token}
     +---------- Server embeds -------------+
     |        tenant agent key              |
     v                                      v
-  ZIP bundle: installer + agent.env + collector.json + README
+  ZIP bundle: install.sh + installer + agent.env + collector.json + README
     |
     v
   Agent installs, reads config from platform path

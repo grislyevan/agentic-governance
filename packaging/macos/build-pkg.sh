@@ -119,9 +119,15 @@ fi
 # Clean staging
 rm -rf "$PKG_DIR"
 
+# ---- Create stable "latest" alias for server/installer pipelines ----
+LATEST_PKG="$PROJECT_ROOT/dist/DetecAgent-latest.pkg"
+cp "$FINAL_PKG" "$LATEST_PKG"
+echo "  Latest alias: $LATEST_PKG"
+
 echo ""
 echo "=== Package build complete ==="
 echo "Installer: $FINAL_PKG"
+echo "Latest:    $LATEST_PKG"
 echo ""
 echo "To install locally:  sudo installer -pkg \"$FINAL_PKG\" -target /"
 echo "To deploy via MDM:   Upload $FINAL_PKG to Jamf Pro or Endpoint Central"

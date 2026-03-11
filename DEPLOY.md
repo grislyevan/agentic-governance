@@ -32,8 +32,10 @@ The fastest way to deploy agents. The central server generates a zip bundle cont
 3. In the **Deploy Agent** section, select the target platform (macOS, Windows, or Linux).
 4. Optionally adjust the scan interval and transport protocol.
 5. Click **Download Agent** to download a pre-configured package directly.
-6. A zip file downloads containing the installer, `agent.env`, `collector.json`, and a platform-specific README.
-7. Transfer the zip to the target machine, extract, and run the installer. The agent connects to the server automatically.
+6. A zip file downloads containing the installer, config files, and a platform-specific README.
+7. Transfer the zip to the target machine and extract it.
+8. **macOS:** Run `bash install.sh` in Terminal. This places the server config, runs the `.pkg` installer, and starts the agent. **Windows:** Run the `.exe` installer (config is embedded). **Linux:** Copy config and run the agent (see the included README).
+9. The agent connects to the server automatically. No manual API key handling is required.
 
 The server automatically generates and manages a tenant-level agent key. No manual API key handling is required.
 
