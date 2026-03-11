@@ -1,0 +1,24 @@
+{
+  "lab_run": "LAB-RUN-005",
+  "tool_name": "GitHub Copilot",
+  "tool_version": "0.37.9",
+  "tool_class": "A",
+  "platform": "macOS ARM64",
+  "date": "2026-03-03",
+  "signals": {
+    "process": 0.80,
+    "file": 0.85,
+    "network": 0.55,
+    "identity": 0.40,
+    "behavior": 0.25
+  },
+  "penalties": [
+    ["partial_proc_net_linkage", 0.05],
+    ["weak_identity_correlation", 0.05],
+    ["extension_host_ambiguity", 0.05]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Medium",
+  "expected_score_range": [0.43, 0.49],
+  "notes": "Unauthenticated baseline. Bimodal identity profile. Projected ~0.74 Medium when authenticated."
+}

@@ -1,0 +1,22 @@
+{
+  "lab_run": "LAB-RUN-001",
+  "tool_name": "Claude Code",
+  "tool_version": "2.1.59",
+  "tool_class": "C",
+  "platform": "macOS ARM64",
+  "date": "2026-02-26",
+  "signals": {
+    "process": 0.85,
+    "file": 0.95,
+    "network": 0.30,
+    "identity": 0.80,
+    "behavior": 0.75
+  },
+  "penalties": [
+    ["unresolved_proc_net_linkage", 0.05]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Medium",
+  "expected_score_range": [0.68, 0.74],
+  "notes": "Network weakest without EDR. Polling cannot attribute short-lived HTTPS to claude PID."
+}

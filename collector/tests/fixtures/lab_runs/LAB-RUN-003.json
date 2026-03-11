@@ -1,0 +1,23 @@
+{
+  "lab_run": "LAB-RUN-003",
+  "tool_name": "Ollama",
+  "tool_version": "0.17.0",
+  "tool_class": "B",
+  "platform": "macOS ARM64",
+  "date": "2026-03-01",
+  "signals": {
+    "process": 0.90,
+    "file": 0.90,
+    "network": 0.70,
+    "identity": 0.50,
+    "behavior": 0.80
+  },
+  "penalties": [
+    ["partial_proc_net_linkage", 0.05],
+    ["weak_identity_correlation", 0.05]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Medium",
+  "expected_score_range": [0.68, 0.74],
+  "notes": "Persistent localhost listener trivially attributable. Identity weakest layer (no account system)."
+}

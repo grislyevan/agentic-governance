@@ -1,0 +1,22 @@
+{
+  "lab_run": "LAB-RUN-004",
+  "tool_name": "Cursor",
+  "tool_version": "2.5.26",
+  "tool_class": "C",
+  "platform": "macOS ARM64",
+  "date": "2026-03-02",
+  "signals": {
+    "process": 0.95,
+    "file": 0.90,
+    "network": 0.75,
+    "identity": 0.55,
+    "behavior": 0.90
+  },
+  "penalties": [
+    ["weak_identity_correlation", 0.05]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "High",
+  "expected_score_range": [0.76, 0.82],
+  "notes": "First High confidence score. agent-exec extension host is binary Class C indicator."
+}

@@ -1,0 +1,22 @@
+{
+  "lab_run": "LAB-RUN-007",
+  "tool_name": "OpenClaw",
+  "tool_version": "2026.3.1",
+  "tool_class": "D",
+  "platform": "macOS ARM64",
+  "date": "2026-03-04",
+  "signals": {
+    "process": 0.90,
+    "file": 0.95,
+    "network": 0.70,
+    "identity": 0.85,
+    "behavior": 0.80
+  },
+  "penalties": [
+    ["partial_proc_net_linkage", 0.05]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "High",
+  "expected_score_range": [0.79, 0.85],
+  "notes": "First persistent autonomous agent validated. Richest file footprint (215 MB). LaunchAgent with KeepAlive."
+}
