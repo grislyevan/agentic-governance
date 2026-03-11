@@ -233,7 +233,7 @@ function AgentDownloadSection() {
           disabled={downloading}
           className="px-4 py-2 bg-detec-primary-500 hover:bg-detec-primary-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
         >
-          {downloading ? 'Downloading\u2026' : 'Download Agent'}
+          {downloading ? 'Downloading\u2026' : platform === 'windows' ? 'Download Installer' : 'Download Agent'}
         </button>
         {success && (
           <span className="inline-flex items-center gap-1.5 text-sm font-medium text-detec-teal-500 detec-toast-enter">

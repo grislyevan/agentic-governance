@@ -4,9 +4,12 @@
 #   1. Install Python build dependencies
 #   2. Build the React dashboard
 #   3. Build detec-server.exe via PyInstaller
-#   4. Build detec-agent.exe and create agent packages for download
-#   5. Generate installer branding assets
-#   6. Compile the Inno Setup installer
+#   4. Build detec-agent.exe (headless service) via PyInstaller
+#   5. Build detec-agent-gui.exe (tray app) via PyInstaller
+#   6. Generate installer branding assets
+#   7. Compile the agent installer (DetecAgentSetup.exe) via Inno Setup
+#   8. Bundle agent packages for server-side download
+#   9. Compile the server installer (DetecServerSetup.exe) via Inno Setup
 #
 # Prerequisites:
 #   - Python 3.11+ on PATH
@@ -23,6 +26,7 @@
 #
 # Output:
 #   packaging\windows\dist\DetecServerSetup-<version>.exe
+#   packaging\windows\dist\DetecAgentSetup-<version>.exe
 
 $ErrorActionPreference = "Stop"
 
@@ -54,14 +58,14 @@ if (-not $iscc) {
 } else {
     $iscc = $iscc.Source
 }
-Write-Host "[0/7] Inno Setup found: $iscc" -ForegroundColor Green
+Write-Host "[0/9] Inno Setup found: $iscc" -ForegroundColor Green
 
 # ── Step 1: Python dependencies ──────────────────────────────────────────
 
-Write-Host "`n[1/7] Installing Python dependencies..." -ForegroundColor Yellow
+Write-Host "`n[1/9] Installing Python dependencies..." -ForegroundColor Yellow
 $ErrorActionPreference = "Continue"
 pip install -r "$ApiDir\requirements.txt" 2>&1 | Out-Null
-pip install pyinstaller pywin32 Pillow 2>&1 | Out-Null
+pip install pyinstaller pywin32 Pillow pystray 2>&1 | Out-Null
 Push-Location $RepoRoot
 pip install -e . 2>&1 | Out-Null
 Pop-Location
@@ -70,7 +74,7 @@ Write-Host "  Dependencies installed." -ForegroundColor Green
 
 # ── Step 2: Dashboard build ──────────────────────────────────────────────
 
-Write-Host "`n[2/7] Building dashboard..." -ForegroundColor Yellow
+Write-Host "`n[2/9] Building dashboard..." -ForegroundColor Yellow
 Push-Location $DashboardDir
 $ErrorActionPreference = "Continue"
 npm install --loglevel=error 2>&1 | Out-Null
@@ -86,7 +90,7 @@ Write-Host "  Dashboard built." -ForegroundColor Green
 
 # ── Step 3: PyInstaller server bundle ────────────────────────────────────
 
-Write-Host "`n[3/7] Building detec-server.exe (this takes a few minutes)..." -ForegroundColor Yellow
+Write-Host "`n[3/9] Building detec-server.exe (this takes a few minutes)..." -ForegroundColor Yellow
 Push-Location $PackagingDir
 $ErrorActionPreference = "Continue"
 pyinstaller --clean --noconfirm detec-server.spec 2>&1 | ForEach-Object { "$_" } | Select-String -Pattern "(ERROR|completed)" | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
@@ -101,9 +105,9 @@ if (-not (Test-Path $serverExe)) {
 $sizeS = [math]::Round((Get-Item $serverExe).Length / 1MB, 1)
 Write-Host "  detec-server.exe built ($sizeS MB)" -ForegroundColor Green
 
-# ── Step 4: PyInstaller agent bundle + zip ───────────────────────────────
+# ── Step 4: PyInstaller agent (headless service) ─────────────────────────
 
-Write-Host "`n[4/7] Building detec-agent.exe..." -ForegroundColor Yellow
+Write-Host "`n[4/9] Building detec-agent.exe..." -ForegroundColor Yellow
 Push-Location $PackagingDir
 $ErrorActionPreference = "Continue"
 pyinstaller --clean --noconfirm detec-agent.spec 2>&1 | ForEach-Object { "$_" } | Select-String -Pattern "(ERROR|completed)" | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
@@ -119,13 +123,62 @@ if (-not (Test-Path $agentExe)) {
 $sizeA = [math]::Round((Get-Item $agentExe).Length / 1MB, 1)
 Write-Host "  detec-agent.exe built ($sizeA MB)" -ForegroundColor Green
 
-# Create dist/packages/ inside the server bundle so it ships with the installer
+# ── Step 5: PyInstaller agent GUI (tray app) ─────────────────────────────
+
+Write-Host "`n[5/9] Building detec-agent-gui.exe..." -ForegroundColor Yellow
+Push-Location $PackagingDir
+$ErrorActionPreference = "Continue"
+pyinstaller --clean --noconfirm detec-agent-gui.spec 2>&1 | ForEach-Object { "$_" } | Select-String -Pattern "(ERROR|completed)" | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+$ErrorActionPreference = "Stop"
+Pop-Location
+
+$agentGuiDir = "$DistDir\detec-agent-gui"
+$agentGuiExe = "$agentGuiDir\detec-agent-gui.exe"
+if (-not (Test-Path $agentGuiExe)) {
+    Write-Host "  Agent GUI build FAILED." -ForegroundColor Red
+    exit 1
+}
+$sizeG = [math]::Round((Get-Item $agentGuiExe).Length / 1MB, 1)
+Write-Host "  detec-agent-gui.exe built ($sizeG MB)" -ForegroundColor Green
+
+# ── Step 6: Installer branding assets ────────────────────────────────────
+
+Write-Host "`n[6/9] Generating installer branding assets..." -ForegroundColor Yellow
+python "$InstallerDir\generate-assets.py"
+
+if (-not (Test-Path "$InstallerDir\wizard-image.bmp") -or -not (Test-Path "$InstallerDir\wizard-small-image.bmp")) {
+    Write-Host "  Asset generation FAILED." -ForegroundColor Red
+    exit 1
+}
+Write-Host "  Branding assets ready." -ForegroundColor Green
+
+# ── Step 7: Agent installer (Inno Setup) ─────────────────────────────────
+
+Write-Host "`n[7/9] Compiling agent installer..." -ForegroundColor Yellow
+Get-ChildItem "$DistDir\DetecAgentSetup-*.exe" -ErrorAction SilentlyContinue | Remove-Item -Force
+& $iscc "$InstallerDir\detec-agent-setup.iss"
+
+$agentSetupExe = Get-ChildItem "$DistDir\DetecAgentSetup-*.exe" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if (-not $agentSetupExe) {
+    Write-Host "  Agent installer compilation FAILED." -ForegroundColor Red
+    exit 1
+}
+$sizeAI = [math]::Round($agentSetupExe.Length / 1MB, 1)
+Write-Host "  DetecAgentSetup.exe built ($sizeAI MB)" -ForegroundColor Green
+
+# ── Step 8: Bundle agent packages into server dist ───────────────────────
+
+Write-Host "`n[8/9] Bundling agent packages and compiling server installer..." -ForegroundColor Yellow
+
 $pkgDir = "$DistDir\detec-server\dist\packages"
 New-Item -ItemType Directory -Force -Path $pkgDir | Out-Null
 
-# Zip the agent directory for Windows agent downloads
+# Copy the agent installer EXE (preferred download for Windows)
+Copy-Item $agentSetupExe.FullName "$pkgDir\DetecAgentSetup.exe"
+Write-Host "  DetecAgentSetup.exe copied to server packages." -ForegroundColor Green
+
+# Zip the headless agent for backward-compatible / scripted deployments
 $agentZip = "$pkgDir\detec-agent.zip"
-Write-Host "  Creating detec-agent.zip..." -ForegroundColor Gray
 if (Test-Path $agentZip) { Remove-Item $agentZip -Force }
 Compress-Archive -Path "$agentDir\*" -DestinationPath $agentZip -CompressionLevel Optimal
 $sizeZ = [math]::Round((Get-Item $agentZip).Length / 1MB, 1)
@@ -149,46 +202,34 @@ if (-not $macPkgFound) {
     Write-Host "  macOS .pkg not found (optional; build on macOS and place in dist/)." -ForegroundColor Gray
 }
 
-# ── Step 5: Installer branding assets ────────────────────────────────────
-
-Write-Host "`n[5/7] Generating installer branding assets..." -ForegroundColor Yellow
-python "$InstallerDir\generate-assets.py"
-
-if (-not (Test-Path "$InstallerDir\wizard-image.bmp") -or -not (Test-Path "$InstallerDir\wizard-small-image.bmp")) {
-    Write-Host "  Asset generation FAILED." -ForegroundColor Red
-    exit 1
-}
-Write-Host "  Branding assets ready." -ForegroundColor Green
-
-# ── Step 6: Inno Setup compilation ──────────────────────────────────────
-
-Write-Host "`n[6/7] Compiling installer..." -ForegroundColor Yellow
-# Remove old installer so a stale artifact can't mask a compile failure
+# Compile the server installer
 Get-ChildItem "$DistDir\DetecServerSetup-*.exe" -ErrorAction SilentlyContinue | Remove-Item -Force
 & $iscc "$InstallerDir\detec-server-setup.iss"
 
 $setupExe = Get-ChildItem "$DistDir\DetecServerSetup-*.exe" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $setupExe) {
-    Write-Host "  Installer compilation FAILED." -ForegroundColor Red
+    Write-Host "  Server installer compilation FAILED." -ForegroundColor Red
     exit 1
 }
 
-# ── Step 7: Summary ─────────────────────────────────────────────────────
+# ── Step 9: Summary ─────────────────────────────────────────────────────
 
 $sizeI = [math]::Round($setupExe.Length / 1MB, 1)
 Write-Host ""
 Write-Host "  Build complete!" -ForegroundColor Green
-Write-Host "  Installer: $($setupExe.FullName) ($sizeI MB)" -ForegroundColor White
 Write-Host ""
-Write-Host "  Bundled agent packages:" -ForegroundColor White
-Write-Host "    Windows: detec-agent.zip ($sizeZ MB)" -ForegroundColor White
+Write-Host "  Server installer: $($setupExe.FullName) ($sizeI MB)" -ForegroundColor White
+Write-Host "  Agent installer:  $($agentSetupExe.FullName) ($sizeAI MB)" -ForegroundColor White
+Write-Host ""
+Write-Host "  Bundled agent packages (in server dist/packages/):" -ForegroundColor White
+Write-Host "    Windows: DetecAgentSetup.exe ($sizeAI MB) + detec-agent.zip ($sizeZ MB)" -ForegroundColor White
 if ($macPkgFound) {
     Write-Host "    macOS:   .pkg included" -ForegroundColor White
 } else {
     Write-Host "    macOS:   not included (place .pkg in dist/ before building)" -ForegroundColor Gray
 }
 Write-Host ""
-Write-Host "  Ship this single file to clients. They double-click it," -ForegroundColor Gray
+Write-Host "  Ship DetecServerSetup.exe to clients. They double-click it," -ForegroundColor Gray
 Write-Host "  follow the wizard, and the server is installed and running." -ForegroundColor Gray
-Write-Host "  Agent downloads are available from the dashboard immediately." -ForegroundColor Gray
+Write-Host "  Agent installers are served from the dashboard automatically." -ForegroundColor Gray
 Write-Host ""

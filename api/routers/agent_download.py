@@ -13,6 +13,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import struct
 import sys
 import zipfile
 from datetime import datetime, timezone
@@ -48,9 +49,11 @@ _DIST_DIR = _APP_ROOT / "dist" / "packages"
 
 _PLATFORM_PACKAGES: dict[str, list[str]] = {
     "macos": ["DetecAgent-latest.pkg", "DetecAgent.pkg"],
-    "windows": ["detec-agent.zip"],
+    "windows": ["DetecAgentSetup.exe", "detec-agent.zip"],
     "linux": ["detec-agent-linux.tar.gz"],
 }
+
+_CFG_MAGIC = b"DETEC_CFG_V1\x00"
 
 
 class Platform(str, Enum):
@@ -138,12 +141,21 @@ If the installer does not place the config automatically, copy it yourself:
     cp collector.json ~/Library/Application\\ Support/Detec/collector.json
 """,
     "windows": """\
-# Detec Agent - Windows
+# Detec Agent - Windows (zip fallback)
+
+If a DetecAgentSetup.exe installer was available, it was served directly
+with embedded configuration. This zip package is the fallback for scripted
+or MDM deployments.
 
 ## Quick Start
 
 1. Extract `detec-agent.zip` to `C:\\Program Files\\Detec\\`.
-2. The agent is pre-configured to connect to your server automatically.
+2. Copy config to the data directory:
+
+       mkdir %PROGRAMDATA%\\Detec\\Agent
+       copy collector.json %PROGRAMDATA%\\Detec\\Agent\\collector.json
+       copy agent.env %PROGRAMDATA%\\Detec\\Agent\\agent.env
+
 3. From an elevated prompt, install and start the service:
 
        cd "C:\\Program Files\\Detec\\detec-agent"
@@ -153,16 +165,9 @@ If the installer does not place the config automatically, copy it yourself:
 ## Files Included
 
 - `detec-agent.zip` - Windows agent distribution
-- `collector.json` - Pre-filled JSON config (copy to %PROGRAMDATA%\\Detec\\)
-- `agent.env` - Pre-filled environment config (alternative)
+- `collector.json` - Pre-filled JSON config
+- `agent.env` - Pre-filled environment config
 - This README
-
-## Manual Config Installation
-
-If the installer does not place the config automatically:
-
-    mkdir %PROGRAMDATA%\\Detec
-    copy collector.json %PROGRAMDATA%\\Detec\\collector.json
 """,
     "linux": """\
 # Detec Agent - Linux
@@ -202,6 +207,33 @@ def _derive_api_url(request: Request) -> str:
     return f"{base}/api"
 
 
+def _embed_config_in_exe(exe_bytes: bytes, api_url: str, api_key: str,
+                         interval: int, protocol: str,
+                         gateway_host: str | None) -> bytes:
+    """Append a config payload to an installer EXE.
+
+    Layout appended after the original PE data::
+
+        [DETEC_CFG_V1\\0] [JSON bytes] [4-byte LE length] [DETEC_CFG_V1\\0]
+
+    The Inno Setup installer's post-install step reads this from the end
+    of its own executable to extract tenant configuration.
+    """
+    cfg: dict = {
+        "api_url": api_url,
+        "api_key": api_key,
+        "interval": interval,
+        "protocol": protocol,
+    }
+    if protocol == "tcp":
+        if gateway_host:
+            cfg["gateway_host"] = gateway_host
+        cfg["gateway_port"] = settings.gateway_port
+    json_bytes = json.dumps(cfg, indent=2).encode("utf-8")
+    payload = _CFG_MAGIC + json_bytes + struct.pack("<I", len(json_bytes)) + _CFG_MAGIC
+    return exe_bytes + payload
+
+
 def _build_zip(pkg_path: Path, api_url: str, api_key: str, interval: int,
                protocol: str, gateway_host: str | None, platform: str) -> io.BytesIO:
     """Build the agent zip bundle with config files baked in."""
@@ -226,6 +258,44 @@ def _build_zip(pkg_path: Path, api_url: str, api_key: str, interval: int,
             zf.writestr("README.md", readme)
     buf.seek(0)
     return buf
+
+
+def _build_download_response(
+    pkg_path: Path, api_url: str, api_key: str, interval: int,
+    protocol: str, gateway_host: str | None, platform: str,
+) -> Response:
+    """Build the appropriate download response for the given package.
+
+    For .exe packages (Windows installer): embed config directly into
+    the binary and serve as application/octet-stream.
+    For all other formats: wrap in a zip with sidecar config files.
+    """
+    if pkg_path.suffix.lower() == ".exe":
+        exe_bytes = pkg_path.read_bytes()
+        content = _embed_config_in_exe(
+            exe_bytes, api_url, api_key, interval, protocol, gateway_host,
+        )
+        filename = f"DetecAgentSetup.exe"
+        return Response(
+            content=content,
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Length": str(len(content)),
+            },
+        )
+
+    buf = _build_zip(pkg_path, api_url, api_key, interval, protocol, gateway_host, platform)
+    content = buf.getvalue()
+    filename = f"detec-agent-{platform}.zip"
+    return Response(
+        content=content,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(content)),
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -266,17 +336,8 @@ def download_agent(
     api_url = _derive_api_url(request)
     gateway_host = request.base_url.hostname if protocol == "tcp" else None
 
-    buf = _build_zip(pkg_path, api_url, agent_key, interval, protocol, gateway_host, platform.value)
-
-    content = buf.getvalue()
-    filename = f"detec-agent-{platform.value}.zip"
-    return Response(
-        content=content,
-        media_type="application/zip",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
-            "Content-Length": str(len(content)),
-        },
+    return _build_download_response(
+        pkg_path, api_url, agent_key, interval, protocol, gateway_host, platform.value,
     )
 
 
@@ -330,17 +391,8 @@ def download_agent_by_token(
 
     db.commit()
 
-    buf = _build_zip(pkg_path, api_url, agent_key, interval, protocol, gateway_host, platform.value)
-
-    content = buf.getvalue()
-    filename = f"detec-agent-{platform.value}.zip"
-    return Response(
-        content=content,
-        media_type="application/zip",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
-            "Content-Length": str(len(content)),
-        },
+    return _build_download_response(
+        pkg_path, api_url, agent_key, interval, protocol, gateway_host, platform.value,
     )
 
 
