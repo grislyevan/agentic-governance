@@ -160,6 +160,7 @@ API Client ────────────────────▶│ Mu
 - [x] Events dashboard: filterable table, confidence bands, enforcement state, time range
 - [x] Policy list (read-only, from API)
 - [x] Policy configuration UI: create/edit/toggle policies from dashboard (owner/admin)
+- [x] Baseline policies: 15 rules from Playbook v0.4.0 seeded per tenant (6 enforcement, 3 Class D, 3 overlay, 3 fallback), restore-defaults endpoint, dashboard category grouping with baseline badges
 - [x] Audit log page (read-only, paginated, from API)
 - [x] Webhook alerts: CRUD, HMAC-signed delivery, event type filtering, test endpoint, Settings UI
 - [x] Real-time updates via 30s polling with pause/resume and "Updated Xs ago" indicator

@@ -308,7 +308,7 @@ Users have a `role` field with four possible values:
 Sensitive endpoints enforce role checks:
 
 - **Owner only**: `DELETE /users/{id}` (deactivate user)
-- **Owner or admin**: `GET /users`, `POST /users`, `PATCH /users/{id}`, `POST /policies`, `PATCH /policies/{id}`, `POST /endpoints/enroll`, `GET/POST/PATCH/DELETE /webhooks`
+- **Owner or admin**: `GET /users`, `POST /users`, `PATCH /users/{id}`, `POST /policies`, `PATCH /policies/{id}`, `DELETE /policies/{id}`, `POST /policies/restore-defaults`, `POST /endpoints/enroll`, `GET/POST/PATCH/DELETE /webhooks`
 - **Owner, admin, or analyst**: `GET /audit-log`
 - **Any authenticated user**: read endpoints, read events, heartbeat
 - **Unauthenticated**: `POST /auth/forgot-password`, `POST /auth/reset-password`, `POST /auth/accept-invite`
@@ -347,11 +347,33 @@ All security-relevant actions are recorded in the `audit_log` table with actor, 
 - `user.registered`, `user.login` (auth events)
 - `user.created`, `user.updated`, `user.deactivated` (user management)
 - `password.reset_requested`, `password.reset_completed`, `invite.accepted` (auth token events)
-- `policy.created`, `policy.updated` (policy changes)
+- `policy.created`, `policy.updated`, `policy.deleted`, `policy.restore_defaults` (policy changes)
 - `endpoint.enrolled`, `endpoint.key_rotated` (enrollment events)
 - `webhook.created`, `webhook.updated`, `webhook.deleted`, `webhook.tested` (webhook management)
 
 Query the audit log via `GET /audit-log` (requires admin or analyst role).
+
+### Baseline policies
+
+Every new tenant is seeded with 15 baseline enforcement policies from Playbook v0.4.0 (Section 6.3). These represent the default enforcement ladder and are the same rules implemented in the collector's policy engine (`collector/engine/policy.py`).
+
+| Category | Rules | Default |
+|----------|-------|---------|
+| Core enforcement | ENFORCE-001 through ENFORCE-006 | All active |
+| Class D overrides | ENFORCE-D01, D02, D03 | All active |
+| Overlay | NET-001, NET-002, ISO-001 | NET rules active; ISO-001 inactive |
+| Fallback | ENFORCE-001-F, 002-F, 003-F | All active |
+
+Baseline rules are marked `is_baseline=true` in the database. They can be toggled on/off but cannot be deleted or have their `rule_id` changed. Custom (non-baseline) policies can be created and deleted freely.
+
+To reset all baseline policies to their shipped defaults:
+
+```bash
+curl -X POST -H "Authorization: Bearer YOUR_JWT" \
+  http://localhost:8000/api/policies/restore-defaults
+```
+
+This re-creates any missing baseline rules and resets existing ones to their default state (is_active, parameters, description). Custom policies are not affected.
 
 ### Tenant isolation
 

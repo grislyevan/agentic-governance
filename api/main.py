@@ -191,8 +191,16 @@ def _seed() -> None:
             api_key_hash=key_hash,
         )
         db.add(admin)
+        db.flush()
+
+        from core.baseline_policies import seed_baseline_policies
+
+        n_policies = seed_baseline_policies(db, tenant.id)
         db.commit()
-        logger.info("Seed: created tenant '%s' and admin '%s'", tenant.name, admin.email)
+        logger.info(
+            "Seed: created tenant '%s', admin '%s', and %d baseline policies",
+            tenant.name, admin.email, n_policies,
+        )
         env = os.getenv("ENV", "development").lower()
         if env in ("production", "staging"):
             logger.info(

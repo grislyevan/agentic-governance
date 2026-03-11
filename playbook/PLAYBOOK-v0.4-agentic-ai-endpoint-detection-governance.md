@@ -853,6 +853,8 @@ The collector policy engine (`engine/policy.py`) assigns the following stable `r
 
 NET rules require a `NetworkContext` with allowlist-checked connections. ISO-001 uses `engine/container.py` to detect Docker/OCI containerization.
 
+**Server-side baseline:** All 15 rules above are seeded into the `policies` table for every tenant on creation (`api/core/baseline_policies.py`, BASELINE_VERSION 0.4.0). Baseline rules are `is_baseline=true`, tenant-scoped, and protected from deletion. ISO-001 ships inactive by default (container isolation is opt-in). Operators can toggle, customize parameters, or reset to defaults via `POST /api/policies/restore-defaults`.
+
 ### 6.4 Session-Level Escalation
 
 The ladder is stateful within session context:

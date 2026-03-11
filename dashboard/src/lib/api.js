@@ -98,8 +98,10 @@ export async function fetchAuditLog(config, { page = 1, pageSize = 50, action, r
   return apiFetch(`/audit-log?${params}`, config);
 }
 
-export async function fetchPolicies(config, { page = 1, pageSize = 50 } = {}) {
-  return apiFetch(`/policies?page=${page}&page_size=${pageSize}`, config);
+export async function fetchPolicies(config, { page = 1, pageSize = 50, category } = {}) {
+  const params = new URLSearchParams({ page, page_size: pageSize });
+  if (category) params.set('category', category);
+  return apiFetch(`/policies?${params}`, config);
 }
 
 export async function createPolicy(data) {
@@ -108,6 +110,14 @@ export async function createPolicy(data) {
 
 export async function updatePolicy(id, data) {
   return apiMutate('PATCH', `/policies/${id}`, data);
+}
+
+export async function deletePolicy(id) {
+  return apiMutate('DELETE', `/policies/${id}`);
+}
+
+export async function restoreDefaultPolicies() {
+  return apiMutate('POST', '/policies/restore-defaults');
 }
 
 async function apiMutate(method, path, body) {

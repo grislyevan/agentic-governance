@@ -13,7 +13,7 @@
 | `collector/` | Python agent: scanners, confidence engine, policy, HTTP + TCP emitters, telemetry providers. Entry: `main.py`; daemon: `--interval` + `--api-url` + `--api-key` + `--protocol tcp\|http` + `--telemetry-provider auto\|native\|polling`. Config: `config_loader.py` + `config/collector.json` + `AGENTIC_GOV_*` env. |
 | `collector/telemetry/` | Event store (thread-safe ring buffer) and typed event classes (`ProcessExecEvent`, `NetworkConnectEvent`, `FileChangeEvent`). Decouples telemetry collection from scanner consumption. |
 | `collector/providers/` | Telemetry provider interface and implementations. `PollingProvider` (psutil-based, always available), provider registry (`get_best_provider()`). Native OS providers (ESF, ETW, eBPF) will be added here. |
-| `api/` | FastAPI backend: auth (JWT + API key, invite tokens, password reset), events, endpoints, policies, users, webhooks, EDR enrichment. Binary protocol gateway (`gateway.py`, port 8001). Config: `core/config.py` + `.env` (see root `.env.example`). |
+| `api/` | FastAPI backend: auth (JWT + API key, invite tokens, password reset), events, endpoints, policies, users, webhooks, EDR enrichment. Binary protocol gateway (`gateway.py`, port 8001). Baseline policies seeded per tenant (`core/baseline_policies.py`). Config: `core/config.py` + `.env` (see root `.env.example`). |
 | `api/integrations/` | Server-side EDR enrichment: `EDRProvider` interface, CrowdStrike Falcon stub, enrichment pipeline for rescoring confidence with EDR telemetry. |
 | `protocol/` | Shared binary wire protocol package (msgpack framing, message types, connection base class). Imported by both `api/` and `collector/`. |
 | `dashboard/` | React/Vite SOC UI. Build: `npm run build`; dev: `npm run dev` (proxies API). Served by FastAPI at root when built. |
@@ -51,6 +51,7 @@ Default dashboard login: `admin@example.com` / `change-me` (unless overridden by
 - **Versioning:** Playbook uses semantic version in filename and `Version:` header; see `.cursor/rules/git-and-versioning.mdc` for commit/version discipline.
 - **Tests:** `pytest collector/tests/` (233 tests), `pytest api/tests/` (122), `pytest protocol/tests/` (45). Run separately to avoid package conflicts.
 - **Calibration:** `pytest collector/tests/test_calibration.py -v` runs the replay harness against 8 lab-run fixtures. Runs automatically in CI as a dedicated "Calibration Regression" job on every push/PR to main. Run it locally before changing weights or penalties in `engine/confidence.py`. Add new fixtures to `collector/tests/fixtures/lab_runs/` after each lab run.
+- **Baseline policies:** 15 rules from Playbook v0.4.0 Section 6.3 are seeded per tenant on creation (`api/core/baseline_policies.py`). Baseline rules are `is_baseline=True`, cannot be deleted, and can be reset via `POST /api/policies/restore-defaults`. ISO-001 (container isolation) ships inactive; all others active.
 
 ---
 

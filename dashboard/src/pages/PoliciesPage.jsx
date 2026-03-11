@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import useAuth from '../hooks/useAuth';
-import { fetchPolicies, createPolicy, updatePolicy } from '../lib/api';
+import { fetchPolicies, createPolicy, updatePolicy, deletePolicy, restoreDefaultPolicies } from '../lib/api';
 import usePolling from '../hooks/usePolling';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
 import PollingStatus from '../components/PollingStatus';
@@ -12,6 +12,41 @@ const DECISION_BADGES = {
   detect:            'bg-blue-900/40 text-blue-400 border-blue-700/40',
 };
 
+const CATEGORY_LABELS = {
+  enforcement: 'Core Enforcement',
+  class_d:     'Class D Overrides',
+  overlay:     'Overlay Rules',
+  fallback:    'Fallback Rules',
+};
+
+const CATEGORY_ORDER = ['enforcement', 'class_d', 'overlay', 'fallback'];
+
+function groupByCategory(policies) {
+  const groups = {};
+  const custom = [];
+
+  for (const p of policies) {
+    if (p.category && CATEGORY_ORDER.includes(p.category)) {
+      if (!groups[p.category]) groups[p.category] = [];
+      groups[p.category].push(p);
+    } else {
+      custom.push(p);
+    }
+  }
+
+  const ordered = [];
+  for (const cat of CATEGORY_ORDER) {
+    if (groups[cat]?.length) {
+      ordered.push({ category: cat, label: CATEGORY_LABELS[cat], policies: groups[cat] });
+    }
+  }
+  if (custom.length) {
+    ordered.push({ category: 'custom', label: 'Custom Rules', policies: custom });
+  }
+  return ordered;
+}
+
+
 export default function PoliciesPage() {
   const { user } = useAuth();
   const [policies, setPolicies] = useState([]);
@@ -20,6 +55,9 @@ export default function PoliciesPage() {
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState(null);
+  const [restoring, setRestoring] = useState(false);
+  const [confirmDisable, setConfirmDisable] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   const canManage = user?.role === 'owner' || user?.role === 'admin';
 
@@ -42,6 +80,10 @@ export default function PoliciesPage() {
   const { lastUpdated, paused, togglePause } = usePolling(load);
 
   const handleToggleActive = async (policy) => {
+    if (policy.is_baseline && policy.is_active) {
+      setConfirmDisable(policy);
+      return;
+    }
     try {
       await updatePolicy(policy.id, { is_active: !policy.is_active });
       load();
@@ -49,6 +91,50 @@ export default function PoliciesPage() {
       setError(e.message);
     }
   };
+
+  const handleConfirmDisable = async () => {
+    if (!confirmDisable) return;
+    try {
+      await updatePolicy(confirmDisable.id, { is_active: false });
+      load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setConfirmDisable(null);
+    }
+  };
+
+  const handleDelete = async (policy) => {
+    if (policy.is_baseline) return;
+    setConfirmDelete(policy);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete) return;
+    try {
+      await deletePolicy(confirmDelete.id);
+      load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setConfirmDelete(null);
+    }
+  };
+
+  const handleRestoreDefaults = async () => {
+    setRestoring(true);
+    setError(null);
+    try {
+      await restoreDefaultPolicies();
+      load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  const groups = groupByCategory(policies);
 
   return (
     <div className="space-y-4">
@@ -60,12 +146,21 @@ export default function PoliciesPage() {
         <div className="flex items-center gap-3">
           {loading && <ApertureSpinner size="sm" label="Loading policies" />}
           {canManage && (
-            <button
-              onClick={() => { setEditingPolicy(null); setShowForm(true); }}
-              className="rounded-lg bg-detec-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-detec-primary-500 transition-colors"
-            >
-              Create policy
-            </button>
+            <>
+              <button
+                onClick={handleRestoreDefaults}
+                disabled={restoring}
+                className="rounded-lg border border-detec-slate-700 px-4 py-2 text-sm font-medium text-detec-slate-300 hover:bg-detec-slate-800 hover:text-detec-slate-100 transition-colors disabled:opacity-50"
+              >
+                {restoring ? 'Restoring...' : 'Restore defaults'}
+              </button>
+              <button
+                onClick={() => { setEditingPolicy(null); setShowForm(true); }}
+                className="rounded-lg bg-detec-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-detec-primary-500 transition-colors"
+              >
+                Create policy
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -85,35 +180,45 @@ export default function PoliciesPage() {
           </div>
           <div className="text-detec-slate-400 text-sm font-medium mb-1">No policies configured yet</div>
           <div className="text-detec-slate-600 text-sm max-w-sm mx-auto mb-4">
-            Policies define how Detec responds to each tool class. Without them, everything stays at Detect.
+            Restore baseline policies to get started with Detec's default enforcement ladder.
           </div>
           {canManage && (
             <button
-              onClick={() => { setEditingPolicy(null); setShowForm(true); }}
-              className="rounded-lg bg-detec-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-detec-primary-500 transition-colors"
+              onClick={handleRestoreDefaults}
+              disabled={restoring}
+              className="rounded-lg bg-detec-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-detec-primary-500 transition-colors disabled:opacity-50"
             >
-              Create your first policy
+              {restoring ? 'Restoring...' : 'Restore baseline policies'}
             </button>
           )}
         </div>
       )}
 
-      {policies.length > 0 && (
-        <div className="grid gap-3">
-          {policies.map((policy) => (
-            <PolicyCard
-              key={policy.id}
-              policy={policy}
-              canManage={canManage}
-              onEdit={() => { setEditingPolicy(policy); setShowForm(true); }}
-              onToggleActive={() => handleToggleActive(policy)}
-            />
-          ))}
+      {groups.map((group) => (
+        <div key={group.category} className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-detec-slate-500 pt-2">
+            {group.label}
+            <span className="ml-2 text-xs font-normal text-detec-slate-600">
+              ({group.policies.length})
+            </span>
+          </h2>
+          <div className="grid gap-3">
+            {group.policies.map((policy) => (
+              <PolicyCard
+                key={policy.id}
+                policy={policy}
+                canManage={canManage}
+                onEdit={() => { setEditingPolicy(policy); setShowForm(true); }}
+                onToggleActive={() => handleToggleActive(policy)}
+                onDelete={() => handleDelete(policy)}
+              />
+            ))}
+          </div>
         </div>
-      )}
+      ))}
 
       {total > 0 && (
-        <div className="text-sm text-detec-slate-500 text-center">
+        <div className="text-sm text-detec-slate-500 text-center pt-2">
           {total} {total === 1 ? 'policy' : 'policies'} total
         </div>
       )}
@@ -126,19 +231,45 @@ export default function PoliciesPage() {
           onError={setError}
         />
       )}
+
+      {confirmDisable && (
+        <ConfirmModal
+          title="Disable baseline policy?"
+          message={
+            `${confirmDisable.rule_id} is a baseline enforcement rule. ` +
+            'Disabling it may reduce your security posture. Are you sure?'
+          }
+          confirmLabel="Disable"
+          confirmClass="bg-amber-600 hover:bg-amber-500"
+          onConfirm={handleConfirmDisable}
+          onCancel={() => setConfirmDisable(null)}
+        />
+      )}
+
+      {confirmDelete && (
+        <ConfirmModal
+          title="Delete policy?"
+          message={`Permanently delete custom policy "${confirmDelete.rule_id}"? This cannot be undone.`}
+          confirmLabel="Delete"
+          confirmClass="bg-red-600 hover:bg-red-500"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   );
 }
 
 
-function PolicyCard({ policy, canManage, onEdit, onToggleActive }) {
+function PolicyCard({ policy, canManage, onEdit, onToggleActive, onDelete }) {
   const decisionState = policy.parameters?.decision_state;
   const badgeClass = DECISION_BADGES[decisionState] || 'bg-detec-slate-800/60 text-detec-slate-400 border-detec-slate-700/40';
+  const isInactiveBaseline = policy.is_baseline && !policy.is_active;
 
   return (
     <div className={`rounded-xl border bg-detec-slate-800/50 p-5 transition-colors ${
       policy.is_active ? 'border-detec-slate-700/50' : 'border-detec-slate-700/30 opacity-60'
-    }`}>
+    } ${isInactiveBaseline ? 'ring-1 ring-amber-700/30' : ''}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -146,6 +277,11 @@ function PolicyCard({ policy, canManage, onEdit, onToggleActive }) {
             <span className="text-xs px-1.5 py-0.5 rounded bg-detec-slate-700 text-detec-slate-400">
               v{policy.rule_version}
             </span>
+            {policy.is_baseline && (
+              <span className="text-xs px-1.5 py-0.5 rounded bg-detec-primary-900/40 text-detec-primary-400 border border-detec-primary-700/30">
+                Baseline
+              </span>
+            )}
             <span className={`text-xs px-1.5 py-0.5 rounded ${
               policy.is_active ? 'bg-detec-teal-500/15 text-detec-teal-500' : 'bg-detec-slate-700 text-detec-slate-500'
             }`}>
@@ -159,6 +295,11 @@ function PolicyCard({ policy, canManage, onEdit, onToggleActive }) {
           </div>
           {policy.description && (
             <p className="text-sm text-detec-slate-400 mt-1">{policy.description}</p>
+          )}
+          {isInactiveBaseline && (
+            <p className="text-xs text-amber-500/80 mt-1.5">
+              This baseline rule is disabled. Your enforcement posture may be reduced.
+            </p>
           )}
         </div>
 
@@ -180,23 +321,64 @@ function PolicyCard({ policy, canManage, onEdit, onToggleActive }) {
             >
               {policy.is_active ? 'Disable' : 'Enable'}
             </button>
+            {!policy.is_baseline && (
+              <button
+                onClick={onDelete}
+                className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-950/40 transition-colors"
+              >
+                Delete
+              </button>
+            )}
           </div>
         )}
       </div>
 
       {policy.parameters && Object.keys(policy.parameters).length > 0 && (
-        <div className="mt-3 pt-3 border-t border-detec-slate-700/50">
-          <div className="text-xs text-detec-slate-500 uppercase tracking-wider font-medium mb-1">Parameters</div>
+        <PolicyParameters parameters={policy.parameters} />
+      )}
+    </div>
+  );
+}
+
+
+function PolicyParameters({ parameters }) {
+  const { decision_state, conditions, precedence, overlay, is_fallback, rationale, ...rest } = parameters;
+
+  const conditionEntries = conditions ? Object.entries(conditions) : [];
+  const hasExtra = Object.keys(rest).length > 0;
+
+  if (!conditionEntries.length && !rationale && !hasExtra) return null;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-detec-slate-700/50">
+      {conditionEntries.length > 0 && (
+        <div className="mb-2">
+          <div className="text-xs text-detec-slate-500 uppercase tracking-wider font-medium mb-1">Conditions</div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1">
-            {Object.entries(policy.parameters).map(([k, v]) => (
+            {conditionEntries.map(([k, v]) => (
               <div key={k} className="flex items-baseline gap-1.5 text-xs">
                 <span className="text-detec-slate-500 font-mono">{k}:</span>
                 <span className="text-detec-slate-300 font-mono truncate">
-                  {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                  {Array.isArray(v) ? v.join(', ') : String(v)}
                 </span>
               </div>
             ))}
           </div>
+        </div>
+      )}
+      {rationale && (
+        <p className="text-xs text-detec-slate-500 italic mt-1">{rationale}</p>
+      )}
+      {hasExtra && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 mt-1">
+          {Object.entries(rest).map(([k, v]) => (
+            <div key={k} className="flex items-baseline gap-1.5 text-xs">
+              <span className="text-detec-slate-500 font-mono">{k}:</span>
+              <span className="text-detec-slate-300 font-mono truncate">
+                {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+              </span>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -206,8 +388,9 @@ function PolicyCard({ policy, canManage, onEdit, onToggleActive }) {
 
 function PolicyFormModal({ policy, onClose, onSaved, onError }) {
   const isEdit = !!policy;
+  const isBaseline = policy?.is_baseline;
   const [ruleId, setRuleId] = useState(policy?.rule_id || '');
-  const [ruleVersion, setRuleVersion] = useState(policy?.rule_version || '0.1.0');
+  const [ruleVersion, setRuleVersion] = useState(policy?.rule_version || '0.4.0');
   const [description, setDescription] = useState(policy?.description || '');
   const [isActive, setIsActive] = useState(policy?.is_active ?? true);
   const [paramsText, setParamsText] = useState(
@@ -245,13 +428,16 @@ function PolicyFormModal({ policy, onClose, onSaved, onError }) {
     try {
       const params = JSON.parse(paramsText);
       if (isEdit) {
-        await updatePolicy(policy.id, {
-          rule_id: ruleId.trim(),
+        const payload = {
           rule_version: ruleVersion.trim(),
           description: description.trim() || null,
           is_active: isActive,
           parameters: params,
-        });
+        };
+        if (!isBaseline) {
+          payload.rule_id = ruleId.trim();
+        }
+        await updatePolicy(policy.id, payload);
       } else {
         await createPolicy({
           rule_id: ruleId.trim(),
@@ -277,6 +463,11 @@ function PolicyFormModal({ policy, onClose, onSaved, onError }) {
       >
         <h2 className="text-lg font-semibold text-detec-slate-100 mb-4">
           {isEdit ? 'Edit Policy' : 'Create Policy'}
+          {isBaseline && (
+            <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-detec-primary-900/40 text-detec-primary-400 border border-detec-primary-700/30 align-middle">
+              Baseline
+            </span>
+          )}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -287,10 +478,16 @@ function PolicyFormModal({ policy, onClose, onSaved, onError }) {
                 type="text"
                 value={ruleId}
                 onChange={(e) => setRuleId(e.target.value)}
-                placeholder="e.g. ENFORCE-D01"
-                className="w-full rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-2 text-sm text-detec-slate-200 font-mono focus:border-detec-primary-500 focus:outline-none"
+                placeholder="e.g. CUSTOM-001"
+                disabled={isBaseline}
+                className={`w-full rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-2 text-sm text-detec-slate-200 font-mono focus:border-detec-primary-500 focus:outline-none ${
+                  isBaseline ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
                 required
               />
+              {isBaseline && (
+                <p className="text-xs text-detec-slate-600 mt-1">Rule ID is locked on baseline policies</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-detec-slate-400 mb-1">Version</label>
@@ -298,7 +495,7 @@ function PolicyFormModal({ policy, onClose, onSaved, onError }) {
                 type="text"
                 value={ruleVersion}
                 onChange={(e) => setRuleVersion(e.target.value)}
-                placeholder="0.1.0"
+                placeholder="0.4.0"
                 className="w-full rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-2 text-sm text-detec-slate-200 font-mono focus:border-detec-primary-500 focus:outline-none"
               />
             </div>
@@ -375,6 +572,35 @@ function PolicyFormModal({ policy, onClose, onSaved, onError }) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+
+function ConfirmModal({ title, message, confirmLabel, confirmClass, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
+      <div
+        className="w-full max-w-sm rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-base font-semibold text-detec-slate-100 mb-2">{title}</h3>
+        <p className="text-sm text-detec-slate-400 mb-5">{message}</p>
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onCancel}
+            className="rounded-lg border border-detec-slate-700 px-4 py-2 text-sm text-detec-slate-400 hover:bg-detec-slate-800"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`rounded-lg px-4 py-2 text-sm font-medium text-white ${confirmClass}`}
+          >
+            {confirmLabel}
+          </button>
+        </div>
       </div>
     </div>
   );
