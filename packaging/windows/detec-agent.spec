@@ -46,6 +46,7 @@ hiddenimports = [
     "collector.scanner.ollama",
     "collector.scanner.open_interpreter",
     "collector.scanner.openclaw",
+    "collector.agent._filelock",
     "collector.compat",
     "collector.compat.processes",
     "collector.compat.network",

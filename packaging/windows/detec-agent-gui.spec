@@ -46,6 +46,7 @@ hiddenimports = [
     "collector.agent.state",
     "collector.agent.buffer",
     "collector.agent.credentials",
+    "collector.agent._filelock",
     "collector.output.emitter",
     "collector.output.http_emitter",
     "collector.output.tcp_emitter",

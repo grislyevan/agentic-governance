@@ -20,7 +20,10 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from agent._filelock import file_lock
+try:
+    from collector.agent._filelock import file_lock
+except ImportError:
+    from agent._filelock import file_lock
 
 logger = logging.getLogger(__name__)
 
