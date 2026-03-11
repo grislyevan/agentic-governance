@@ -14,6 +14,10 @@ from pathlib import Path
 
 PROJECT_ROOT = os.path.abspath(os.path.join(SPECPATH, '..', '..'))
 
+# Read version from the single source of truth
+sys.path.insert(0, PROJECT_ROOT)
+from collector._version import __version__, __build__
+
 block_cipher = None
 
 # All scanner modules must be listed as hidden imports because they
@@ -42,6 +46,7 @@ HIDDEN_IMPORTS = [
     'collector.gui.statuswindow',
     'collector.gui.assets',
     'collector.gui.daemon_bridge',
+    'collector._version',
     'collector.main',
     'collector.config_loader',
     'collector.agent.state',
@@ -156,8 +161,8 @@ app = BUNDLE(
         'CFBundleName': 'Detec Agent',
         'CFBundleDisplayName': 'Detec Agent',
         'CFBundleIdentifier': 'com.detec.agent',
-        'CFBundleVersion': '0.3.0',
-        'CFBundleShortVersionString': '0.3',
+        'CFBundleVersion': __build__,
+        'CFBundleShortVersionString': __version__,
         'LSMinimumSystemVersion': '13.0',
         'LSUIElement': True,
         'NSHighResolutionCapable': True,

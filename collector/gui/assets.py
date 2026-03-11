@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import math
 import re
+import sys
 import tempfile
 from pathlib import Path
 
@@ -243,13 +244,24 @@ def save_icon_to_path(size: int, template: bool = False, path: Path | None = Non
 
 
 def get_menubar_icon_path() -> Path:
-    """Return path to a 22x22 template PNG for the menu bar, generating it if needed."""
+    """Return path to a 22x22 template PNG for the menu bar.
+
+    Checks three locations in order:
+    1. PyInstaller bundle (icons/ directory inside _MEIPASS)
+    2. Previously generated cache (~/.agentic-gov/icons/)
+    3. Generates fresh icons to the cache as a last resort
+    """
+    bundle_dir = getattr(sys, "_MEIPASS", None)
+    if bundle_dir:
+        bundled = Path(bundle_dir) / "icons" / "menubar-template.png"
+        if bundled.exists():
+            return bundled
+
     icon_dir = Path.home() / ".agentic-gov" / "icons"
     icon_path = icon_dir / "menubar-template.png"
     if icon_path.exists():
         return icon_path
 
-    # Generate both 1x (22px) and 2x (44px) versions
     save_icon_to_path(22, template=True, path=icon_path)
 
     retina_path = icon_dir / "menubar-template@2x.png"

@@ -16,10 +16,9 @@ import sys
 import tkinter as tk
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from collector._version import __version__ as _VERSION, __build__ as _BUILD
 
-_VERSION = "0.3"
-_BUILD = "0.3.0"
+logger = logging.getLogger(__name__)
 _WIN_WIDTH = 720
 _WIN_HEIGHT = 440
 _BG_HEX = "#CBD5E1"

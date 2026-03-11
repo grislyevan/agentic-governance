@@ -6,6 +6,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Centralized version constants**: Agent version and build number are now
+  defined once in `collector/_version.py` (`__version__`, `__build__`) and
+  imported by the macOS status window, Windows status window, and the
+  PyInstaller spec. Previously each file hardcoded its own copy, which
+  could drift when bumping versions.
+- **Menu bar icon loads from bundle first**: `get_menubar_icon_path()` now
+  checks the PyInstaller app bundle (`_MEIPASS/icons/`) for pre-generated
+  template PNGs before falling back to runtime generation. This avoids a
+  PyObjC render pass on first launch of the packaged `.app`.
+
 ### Added
 
 - **Invite token flow**: Admin-created users no longer need a temporary password.
