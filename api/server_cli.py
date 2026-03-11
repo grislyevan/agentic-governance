@@ -51,6 +51,24 @@ def _env_path() -> Path:
 # ``detec-server setup``
 # -------------------------------------------------------------------
 
+def _read_existing_env(path: Path) -> dict[str, str]:
+    """Parse an existing server.env into a dict (empty if file is missing)."""
+    result: dict[str, str] = {}
+    if not path.exists():
+        return result
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, _, value = line.partition("=")
+        if key.strip() and value is not None:
+            result[key.strip()] = value.strip()
+    return result
+
+
+_PRESERVED_KEYS = ("JWT_SECRET", "SEED_API_KEY", "SEED_AGENT_KEY")
+
+
 def cmd_setup(args: argparse.Namespace) -> None:
     """Generate secrets and write a server.env file for first-run."""
     env_file = _env_path()
@@ -61,7 +79,12 @@ def cmd_setup(args: argparse.Namespace) -> None:
         print("Use --force to overwrite.")
         return
 
-    jwt_secret = secrets.token_hex(32)
+    existing = _read_existing_env(env_file)
+
+    jwt_secret = existing.get("JWT_SECRET") or secrets.token_hex(32)
+    seed_api_key = existing.get("SEED_API_KEY") or secrets.token_hex(32)
+    seed_agent_key = existing.get("SEED_AGENT_KEY") or secrets.token_hex(32)
+
     seed_password = (
         getattr(args, "admin_password", None)
         or os.environ.get("DETEC_ADMIN_PASSWORD")
@@ -76,6 +99,8 @@ def cmd_setup(args: argparse.Namespace) -> None:
         f"JWT_SECRET={jwt_secret}",
         f"SEED_ADMIN_PASSWORD={seed_password}",
         f"SEED_ADMIN_EMAIL={args.admin_email}",
+        f"SEED_API_KEY={seed_api_key}",
+        f"SEED_AGENT_KEY={seed_agent_key}",
         f"API_PORT={api_port}",
         f"GATEWAY_PORT={gateway_port}",
         "ENV=production",

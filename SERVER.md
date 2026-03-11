@@ -423,6 +423,8 @@ All settings are defined in `api/core/config.py` (pydantic-settings). Field name
 | `ENV` | `development` | Environment name. Set to `production` or `staging` to enable security guards. |
 | `SEED_ADMIN_EMAIL` | `admin@example.com` | Email for the seed admin user. |
 | `SEED_TENANT_NAME` | `Default` | Name of the seed tenant. |
+| `SEED_API_KEY` | _(auto-generated)_ | Pinned admin API key. When set, `_seed()` uses this value instead of generating a random key. Generated automatically by `detec-server setup` and preserved across `--force` reinstalls. |
+| `SEED_AGENT_KEY` | _(auto-generated)_ | Pinned tenant agent key. When set, `_seed()` uses this value instead of generating a random key. Generated automatically by `detec-server setup` and preserved across `--force` reinstalls. Agents authenticate with this key. |
 | `CORS_ORIGINS` | `http://localhost:5173,http://localhost:3000,http://localhost:3001` | Comma-separated list of allowed CORS origins. Set to your dashboard URL in production. |
 | `API_HOST` | `0.0.0.0` | Bind address for uvicorn. |
 | `API_PORT` | `8000` | Bind port for uvicorn. |

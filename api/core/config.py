@@ -83,6 +83,8 @@ class Settings(BaseSettings):
     seed_admin_email: str = "admin@example.com"
     seed_admin_password: str = "change-me"
     seed_tenant_name: str = "Default"
+    seed_api_key: str = ""
+    seed_agent_key: str = ""
 
     # EDR Integration
     edr_provider: str = ""

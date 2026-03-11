@@ -43,7 +43,7 @@ from core.auth import hash_password
 from core.config import settings
 from core.database import SessionLocal, engine
 from models import Tenant, User
-from models.user import generate_api_key
+from models.user import API_KEY_PREFIX_LEN, generate_api_key, hash_api_key
 from models.audit import AuditLog
 from models.endpoint import Endpoint
 from models.event import Event
@@ -169,7 +169,7 @@ def _seed() -> None:
         from models.tenant import generate_agent_key
 
         slug = settings.seed_tenant_name.lower().replace(" ", "-")[:64]
-        agent_key = generate_agent_key()
+        agent_key = settings.seed_agent_key or generate_agent_key()
         tenant = Tenant(
             id=str(uuid.uuid4()),
             name=settings.seed_tenant_name,
@@ -179,7 +179,12 @@ def _seed() -> None:
         db.add(tenant)
         db.flush()
 
-        raw_key, prefix, key_hash = generate_api_key()
+        if settings.seed_api_key:
+            raw_key = settings.seed_api_key
+            prefix = raw_key[:API_KEY_PREFIX_LEN]
+            key_hash = hash_api_key(raw_key)
+        else:
+            raw_key, prefix, key_hash = generate_api_key()
         admin = User(
             id=str(uuid.uuid4()),
             tenant_id=tenant.id,
