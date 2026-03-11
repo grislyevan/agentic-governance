@@ -48,7 +48,6 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 CloseApplications=yes
-SetupWindowTitle=Detec Agent
 
 [Files]
 Source: "..\dist\detec-agent\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
