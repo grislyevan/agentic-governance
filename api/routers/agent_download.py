@@ -20,8 +20,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -243,7 +242,7 @@ def download_agent(
     db: Session = Depends(get_db),
     x_api_key: str | None = Header(default=None),
     authorization: str | None = Header(default=None),
-) -> StreamingResponse:
+) -> Response:
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
 
@@ -269,11 +268,15 @@ def download_agent(
 
     buf = _build_zip(pkg_path, api_url, agent_key, interval, protocol, gateway_host, platform.value)
 
+    content = buf.getvalue()
     filename = f"detec-agent-{platform.value}.zip"
-    return StreamingResponse(
-        buf,
+    return Response(
+        content=content,
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(content)),
+        },
     )
 
 
@@ -290,7 +293,7 @@ def download_agent_by_token(
     interval: int = Query(default=300, ge=30, le=86400),
     protocol: Literal["http", "tcp"] = Query(default="http"),
     db: Session = Depends(get_db),
-) -> StreamingResponse:
+) -> Response:
     token_hash = hash_token(token)
     token_obj = db.query(AuthToken).filter(
         AuthToken.token_hash == token_hash,
@@ -329,11 +332,15 @@ def download_agent_by_token(
 
     buf = _build_zip(pkg_path, api_url, agent_key, interval, protocol, gateway_host, platform.value)
 
+    content = buf.getvalue()
     filename = f"detec-agent-{platform.value}.zip"
-    return StreamingResponse(
-        buf,
+    return Response(
+        content=content,
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(content)),
+        },
     )
 
 
