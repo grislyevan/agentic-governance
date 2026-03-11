@@ -16,7 +16,10 @@ import sys
 import tkinter as tk
 from pathlib import Path
 
-from collector._version import __version__ as _VERSION, __build__ as _BUILD
+try:
+    from collector._version import __version__ as _VERSION, __build__ as _BUILD
+except ImportError:
+    from _version import __version__ as _VERSION, __build__ as _BUILD
 
 logger = logging.getLogger(__name__)
 _WIN_WIDTH = 720

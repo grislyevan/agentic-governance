@@ -32,6 +32,7 @@ hiddenimports = [
     "win32timezone",
     "servicemanager",
     "pywintypes",
+    "collector._version",
     "collector.scanner",
     "collector.scanner.aider",
     "collector.scanner.claude_code",

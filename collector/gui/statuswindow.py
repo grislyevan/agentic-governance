@@ -45,7 +45,10 @@ try:
 except ImportError:
     _OBJC_AVAILABLE = False
 
-from collector._version import __version__ as _VERSION, __build__ as _BUILD
+try:
+    from collector._version import __version__ as _VERSION, __build__ as _BUILD
+except ImportError:
+    from _version import __version__ as _VERSION, __build__ as _BUILD
 from collector.gui.assets import create_aperture_image, WORDMARK_COLOR
 
 logger = logging.getLogger(__name__)

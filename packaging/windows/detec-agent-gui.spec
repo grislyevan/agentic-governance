@@ -35,6 +35,7 @@ hiddenimports = [
     "msgpack",
     "win32timezone",
     "tkinter",
+    "collector._version",
     "collector.gui",
     "collector.gui.tray",
     "collector.gui.statuswindow_tk",
