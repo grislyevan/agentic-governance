@@ -193,7 +193,7 @@ API Client ────────────────────▶│ Mu
 - [x] SSO / OIDC support: authlib integration, login redirect, callback, user auto-provisioning, dashboard SSO button, 9 tests
 - [x] SIEM integrations: 5 templates (Splunk HEC, Elastic, Sentinel, PagerDuty, Slack), template API, dashboard selector, `docs/siem-integration.md`
 - [x] Compliance reporting: JSON/CSV/PDF export via reportlab, compliance summary endpoint, dashboard export modal, 12 tests
-- [ ] Evasion detection suite (aligns with INIT-29, builds on LAB-RUN-EVASION-001)
+- [x] Evasion detection suite: E1-E5 vectors (git hooks, template hooks, force-push, renamed binaries, Cursor settings), 30 tests
 - [x] MITRE ATT&CK tactics mapping: BEH-001..008 and tool classes A-D mapped, schema extension, event enrichment, dashboard column, 21 tests
 - [ ] Multi-region deployment option
 - [ ] SLA and support tier documentation

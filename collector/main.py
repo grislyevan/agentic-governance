@@ -60,6 +60,7 @@ from scanner.lm_studio import LMStudioScanner
 from scanner.ollama import OllamaScanner
 from scanner.open_interpreter import OpenInterpreterScanner
 from scanner.behavioral import BehavioralScanner
+from scanner.evasion import EvasionScanner
 from scanner.openclaw import OpenClawScanner
 
 logger = logging.getLogger(__name__)
@@ -661,6 +662,19 @@ def run_scan(
             exc_info=True,
         )
         scan_failures.add("Unknown Agent")
+
+    # Stage 1c: evasion scanner (cross-cutting, runs last)
+    evasion = EvasionScanner(event_store=event_store)
+    try:
+        ev_scan = evasion.scan(verbose=args.verbose)
+        if ev_scan.detected:
+            detected_scans.append(ev_scan)
+            detected_tools.add("Evasion Detection")
+    except Exception:
+        logger.warning(
+            "EvasionScanner raised an exception; treating as inconclusive",
+            exc_info=True,
+        )
 
     # Stage 2: process each detection
     total_events = 0

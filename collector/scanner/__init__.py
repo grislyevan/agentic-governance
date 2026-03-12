@@ -7,6 +7,7 @@ from .cline import ClineScanner
 from .continue_ext import ContinueScanner
 from .copilot import CopilotScanner
 from .cursor import CursorScanner
+from .evasion import EvasionScanner
 from .gpt_pilot import GPTPilotScanner
 from .lm_studio import LMStudioScanner
 from .ollama import OllamaScanner
@@ -23,6 +24,7 @@ __all__ = [
     "ContinueScanner",
     "CopilotScanner",
     "CursorScanner",
+    "EvasionScanner",
     "GPTPilotScanner",
     "LMStudioScanner",
     "OllamaScanner",
