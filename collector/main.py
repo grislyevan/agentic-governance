@@ -45,7 +45,7 @@ from enforcement.posture import PostureManager
 from output.emitter import EventEmitter
 from output.http_emitter import HttpEmitter
 from output.tcp_emitter import TcpEmitter
-from agent.state import StateDiffer
+from agent.state import DisabledServiceTracker, StateDiffer
 from scanner.base import ScanResult
 from scanner.ai_extensions import AIExtensionScanner
 from scanner.aider import AiderScanner
@@ -711,14 +711,18 @@ def _heartbeat_loop(
     interval: int,
     stop_event: threading.Event,
     telemetry_provider: str = "polling",
+    disabled_svc_tracker: DisabledServiceTracker | None = None,
 ) -> None:
     """Background thread: send heartbeats every interval seconds."""
     while not stop_event.wait(timeout=interval):
-        emitter.heartbeat(
-            hostname=hostname,
-            interval_seconds=interval,
-            telemetry_provider=telemetry_provider,
-        )
+        kwargs: dict[str, Any] = {
+            "hostname": hostname,
+            "interval_seconds": interval,
+            "telemetry_provider": telemetry_provider,
+        }
+        if disabled_svc_tracker and isinstance(emitter, HttpEmitter):
+            kwargs["disabled_services"] = disabled_svc_tracker.to_heartbeat_payload()
+        emitter.heartbeat(**kwargs)
 
 
 def _build_lifecycle_event(
@@ -831,7 +835,18 @@ def _run_daemon(args: argparse.Namespace) -> None:
             getattr(args, "enforcement_posture", "passive"),
             source="cli_override",
         )
-    enforcer = Enforcer(posture_manager=posture_mgr, dry_run=args.dry_run)
+    disabled_svc_tracker = DisabledServiceTracker()
+    enforcer = Enforcer(
+        posture_manager=posture_mgr,
+        dry_run=args.dry_run,
+        disabled_service_tracker=disabled_svc_tracker,
+    )
+
+    def _on_restore(service_ids: list[str]) -> None:
+        from enforcement.service_restore import restore_by_ids
+        results = restore_by_ids(service_ids, disabled_svc_tracker)
+        for sid, ok in results.items():
+            logger.info("Service restore %s: %s", sid, "success" if ok else "failed")
 
     def _on_posture(
         posture: str,
@@ -868,6 +883,18 @@ def _run_daemon(args: argparse.Namespace) -> None:
                 "to enable encrypted transport."
             )
 
+        def _on_command(command: str, command_id: str, params: dict) -> None:
+            if command == "restore_services":
+                svc_ids = params.get("service_ids", [])
+                logger.info("Received restore_services command (id=%s, services=%s)", command_id, svc_ids)
+                if svc_ids:
+                    _on_restore(svc_ids)
+                else:
+                    from enforcement.service_restore import restore_all
+                    restore_all(disabled_svc_tracker)
+            else:
+                logger.info("Unhandled command: %s (id=%s)", command, command_id)
+
         emitter = TcpEmitter(
             gateway_host=gateway_host,
             gateway_port=gateway_port,
@@ -876,12 +903,14 @@ def _run_daemon(args: argparse.Namespace) -> None:
             agent_version=EVENT_VERSION,
             tls=tls_enabled,
             on_posture=_on_posture,
+            on_command=_on_command,
         )
     else:
         emitter = HttpEmitter(
             api_url=args.api_url,
             api_key=args.api_key,
             on_posture=_on_posture,
+            on_restore=_on_restore,
         )
 
     differ = StateDiffer(report_all=args.report_all)
@@ -916,7 +945,7 @@ def _run_daemon(args: argparse.Namespace) -> None:
 
     heartbeat_thread = threading.Thread(
         target=_heartbeat_loop,
-        args=(emitter, hostname, args.interval, stop_event, telemetry_provider_name),
+        args=(emitter, hostname, args.interval, stop_event, telemetry_provider_name, disabled_svc_tracker),
         daemon=True,
         name="heartbeat",
     )

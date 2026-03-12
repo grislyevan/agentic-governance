@@ -25,6 +25,7 @@ import platform
 import subprocess
 import threading
 import time
+import uuid
 from collections import deque
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -32,6 +33,7 @@ from typing import TYPE_CHECKING
 from engine.policy import PolicyDecision
 
 if TYPE_CHECKING:
+    from agent.state import DisabledServiceTracker
     from enforcement.posture import PostureManager
 
 logger = logging.getLogger(__name__)
@@ -62,6 +64,7 @@ class Enforcer:
         posture_manager: PostureManager | None = None,
         dry_run: bool = False,
         max_enforcements_per_minute: int = 5,
+        disabled_service_tracker: DisabledServiceTracker | None = None,
     ) -> None:
         self._posture_mgr = posture_manager
         self._dry_run = dry_run
@@ -70,6 +73,7 @@ class Enforcer:
         self._rate_limiter = EnforcementRateLimiter(max_per_minute=max_enforcements_per_minute)
         self._kill_history: dict[str, deque[float]] = {}
         self._kill_history_lock = threading.Lock()
+        self._disabled_svc_tracker = disabled_service_tracker
 
     @property
     def posture(self) -> str:
@@ -297,8 +301,8 @@ class Enforcer:
                     with open(f"/proc/{target_pid}/cgroup") as f:
                         for line in f:
                             if "::" in line and (".service" in line or ".slice" in line):
-                                path = line.strip().split("::", 1)[-1].strip()
-                                for part in path.split("/"):
+                                cg_path = line.strip().split("::", 1)[-1].strip()
+                                for part in cg_path.split("/"):
                                     if part.endswith(".service"):
                                         disable = subprocess.run(
                                             ["systemctl", "disable", "--now", part],
@@ -307,6 +311,11 @@ class Enforcer:
                                         if disable.returncode == 0:
                                             escalation_details.append(f"disabled unit {part}")
                                             logger.info("Escalation: disabled systemd unit %s", part)
+                                            self._record_disabled_service(
+                                                service_type="systemd",
+                                                unit_name=part,
+                                                tool_name=tool_name,
+                                            )
                                         break
                                 break
                 except Exception as exc:
@@ -314,25 +323,39 @@ class Enforcer:
 
             if platform.system() == "Darwin" and target_exe:
                 try:
-                        for plist_dir in [
-                            "/Library/LaunchDaemons",
-                            "/Library/LaunchAgents",
-                            "/Users/*/Library/LaunchAgents",
-                        ]:
+                    import glob
+                    from pathlib import Path as _Path
+                    for plist_dir in [
+                        "/Library/LaunchDaemons",
+                        "/Library/LaunchAgents",
+                        "/Users/*/Library/LaunchAgents",
+                    ]:
+                        for plist_path in glob.glob(plist_dir + "/*.plist"):
                             try:
-                                from pathlib import Path
-                                import glob
-                                for path in glob.glob(plist_dir + "/*.plist"):
-                                    try:
-                                        with open(path) as f:
-                                            if target_exe in f.read():
-                                                escalation_details.append(f"found plist {path}")
-                                                logger.info("Escalation: found launchd plist %s for %s", path, target_exe)
-                                                break
-                                    except Exception:
-                                        pass
+                                with open(plist_path) as f:
+                                    if target_exe not in f.read():
+                                        continue
                             except Exception:
-                                pass
+                                continue
+
+                            unload = subprocess.run(
+                                ["launchctl", "unload", "-w", plist_path],
+                                capture_output=True, text=True, timeout=10,
+                            )
+                            if unload.returncode == 0:
+                                label = _Path(plist_path).stem
+                                escalation_details.append(f"unloaded plist {plist_path}")
+                                logger.info("Escalation: unloaded launchd plist %s for %s", plist_path, target_exe)
+                                self._record_disabled_service(
+                                    service_type="launchd",
+                                    unit_name=label,
+                                    tool_name=tool_name,
+                                    plist_path=plist_path,
+                                )
+                            else:
+                                escalation_details.append(f"plist unload failed {plist_path}")
+                                logger.warning("Escalation: launchctl unload %s failed: %s", plist_path, unload.stderr.strip())
+                            break
                 except Exception as exc:
                     logger.debug("Escalation: launchd check failed: %s", exc)
 
@@ -350,6 +373,30 @@ class Enforcer:
         )
         self._results.append(result)
         return result
+
+    def _record_disabled_service(
+        self,
+        service_type: str,
+        unit_name: str,
+        tool_name: str,
+        plist_path: str | None = None,
+    ) -> None:
+        """Record a disabled service in the tracker for later recovery."""
+        if not self._disabled_svc_tracker:
+            return
+        from agent.state import DisabledService
+        svc = DisabledService(
+            service_id=str(uuid.uuid4()),
+            service_type=service_type,
+            unit_name=unit_name,
+            plist_path=plist_path,
+            tool_name=tool_name,
+        )
+        self._disabled_svc_tracker.add_service(svc)
+        logger.info(
+            "Recorded disabled service: %s (%s) for tool %s",
+            unit_name, service_type, tool_name,
+        )
 
     def _check_resurrection(self, tool_name: str) -> bool:
         """Track kill history; return True if tool was killed 3+ times in 5 min."""

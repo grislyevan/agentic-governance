@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getApiConfig, setApiConfig, fetchWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, downloadAgent, enrollAgentByEmail, fetchAllowList, addAllowListEntry, deleteAllowListEntry, updateTenantPosture, fetchPostureSummary } from '../lib/api';
+import { getApiConfig, setApiConfig, fetchWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, downloadAgent, enrollAgentByEmail, fetchAllowList, addAllowListEntry, deleteAllowListEntry, updateTenantPosture, fetchPostureSummary, fetchDisabledServices, restoreServices } from '../lib/api';
 import useAuth from '../hooks/useAuth';
 
 const EVENT_TYPES = [
@@ -95,6 +95,8 @@ export default function SettingsPage() {
         {canManageWebhooks && <TenantPostureSection />}
 
         {canManageWebhooks && <AllowListSection />}
+
+        {canManageWebhooks && <DisabledServicesSection />}
       </div>
     </div>
   );
@@ -994,6 +996,172 @@ function AllowListFormModal({ onClose, onSaved }) {
     </div>
   );
 }
+
+function DisabledServicesSection() {
+  const [endpoints, setEndpoints] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [restoring, setRestoring] = useState({});
+  const [feedback, setFeedback] = useState(null);
+
+  const loadData = useCallback(async () => {
+    setError(null);
+    try {
+      const data = await fetchDisabledServices();
+      setEndpoints(data.items || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const handleRestore = async (endpointId, serviceId, unitName) => {
+    if (!confirm(`Restore service "${unitName}" on this endpoint?`)) return;
+    setRestoring((prev) => ({ ...prev, [serviceId]: true }));
+    setFeedback(null);
+    try {
+      await restoreServices(endpointId, [serviceId]);
+      setFeedback({ type: 'success', text: `Restore queued for ${unitName}. The agent will re-enable it on the next heartbeat.` });
+      loadData();
+    } catch (err) {
+      setFeedback({ type: 'error', text: err.message });
+    } finally {
+      setRestoring((prev) => ({ ...prev, [serviceId]: false }));
+    }
+  };
+
+  const handleRestoreAll = async (endpointId, hostname) => {
+    if (!confirm(`Restore all disabled services on ${hostname}?`)) return;
+    setRestoring((prev) => ({ ...prev, [endpointId]: true }));
+    setFeedback(null);
+    try {
+      const result = await restoreServices(endpointId);
+      setFeedback({ type: 'success', text: `${result.queued} service(s) queued for restoration on ${hostname}.` });
+      loadData();
+    } catch (err) {
+      setFeedback({ type: 'error', text: err.message });
+    } finally {
+      setRestoring((prev) => ({ ...prev, [endpointId]: false }));
+    }
+  };
+
+  const fmtDate = (ts) => {
+    if (!ts) return '';
+    const d = new Date(ts * 1000);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const totalServices = endpoints.reduce((sum, ep) => sum + (ep.disabled_services?.length || 0), 0);
+
+  return (
+    <div className="rounded-xl border border-detec-slate-700/50 bg-detec-slate-800/50 p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-detec-slate-300 uppercase tracking-wider">
+          Disabled Services
+        </h2>
+        {totalServices > 0 && (
+          <span className="rounded-full bg-detec-enforce-block/15 px-2.5 py-0.5 text-xs font-medium text-detec-enforce-block">
+            {totalServices} disabled
+          </span>
+        )}
+      </div>
+
+      <p className="text-xs text-detec-slate-500">
+        Services disabled by anti-resurrection escalation (repeated enforcement kills). Restoring re-enables the service unit on the endpoint.
+      </p>
+
+      {feedback && (
+        <div className={`rounded-lg border px-3 py-2 text-xs ${
+          feedback.type === 'success'
+            ? 'border-detec-teal-500/30 bg-detec-teal-900/20 text-detec-teal-400'
+            : 'border-red-800/50 bg-red-950/30 text-red-400'
+        }`}>
+          {feedback.text}
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-detec-slate-500">Loading...</p>
+      ) : endpoints.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-detec-slate-700 bg-detec-slate-800/30 px-6 py-8 text-center">
+          <p className="text-sm text-detec-slate-500">No disabled services across any endpoints.</p>
+          <p className="text-xs text-detec-slate-600 mt-1">Services appear here when anti-resurrection escalation disables a systemd unit or launchd plist.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {endpoints.map((ep) => (
+            <div key={ep.endpoint_id} className="rounded-lg border border-detec-slate-700/40 bg-detec-slate-900/50 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-detec-slate-200">{ep.hostname}</span>
+                  <span className="text-xs text-detec-slate-500 font-mono">{ep.endpoint_id.slice(0, 8)}</span>
+                </div>
+                {ep.disabled_services.length > 1 && (
+                  <button
+                    onClick={() => handleRestoreAll(ep.endpoint_id, ep.hostname)}
+                    disabled={restoring[ep.endpoint_id]}
+                    className="rounded-lg border border-detec-teal-500/30 px-2.5 py-1 text-xs font-medium text-detec-teal-400 hover:bg-detec-teal-500/10 disabled:opacity-50 transition-colors"
+                  >
+                    {restoring[ep.endpoint_id] ? 'Queuing...' : 'Restore all'}
+                  </button>
+                )}
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-detec-slate-500 border-b border-detec-slate-700/30">
+                      <th className="text-left py-1.5 pr-3 font-medium">Unit</th>
+                      <th className="text-left py-1.5 pr-3 font-medium">Type</th>
+                      <th className="text-left py-1.5 pr-3 font-medium">Tool</th>
+                      <th className="text-left py-1.5 pr-3 font-medium">Disabled</th>
+                      <th className="text-right py-1.5 font-medium">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ep.disabled_services.map((svc) => (
+                      <tr key={svc.service_id} className="border-b border-detec-slate-700/20 last:border-0">
+                        <td className="py-2 pr-3 font-mono text-detec-slate-300">{svc.unit_name}</td>
+                        <td className="py-2 pr-3">
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            svc.service_type === 'systemd'
+                              ? 'bg-blue-500/15 text-blue-400'
+                              : 'bg-purple-500/15 text-purple-400'
+                          }`}>
+                            {svc.service_type}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-3 text-detec-slate-400">{svc.tool_name || 'N/A'}</td>
+                        <td className="py-2 pr-3 text-detec-slate-500">{fmtDate(svc.disabled_at)}</td>
+                        <td className="py-2 text-right">
+                          <button
+                            onClick={() => handleRestore(ep.endpoint_id, svc.service_id, svc.unit_name)}
+                            disabled={restoring[svc.service_id]}
+                            className="rounded-lg bg-detec-teal-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-detec-teal-500 disabled:opacity-50 transition-colors"
+                          >
+                            {restoring[svc.service_id] ? 'Queuing...' : 'Restore'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function WebhookFormModal({ onClose, onSaved }) {
   const [url, setUrl] = useState('');

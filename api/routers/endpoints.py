@@ -129,6 +129,10 @@ class HeartbeatRequest(BaseModel):
     hostname: str = Field(max_length=255)
     interval_seconds: int = Field(default=settings.default_heartbeat_interval, ge=30, le=86400)
     telemetry_provider: str | None = Field(default=None, max_length=32)
+    disabled_services: list[dict] | None = Field(
+        default=None,
+        description="Services disabled by anti-resurrection escalation, reported by agent",
+    )
 
 
 class HeartbeatResponse(BaseModel):
@@ -142,6 +146,10 @@ class HeartbeatResponse(BaseModel):
     allow_list_updated_at: str | None = Field(
         default=None,
         description="ISO-8601 timestamp of the most recent allow-list change for this tenant",
+    )
+    restore_services: list[str] = Field(
+        default_factory=list,
+        description="Service IDs that the agent should re-enable",
     )
 
 
@@ -199,6 +207,9 @@ def heartbeat(
         if body.telemetry_provider:
             endpoint.telemetry_provider = body.telemetry_provider
 
+    if body.disabled_services is not None:
+        endpoint.disabled_services = body.disabled_services
+
     db.commit()
     db.refresh(endpoint)
 
@@ -206,6 +217,12 @@ def heartbeat(
     allow_list = [e.pattern for e in entries]
     latest_ts = max((e.created_at for e in entries), default=None) if entries else None
     allow_list_updated_at = latest_ts.isoformat() if latest_ts else None
+
+    restore_services: list[str] = []
+    if endpoint.pending_restore_services:
+        restore_services = list(endpoint.pending_restore_services)
+        endpoint.pending_restore_services = None
+        db.commit()
 
     return HeartbeatResponse(
         status="ok",
@@ -216,6 +233,7 @@ def heartbeat(
         auto_enforce_threshold=endpoint.auto_enforce_threshold,
         allow_list=allow_list,
         allow_list_updated_at=allow_list_updated_at,
+        restore_services=restore_services,
     )
 
 

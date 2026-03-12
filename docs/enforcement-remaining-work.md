@@ -18,7 +18,7 @@ The enforcement roadmap describes six phases of work spanning 19-27 weeks. A cod
 | Phase 4: Webhook Orchestration | Complete | None |
 | Phase 5: Native Telemetry | CI pipeline complete | ~~Task 7~~ |
 | Phase 6: EDR Integration | Interfaces complete | **Task 8** (validation only) |
-| Cross-cutting | Task 10 complete, 11a complete, 11c complete | **Tasks 9, 11b** |
+| Cross-cutting | Task 10 complete, 11a complete, 11b complete, 11c complete | **Task 9** |
 
 **Total remaining effort estimate:** 2-3 weeks.
 
@@ -408,15 +408,22 @@ Three security concerns from the engineering review that need decisions or fixes
 - `HeartbeatResponse` includes `allow_list_updated_at` (ISO-8601 timestamp of the most recent allow-list change).
 - Decision documented in enforcement roadmap Cross-Cutting Concerns section.
 
-### 11b. Anti-resurrection service recovery
+### 11b. Anti-resurrection service recovery ✅
+
+**Status:** Complete (2026-03-12)
+**Decision:** Heartbeat-delivered restore commands with TCP fast-path.
 
 **Problem:** `enforcer.py` escalates repeated kills by disabling systemd units or launchd plists. This is a boot-surviving change with no built-in recovery path.
 
-**Fix:**
-- Track disabled units in `collector/agent/state.py` (the `EnforcementRuleTracker` already tracks active rules).
-- Add `POST /api/enforcement/restore-services` endpoint that pushes a restore command to the agent.
-- Agent re-enables the unit on receiving the command.
-- Dashboard shows disabled services with a restore button.
+**What was implemented:**
+- `DisabledServiceTracker` in `collector/agent/state.py` tracks disabled services (persisted to `~/.agentic-gov/disabled_services.json`). Follows the same pattern as `EnforcementRuleTracker`.
+- `collector/enforcement/service_restore.py` re-enables systemd units (`systemctl enable --now`) or reloads launchd plists (`launchctl load -w`).
+- `enforcer.py` now records disabled services in the tracker and actually unloads macOS launchd plists (previously only logged).
+- Agent reports `disabled_services` in heartbeat payload. Server stores on Endpoint (`disabled_services` JSON column).
+- `POST /api/enforcement/restore-services` queues restoration. TCP agents get immediate `COMMAND` push; HTTP agents receive restore IDs on next heartbeat response.
+- `GET /api/enforcement/disabled-services` lists all endpoints with disabled services.
+- Dashboard "Disabled Services" section in Settings shows per-endpoint table with restore buttons.
+- Alembic migration `0010` adds `disabled_services` and `pending_restore_services` columns.
 
 ### 11c. RBAC for active posture ✅
 
@@ -427,9 +434,9 @@ Three security concerns from the engineering review that need decisions or fixes
 
 ### Acceptance criteria
 
-- [ ] Each item has an explicit decision documented
+- [x] Each item has an explicit decision documented
 - [ ] Implemented fixes have tests
-- [ ] Decisions are reflected in the enforcement roadmap's "Cross-Cutting Concerns" section
+- [x] Decisions are reflected in the enforcement roadmap's "Cross-Cutting Concerns" section
 
 ---
 
@@ -447,7 +454,7 @@ Task 7 (CI pipeline) ── standalone
 Task 8 (EDR validation) ── standalone
 Task 9 (E2E test) ── standalone (but best done after Tasks 1-6)
 Task 10 (column resolution) ── ✅ complete
-Task 11 (security) ── 11a ✅ complete, 11c ✅ complete; 11b standalone
+Task 11 (security) ── 11a ✅ complete, 11b ✅ complete, 11c ✅ complete
 ```
 
 ### Recommended order
@@ -457,5 +464,5 @@ Task 11 (security) ── 11a ✅ complete, 11c ✅ complete; 11b standalone
 3. **Tasks 2 + 4** in parallel (posture toggle + allow-list, each 3-5 hours).
 4. ~~**Task 3** (tenant posture, 2-3 hours).~~ ✅ Done.
 5. **Task 5** (summary widget, 2-3 hours).
-6. **Tasks 6, 7, 9, 11** can run in parallel with dashboard work.
+6. **Tasks 6, 9** can run in parallel with dashboard work. ~~7, 11~~ ✅ Done.
 7. **Task 8** when CrowdStrike sandbox access is available.

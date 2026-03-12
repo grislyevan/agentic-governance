@@ -704,3 +704,175 @@ async def test_edr_connectivity(
         edr_host_id=edr_host_id,
         rtr_session_ok=rtr_session_ok,
     )
+
+
+# -- Disabled services (Task 11b: anti-resurrection recovery) ---------------
+
+class DisabledServiceResponse(BaseModel):
+    endpoint_id: str
+    hostname: str
+    disabled_services: list[dict]
+
+
+class DisabledServicesListResponse(BaseModel):
+    total: int
+    items: list[DisabledServiceResponse]
+
+
+class RestoreServicesRequest(BaseModel):
+    endpoint_id: str = Field(..., description="Endpoint whose services should be restored")
+    service_ids: list[str] = Field(
+        default_factory=list,
+        description="Specific service IDs to restore. Empty list restores all.",
+    )
+
+
+class RestoreServicesResponse(BaseModel):
+    endpoint_id: str
+    hostname: str
+    queued: int
+    service_ids: list[str]
+
+
+@router.get("/disabled-services", response_model=DisabledServicesListResponse)
+@limiter.limit("60/minute")
+def list_disabled_services(
+    request: Request,
+    endpoint_id: str | None = Query(default=None),
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    """List all endpoints with services disabled by anti-resurrection escalation."""
+    auth = resolve_auth(authorization, x_api_key, db)
+    require_role(auth, "owner", "admin", "analyst")
+
+    q = db.query(Endpoint).filter(
+        get_tenant_filter(auth, Endpoint),
+        Endpoint.disabled_services.isnot(None),
+    )
+    if endpoint_id:
+        q = q.filter(Endpoint.id == endpoint_id)
+
+    endpoints = q.all()
+
+    items = []
+    for ep in endpoints:
+        services = ep.disabled_services or []
+        if services:
+            items.append(DisabledServiceResponse(
+                endpoint_id=ep.id,
+                hostname=ep.hostname,
+                disabled_services=services,
+            ))
+
+    return DisabledServicesListResponse(total=len(items), items=items)
+
+
+@router.post("/restore-services", response_model=RestoreServicesResponse)
+@limiter.limit("10/minute")
+async def restore_services(
+    request: Request,
+    body: RestoreServicesRequest,
+    background_tasks: BackgroundTasks,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    """Queue service restoration for an endpoint.
+
+    For TCP-connected agents, pushes a restore command immediately.
+    For HTTP-only agents, the restore command is delivered on the next heartbeat.
+    """
+    auth = resolve_auth(authorization, x_api_key, db)
+    require_role(auth, "owner", "admin")
+
+    ep = db.query(Endpoint).filter(
+        Endpoint.id == body.endpoint_id,
+        get_tenant_filter(auth, Endpoint),
+    ).first()
+    if not ep:
+        raise HTTPException(status_code=404, detail="Endpoint not found")
+
+    current_disabled = ep.disabled_services or []
+    if not current_disabled:
+        raise HTTPException(status_code=400, detail="No disabled services on this endpoint")
+
+    if body.service_ids:
+        known_ids = {s.get("service_id") for s in current_disabled if isinstance(s, dict)}
+        unknown = [sid for sid in body.service_ids if sid not in known_ids]
+        if unknown:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown service IDs: {unknown}",
+            )
+        restore_ids = body.service_ids
+    else:
+        restore_ids = [
+            s.get("service_id") for s in current_disabled
+            if isinstance(s, dict) and s.get("service_id")
+        ]
+
+    existing_pending = ep.pending_restore_services or []
+    merged = list(set(existing_pending + restore_ids))
+    ep.pending_restore_services = merged
+
+    audit_record(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="enforcement.restore_services_queued",
+        resource_type="endpoint",
+        resource_id=ep.id,
+        detail={
+            "hostname": ep.hostname,
+            "service_ids": restore_ids,
+        },
+    )
+
+    db.commit()
+
+    background_tasks.add_task(
+        _push_restore_to_agent,
+        request,
+        ep.id,
+        restore_ids,
+    )
+
+    return RestoreServicesResponse(
+        endpoint_id=ep.id,
+        hostname=ep.hostname,
+        queued=len(restore_ids),
+        service_ids=restore_ids,
+    )
+
+
+async def _push_restore_to_agent(
+    request: Request,
+    endpoint_id: str,
+    service_ids: list[str],
+) -> None:
+    """Best-effort push of restore command to a TCP-connected agent."""
+    gateway = getattr(request.app.state, "gateway", None)
+    if not gateway:
+        return
+    try:
+        from protocol.messages import command_msg
+        msg = command_msg(
+            command="restore_services",
+            command_id=str(uuid.uuid4()),
+            params={"service_ids": service_ids},
+        )
+        sent = await gateway.push_to_endpoint(endpoint_id, msg)
+        if sent:
+            logger.info("Pushed restore_services command to endpoint %s via TCP", endpoint_id)
+            db = SessionLocal()
+            try:
+                ep = db.query(Endpoint).filter(Endpoint.id == endpoint_id).first()
+                if ep:
+                    ep.pending_restore_services = None
+                    db.commit()
+            finally:
+                db.close()
+    except Exception:
+        logger.debug("Could not push restore command to %s (not connected via TCP)", endpoint_id)

@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 PostureCallback = Callable[[str, float | None, list[str] | None, list[str] | None], None]
+RestoreCallback = Callable[[list[str]], None]
 
 from collector.agent.buffer import LocalBuffer
 
@@ -60,12 +61,14 @@ class HttpEmitter:
         buffer: LocalBuffer | None = None,
         sign_events: bool = True,
         on_posture: PostureCallback | None = None,
+        on_restore: RestoreCallback | None = None,
     ) -> None:
         self._api_url = api_url.rstrip("/")
         self._api_key = api_key
         self._timeout = timeout
         self._buffer = buffer or LocalBuffer()
         self._on_posture = on_posture
+        self._on_restore = on_restore
         self._ssl_ctx = ssl.create_default_context()
         self._sent = 0
         self._buffered = 0
@@ -200,16 +203,19 @@ class HttpEmitter:
         hostname: str,
         interval_seconds: int = 0,
         telemetry_provider: str | None = None,
+        disabled_services: list[dict] | None = None,
     ) -> bool:
         """Send a heartbeat to POST /endpoints/heartbeat."""
         url = f"{self._api_url}/endpoints/heartbeat"
-        body: dict[str, str | int] = {
+        hb_body: dict[str, Any] = {
             "hostname": hostname,
             "interval_seconds": interval_seconds,
         }
         if telemetry_provider:
-            body["telemetry_provider"] = telemetry_provider
-        payload = json.dumps(body, separators=(",", ":")).encode("utf-8")
+            hb_body["telemetry_provider"] = telemetry_provider
+        if disabled_services is not None:
+            hb_body["disabled_services"] = disabled_services
+        payload = json.dumps(hb_body, separators=(",", ":")).encode("utf-8")
         try:
             req = urllib.request.Request(
                 url,
@@ -222,21 +228,25 @@ class HttpEmitter:
             )
             with urllib.request.urlopen(req, timeout=self._timeout, context=self._ssl_ctx) as resp:
                 ok = resp.status in (200, 201, 202)
-                if ok and self._on_posture:
-                    body = resp.read().decode("utf-8")
+                if ok:
+                    resp_body = resp.read().decode("utf-8")
                     try:
-                        data = json.loads(body)
-                        posture = data.get("enforcement_posture")
-                        if posture is not None:
-                            threshold = data.get("auto_enforce_threshold")
-                            allow_list = data.get("allow_list")
-                            llm_hosts = data.get("llm_hosts")
-                            self._on_posture(
-                                posture,
-                                float(threshold) if threshold is not None else None,
-                                allow_list if isinstance(allow_list, list) else None,
-                                llm_hosts if isinstance(llm_hosts, list) else None,
-                            )
+                        data = json.loads(resp_body)
+                        if self._on_posture:
+                            posture = data.get("enforcement_posture")
+                            if posture is not None:
+                                threshold = data.get("auto_enforce_threshold")
+                                allow_list = data.get("allow_list")
+                                llm_hosts = data.get("llm_hosts")
+                                self._on_posture(
+                                    posture,
+                                    float(threshold) if threshold is not None else None,
+                                    allow_list if isinstance(allow_list, list) else None,
+                                    llm_hosts if isinstance(llm_hosts, list) else None,
+                                )
+                        restore = data.get("restore_services")
+                        if restore and isinstance(restore, list) and self._on_restore:
+                            self._on_restore(restore)
                     except (json.JSONDecodeError, ValueError):
                         pass
                 if not ok:

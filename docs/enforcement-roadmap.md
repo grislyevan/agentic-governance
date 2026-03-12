@@ -957,6 +957,27 @@ TCP agents are unaffected: they receive allow-list updates in real time via `POS
 
 **Future enhancement (Option 3):** The server could return a shorter `recommended_interval` (e.g., 60s) for active-posture endpoints, reducing the staleness window. The agent would honor this by adjusting its heartbeat and scan loop. This is not implemented yet because the staleness gate already provides a safety net.
 
+### Anti-Resurrection Service Recovery (Task 11b)
+
+When the enforcer's anti-resurrection escalation disables a systemd unit (`systemctl disable --now`) or unloads a launchd plist (`launchctl unload -w`), this is a boot-surviving change with no built-in recovery path. An admin must be able to reverse it from the dashboard.
+
+**Decision: Heartbeat-delivered restore commands with TCP fast-path.**
+
+The agent tracks disabled services in `DisabledServiceTracker` (persisted to `~/.agentic-gov/disabled_services.json`). On each heartbeat, the agent reports its disabled services to the server. When an admin clicks "Restore" in the dashboard, the server queues restore commands:
+
+- **TCP agents:** The server pushes a `COMMAND` message (`restore_services`) immediately via the gateway. The agent re-enables the service and removes it from the tracker.
+- **HTTP agents:** The server stores pending restores on the endpoint. The next heartbeat response includes `restore_services` (list of service IDs). The agent processes them and reports the updated list on the following heartbeat.
+
+| Component | Change |
+|-----------|--------|
+| `DisabledServiceTracker` (`collector/agent/state.py`) | New class. Tracks service_id, service_type (systemd/launchd), unit_name, plist_path, tool_name, disabled_at. Persists to disk. |
+| `Enforcer` (`collector/enforcement/enforcer.py`) | Records disabled services in tracker after successful escalation. Now actually unloads macOS launchd plists (previously only logged). |
+| `service_restore.py` (`collector/enforcement/`) | New module. `restore_service()` re-enables systemd units or reloads launchd plists. `restore_by_ids()` and `restore_all()` for batch operations. |
+| `Endpoint` model (`api/models/endpoint.py`) | Two new JSON columns: `disabled_services` (agent-reported) and `pending_restore_services` (admin-queued). Migration `0010`. |
+| Heartbeat (`api/routers/endpoints.py`) | Accepts `disabled_services` in request. Returns `restore_services` in response (consumed once). |
+| Enforcement API (`api/routers/enforcement.py`) | `GET /enforcement/disabled-services` lists all endpoints with disabled services. `POST /enforcement/restore-services` queues restoration. |
+| Dashboard (`SettingsPage.jsx`) | "Disabled Services" section shows per-endpoint table with unit name, type, tool, timestamp, and per-service or bulk "Restore" buttons. |
+
 ### Event Schema Extensions
 
 The canonical event schema (`schemas/event-schema.json`) needs these additions across phases:

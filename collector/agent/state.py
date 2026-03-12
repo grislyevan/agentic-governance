@@ -321,3 +321,110 @@ class EnforcementRuleTracker:
             logger.error(
                 "EnforcementRuleTracker: could not save to %s: %s", self._path, exc
             )
+
+
+@dataclass
+class DisabledService:
+    """Record of a service unit disabled by anti-resurrection escalation."""
+
+    service_id: str
+    service_type: str  # "systemd" or "launchd"
+    unit_name: str
+    plist_path: str | None = None
+    tool_name: str = ""
+    disabled_at: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+class DisabledServiceTracker:
+    """Tracks services disabled by anti-resurrection escalation for recovery.
+
+    Persists to ~/.agentic-gov/disabled_services.json so the list survives
+    agent restarts. The server can request restoration via a heartbeat
+    response or TCP command, at which point the agent re-enables the
+    service and removes it from this tracker.
+    """
+
+    def __init__(self, state_dir: Path = DEFAULT_STATE_DIR) -> None:
+        self._state_dir = state_dir
+        self._path = state_dir / "disabled_services.json"
+        self._lock_path = self._path.with_suffix(".lock")
+        self._state_dir.mkdir(parents=True, exist_ok=True)
+        self._thread_lock = Lock()
+        self._services: dict[str, DisabledService] = self._load()
+
+    def _file_lock(self):
+        return file_lock(str(self._lock_path))
+
+    def add_service(self, svc: DisabledService) -> None:
+        if svc.disabled_at == 0.0:
+            svc = DisabledService(
+                service_id=svc.service_id,
+                service_type=svc.service_type,
+                unit_name=svc.unit_name,
+                plist_path=svc.plist_path,
+                tool_name=svc.tool_name,
+                disabled_at=time.time(),
+            )
+        with self._thread_lock:
+            self._services[svc.service_id] = svc
+            self._save()
+
+    def remove_service(self, service_id: str) -> None:
+        with self._thread_lock:
+            if service_id in self._services:
+                del self._services[service_id]
+                self._save()
+
+    def get_disabled_services(self) -> list[DisabledService]:
+        with self._thread_lock:
+            return list(self._services.values())
+
+    def get_service(self, service_id: str) -> DisabledService | None:
+        with self._thread_lock:
+            return self._services.get(service_id)
+
+    def to_heartbeat_payload(self) -> list[dict[str, Any]]:
+        """Serialize for inclusion in heartbeat requests."""
+        with self._thread_lock:
+            return [asdict(s) for s in self._services.values()]
+
+    def clear_all(self) -> None:
+        with self._thread_lock:
+            self._services.clear()
+            self._save()
+
+    def _load(self) -> dict[str, DisabledService]:
+        if not self._path.is_file():
+            return {}
+        try:
+            raw: dict[str, Any] = json.loads(self._path.read_text(encoding="utf-8"))
+            result: dict[str, DisabledService] = {}
+            for svc_id, data in raw.items():
+                try:
+                    result[svc_id] = DisabledService(**data)
+                except (TypeError, KeyError) as exc:
+                    logger.warning(
+                        "DisabledServiceTracker: skipping malformed entry %s: %s",
+                        svc_id, exc,
+                    )
+            return result
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.warning(
+                "DisabledServiceTracker: could not load %s: %s", self._path, exc
+            )
+            return {}
+
+    def _save(self) -> None:
+        try:
+            data = {sid: asdict(s) for sid, s in self._services.items()}
+            with self._file_lock():
+                self._path.write_text(
+                    json.dumps(data, indent=2), encoding="utf-8"
+                )
+        except OSError as exc:
+            logger.error(
+                "DisabledServiceTracker: could not save to %s: %s", self._path, exc
+            )

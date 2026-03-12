@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timezone as tz
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy.types import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.config import settings
@@ -51,6 +52,11 @@ class Endpoint(Base):
     # EDR/MDM enforcement delegation (Phase 6)
     edr_host_id: Mapped[str | None] = mapped_column(String(255))
     enforcement_provider: Mapped[str | None] = mapped_column(String(64))
+
+    # Services disabled by anti-resurrection escalation, reported by agent
+    disabled_services: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
+    # Pending restore commands queued by admin, delivered to agent on next heartbeat
+    pending_restore_services: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
 
     # Cryptographic enrollment (Feature 4)
     signing_public_key: Mapped[str | None] = mapped_column(Text)

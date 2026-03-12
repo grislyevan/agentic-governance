@@ -243,6 +243,54 @@ export async function testEDRConnectivity(endpointId) {
   return apiMutate('POST', `/enforcement/edr-test/${endpointId}`);
 }
 
+export async function fetchPostureSummary() {
+  return apiFetch('/enforcement/posture-summary');
+}
+
+export async function updateEndpointPosture(endpointId, { enforcement_posture, auto_enforce_threshold }) {
+  return apiMutate('PUT', `/enforcement/endpoints/${endpointId}/posture`, {
+    enforcement_posture,
+    auto_enforce_threshold,
+  });
+}
+
+export async function updateTenantPosture({ enforcement_posture, auto_enforce_threshold }) {
+  return apiMutate('PUT', '/enforcement/tenant-posture', {
+    enforcement_posture,
+    auto_enforce_threshold,
+  });
+}
+
+export async function fetchAllowList() {
+  return apiFetch('/enforcement/allow-list');
+}
+
+export async function addAllowListEntry({ pattern, pattern_type, description }) {
+  return apiMutate('POST', '/enforcement/allow-list', {
+    pattern,
+    pattern_type,
+    description,
+  });
+}
+
+export async function deleteAllowListEntry(entryId) {
+  return apiMutate('DELETE', `/enforcement/allow-list/${entryId}`);
+}
+
+// Disabled services (anti-resurrection recovery)
+
+export async function fetchDisabledServices(endpointId) {
+  const params = endpointId ? `?endpoint_id=${endpointId}` : '';
+  return apiFetch(`/enforcement/disabled-services${params}`);
+}
+
+export async function restoreServices(endpointId, serviceIds = []) {
+  return apiMutate('POST', '/enforcement/restore-services', {
+    endpoint_id: endpointId,
+    service_ids: serviceIds,
+  });
+}
+
 // Webhooks
 
 export async function fetchWebhooks() {
