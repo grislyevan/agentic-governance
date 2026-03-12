@@ -5,6 +5,7 @@ from .endpoint import Endpoint
 from .event import Event
 from .policy import Policy
 from .tenant import Tenant
+from .tenant_membership import TenantMembership
 from .user import User
 from .webhook import Webhook
 
@@ -16,6 +17,7 @@ __all__ = [
     "Event",
     "Policy",
     "Tenant",
+    "TenantMembership",
     "User",
     "Webhook",
 ]

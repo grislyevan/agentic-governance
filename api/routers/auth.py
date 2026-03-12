@@ -96,6 +96,14 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
     db.add(user)
     db.flush()
 
+    from models.tenant_membership import TenantMembership
+    db.add(TenantMembership(
+        id=str(uuid.uuid4()),
+        user_id=user.id,
+        tenant_id=tenant.id,
+        role="owner",
+    ))
+
     audit_record(
         db,
         tenant_id=tenant.id,
@@ -335,12 +343,12 @@ def get_me(
     x_api_key: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ) -> UserResponse:
+    user = None
     if authorization and authorization.startswith("Bearer "):
         token = authorization.removeprefix("Bearer ").strip()
         user = _get_current_user(token, db)
-        return UserResponse.model_validate(user)
 
-    if x_api_key:
+    if not user and x_api_key:
         from models.user import verify_api_key, API_KEY_PREFIX_LEN
         prefix = x_api_key[:API_KEY_PREFIX_LEN]
         candidates = (
@@ -348,12 +356,30 @@ def get_me(
             .filter(User.api_key_prefix == prefix, User.is_active.is_(True))
             .all()
         )
-        for user in candidates:
-            if user.api_key_hash and verify_api_key(x_api_key, user.api_key_hash):
-                return UserResponse.model_validate(user)
+        for candidate in candidates:
+            if candidate.api_key_hash and verify_api_key(x_api_key, candidate.api_key_hash):
+                user = candidate
+                break
 
-    logger.warning("GET /auth/me called without valid credentials")
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    if not user:
+        logger.warning("GET /auth/me called without valid credentials")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+
+    resp = UserResponse.model_validate(user)
+
+    active_tenant_id = user.tenant_id
+    if authorization and authorization.startswith("Bearer "):
+        from core.auth import is_valid_token as _check_token
+        payload = _check_token(authorization.removeprefix("Bearer ").strip())
+        if payload and "tenant_id" in payload:
+            active_tenant_id = payload["tenant_id"]
+            resp.tenant_id = active_tenant_id
+
+    tenant = db.query(Tenant).filter(Tenant.id == active_tenant_id).first()
+    if tenant:
+        resp.tenant_name = tenant.name
+        resp.tenant_slug = tenant.slug
+    return resp
 
 
 # ---------------------------------------------------------------------------

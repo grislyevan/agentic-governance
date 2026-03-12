@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import DetecLogo from '../branding/DetecLogo';
-import { fetchBillingStatus } from '../../lib/api';
+import { fetchBillingStatus, fetchMyTenants, switchTenant } from '../../lib/api';
+import { storeTokens } from '../../lib/auth';
+import useAuth from '../../hooks/useAuth';
 
 const NAV_ITEMS = [
   { id: 'endpoints', label: 'Endpoints', icon: EndpointsIcon },
@@ -17,11 +19,18 @@ const TIER_BADGE_COLORS = {
 };
 
 export default function Sidebar({ activePage, onNavigate, alertCount = 0, isOpen = false, onClose }) {
+  const { user, refresh } = useAuth();
   const [planTier, setPlanTier] = useState(null);
+  const [tenants, setTenants] = useState([]);
+  const [orgMenuOpen, setOrgMenuOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
 
   useEffect(() => {
     fetchBillingStatus()
       .then((data) => setPlanTier(data.tier))
+      .catch(() => {});
+    fetchMyTenants()
+      .then(setTenants)
       .catch(() => {});
   }, []);
 
@@ -29,6 +38,25 @@ export default function Sidebar({ activePage, onNavigate, alertCount = 0, isOpen
     onNavigate(page);
     onClose?.();
   };
+
+  const handleSwitchTenant = async (tenantId) => {
+    if (switching || tenantId === user?.tenant_id) return;
+    setSwitching(true);
+    try {
+      const data = await switchTenant(tenantId);
+      storeTokens(data);
+      setOrgMenuOpen(false);
+      await refresh();
+      window.location.reload();
+    } catch {
+      // silent
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  const currentTenant = tenants.find((t) => t.id === user?.tenant_id);
+  const otherTenants = tenants.filter((t) => t.id !== user?.tenant_id);
 
   return (
     <>
@@ -53,6 +81,52 @@ export default function Sidebar({ activePage, onNavigate, alertCount = 0, isOpen
           Agentic AI<br />Governance
         </span>
       </div>
+
+      {tenants.length > 0 && (
+        <div className="px-3 pt-3 pb-1 relative">
+          <button
+            onClick={() => setOrgMenuOpen(!orgMenuOpen)}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-detec-slate-800/60 border border-detec-slate-700/50 text-left hover:border-detec-slate-600 transition-colors"
+          >
+            <span className="w-6 h-6 rounded bg-detec-primary-500/20 text-detec-primary-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
+              {(currentTenant?.name || 'O')[0].toUpperCase()}
+            </span>
+            <span className="text-xs font-medium text-detec-slate-200 truncate flex-1">
+              {currentTenant?.name || user?.tenant_name || 'Organization'}
+            </span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`text-detec-slate-500 transition-transform ${orgMenuOpen ? 'rotate-180' : ''}`}>
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          {orgMenuOpen && (
+            <div className="absolute left-3 right-3 top-full mt-1 bg-detec-slate-800 border border-detec-slate-700/50 rounded-lg shadow-xl z-50 overflow-hidden">
+              {otherTenants.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => handleSwitchTenant(t.id)}
+                  disabled={switching}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-detec-slate-700/60 transition-colors disabled:opacity-50"
+                >
+                  <span className="w-5 h-5 rounded bg-detec-slate-700 text-detec-slate-300 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                    {t.name[0].toUpperCase()}
+                  </span>
+                  <span className="text-xs text-detec-slate-300 truncate">{t.name}</span>
+                  <span className="ml-auto text-[10px] text-detec-slate-500">{t.role}</span>
+                </button>
+              ))}
+              <button
+                onClick={() => { handleNav('org'); setOrgMenuOpen(false); }}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-left border-t border-detec-slate-700/50 hover:bg-detec-slate-700/60 transition-colors"
+              >
+                <span className="w-5 h-5 rounded border border-dashed border-detec-slate-600 flex items-center justify-center text-detec-slate-500">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                </span>
+                <span className="text-xs text-detec-slate-400">Manage organizations</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <nav className="flex-1 py-3 px-3 space-y-0.5 overflow-y-auto" aria-label="Main navigation">
         {NAV_ITEMS.map((item) => {

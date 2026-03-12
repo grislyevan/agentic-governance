@@ -14,6 +14,7 @@ import AuditLogPage from './pages/AuditLogPage';
 import AdminPage from './pages/AdminPage';
 import SettingsPage from './pages/SettingsPage';
 import BillingPage from './pages/BillingPage';
+import OrgPage from './pages/OrgPage';
 import DemoBanner from './components/layout/DemoBanner';
 
 const PATH_TO_PAGE = {
@@ -24,6 +25,7 @@ const PATH_TO_PAGE = {
   '/admin': 'admin',
   '/settings': 'settings',
   '/billing': 'billing',
+  '/org': 'org',
 };
 
 export default function App() {
@@ -107,6 +109,7 @@ export default function App() {
             <Route path="/admin" element={<AdminPage {...pageProps} />} />
             <Route path="/settings" element={<SettingsPage {...pageProps} />} />
             <Route path="/billing" element={<BillingPage {...pageProps} />} />
+            <Route path="/org" element={<OrgPage {...pageProps} />} />
             <Route path="*" element={<Navigate to="/endpoints" replace />} />
           </Routes>
         </main>

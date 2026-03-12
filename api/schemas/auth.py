@@ -117,6 +117,8 @@ class UserResponse(BaseModel):
     last_name: str | None
     role: str
     tenant_id: str
+    tenant_name: str | None = None
+    tenant_slug: str | None = None
     auth_provider: str
     password_reset_required: bool = False
 

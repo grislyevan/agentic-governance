@@ -110,6 +110,15 @@ def create_user(
     db.add(user)
     db.flush()
 
+    from models.tenant_membership import TenantMembership
+    import uuid as _uuid
+    db.add(TenantMembership(
+        id=str(_uuid.uuid4()),
+        user_id=user.id,
+        tenant_id=auth.tenant_id,
+        role=body.role,
+    ))
+
     raw_invite_token = None
     if not body.password:
         token_obj, raw_invite_token = AuthToken.create_invite_token(user.id)

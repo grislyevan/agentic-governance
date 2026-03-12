@@ -428,3 +428,25 @@ export async function generateComplianceReport(startDate, endDate, format) {
 export async function fetchComplianceSummary() {
   return apiFetch('/reports/compliance/summary');
 }
+
+// Tenants (organizations)
+
+export async function fetchCurrentTenant() {
+  return apiFetch('/tenants/current');
+}
+
+export async function fetchMyTenants() {
+  return apiFetch('/tenants/mine');
+}
+
+export async function createTenant(name) {
+  return apiMutate('POST', '/tenants', { name });
+}
+
+export async function updateTenant(id, data) {
+  return apiMutate('PATCH', `/tenants/${id}`, data);
+}
+
+export async function switchTenant(tenantId) {
+  return apiMutate('POST', '/tenants/switch', { tenant_id: tenantId });
+}

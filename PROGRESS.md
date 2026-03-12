@@ -157,7 +157,7 @@ API Client ────────────────────▶│ Mu
 - [x] Auth flows: invite tokens, password reset (forgot/reset/accept-invite endpoints, SetPasswordPage, ResetPasswordPage)
 - [x] User management: CRUD for tenant users, four-role model (owner/admin/analyst/viewer), Admin page UI
 - [x] Invite members UI: email/role form on AdminPage, accept-invite route, RBAC enforcement
-- [ ] Create org flow: multi-org creation and switching (API endpoints exist, no UI)
+- [x] Create org flow: multi-org creation and switching (tenants router, memberships model, dashboard org page + switcher)
 - [x] Endpoint management: multi-endpoint view with filter, status, signal bars
 - [x] Events dashboard: filterable table, confidence bands, enforcement state, time range
 - [x] Policy list (read-only, from API)
