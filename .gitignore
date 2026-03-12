@@ -55,3 +55,6 @@ branding/capability-brief.pdf
 .cursor/rules/*.mdc
 !.cursor/rules/writing-and-accuracy.mdc
 !.cursor/rules/git-and-versioning.mdc
+
+# Sensitive internal docs
+docs/ciso-security-log.md
