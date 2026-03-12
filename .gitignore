@@ -47,6 +47,10 @@ collector/providers/esf_helper/esf_helper
 # Pytest cache
 .pytest_cache/
 
+# Build artifacts
+branding/capability-brief.html
+branding/capability-brief.pdf
+
 # Agency-agents Cursor rules (generic, not project-specific)
 .cursor/rules/*.mdc
 !.cursor/rules/writing-and-accuracy.mdc
