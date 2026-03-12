@@ -1,0 +1,164 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-dashboard:
+    name: Build Dashboard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Install and build
+        working-directory: dashboard
+        run: |
+          npm ci
+          npm run build
+      - name: Upload dashboard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
+
+  build-docker:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    needs: build-dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download dashboard artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+      - name: Restore dashboard dist
+        run: mkdir -p dashboard && mv dashboard-dist dashboard/dist
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      - name: Build and push detec-api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.api
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/detec-api:${{ steps.version.outputs.VERSION }}
+            ghcr.io/${{ github.repository }}/detec-api:latest
+      - name: Build and push detec-dashboard
+        uses: docker/build-push-action@v6
+        with:
+          context: dashboard
+          file: dashboard/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/detec-dashboard:${{ steps.version.outputs.VERSION }}
+            ghcr.io/${{ github.repository }}/detec-dashboard:latest
+
+  build-macos-agent:
+    name: Build macOS Agent
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install collector dependencies
+        run: pip install -e ".[gui-mac]"
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+      - name: Build ESF helper
+        run: make -C collector/providers/esf_helper || true
+      - name: Build .app bundle
+        run: bash packaging/macos/build-app.sh
+      - name: Sign .app bundle
+        if: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION != '' }}
+        run: |
+          codesign --deep --force --sign "${{ secrets.APPLE_DEVELOPER_ID_APPLICATION }}" \
+            "dist/Detec Agent.app"
+      - name: Build .pkg installer
+        env:
+          SIGNING_IDENTITY: ${{ secrets.APPLE_DEVELOPER_ID_INSTALLER }}
+        run: bash packaging/macos/build-pkg.sh
+      - name: Get package version
+        id: pkgver
+        run: echo "VERSION=$(grep '^version' pyproject.toml | cut -d'"' -f2)" >> $GITHUB_OUTPUT
+      - name: Upload macOS package
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-pkg
+          path: dist/DetecAgent-${{ steps.pkgver.outputs.VERSION }}.pkg
+
+  build-windows-agent:
+    name: Build Windows Agent
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install collector and build deps
+        run: |
+          pip install -e .
+          pip install pyinstaller pywin32
+      - name: Run PyInstaller
+        working-directory: packaging/windows
+        run: pyinstaller --clean --noconfirm detec-agent.spec
+      - name: Create zip archive
+        run: |
+          Compress-Archive -Path "packaging\windows\dist\detec-agent\*" -DestinationPath "detec-agent-windows.zip"
+      - name: Upload Windows agent
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-agent
+          path: detec-agent-windows.zip
+
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs:
+      - build-dashboard
+      - build-docker
+      - build-macos-agent
+      - build-windows-agent
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download macOS package
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-pkg
+      - name: Download Windows agent
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-agent
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            macos-pkg/*.pkg
+            windows-agent/detec-agent-windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
