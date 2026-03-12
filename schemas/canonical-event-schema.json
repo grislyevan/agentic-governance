@@ -124,6 +124,75 @@
   ],
   "additionalProperties": false,
 
+  "examples": [
+    {
+      "event_id": "e7f8a9b0-c1d2-4e3f-a4b5-c6d7e8f9a0b1",
+      "event_type": "enforcement.applied",
+      "event_version": "0.4.0",
+      "observed_at": "2026-03-12T14:30:00.000Z",
+      "ingested_at": "2026-03-12T14:30:01.000Z",
+      "session_id": "sess-enf-001",
+      "trace_id": "trace-enf-001",
+      "parent_event_id": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+      "actor": {
+        "id": "user@example.com",
+        "type": "human",
+        "trust_tier": "T1",
+        "identity_confidence": 0.85,
+        "org_context": "org"
+      },
+      "endpoint": {
+        "id": "WORKSTATION-001",
+        "os": "macOS 26.3 Darwin 25.3.0 ARM64",
+        "posture": "managed"
+      },
+      "tool": {
+        "name": "Claude Code",
+        "class": "C",
+        "version": "2.1.59",
+        "attribution_confidence": 0.77,
+        "attribution_sources": ["process", "file"]
+      },
+      "action": {
+        "type": "exec",
+        "risk_class": "R3",
+        "summary": "Agentic session: process tree detected with shell execution",
+        "raw_ref": "evidence://collector-scan/claude-code/sess-enf-001"
+      },
+      "target": {
+        "type": "host",
+        "id": "WORKSTATION-001",
+        "scope": "local endpoint",
+        "sensitivity_tier": "Tier1"
+      },
+      "policy": {
+        "decision_state": "block",
+        "rule_id": "ENFORCE-001",
+        "rule_version": "0.4.0",
+        "reason_codes": ["class_c_autonomous_executor", "high_confidence_attribution"],
+        "decision_confidence": 0.77
+      },
+      "enforcement": {
+        "tactic": "process_kill",
+        "success": true,
+        "detail": "Killed PIDs [12345, 12346] for Claude Code",
+        "simulated": false,
+        "allow_listed": false,
+        "pids_killed": [12345, 12346],
+        "process_name": "claude",
+        "provider": "local"
+      },
+      "outcome": {
+        "enforcement_result": "denied",
+        "incident_flag": false,
+        "incident_id": null
+      },
+      "severity": {
+        "level": "S3"
+      }
+    }
+  ],
+
   "allOf": [
     {
       "if": {
