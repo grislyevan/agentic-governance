@@ -102,6 +102,7 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
         endpointCount={endpointCount}
         endpoints={endpoints}
         endpointStatuses={endpointStatuses}
+        onPostureChange={refresh}
       />
 
       <ToolTabs
