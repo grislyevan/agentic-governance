@@ -103,6 +103,61 @@ def _verify_signature(body: EventIngest, db: Session, tenant_id: str) -> bool | 
         return False
 
 
+def _run_edr_enforcement(
+    tenant_id: str, endpoint_id: str | None, event_payload: dict[str, object]
+) -> None:
+    """Background task: delegate enforcement to EDR if configured."""
+    import asyncio
+    from core.config import settings as _settings
+
+    if not _settings.edr_enforcement_configured or not endpoint_id:
+        return
+
+    enforcement = event_payload.get("enforcement") or {}
+    policy = event_payload.get("policy") or {}
+    decision = policy.get("decision_state", "")
+    if decision != "block":
+        return
+
+    async def _do_enforce() -> None:
+        from core.database import SessionLocal
+        from integrations import enforcement_router as enf_router
+
+        db = SessionLocal()
+        try:
+            from models.endpoint import Endpoint
+
+            ep = db.query(Endpoint).filter(Endpoint.id == endpoint_id).first()
+            if not ep or not ep.enforcement_provider:
+                return
+
+            action = enforcement.get("action", "kill_process")
+            pid = enforcement.get("pid")
+            process_name = enforcement.get("process_name")
+
+            await enf_router.enforce(
+                db=db,
+                tenant_id=tenant_id,
+                endpoint_id=endpoint_id,
+                hostname=ep.hostname,
+                enforcement_provider_name=ep.enforcement_provider,
+                action=action,
+                pid=pid,
+                process_name=process_name,
+            )
+            db.commit()
+        except Exception:
+            logger.warning(
+                "EDR enforcement failed for event %s",
+                event_payload.get("event_id"),
+                exc_info=True,
+            )
+        finally:
+            db.close()
+
+    asyncio.run(_do_enforce())
+
+
 def _run_edr_enrichment(event_payload: dict[str, object]) -> None:
     """Background task: run EDR enrichment."""
     import asyncio
@@ -286,6 +341,16 @@ def ingest_event(
             )
     except Exception:
         logger.debug("EDR enrichment hook failed to queue", exc_info=True)
+
+    if event_type_val and event_type_val in (
+        "enforcement.applied", "enforcement.simulated"
+    ):
+        background_tasks.add_task(
+            _run_edr_enforcement,
+            tenant_id,
+            endpoint_id,
+            body.model_dump(mode="json"),
+        )
 
     return EventResponse.model_validate(event)
 

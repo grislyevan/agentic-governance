@@ -108,6 +108,14 @@ class Settings(BaseSettings):
             and self.edr_client_secret
         )
 
+    # EDR Enforcement (delegated enforcement via EDR/MDM tools)
+    edr_enforcement_enabled: bool = False
+    edr_enforcement_fallback: str = "local"
+
+    @property
+    def edr_enforcement_configured(self) -> bool:
+        return self.edr_enforcement_enabled and self.edr_configured
+
     @model_validator(mode="after")
     def _apply_default_database_url(self) -> "Settings":
         if not self.database_url:

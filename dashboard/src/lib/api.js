@@ -229,6 +229,20 @@ export async function enrollAgentByEmail({ email, platform, interval, protocol }
   return apiMutate('POST', '/agent/enroll-email', { email, platform, interval, protocol });
 }
 
+// EDR enforcement config
+
+export async function fetchEDRStatus(endpointId) {
+  return apiFetch(`/enforcement/endpoints/${endpointId}/edr-status`);
+}
+
+export async function updateEDRConfig(endpointId, data) {
+  return apiMutate('PUT', `/enforcement/endpoints/${endpointId}/edr-config`, data);
+}
+
+export async function testEDRConnectivity(endpointId) {
+  return apiMutate('POST', `/enforcement/edr-test/${endpointId}`);
+}
+
 // Webhooks
 
 export async function fetchWebhooks() {

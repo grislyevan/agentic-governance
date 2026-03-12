@@ -41,7 +41,7 @@ async def test_auth_token_obtained(provider):
                 "expires_in": 1799,
             })
         )
-        mock_client.get = AsyncMock(
+        mock_client.request = AsyncMock(
             return_value=_make_response(200, {"resources": ["device-abc-123"]})
         )
 
@@ -66,7 +66,7 @@ async def test_resolve_endpoint_id_returns_none_when_no_devices(provider):
                 "expires_in": 1799,
             })
         )
-        mock_client.get = AsyncMock(
+        mock_client.request = AsyncMock(
             return_value=_make_response(200, {"resources": []})
         )
 
@@ -108,7 +108,7 @@ async def test_token_caching(provider):
                 "expires_in": 1799,
             })
         )
-        mock_client.get = AsyncMock(
+        mock_client.request = AsyncMock(
             return_value=_make_response(200, {"resources": ["dev-1"]})
         )
 
