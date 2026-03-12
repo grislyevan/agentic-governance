@@ -18,8 +18,10 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 try:
@@ -232,3 +234,90 @@ class StateDiffer:
                 )
         except OSError as exc:
             logger.error("StateDiffer: could not save state to %s: %s", self._path, exc)
+
+
+@dataclass
+class ActiveRule:
+    """Record of a firewall rule added by the agent."""
+
+    rule_id: str
+    platform: str
+    target_pid: int | None = None
+    target_user: str | None = None
+    created_at: float = 0.0
+
+
+class EnforcementRuleTracker:
+    """Tracks active firewall rules for cleanup on shutdown or restart."""
+
+    def __init__(self, state_dir: Path = DEFAULT_STATE_DIR) -> None:
+        self._state_dir = state_dir
+        self._path = state_dir / "enforcement_rules.json"
+        self._lock_path = self._path.with_suffix(".lock")
+        self._state_dir.mkdir(parents=True, exist_ok=True)
+        self._thread_lock = Lock()
+        self._rules: dict[str, ActiveRule] = self._load()
+
+    def _file_lock(self):
+        return file_lock(str(self._lock_path))
+
+    def add_rule(self, rule: ActiveRule) -> None:
+        if rule.created_at == 0.0:
+            rule = ActiveRule(
+                rule_id=rule.rule_id,
+                platform=rule.platform,
+                target_pid=rule.target_pid,
+                target_user=rule.target_user,
+                created_at=time.time(),
+            )
+        with self._thread_lock:
+            self._rules[rule.rule_id] = rule
+            self._save()
+
+    def remove_rule(self, rule_id: str) -> None:
+        with self._thread_lock:
+            if rule_id in self._rules:
+                del self._rules[rule_id]
+                self._save()
+
+    def get_active_rules(self) -> list[ActiveRule]:
+        with self._thread_lock:
+            return list(self._rules.values())
+
+    def clear_all(self) -> None:
+        with self._thread_lock:
+            self._rules.clear()
+            self._save()
+
+    def _load(self) -> dict[str, ActiveRule]:
+        if not self._path.is_file():
+            return {}
+        try:
+            raw: dict[str, Any] = json.loads(self._path.read_text(encoding="utf-8"))
+            result: dict[str, ActiveRule] = {}
+            for rule_id, data in raw.items():
+                try:
+                    result[rule_id] = ActiveRule(**data)
+                except (TypeError, KeyError) as exc:
+                    logger.warning(
+                        "EnforcementRuleTracker: skipping malformed entry %s: %s",
+                        rule_id, exc,
+                    )
+            return result
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.warning(
+                "EnforcementRuleTracker: could not load %s: %s", self._path, exc
+            )
+            return {}
+
+    def _save(self) -> None:
+        try:
+            data = {rid: asdict(r) for rid, r in self._rules.items()}
+            with self._file_lock():
+                self._path.write_text(
+                    json.dumps(data, indent=2), encoding="utf-8"
+                )
+        except OSError as exc:
+            logger.error(
+                "EnforcementRuleTracker: could not save to %s: %s", self._path, exc
+            )

@@ -239,8 +239,10 @@ def build_event(
             "detail": enforcement.detail,
             "simulated": enforcement.simulated,
             "allow_listed": enforcement.allow_listed,
+            "rate_limited": getattr(enforcement, "rate_limited", False),
+            "escalated": getattr(enforcement, "escalated", False),
         }
-        if enforcement.simulated or enforcement.allow_listed:
+        if enforcement.simulated or enforcement.allow_listed or getattr(enforcement, "rate_limited", False):
             outcome_result = "simulated"
         else:
             outcome_result = "denied" if enforcement.success else "allowed"
@@ -440,6 +442,7 @@ def _process_detection(
             tool_class=scan.tool_class or "A",
             pids=pids or None,
             network_elevated=network_elevated,
+            process_patterns=scan.process_patterns,
         )
         if verbose:
             tag = "AUDIT" if enf_result.simulated else "LIVE"
@@ -449,6 +452,8 @@ def _process_detection(
 
         if enf_result.allow_listed:
             event_type = "enforcement.allow_listed"
+        elif enf_result.rate_limited:
+            event_type = "enforcement.rate_limited"
         elif enf_result.simulated:
             event_type = "enforcement.simulated"
         else:
@@ -762,6 +767,9 @@ def _run_daemon(args: argparse.Namespace) -> None:
 
     _write_pid_file()
 
+    from enforcement.cleanup import cleanup_orphaned_rules
+    cleanup_orphaned_rules()
+
     hostname = args.endpoint_id
     protocol = getattr(args, "protocol", "http")
 
@@ -885,6 +893,7 @@ def _run_daemon(args: argparse.Namespace) -> None:
         emitter.shutdown()
 
     stop_event.set()
+    cleanup_orphaned_rules()
     _remove_pid_file()
     print("Agentic-gov endpoint agent stopped.", file=sys.stderr)
 

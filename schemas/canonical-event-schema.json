@@ -589,6 +589,11 @@
           "default": false,
           "description": "True when enforcement was suppressed by the rate limiter."
         },
+        "escalated": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the same tool was killed 3+ times within 5 minutes (resurrection detected)."
+        },
         "provider": {
           "type": "string",
           "enum": ["local", "crowdstrike", "sentinelone", "webhook"],

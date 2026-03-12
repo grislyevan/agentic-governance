@@ -78,6 +78,8 @@ class AiderScanner(BaseScanner):
         self._apply_penalties(result)
         self._determine_action(result)
         result.tool_version = self._detect_version(verbose)
+        if result.detected:
+            result.process_patterns = ["aider"]
 
         return result
 

@@ -1,7 +1,8 @@
 """Network null-route enforcement tactic.
 
 Blocks outbound network access for specific PIDs by adding firewall
-rules.  Uses ``pfctl`` on macOS and ``iptables`` on Linux.
+rules.  Uses ``pfctl`` on macOS, ``iptables`` on Linux, and ``netsh
+advfirewall`` on Windows.
 
 IMPORTANT: Requires root/admin privileges.  Falls back to logging
 if permissions are insufficient.
@@ -18,6 +19,7 @@ from __future__ import annotations
 import logging
 import platform
 import subprocess
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +34,8 @@ def block_outbound(pids: set[int]) -> bool:
         return _block_macos(pids)
     if system == "Linux":
         return _block_linux(pids)
+    if system == "Windows":
+        return _block_windows(pids)
     logger.warning("Network blocking not supported on %s", system)
     return False
 
@@ -43,7 +47,25 @@ def unblock_outbound(pids: set[int]) -> bool:
         return _unblock_macos(pids)
     if system == "Linux":
         return _unblock_linux(pids)
+    if system == "Windows":
+        return _unblock_windows(pids)
     return False
+
+
+def _cgroup_v2_available() -> bool:
+    """Check if cgroup v2 is available (unified hierarchy)."""
+    return Path("/sys/fs/cgroup/cgroup.controllers").exists()
+
+
+def _get_exe_path_windows(pid: int) -> str | None:
+    """Get the executable path for a PID on Windows."""
+    try:
+        import psutil
+        proc = psutil.Process(pid)
+        return proc.exe()
+    except Exception:
+        pass
+    return None
 
 
 def _block_linux(pids: set[int]) -> bool:
@@ -54,16 +76,22 @@ def _block_linux(pids: set[int]) -> bool:
     /proc/{pid}/status.  This means ALL outbound traffic for the UID
     is blocked, not just the target process.
     """
+    if _cgroup_v2_available():
+        logger.info(
+            "cgroup v2 detected; using uid-owner fallback "
+            "(per-process cgroup blocking not yet implemented)"
+        )
     success = False
     for pid in pids:
         uid = _get_uid_linux(pid)
         if uid is None:
             continue
-        logger.warning(
-            "Blocking UID %d (from PID %d). This affects ALL processes "
-            "owned by this UID, not just the target tool.",
-            uid, pid,
-        )
+        if not _cgroup_v2_available():
+            logger.warning(
+                "Blocking UID %d (from PID %d). This affects ALL processes "
+                "owned by this UID, not just the target tool.",
+                uid, pid,
+            )
         try:
             result = subprocess.run(
                 [
@@ -103,6 +131,54 @@ def _unblock_linux(pids: set[int]) -> bool:
             success = success or result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError) as exc:
             logger.debug("Could not remove iptables block rule for PID %d: %s", pid, exc)
+    return success
+
+
+def _block_windows(pids: set[int]) -> bool:
+    """Use netsh advfirewall to block outbound traffic by executable path."""
+    success = False
+    for pid in pids:
+        exe_path = _get_exe_path_windows(pid)
+        if not exe_path:
+            continue
+        rule_name = f"agentic-gov-block-{pid}"
+        program_arg = f'program="{exe_path}"' if " " in exe_path else f"program={exe_path}"
+        try:
+            result = subprocess.run(
+                [
+                    "netsh", "advfirewall", "firewall", "add", "rule",
+                    f"name={rule_name}",
+                    "dir=out", "action=block",
+                    program_arg,
+                    "enable=yes",
+                ],
+                capture_output=True, text=True, timeout=10,
+            )
+            if result.returncode == 0:
+                logger.info("netsh: blocked outbound for %s (PID %d)", exe_path, pid)
+                success = True
+            else:
+                logger.warning("netsh add rule failed: %s", result.stderr.strip())
+        except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError) as exc:
+            logger.warning("netsh not available: %s", exc)
+    return success
+
+
+def _unblock_windows(pids: set[int]) -> bool:
+    success = False
+    for pid in pids:
+        rule_name = f"agentic-gov-block-{pid}"
+        try:
+            result = subprocess.run(
+                [
+                    "netsh", "advfirewall", "firewall", "delete", "rule",
+                    f"name={rule_name}",
+                ],
+                capture_output=True, text=True, timeout=10,
+            )
+            success = success or result.returncode == 0
+        except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError) as exc:
+            logger.debug("Could not remove netsh rule for PID %d: %s", pid, exc)
     return success
 
 

@@ -48,6 +48,7 @@ class ScanResult:
     action_type: str = "exec"
     action_risk: str = "R1"
     evasion_boost: float = 0.0
+    process_patterns: list[str] = field(default_factory=list)
 
 
 class BaseScanner(ABC):

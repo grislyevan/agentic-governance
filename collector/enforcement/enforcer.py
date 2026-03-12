@@ -21,6 +21,9 @@ Posture controls whether tactics actually execute:
 from __future__ import annotations
 
 import logging
+import threading
+import time
+from collections import deque
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -30,6 +33,9 @@ if TYPE_CHECKING:
     from enforcement.posture import PostureManager
 
 logger = logging.getLogger(__name__)
+
+_RESURRECTION_WINDOW = 300.0
+_RESURRECTION_THRESHOLD = 3
 
 
 @dataclass
@@ -41,6 +47,8 @@ class EnforcementResult:
     pid: int | None = None
     simulated: bool = False
     allow_listed: bool = False
+    escalated: bool = False
+    rate_limited: bool = False
 
 
 class Enforcer:
@@ -50,10 +58,15 @@ class Enforcer:
         self,
         posture_manager: PostureManager | None = None,
         dry_run: bool = False,
+        max_enforcements_per_minute: int = 5,
     ) -> None:
         self._posture_mgr = posture_manager
         self._dry_run = dry_run
         self._results: list[EnforcementResult] = []
+        from enforcement.rate_limiter import EnforcementRateLimiter
+        self._rate_limiter = EnforcementRateLimiter(max_per_minute=max_enforcements_per_minute)
+        self._kill_history: dict[str, deque[float]] = {}
+        self._kill_history_lock = threading.Lock()
 
     @property
     def posture(self) -> str:
@@ -68,6 +81,7 @@ class Enforcer:
         tool_class: str,
         pids: set[int] | None = None,
         network_elevated: bool = False,
+        process_patterns: list[str] | None = None,
     ) -> EnforcementResult:
         """Select and execute the appropriate enforcement tactic.
 
@@ -129,11 +143,25 @@ class Enforcer:
                 self._results.append(result)
                 return result
 
+        if not self._rate_limiter.allow():
+            result = EnforcementResult(
+                tactic="log_and_alert",
+                success=True,
+                detail=f"Rate limited: {self._rate_limiter.recent_count} enforcements in window for {tool_name}",
+                tool_name=tool_name,
+                simulated=True,
+                rate_limited=True,
+            )
+            self._results.append(result)
+            logger.warning("Enforcement rate limited for %s", tool_name)
+            return result
+
         if decision.decision_state == "block":
             if network_elevated:
                 return self._network_block(tool_name, pids or set())
             if pids:
-                return self._process_kill(tool_name, pids)
+                expected_pattern = (process_patterns or [None])[0] if process_patterns else None
+                return self._process_kill(tool_name, pids, expected_pattern=expected_pattern)
             result = EnforcementResult(
                 tactic="log_and_alert",
                 success=True,
@@ -198,17 +226,52 @@ class Enforcer:
         self._results.append(result)
         return result
 
-    def _process_kill(self, tool_name: str, pids: set[int]) -> EnforcementResult:
-        from enforcement.process_kill import kill_processes
-        killed = kill_processes(pids)
+    def _process_kill(
+        self,
+        tool_name: str,
+        pids: set[int],
+        expected_pattern: str | None = None,
+    ) -> EnforcementResult:
+        from enforcement.process_kill import kill_process_tree
+
+        all_killed: list[int] = []
+        for pid in pids:
+            if pid <= 1:
+                continue
+            kr = kill_process_tree(pid, expected_pattern=expected_pattern)
+            if kr.success and kr.killed_pids:
+                all_killed.extend(kr.killed_pids)
+
+        self._rate_limiter.record()
+
+        escalated = self._check_resurrection(tool_name)
+
+        detail = f"Killed PIDs {all_killed} for {tool_name}"
+        if escalated:
+            detail = f"Escalated: {detail} (killed 3+ times in 5 min)"
+
         result = EnforcementResult(
             tactic="process_kill",
-            success=len(killed) > 0,
-            detail=f"Killed PIDs {killed} for {tool_name}",
+            success=len(all_killed) > 0,
+            detail=detail,
             tool_name=tool_name,
+            escalated=escalated,
         )
         self._results.append(result)
         return result
+
+    def _check_resurrection(self, tool_name: str) -> bool:
+        """Track kill history; return True if tool was killed 3+ times in 5 min."""
+        now = time.monotonic()
+        with self._kill_history_lock:
+            if tool_name not in self._kill_history:
+                self._kill_history[tool_name] = deque()
+            hist = self._kill_history[tool_name]
+            cutoff = now - _RESURRECTION_WINDOW
+            while hist and hist[0] < cutoff:
+                hist.popleft()
+            hist.append(now)
+            return len(hist) >= _RESURRECTION_THRESHOLD
 
     def _network_block(self, tool_name: str, pids: set[int]) -> EnforcementResult:
         from enforcement.network_block import block_outbound

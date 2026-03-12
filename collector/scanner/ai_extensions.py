@@ -131,6 +131,8 @@ class AIExtensionScanner(BaseScanner):
             result.detected = True
 
         self._determine_action(result)
+        if result.detected:
+            result.process_patterns = ["ai-extension", "ai_extension"]
         return result
 
     def _scan_file(self, result: ScanResult, verbose: bool) -> float:
