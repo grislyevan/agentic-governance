@@ -49,7 +49,7 @@ Default dashboard login: `admin@example.com` / `change-me` (unless overridden by
 - **Config:** Collector: `collector/config_loader.py` + `collector/config/collector.json` + env. API: `api/core/config.py` + root or `api/.env`. Production: set `ENV=production` and strong `JWT_SECRET` / `SEED_ADMIN_PASSWORD`.
 - **Docs:** Agent deployment → [DEPLOY.md](DEPLOY.md). Central server → [SERVER.md](SERVER.md). Playbook → `playbook/PLAYBOOK-v0.4-*.md`. Progress → [PROGRESS.md](PROGRESS.md).
 - **Versioning:** Playbook uses semantic version in filename and `Version:` header; see `.cursor/rules/git-and-versioning.mdc` for commit/version discipline.
-- **Tests:** `pytest collector/tests/` (233 tests), `pytest api/tests/` (216), `pytest protocol/tests/` (45). Run separately to avoid package conflicts.
+- **Tests:** `pytest collector/tests/` (233 tests), `pytest api/tests/` (244), `pytest protocol/tests/` (48). Run separately to avoid package conflicts.
 - **Calibration:** `pytest collector/tests/test_calibration.py -v` runs the replay harness against 8 lab-run fixtures. Runs automatically in CI as a dedicated "Calibration Regression" job on every push/PR to main. Run it locally before changing weights or penalties in `engine/confidence.py`. Add new fixtures to `collector/tests/fixtures/lab_runs/` after each lab run.
 - **Baseline policies:** 15 rules from Playbook v0.4.0 Section 6.3 are seeded per tenant on creation (`api/core/baseline_policies.py`). Baseline rules are `is_baseline=True`, cannot be deleted, and can be reset via `POST /api/policies/restore-defaults`. ISO-001 (container isolation) ships inactive; all others active.
 

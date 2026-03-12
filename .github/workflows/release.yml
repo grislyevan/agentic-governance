@@ -65,7 +65,7 @@ jobs:
       - name: Build and push detec-dashboard
         uses: docker/build-push-action@v6
         with:
-          context: dashboard
+          context: .
           file: dashboard/Dockerfile
           push: true
           tags: |

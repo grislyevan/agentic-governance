@@ -32,7 +32,7 @@
 | SaaS frontend (auth, org management, responsive) | Done |
 | Cloud deployment + CI/CD | Done |
 | Billing (Stripe, tier limits, dashboard) | Done |
-| Enterprise features (SSO, SIEM, compliance) | Not started |
+| Enterprise features (SSO, SIEM, ATT&CK, compliance) | Done |
 
 ---
 
