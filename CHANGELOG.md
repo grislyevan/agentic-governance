@@ -6,6 +6,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+_No unreleased changes._
+
+---
+
+## [0.1.0] - 2026-03-12
+
+First tagged release. Deployed and verified on Windows VM with E2E agent test.
+
+### Added
+
+- **Stripe billing infrastructure**: Tenant model gains billing columns
+  (`stripe_customer_id`, `subscription_tier`, `subscription_status`,
+  `trial_ends_at`, `stripe_subscription_id`) with Alembic migration 0012.
+  Three subscription tiers: free (3 endpoints, 1K events/day), pro
+  (25 endpoints, unlimited events), enterprise (unlimited). Feature gates
+  for webhooks, SSO, and SIEM export. Billing router provides checkout,
+  portal, webhook, and status endpoints. Dashboard `BillingPage` with tier
+  comparison cards and plan badge in the sidebar. 23 new tests.
+- **Demo mode**: `DEMO_MODE=true` seeds 3 endpoints and ~54 events across
+  5 tools (Claude Code, Cursor, Ollama, Aider, OpenClaw) covering all
+  decision states. `POST /api/demo/reset` (owner only) wipes and re-seeds.
+  `GET /api/demo/status` returns data stats. Dashboard shows an amber
+  "Demo Environment" banner. 10 new tests.
+- **Capability brief**: Evidence-backed one-page brief at
+  `branding/capability-brief.md` following INIT-33 structure. Pandoc PDF
+  pipeline at `branding/build-brief.sh`.
+
 ### Changed
 
 - **Centralized version constants**: Agent version and build number are now

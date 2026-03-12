@@ -31,7 +31,8 @@
 | BSL 1.1 license + ToS + License Agreement | Done |
 | SaaS frontend (auth, org management, responsive) | Done |
 | Cloud deployment + CI/CD | Done |
-| Billing + enterprise features | Not started |
+| Billing (Stripe, tier limits, dashboard) | Done |
+| Enterprise features (SSO, SIEM, compliance) | Not started |
 
 ---
 
@@ -176,7 +177,7 @@ API Client ────────────────────▶│ Mu
 
 - [x] Cloud deployment: Docker Compose + Caddy TLS, Kubernetes manifests (7 files), Fly.io config
 - [x] CI/CD pipeline: release workflow (5 jobs on v* tags), dashboard build in CI, dep scanning
-- [ ] Stripe integration: subscription tiers (free/pro/enterprise), usage metering
+- [x] Stripe integration: subscription tiers (free/pro/enterprise), tier limits, billing dashboard, 23 tests
 - [ ] Secrets management (Doppler or AWS Secrets Manager)
 - [x] Structured logging (JSON in production) + Prometheus metrics (5 counters/histograms/gauges at `/metrics`)
 - [ ] Uptime monitoring and alerting
@@ -221,8 +222,8 @@ Items that are valuable but not yet scheduled:
 | Evasion test suite | INIT-29 | Systematic coverage beyond LAB-RUN-EVASION-001 |
 | Replay / simulation mode | INIT-28 | Replay canned events against policy engine |
 | Benchmark suite | INIT-31 | Scanner performance, confidence accuracy, FP rate |
-| Capability brief | INIT-32 | Customer-facing one-pager; needed before M4 |
-| Demo mode | INIT-37 | Canned data for live demos; needed before M4 |
+| ~~Capability brief~~ | ~~INIT-32~~ | Done (A2, `branding/capability-brief.md`) |
+| ~~Demo mode~~ | ~~INIT-37~~ | Done (A1, `api/core/demo_seed.py`, 10 tests) |
 | Deep-dive / positioning | INIT-36 | Market positioning document |
 | Metrics pipeline | INIT-30 | Detection rate, FP%, policy coverage KPIs |
 | MITRE tactics mapping | INIT-40 | Map signals to ATT&CK for enterprise buyers |

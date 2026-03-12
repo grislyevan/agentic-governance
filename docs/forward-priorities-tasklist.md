@@ -406,7 +406,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 
 ### B1. Stripe Billing
 
-> Today: No billing fields on Tenant. No Stripe SDK. No billing UI. Tenant model at `api/models/tenant.py` has `id`, `name`, `slug`, `agent_key`, `retention_days`.
+> Done. Tenant model has billing columns (stripe_customer_id, subscription_tier, subscription_status, trial_ends_at, stripe_subscription_id). Stripe SDK integrated. Tier limits enforced. Billing dashboard and 23 tests complete.
 
 #### B1.1 Tenant model: add billing columns
 
