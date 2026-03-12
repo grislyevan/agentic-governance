@@ -14,5 +14,9 @@
     <!-- Disable App Sandbox (agent needs broad filesystem and process access) -->
     <key>com.apple.security.app-sandbox</key>
     <false/>
+
+    <!-- Endpoint Security client: required for ESF telemetry provider -->
+    <key>com.apple.developer.endpoint-security.client</key>
+    <true/>
 </dict>
 </plist>

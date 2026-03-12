@@ -9,6 +9,7 @@ are needed, why, and how to grant them (both manually and via MDM).
 | Permission | Required | Why | User Impact |
 |---|---|---|---|
 | Full Disk Access | Yes | Read application metadata, config files, and extension manifests across the filesystem | One-time prompt or MDM profile |
+| System Extension | Conditional | ESF telemetry provider for real-time process, file, and network monitoring (only when native telemetry is enabled) | Approval dialog on first load, or MDM profile |
 | Background Items | Yes (macOS 13+) | LaunchAgent runs at login | System notification on first load |
 | Outgoing Network | Yes | POST detection events and heartbeats to the central API | Firewall prompt if Application Firewall is enabled |
 | Process Inspection | Implicit | `psutil` reads the process list to detect running AI tools | Covered by standard user permissions |
@@ -62,6 +63,87 @@ The key TCC entry:
 
 **Important**: PPPC profiles require the app to be code-signed with a
 Developer ID certificate. Unsigned apps cannot be pre-authorized via MDM.
+
+## System Extension (ESF Telemetry Provider)
+
+**Why it's needed**: When the native ESF telemetry provider is enabled
+(telemetry-provider set to "auto" or "native" on macOS), the Detec Agent
+uses a helper binary that calls the Endpoint Security Framework (ESF) to
+receive real-time process execution, file access, and network connection
+events. This provides sub-second detection latency compared to the
+default polling interval.
+
+ESF requires the helper binary to be approved as a System Extension. This
+is separate from Full Disk Access and is only needed when using the native
+ESF provider (the agent falls back to polling if ESF is not available).
+
+**Requirements**:
+- macOS 10.15 (Catalina) or later
+- The helper binary must be code-signed with an Apple Developer ID
+  certificate that includes the `com.apple.developer.endpoint-security.client`
+  entitlement
+- The app must be notarized for distribution outside the Mac App Store
+
+### Granting Manually
+
+1. When the agent first attempts to load the ESF helper, macOS shows a
+   dialog: "Detec Agent wants to filter network content and monitor
+   process activity."
+2. Click **Allow** in the dialog
+3. If the dialog was dismissed, open **System Settings > Privacy &
+   Security > Security** and look for the blocked extension notification
+4. Click **Allow** next to the Detec Agent entry
+5. A restart may be required for the extension to take effect
+
+### Granting via MDM (System Extension Profile)
+
+Deploy a System Extension configuration profile to pre-approve the
+extension without user interaction. The profile payload:
+
+```xml
+<key>PayloadType</key>
+<string>com.apple.system-extension-policy</string>
+<key>AllowedSystemExtensions</key>
+<dict>
+    <key>TEAM_ID_HERE</key>
+    <array>
+        <string>com.detec.agent.esf-helper</string>
+    </array>
+</dict>
+<key>AllowedSystemExtensionTypes</key>
+<dict>
+    <key>TEAM_ID_HERE</key>
+    <array>
+        <string>EndpointSecurityExtension</string>
+    </array>
+</dict>
+```
+
+Replace `TEAM_ID_HERE` with your Apple Developer Team ID.
+
+This profile is included in the PPPC profile at
+`packaging/macos/pppc-detec-agent.mobileconfig`.
+
+### Without System Extension Approval
+
+If the System Extension is not approved (or the helper binary is
+unsigned), the agent automatically falls back to the polling-based
+telemetry provider. Detection still works but at the configured poll
+interval (default 60s for daemon mode) rather than in real time.
+
+### SIP Considerations
+
+System Integrity Protection (SIP) must be enabled for System Extensions
+to load. On development machines with SIP partially disabled (common for
+kernel debugging), System Extensions may not function. Use
+`csrutil status` to verify.
+
+For testing ESF without a signed extension, SIP can be configured to
+allow unsigned system extensions:
+```bash
+csrutil enable --without kext --without fs --without debug
+```
+This is not recommended for production environments.
 
 ## Background Items (macOS 13 Ventura+)
 

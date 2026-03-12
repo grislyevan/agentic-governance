@@ -40,6 +40,18 @@ echo "Version:      $VERSION"
 echo "App bundle:   $APP_PATH"
 echo ""
 
+# ---- Build ESF helper binary (if on macOS) ----
+ESF_HELPER_DIR="$PROJECT_ROOT/collector/providers/esf_helper"
+if [ "$(uname)" = "Darwin" ] && [ -f "$ESF_HELPER_DIR/Makefile" ]; then
+    echo "[pre] Building ESF helper binary..."
+    if make -C "$ESF_HELPER_DIR" 2>/dev/null; then
+        echo "  ESF helper built: $ESF_HELPER_DIR/esf_helper"
+    else
+        echo "  WARNING: ESF helper build failed (requires Endpoint Security SDK)."
+        echo "  The package will be built without native ESF telemetry."
+    fi
+fi
+
 # ---- Verify .app exists ----
 if [ ! -d "$APP_PATH" ]; then
     echo "ERROR: $APP_PATH not found."

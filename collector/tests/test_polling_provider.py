@@ -143,16 +143,20 @@ def test_stop_clears_store_reference() -> None:
 
 def test_registry_native_raises() -> None:
     from providers import get_best_provider
+    from providers import registry
 
-    with pytest.raises(RuntimeError, match="No native telemetry provider"):
-        get_best_provider("native")
+    with patch.object(registry, "_try_native", return_value=None):
+        with pytest.raises(RuntimeError, match="No native telemetry provider"):
+            get_best_provider("native")
 
 
 def test_registry_auto_returns_polling() -> None:
     from providers import get_best_provider
+    from providers import registry
 
-    provider = get_best_provider("auto")
-    assert provider.name == "polling"
+    with patch.object(registry, "_try_native", return_value=None):
+        provider = get_best_provider("auto")
+        assert provider.name == "polling"
 
 
 def test_registry_polling_returns_polling() -> None:

@@ -65,6 +65,7 @@ HIDDEN_IMPORTS = [
     'collector.compat.paths',
     'collector.compat.services',
     'collector.scanner.base',
+    'collector.providers.esf_provider',
     'protocol',
     'protocol.wire',
     'protocol.messages',
@@ -77,6 +78,17 @@ datas = [
     (os.path.join(PROJECT_ROOT, 'collector', 'config'), 'collector/config'),
     (os.path.join(PROJECT_ROOT, 'schemas'), 'schemas'),
 ]
+
+# ESF helper binary for native macOS telemetry (built separately via Makefile)
+_esf_helper_path = os.path.join(
+    PROJECT_ROOT, 'collector', 'providers', 'esf_helper', 'esf_helper',
+)
+binaries = []
+if os.path.isfile(_esf_helper_path):
+    binaries.append((_esf_helper_path, 'Resources'))
+else:
+    print(f"NOTE: ESF helper not found at {_esf_helper_path}. "
+          f"Build it with: make -C collector/providers/esf_helper")
 
 # Include generated icon assets if they exist
 icons_dir = os.path.join(SPECPATH, 'icons')
@@ -96,7 +108,7 @@ a = Analysis(
         PROJECT_ROOT,
         os.path.join(PROJECT_ROOT, 'collector'),
     ],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=HIDDEN_IMPORTS,
     hookspath=[],
@@ -168,5 +180,9 @@ app = BUNDLE(
         'NSHighResolutionCapable': True,
         'LSApplicationCategoryType': 'public.app-category.utilities',
         'NSHumanReadableCopyright': 'Copyright 2026 Detec. All rights reserved.',
+        'NSEndpointSecurityEarlyBoot': False,
+        'NSSystemExtensionUsageDescription':
+            'Detec Agent uses a System Extension to monitor process, '
+            'file, and network activity for agentic AI tool detection.',
     },
 )

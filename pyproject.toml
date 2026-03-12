@@ -44,6 +44,14 @@ detec-agent-gui = "collector.gui.menubar:main"
 where = ["."]
 include = ["collector", "collector*", "protocol", "protocol*"]
 
+[tool.setuptools.package-data]
+"collector.providers.ebpf_programs" = ["*.c"]
+"collector.config" = ["*.json", "*.txt"]
+
 [tool.pytest.ini_options]
 testpaths = ["collector/tests"]
 pythonpath = ["collector"]
+markers = [
+    "benchmark: latency and throughput benchmarks (skip in CI)",
+    "slow: slow tests (skip in CI)",
+]

@@ -593,10 +593,26 @@ def run_scan(
             print(f"Network allowlist: {len(network_allowlist)} entries")
         print("-" * 60)
 
-    # Create event store and start telemetry provider
-    event_store = EventStore()
+    # Create event store and start telemetry provider.
+    # In daemon mode the alert callback is attached so native providers
+    # can wake the scan loop for out-of-cycle scans.
+    on_alert = getattr(args, "_on_alert", None)
+    event_store = EventStore(on_alert=on_alert)
     provider = get_best_provider(getattr(args, "telemetry_provider", "auto"))
-    provider.start(event_store)
+    try:
+        provider.start(event_store)
+    except Exception:
+        if provider.name != "polling":
+            logger.warning(
+                "Native provider %s failed to start; falling back to polling",
+                provider.name,
+                exc_info=True,
+            )
+            from providers.polling import PollingProvider
+            provider = PollingProvider()
+            provider.start(event_store)
+        else:
+            raise
 
     scanners = [
         ClaudeCodeScanner(event_store=event_store),
@@ -859,9 +875,21 @@ def _run_daemon(args: argparse.Namespace) -> None:
 
     stop_event = threading.Event()
 
+    # Alert-triggered scan: when a native provider pushes a high-priority
+    # process exec event, this Event is set so the loop wakes early.
+    scan_trigger = threading.Event()
+
+    def _on_alert(event: object) -> None:
+        logger.info("Alert-triggered scan requested (pid=%s)", getattr(event, "pid", "?"))
+        scan_trigger.set()
+
+    # Stash the callback so run_scan can wire it into the EventStore.
+    args._on_alert = _on_alert  # type: ignore[attr-defined]
+
     def _handle_signal(signum: int, frame: Any) -> None:
-        print(f"\nReceived signal {signum}, shutting down daemon…", file=sys.stderr)
+        print(f"\nReceived signal {signum}, shutting down daemon...", file=sys.stderr)
         stop_event.set()
+        scan_trigger.set()
 
     try:
         signal.signal(signal.SIGINT, _handle_signal)
@@ -889,6 +917,11 @@ def _run_daemon(args: argparse.Namespace) -> None:
         if flushed and args.verbose:
             print(f"Flushed {flushed} buffered events")
 
+        triggered = scan_trigger.is_set()
+        scan_trigger.clear()
+        scan_source = "alert-triggered" if triggered else "scheduled"
+        logger.info("Starting %s scan cycle", scan_source)
+
         run_scan(
             args,
             emitter=emitter,
@@ -897,7 +930,10 @@ def _run_daemon(args: argparse.Namespace) -> None:
             enforcer=enforcer,
         )
 
-        if stop_event.wait(timeout=args.interval):
+        # Wait for the interval OR an alert, whichever comes first.
+        # If stop_event fires, the outer loop condition exits.
+        scan_trigger.wait(timeout=args.interval)
+        if stop_event.is_set():
             break
 
     shutdown_event = _build_lifecycle_event(

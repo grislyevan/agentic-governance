@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import logging
+import os
 import re
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from threading import Lock
+from typing import Callable
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -50,28 +55,104 @@ class FileChangeEvent:
     source: str = "unknown"
 
 
+# Process names associated with known agentic AI tools.  Used by
+# _should_alert() as a fast heuristic to trigger out-of-cycle scans
+# when an event-driven provider delivers a new exec event.
+_AGENTIC_PROCESS_PATTERNS: frozenset[str] = frozenset({
+    "claude",
+    "cursor",
+    "ollama",
+    "copilot",
+    "aider",
+    "interpreter",
+    "openclaw",
+    "continue",
+    "gpt-pilot",
+    "lm-studio",
+    "lmstudio",
+    "cline",
+    "codex",
+    "devin",
+    "smol-developer",
+    "autogpt",
+    "auto-gpt",
+    "babyagi",
+    "langchain",
+    "crewai",
+})
+
+_SHELL_NAMES: frozenset[str] = frozenset({
+    "bash", "sh", "zsh", "fish", "csh", "tcsh", "dash",
+    "cmd", "powershell", "pwsh",
+})
+
+# Rapid shell fan-out threshold: if this many shell children from the
+# same parent appear within the retention window, it's worth an alert.
+_SHELL_FANOUT_ALERT_THRESHOLD = 5
+
+
 class EventStore:
     """Thread-safe ring buffer for telemetry events.
 
     Providers push events from background threads. Scanners query
     the store during scan cycles. Events older than the retention
     window are lazily evicted on query.
+
+    When ``on_alert`` is provided, ``push_process()`` calls it (outside
+    the lock) for events that match fast agentic-heuristic checks.  The
+    callback is intended to wake the scan loop for an immediate
+    out-of-cycle scan.
     """
 
     def __init__(
         self,
         max_events: int = 10_000,
         retention_seconds: float = 120.0,
+        on_alert: Callable[[ProcessExecEvent], None] | None = None,
     ) -> None:
         self._process_events: deque[ProcessExecEvent] = deque(maxlen=max_events)
         self._network_events: deque[NetworkConnectEvent] = deque(maxlen=max_events)
         self._file_events: deque[FileChangeEvent] = deque(maxlen=max_events)
         self._retention = retention_seconds
         self._lock = Lock()
+        self._on_alert = on_alert
+        # Per-ppid shell child count for fan-out heuristic
+        self._shell_children_by_ppid: dict[int, int] = {}
 
     def push_process(self, event: ProcessExecEvent) -> None:
+        should_alert = False
         with self._lock:
             self._process_events.append(event)
+            should_alert = self._should_alert(event)
+
+        if should_alert and self._on_alert is not None:
+            try:
+                self._on_alert(event)
+            except Exception:
+                logger.debug("on_alert callback raised; ignoring", exc_info=True)
+
+    def _should_alert(self, event: ProcessExecEvent) -> bool:
+        """Fast heuristic: does this exec event warrant an out-of-cycle scan?
+
+        Must be called while ``self._lock`` is held.  Two checks:
+        1. Process name contains a known agentic tool pattern.
+        2. Shell fan-out: the same parent spawned >= N shells recently.
+        """
+        name_lower = os.path.basename(event.name).lower()
+        if name_lower.endswith(".exe"):
+            name_lower = name_lower[:-4]
+
+        for pattern in _AGENTIC_PROCESS_PATTERNS:
+            if pattern in name_lower or pattern in event.cmdline.lower():
+                return True
+
+        if name_lower in _SHELL_NAMES:
+            count = self._shell_children_by_ppid.get(event.ppid, 0) + 1
+            self._shell_children_by_ppid[event.ppid] = count
+            if count >= _SHELL_FANOUT_ALERT_THRESHOLD:
+                return True
+
+        return False
 
     def push_network(self, event: NetworkConnectEvent) -> None:
         with self._lock:

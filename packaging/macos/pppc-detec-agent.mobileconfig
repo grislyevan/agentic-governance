@@ -18,6 +18,7 @@
 <dict>
     <key>PayloadContent</key>
     <array>
+        <!-- PPPC: Full Disk Access -->
         <dict>
             <key>PayloadDescription</key>
             <string>Privacy Preferences Policy Control for Detec Agent</string>
@@ -50,23 +51,38 @@
                         <false/>
                     </dict>
                 </array>
+            </dict>
+        </dict>
 
-                <!-- Accessibility (not currently needed, reserved for future use) -->
-                <!--
-                <key>Accessibility</key>
+        <!-- System Extension: ESF telemetry helper -->
+        <dict>
+            <key>PayloadDescription</key>
+            <string>Allow Detec Agent Endpoint Security System Extension</string>
+            <key>PayloadDisplayName</key>
+            <string>Detec Agent System Extension</string>
+            <key>PayloadIdentifier</key>
+            <string>com.detec.agent.sysext</string>
+            <key>PayloadType</key>
+            <string>com.apple.system-extension-policy</string>
+            <key>PayloadUUID</key>
+            <string>B2C3D4E5-F6A7-8901-BCDE-F12345678901</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+
+            <key>AllowedSystemExtensions</key>
+            <dict>
+                <!-- Replace TEAM_ID_HERE with your Apple Developer Team ID -->
+                <key>TEAM_ID_HERE</key>
                 <array>
-                    <dict>
-                        <key>Identifier</key>
-                        <string>com.detec.agent</string>
-                        <key>IdentifierType</key>
-                        <string>bundleID</string>
-                        <key>CodeRequirement</key>
-                        <string>identifier "com.detec.agent" and anchor apple generic</string>
-                        <key>Allowed</key>
-                        <true/>
-                    </dict>
+                    <string>com.detec.agent.esf-helper</string>
                 </array>
-                -->
+            </dict>
+            <key>AllowedSystemExtensionTypes</key>
+            <dict>
+                <key>TEAM_ID_HERE</key>
+                <array>
+                    <string>EndpointSecurityExtension</string>
+                </array>
             </dict>
         </dict>
     </array>
