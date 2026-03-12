@@ -1,7 +1,7 @@
 # Agentic Governance — Progress Tracker
 
-**Last updated:** 2026-03-11  
-**Current phase:** M2 — Backend API + Dashboard + Agent Packaging  
+**Last updated:** 2026-03-12  
+**Current phase:** M4 boundary — infrastructure complete, billing + enterprise remaining  
 **Ultimate goal:** Production SaaS for agentic AI endpoint governance
 
 ---
@@ -14,7 +14,7 @@
 | Cross-platform abstraction layer (`collector/compat/`) | Done |
 | Confidence + policy engine | Done |
 | NDJSON event output | Done |
-| Canonical event schema v0.3.0 | Done |
+| Canonical event schema v0.4.0 | Done |
 | Playbook v0.4 (Rule ID Catalog, enforcement pipeline, weight alignment) | Done |
 | Synthetic scanner fixture tests (22 tests, 5 scanners) | Done |
 | Scan pipeline integration tests (20 tests) | Done |
@@ -29,8 +29,8 @@
 | macOS .app/.pkg packaging for MDM distribution | Done |
 | MDM deployment docs (Jamf, Endpoint Central) | Done |
 | BSL 1.1 license + ToS + License Agreement | Done |
-| SaaS frontend (auth, org management) | In progress |
-| Cloud deployment + CI/CD | Not started |
+| SaaS frontend (auth, org management, responsive) | Done |
+| Cloud deployment + CI/CD | Done |
 | Billing + enterprise features | Not started |
 
 ---
@@ -77,7 +77,7 @@ API Client ────────────────────▶│ Mu
 - [x] Claude Cowork scanner module (LAB-RUN-014 — VM-based execution, 0.905 confidence)
 - [x] Synthetic fixture tests for 5 new scanners (22 tests: Aider, LM Studio, Continue, GPT-Pilot, Cline)
 - [ ] Live lab-validate all 5 new scanners (lab run per tool — synthetic validation complete, live runs pending hardware)
-- [ ] Schema v0.3.0: add `enforcement.applied` example, finalize enum values
+- [x] Schema v0.4.0: `enforcement.applied` example added, enum audit complete (8 live, 10 forward-declared)
 - [ ] Integration tests for `main.py` end-to-end + scanner stubs
 - [ ] Playbook v0.4: integrate findings from new lab runs
 
@@ -115,7 +115,7 @@ API Client ────────────────────▶│ Mu
 - [x] All 12 scanners migrated to compat layer (cross-platform via psutil)
 - [x] Events page — full SOC event browser with filters, pagination, detail panel
 - [x] M-28 fix: `approval_required` no longer triggers enforcement
-- [ ] Integration tests for API endpoints
+- [x] Integration tests for API endpoints (3 multi-step flows: auth lifecycle, policy lifecycle, event ingestion-to-query)
 - [x] Alembic migrations wired up
 - [x] Windows Service packaging — `detec-server` CLI with setup/run/install/start/stop/remove commands, pywin32 service wrapper, PyInstaller spec
 - [x] Windows collector agent packaging — `detec-agent` CLI with setup/scan/run/install/start/stop/remove commands, pywin32 service wrapper, PyInstaller spec
@@ -155,7 +155,8 @@ API Client ────────────────────▶│ Mu
 - [x] Auth flows: login, register (JWT with auto-refresh, API key fallback)
 - [x] Auth flows: invite tokens, password reset (forgot/reset/accept-invite endpoints, SetPasswordPage, ResetPasswordPage)
 - [x] User management: CRUD for tenant users, four-role model (owner/admin/analyst/viewer), Admin page UI
-- [ ] Org/tenant management: create org, invite members
+- [x] Invite members UI: email/role form on AdminPage, accept-invite route, RBAC enforcement
+- [ ] Create org flow: multi-org creation and switching (API endpoints exist, no UI)
 - [x] Endpoint management: multi-endpoint view with filter, status, signal bars
 - [x] Events dashboard: filterable table, confidence bands, enforcement state, time range
 - [x] Policy list (read-only, from API)
@@ -165,7 +166,7 @@ API Client ────────────────────▶│ Mu
 - [x] Webhook alerts: CRUD, HMAC-signed delivery, event type filtering, test endpoint, Settings UI
 - [x] Real-time updates via 30s polling with pause/resume and "Updated Xs ago" indicator
 - [x] Accessible design (ARIA labels, keyboard nav, screen reader support)
-- [ ] Responsive design (mobile breakpoints)
+- [x] Responsive design (mobile breakpoints across all 9 pages, sidebar hamburger, table overflow, Tailwind)
 
 ---
 
@@ -173,14 +174,14 @@ API Client ────────────────────▶│ Mu
 
 **Goal:** Deploy to cloud with billing, observability, and security hardening.
 
-- [ ] Cloud deployment: containerized API + frontend (fly.io, Render, or AWS ECS)
-- [ ] CI/CD pipeline: lint, test, build, deploy on merge to `main`
+- [x] Cloud deployment: Docker Compose + Caddy TLS, Kubernetes manifests (7 files), Fly.io config
+- [x] CI/CD pipeline: release workflow (5 jobs on v* tags), dashboard build in CI, dep scanning
 - [ ] Stripe integration: subscription tiers (free/pro/enterprise), usage metering
 - [ ] Secrets management (Doppler or AWS Secrets Manager)
-- [ ] Structured logging + distributed tracing (OpenTelemetry)
+- [x] Structured logging (JSON in production) + Prometheus metrics (5 counters/histograms/gauges at `/metrics`)
 - [ ] Uptime monitoring and alerting
-- [ ] Privacy review and data retention policy (aligns with INIT-41)
-- [ ] Security hardening: rate limiting, input validation, dependency scanning
+- [x] Privacy review and data retention: per-tenant `retention_days` (default 90), background purge, admin purge endpoint, `docs/data-privacy.md`
+- [x] Security hardening: rate limiting (slowapi on auth endpoints), CORS production mode, input validation audit, dependency scanning CI
 
 ---
 
@@ -205,9 +206,9 @@ API Client ────────────────────▶│ Mu
 - [x] `.env.example` added to `collector/` and `api/`
 - [x] `CONTRIBUTING.md` added
 - [x] `docker-compose.yml` added at repo root
-- [ ] Push unpushed commits to `origin/main` when ready
+- [x] Push unpushed commits to `origin/main`
 - [ ] Triage INIT-28 through INIT-42 shelved issues
-- [ ] Add integration tests before M2 merge
+- [x] Add integration tests before M2 merge (3 multi-step flows in `api/tests/test_integration_flows.py`)
 
 ---
 
@@ -224,9 +225,8 @@ Items that are valuable but not yet scheduled:
 | Demo mode | INIT-37 | Canned data for live demos; needed before M4 |
 | Deep-dive / positioning | INIT-36 | Market positioning document |
 | Metrics pipeline | INIT-30 | Detection rate, FP%, policy coverage KPIs |
-| Privacy review | INIT-41 | Data minimization + retention; required before M4 |
 | MITRE tactics mapping | INIT-40 | Map signals to ATT&CK for enterprise buyers |
 | Lab runs 008–012 (live) | — | Aider, GPT-Pilot, Cline, LM Studio, Continue — synthetic validation complete, live runs pending hardware |
 | LAB-RUN-013 findings | — | Local LLM variant: confidence floor for infrastructure-class tools, co-residency detection, model-dependent behavioral weights |
 | LAB-RUN-014 findings | — | Claude Cowork: VM-based execution model, 10 GB footprint, cleartext identity, "soft proactive" scheduled tasks, DXT cross-app automation, 0.905 confidence (new highest) |
-| Active defense roadmap | — | Six-phase plan: admin posture control, behavioral scanner, enforcement hardening, webhook orchestration, native OS telemetry, EDR integration. See `docs/enforcement-roadmap.md`. |
+| Active defense roadmap | — | All 6 phases complete (2026-03-12). See `docs/enforcement-remaining-work.md` for final status. |
