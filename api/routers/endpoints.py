@@ -128,6 +128,7 @@ def endpoint_status(
 class HeartbeatRequest(BaseModel):
     hostname: str = Field(max_length=255)
     interval_seconds: int = Field(default=settings.default_heartbeat_interval, ge=30, le=86400)
+    telemetry_provider: str | None = Field(default=None, max_length=32)
 
 
 class HeartbeatResponse(BaseModel):
@@ -174,6 +175,7 @@ def heartbeat(
             hostname=body.hostname,
             management_state="unmanaged",
             heartbeat_interval=body.interval_seconds,
+            telemetry_provider=body.telemetry_provider,
             status=ENDPOINT_STATUS_ACTIVE,
             last_seen_at=now,
         )
@@ -190,6 +192,8 @@ def heartbeat(
         endpoint.last_seen_at = now
         endpoint.heartbeat_interval = body.interval_seconds
         endpoint.status = ENDPOINT_STATUS_ACTIVE
+        if body.telemetry_provider:
+            endpoint.telemetry_provider = body.telemetry_provider
 
     db.commit()
     db.refresh(endpoint)

@@ -125,10 +125,21 @@ class TcpEmitter:
             logger.warning("TcpEmitter: send queue full, event %s buffered", event.get("event_id", "?"))
             return False
 
-    def heartbeat(self, hostname: str, interval_seconds: int = 0) -> bool:
+    def heartbeat(
+        self,
+        hostname: str,
+        interval_seconds: int = 0,
+        telemetry_provider: str | None = None,
+    ) -> bool:
         """Send a heartbeat."""
         self._ensure_started()
-        item = _QueueItem("heartbeat", {"hostname": hostname, "interval_seconds": interval_seconds})
+        data: dict[str, str | int] = {
+            "hostname": hostname,
+            "interval_seconds": interval_seconds,
+        }
+        if telemetry_provider:
+            data["telemetry_provider"] = telemetry_provider
+        item = _QueueItem("heartbeat", data)
         try:
             self._send_queue.put(item, timeout=2.0)
             return True

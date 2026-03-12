@@ -70,7 +70,14 @@ export default function FilterBar({ endpoints = [], selectedEndpoint, onEndpoint
                   onClick={() => { onEndpointChange?.(ep.id); setShowEpDropdown(false); }}
                   className={`w-full text-left px-3 py-2 text-sm transition-colors ${selectedEndpoint === ep.id ? 'text-detec-primary-400 bg-detec-primary-500/10' : 'text-detec-slate-300 hover:bg-detec-slate-700/50'}`}
                 >
-                  <div>{ep.hostname}</div>
+                  <div className="flex items-center gap-2">
+                    <span>{ep.hostname}</span>
+                    {ep.telemetry_provider && ep.telemetry_provider !== 'polling' && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-detec-primary-500/15 text-detec-primary-400">
+                        {ep.telemetry_provider.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-detec-slate-500">{ep.os_info || 'Unknown OS'}</div>
                 </button>
               ))}

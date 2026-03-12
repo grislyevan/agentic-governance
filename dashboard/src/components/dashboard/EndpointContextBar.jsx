@@ -138,6 +138,22 @@ export default function EndpointContextBar({ endpointCount, endpoints, endpointS
           </>
         )}
 
+        {showSingleEndpoint && firstEp?.telemetry_provider && (
+          <>
+            <span className="flex items-center gap-1.5">
+              <span className="text-detec-slate-500 text-xs">Telemetry:</span>
+              <span className={`font-mono text-xs px-2 py-0.5 rounded ${
+                firstEp.telemetry_provider === 'polling'
+                  ? 'bg-detec-slate-600/30 text-detec-slate-400'
+                  : 'bg-detec-primary-500/15 text-detec-primary-400'
+              }`}>
+                {firstEp.telemetry_provider === 'polling' ? 'Polling' : `Native (${firstEp.telemetry_provider.toUpperCase()})`}
+              </span>
+            </span>
+            <Sep />
+          </>
+        )}
+
         <span className="flex items-center gap-1.5">
           Last Scan:
           <span className="text-detec-primary-400">{lastSeen}</span>

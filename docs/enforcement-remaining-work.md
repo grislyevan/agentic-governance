@@ -16,7 +16,7 @@ The enforcement roadmap describes six phases of work spanning 19-27 weeks. A cod
 | Phase 2: Behavioral Scanner | Complete | None |
 | Phase 3: Enforcement Hardening | ~95% complete | **Task 6** |
 | Phase 4: Webhook Orchestration | Complete | None |
-| Phase 5: Native Telemetry | Code complete, untested in CI | **Task 7** |
+| Phase 5: Native Telemetry | CI pipeline complete | ~~Task 7~~ |
 | Phase 6: EDR Integration | Interfaces complete | **Task 8** (validation only) |
 | Cross-cutting | Task 10 complete, 11c complete | **Tasks 9, 11a, 11b** |
 
@@ -253,12 +253,13 @@ Roadmap Phase 3, Section 3.4 ("Network Block Improvements").
 
 ---
 
-## Task 7: Native Telemetry CI Pipeline
+## Task 7: Native Telemetry CI Pipeline ✅
 
 **Phase:** 5 (Native Telemetry)
 **Priority:** Medium (blocks production deployment of native providers)
 **Effort:** 2-3 days
 **Assignee role:** DevOps / Infrastructure
+**Status:** Complete (2026-03-12)
 
 The three native providers (`esf_provider.py`, `etw_provider.py`, `ebpf_provider.py`) exist in code. The ESF helper binary (`collector/providers/esf_helper/esf_helper.m`) has source and a Makefile. None of this is tested in CI and the ESF helper has no build/signing pipeline.
 
@@ -295,9 +296,9 @@ The three native providers (`esf_provider.py`, `etw_provider.py`, `ebpf_provider
 
 ### Acceptance criteria
 
-- [ ] Mock-based provider tests run in CI on every push
-- [ ] ESF helper compiles in CI on macOS runner
-- [ ] Heartbeat includes `telemetry_provider` field
+- [x] Mock-based provider tests run in CI on every push
+- [x] ESF helper compiles in CI on macOS runner
+- [x] Heartbeat includes `telemetry_provider` field
 
 ---
 

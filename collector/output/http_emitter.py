@@ -195,13 +195,21 @@ class HttpEmitter:
     # Heartbeat (fire-and-forget)
     # ------------------------------------------------------------------
 
-    def heartbeat(self, hostname: str, interval_seconds: int = 0) -> bool:
+    def heartbeat(
+        self,
+        hostname: str,
+        interval_seconds: int = 0,
+        telemetry_provider: str | None = None,
+    ) -> bool:
         """Send a heartbeat to POST /endpoints/heartbeat."""
         url = f"{self._api_url}/endpoints/heartbeat"
-        payload = json.dumps(
-            {"hostname": hostname, "interval_seconds": interval_seconds},
-            separators=(",", ":"),
-        ).encode("utf-8")
+        body: dict[str, str | int] = {
+            "hostname": hostname,
+            "interval_seconds": interval_seconds,
+        }
+        if telemetry_provider:
+            body["telemetry_provider"] = telemetry_provider
+        payload = json.dumps(body, separators=(",", ":")).encode("utf-8")
         try:
             req = urllib.request.Request(
                 url,

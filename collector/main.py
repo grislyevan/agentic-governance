@@ -710,10 +710,15 @@ def _heartbeat_loop(
     hostname: str,
     interval: int,
     stop_event: threading.Event,
+    telemetry_provider: str = "polling",
 ) -> None:
     """Background thread: send heartbeats every interval seconds."""
     while not stop_event.wait(timeout=interval):
-        emitter.heartbeat(hostname=hostname, interval_seconds=interval)
+        emitter.heartbeat(
+            hostname=hostname,
+            interval_seconds=interval,
+            telemetry_provider=telemetry_provider,
+        )
 
 
 def _build_lifecycle_event(
@@ -905,9 +910,13 @@ def _run_daemon(args: argparse.Namespace) -> None:
     except (ValueError, OSError):
         pass
 
+    telemetry_preference = getattr(args, "telemetry_provider", "auto")
+    resolved_provider = get_best_provider(telemetry_preference)
+    telemetry_provider_name = resolved_provider.name
+
     heartbeat_thread = threading.Thread(
         target=_heartbeat_loop,
-        args=(emitter, hostname, args.interval, stop_event),
+        args=(emitter, hostname, args.interval, stop_event, telemetry_provider_name),
         daemon=True,
         name="heartbeat",
     )

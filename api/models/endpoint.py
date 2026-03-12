@@ -45,6 +45,9 @@ class Endpoint(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
+    # Telemetry provider reported by the agent (esf, etw, ebpf, polling)
+    telemetry_provider: Mapped[str | None] = mapped_column(String(32))
+
     # EDR/MDM enforcement delegation (Phase 6)
     edr_host_id: Mapped[str | None] = mapped_column(String(255))
     enforcement_provider: Mapped[str | None] = mapped_column(String(64))

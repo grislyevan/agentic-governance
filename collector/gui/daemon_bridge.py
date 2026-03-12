@@ -270,6 +270,11 @@ class DaemonBridge:
         hostname: str,
         interval: int,
         stop_event: threading.Event,
+        telemetry_provider: str = "polling",
     ) -> None:
         while not stop_event.wait(timeout=interval):
-            emitter.heartbeat(hostname=hostname, interval_seconds=interval)
+            emitter.heartbeat(
+                hostname=hostname,
+                interval_seconds=interval,
+                telemetry_provider=telemetry_provider,
+            )

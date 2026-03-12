@@ -20,6 +20,7 @@ class EndpointResponse(BaseModel):
     management_state: str
     enforcement_posture: str = "passive"
     auto_enforce_threshold: float = 0.75
+    telemetry_provider: str | None = None
     status: str
     heartbeat_interval: int
     last_seen_at: datetime | None
