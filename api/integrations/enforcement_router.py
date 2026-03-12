@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from core.audit_logger import record as audit_record
 from core.config import settings
+from core.metrics import detec_enforcement_actions_total
 
 from .enforcement_provider import EnforcementProvider, EnforcementResult
 
@@ -88,6 +89,7 @@ async def enforce(
             success=True,
             detail={"path": "local", "reason": "no_edr_configured"},
         )
+        detec_enforcement_actions_total.labels(action=action, result="success").inc()
         _audit(db, tenant_id, endpoint_id, hostname, decision)
         return decision
 
@@ -105,6 +107,7 @@ async def enforce(
             fallback_used=True,
             fallback_reason="provider_not_registered",
         )
+        detec_enforcement_actions_total.labels(action=action, result="success").inc()
         _audit(db, tenant_id, endpoint_id, hostname, decision)
         return decision
 
@@ -134,6 +137,7 @@ async def enforce(
             success=True,
             detail=result.detail,
         )
+        detec_enforcement_actions_total.labels(action=action, result="success").inc()
         _audit(db, tenant_id, endpoint_id, hostname, decision, "enforcement.delegated")
         return decision
 
@@ -184,6 +188,7 @@ def _handle_fallback(
             fallback_reason=reason,
             detail={"path": "fallback_to_local", "original_provider": provider_name},
         )
+        detec_enforcement_actions_total.labels(action=action, result="success").inc()
         _audit(db, tenant_id, endpoint_id, hostname, decision, "enforcement.fallback_to_local")
         return decision
 
@@ -196,6 +201,7 @@ def _handle_fallback(
         fallback_reason=reason,
         detail={"path": "no_fallback", "original_provider": provider_name},
     )
+    detec_enforcement_actions_total.labels(action=action, result="failure").inc()
     _audit(db, tenant_id, endpoint_id, hostname, decision, "enforcement.delegated_failed")
     return decision
 

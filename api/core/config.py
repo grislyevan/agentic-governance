@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost:3001"
+    allowed_origins: str = ""
     debug: bool = False
 
     # Binary protocol gateway
@@ -58,6 +59,12 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> list[str]:
+        env = os.getenv("ENV", "development").lower()
+        if env in ("production", "staging"):
+            origins = self.allowed_origins
+            if not origins:
+                return []
+            return [s.strip() for s in origins.split(",") if s.strip()]
         return [s.strip() for s in self.cors_origins.split(",") if s.strip()]
 
     # Enforcement
@@ -66,6 +73,10 @@ class Settings(BaseSettings):
 
     # Heartbeat
     default_heartbeat_interval: int = 300
+
+    # Retention and privacy
+    default_retention_days: int = 90
+    stale_threshold_days: int = 30
 
     # Webhooks
     webhook_delivery_timeout: int = 10
@@ -164,12 +175,19 @@ class Settings(BaseSettings):
                 "local development but must be changed before deployment."
             )
 
-        if "*" in self.cors_origins_list:
-            if env in ("production", "staging"):
+        if env in ("production", "staging"):
+            origins = [s.strip() for s in self.allowed_origins.split(",") if s.strip()]
+            if not origins:
                 raise ValueError(
-                    "CORS_ORIGINS must not contain '*' in "
+                    f"ALLOWED_ORIGINS must be set in {env}. "
+                    "Provide a comma-separated list of allowed dashboard origins."
+                )
+            if "*" in origins:
+                raise ValueError(
+                    "ALLOWED_ORIGINS must not contain '*' in "
                     f"{env}. Use an explicit allowlist of origins."
                 )
+        elif "*" in self.cors_origins_list:
             logger.warning(
                 "CORS_ORIGINS contains '*'. This is unsafe with "
                 "allow_credentials=True and must not be used in production."

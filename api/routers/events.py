@@ -9,25 +9,25 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request, status
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException, Query, Request, status
+from pydantic import BaseModel
 from sqlalchemy import desc, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.audit_logger import record as audit_record
+from core.metrics import detec_events_ingested_total
+from core.rate_limit import limiter
 from core.database import get_db
 from core.event_validator import validate_event_payload
-from core.tenant import get_tenant_id as _get_tenant_id, resolve_auth, get_tenant_filter
+from core.retention import purge_tenant_events
+from core.tenant import get_tenant_id as _get_tenant_id, resolve_auth, get_tenant_filter, require_role
 from models.endpoint import Endpoint
 from models.event import Event
 from schemas.events import EventIngest, EventListResponse, EventResponse
 from webhooks.dispatcher import dispatch_event as _dispatch_webhooks
 
 logger = logging.getLogger(__name__)
-
-limiter = Limiter(key_func=get_remote_address)
 
 try:
     from cryptography.hazmat.primitives.serialization import load_pem_public_key
@@ -294,6 +294,7 @@ def ingest_event(
         payload=body.model_dump(mode="json"),
     )
     db.add(event)
+    detec_events_ingested_total.inc()
     try:
         db.commit()
     except IntegrityError:
@@ -353,6 +354,39 @@ def ingest_event(
         )
 
     return EventResponse.model_validate(event)
+
+
+class PurgeRequest(BaseModel):
+    older_than_days: int | None = None
+
+
+class PurgeResponse(BaseModel):
+    deleted: int
+
+
+@router.post("/purge", response_model=PurgeResponse)
+def purge_events(
+    body: PurgeRequest | None = Body(default=None),
+    db: Session = Depends(get_db),
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+) -> PurgeResponse:
+    """Purge events older than retention period. Owner only."""
+    auth = resolve_auth(authorization, x_api_key, db)
+    require_role(auth, "owner")
+    older = body.older_than_days if body else None
+    deleted = purge_tenant_events(db, auth.tenant_id, older_than_days=older)
+    audit_record(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="events.purged",
+        resource_type="events",
+        resource_id=None,
+        detail={"deleted": deleted, "older_than_days": older},
+    )
+    db.commit()
+    return PurgeResponse(deleted=deleted)
 
 
 @router.get("", response_model=EventListResponse)

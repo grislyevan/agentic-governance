@@ -34,6 +34,31 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: "1"
 
+  dependency-audit:
+    name: Dependency Audit (pip-audit, npm audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install pip-audit and Python dependencies
+        run: |
+          pip install pip-audit
+          pip install -e .
+          pip install -r api/requirements.txt
+      - name: Audit Python dependencies (collector + API)
+        run: pip-audit
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Audit dashboard dependencies
+        working-directory: dashboard
+        run: npm audit --audit-level=moderate
+
   secrets-scan:
     name: Secrets Detection (Gitleaks)
     runs-on: ubuntu-latest

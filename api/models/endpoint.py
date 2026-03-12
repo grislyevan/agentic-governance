@@ -85,3 +85,14 @@ class Endpoint(Base):
         if elapsed <= threshold * 3:
             return ENDPOINT_STATUS_STALE
         return ENDPOINT_STATUS_UNGOVERNED
+
+    @property
+    def is_stale(self) -> bool:
+        """True if last_seen_at is older than configured stale_threshold_days."""
+        if self.last_seen_at is None:
+            return True
+        now = datetime.now(tz.utc)
+        last = self.last_seen_at
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=tz.utc)
+        return (now - last).days >= settings.stale_threshold_days

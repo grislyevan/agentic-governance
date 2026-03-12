@@ -18,6 +18,7 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 
 from core.config import settings
+from core.metrics import detec_active_connections, detec_events_ingested_total
 from core.database import SessionLocal
 from core.event_validator import validate_event_payload
 from models.allow_list import AllowListEntry
@@ -204,6 +205,7 @@ class AgentSession(BaseConnection):
         self._label = f"agent:{hostname}"
 
         await self._registry.register(endpoint_id, self)
+        detec_active_connections.inc()
 
         await self.send(auth_ok_msg(
             session_id=self._session_id,
@@ -351,6 +353,7 @@ class AgentSession(BaseConnection):
             )
             db.add(event)
             db.commit()
+            detec_events_ingested_total.inc()
 
             event_type_val = event_data.get("event_type", "")
             if event_type_val.startswith("enforcement.") or event_type_val == "posture.changed":
@@ -444,6 +447,7 @@ class AgentSession(BaseConnection):
     async def close(self) -> None:
         if self._endpoint_id:
             await self._registry.unregister(self._endpoint_id)
+            detec_active_connections.dec()
         await super().close()
         logger.info("Session closed: %s (endpoint=%s)", self._hostname or "unauthenticated", self._endpoint_id)
 

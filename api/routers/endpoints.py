@@ -121,6 +121,7 @@ def endpoint_status(
             last_seen_at=ep.last_seen_at,
             heartbeat_interval=ep.heartbeat_interval,
             seconds_since_heartbeat=round(elapsed, 1) if elapsed is not None else None,
+            is_stale=ep.is_stale,
         ))
     return results
 

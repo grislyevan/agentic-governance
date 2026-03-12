@@ -8,13 +8,11 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger(__name__)
+from core.rate_limit import limiter
 
-limiter = Limiter(key_func=get_remote_address)
+logger = logging.getLogger(__name__)
 
 from core.auth import (
     create_access_token,
@@ -63,7 +61,7 @@ def _slugify(name: str) -> str:
 
 
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit("5/minute")
+@limiter.limit("3/minute")
 def register(request: Request, body: RegisterRequest, db: Session = Depends(get_db)) -> RegisterResponse:
     existing = db.query(User).filter(User.email == body.email).first()
     if existing:
@@ -153,7 +151,7 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)) -
 
 
 @router.post("/forgot-password", response_model=PasswordResetResponse)
-@limiter.limit("5/minute")
+@limiter.limit("3/minute")
 def forgot_password(
     request: Request,
     body: ForgotPasswordRequest,
@@ -247,7 +245,7 @@ def reset_password(
 
 
 @router.post("/accept-invite", response_model=PasswordResetResponse)
-@limiter.limit("5/minute")
+@limiter.limit("10/minute")
 def accept_invite(
     request: Request,
     body: AcceptInviteRequest,

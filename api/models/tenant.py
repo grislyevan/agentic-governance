@@ -6,7 +6,7 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, String, func
+from sqlalchemy import DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.database import Base
@@ -30,6 +30,7 @@ class Tenant(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
+    retention_days: Mapped[int | None] = mapped_column(Integer, nullable=True, default=90)
 
     users: Mapped[list["User"]] = relationship("User", back_populates="tenant", lazy="select")  # noqa: F821
     endpoints: Mapped[list["Endpoint"]] = relationship("Endpoint", back_populates="tenant", lazy="select")  # noqa: F821

@@ -39,7 +39,7 @@ def _audit(db: Session, *, tenant_id: str, actor_id: str | None, action: str,
 
 @router.get("", response_model=UserListResponse)
 def list_users(
-    search: str | None = Query(default=None),
+    search: str | None = Query(default=None, max_length=200),
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),

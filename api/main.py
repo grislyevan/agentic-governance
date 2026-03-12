@@ -18,6 +18,7 @@ import asyncio
 import logging
 import os
 import sys
+import time
 import uuid
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
@@ -31,12 +32,17 @@ _BUNDLE_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
+from core.logging_config import configure_logging, request_id_var
+from core.metrics import (
+    get_metrics,
+    http_request_duration_seconds,
+    http_requests_total,
+)
+from core.rate_limit import limiter
 from sqlalchemy import text as sa_text
 
 from core.auth import hash_password
@@ -48,11 +54,29 @@ from models.audit import AuditLog
 from models.endpoint import Endpoint
 from models.event import Event
 from models.policy import Policy
-from routers import agent_download, audit, auth, endpoints, enforcement, events, policies, users, webhooks
+from routers import agent_download, audit, auth, endpoints, enforcement, events, policies, retention, users, webhooks
 
 logger = logging.getLogger("agentic_governance")
 
-STALENESS_CHECK_INTERVAL = 60  # seconds
+STALENESS_CHECK_INTERVAL = 60
+PURGE_INTERVAL_SECONDS = 6 * 60 * 60
+HEALTH_CHECK_TIMEOUT = 2.0
+
+_app_start_time: float | None = None
+
+
+async def _retention_purge_loop() -> None:
+    await asyncio.sleep(60)
+    while True:
+        db = SessionLocal()
+        try:
+            from core.retention import purge_expired_events
+            purge_expired_events(db)
+        except Exception:
+            logger.warning("Retention purge cycle failed", exc_info=True)
+        finally:
+            db.close()
+        await asyncio.sleep(PURGE_INTERVAL_SECONDS)
 
 
 async def _staleness_monitor() -> None:
@@ -86,9 +110,21 @@ async def _staleness_monitor() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    global _app_start_time
+    _app_start_time = time.monotonic()
+    configure_logging()
     _apply_migrations()
     _seed()
+    db = SessionLocal()
+    try:
+        from core.retention import purge_expired_events
+        purge_expired_events(db)
+    except Exception:
+        logger.warning("Startup retention purge failed", exc_info=True)
+    finally:
+        db.close()
     monitor_task = asyncio.create_task(_staleness_monitor())
+    purge_task = asyncio.create_task(_retention_purge_loop())
 
     if settings.edr_enforcement_configured:
         from integrations.crowdstrike import CrowdStrikeProvider
@@ -134,6 +170,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except asyncio.CancelledError:
             pass
 
+    purge_task.cancel()
+    try:
+        await purge_task
+    except asyncio.CancelledError:
+        pass
     monitor_task.cancel()
     try:
         await monitor_task
@@ -251,12 +292,6 @@ def _seed() -> None:
         db.close()
 
 
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=["300/minute"],
-    enabled=not os.environ.get("TESTING"),
-)
-
 _docs_kwargs: dict[str, Any] = {}
 if not settings.debug:
     _docs_kwargs = {"docs_url": None, "redoc_url": None, "openapi_url": None}
@@ -270,7 +305,16 @@ app = FastAPI(
 )
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+async def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests. Please try again later."},
+    )
+
+
+app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
 
 
 @app.exception_handler(Exception)
@@ -289,6 +333,41 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Api-Key"],
 )
+
+
+SKIP_LOG_PATHS = {"/health", "/api/health", "/metrics"}
+
+
+@app.middleware("http")
+async def request_logging_and_metrics(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    token = request_id_var.set(request_id)
+    path = request.url.path
+    method = request.method
+    client_ip = request.client.host if request.client else "unknown"
+    start = time.perf_counter()
+
+    try:
+        response = await call_next(request)
+        status = response.status_code
+    except Exception:
+        status = 500
+        raise
+    finally:
+        duration_ms = (time.perf_counter() - start) * 1000
+        http_requests_total.labels(method=method, path=path, status=str(status)).inc()
+        http_request_duration_seconds.labels(method=method, path=path).observe(
+            duration_ms / 1000.0
+        )
+        if path not in SKIP_LOG_PATHS:
+            logger.info(
+                "%s %s %s %d %.2fms",
+                method, path, client_ip, status, duration_ms,
+                extra={"request_id": request_id},
+            )
+        request_id_var.reset(token)
+
+    return response
 
 
 @app.middleware("http")
@@ -315,6 +394,7 @@ app.include_router(agent_download.router, prefix=API_PREFIX)
 app.include_router(auth.router, prefix=API_PREFIX)
 app.include_router(audit.router, prefix=API_PREFIX)
 app.include_router(events.router, prefix=API_PREFIX)
+app.include_router(retention.router, prefix=API_PREFIX)
 app.include_router(endpoints.router, prefix=API_PREFIX)
 app.include_router(policies.router, prefix=API_PREFIX)
 app.include_router(users.router, prefix=API_PREFIX)
@@ -322,22 +402,113 @@ app.include_router(webhooks.router, prefix=API_PREFIX)
 app.include_router(enforcement.router, prefix=API_PREFIX)
 
 
-@app.get("/health", tags=["meta"])
-@app.get(f"{API_PREFIX}/health", tags=["meta"], include_in_schema=False)
-def health() -> JSONResponse:
-    db_ok = True
+@app.get("/metrics", tags=["meta"], include_in_schema=False)
+def metrics() -> Response:
+    return Response(
+        content=get_metrics(),
+        media_type="text/plain; charset=utf-8",
+    )
+
+
+def _health_check_db() -> tuple[bool, str]:
     try:
         db = SessionLocal()
         db.execute(sa_text("SELECT 1"))
         db.close()
+        return True, "ok"
     except Exception:
-        db_ok = False
+        return False, "unreachable"
 
-    if db_ok:
-        return JSONResponse({"status": "ok", "version": app.version, "db": "ok"})
+
+def _health_check_gateway(request: Request) -> tuple[bool, str]:
+    if not settings.gateway_enabled:
+        return True, "disabled"
+    gateway = getattr(request.app.state, "gateway", None)
+    if not gateway:
+        return False, "not_started"
+    if gateway._server is None:
+        return False, "stopped"
+    if gateway._server.is_serving():
+        return True, "running"
+    return False, "stopped"
+
+
+def _health_last_event_at() -> str | None:
+    try:
+        from sqlalchemy import desc
+        db = SessionLocal()
+        try:
+            row = (
+                db.query(Event.observed_at)
+                .order_by(desc(Event.observed_at))
+                .limit(1)
+                .first()
+            )
+            if row:
+                return row[0].isoformat() if hasattr(row[0], "isoformat") else str(row[0])
+        finally:
+            db.close()
+    except Exception:
+        pass
+    return None
+
+
+@app.get("/health", tags=["meta"])
+@app.get(f"{API_PREFIX}/health", tags=["meta"], include_in_schema=False)
+async def health(request: Request) -> JSONResponse:
+    components: dict[str, Any] = {}
+    critical_fail = False
+    degraded = False
+
+    try:
+        db_ok, db_status = await asyncio.wait_for(
+            asyncio.to_thread(_health_check_db),
+            timeout=HEALTH_CHECK_TIMEOUT,
+        )
+    except asyncio.TimeoutError:
+        db_ok, db_status = False, "timeout"
+    components["database"] = db_status
+    if not db_ok:
+        critical_fail = True
+
+    gw_ok, gw_status = _health_check_gateway(request)
+    components["gateway"] = gw_status
+    if not gw_ok and settings.gateway_enabled:
+        degraded = True
+
+    try:
+        last_event = await asyncio.wait_for(
+            asyncio.to_thread(_health_last_event_at),
+            timeout=HEALTH_CHECK_TIMEOUT,
+        )
+    except asyncio.TimeoutError:
+        last_event = None
+    components["last_event_at"] = last_event
+
+    uptime = (
+        int(time.monotonic() - _app_start_time)
+        if _app_start_time is not None
+        else 0
+    )
+    components["uptime_seconds"] = uptime
+
+    if critical_fail:
+        overall = "unhealthy"
+        status_code = 503
+    elif degraded:
+        overall = "degraded"
+        status_code = 503
+    else:
+        overall = "healthy"
+        status_code = 200
+
     return JSONResponse(
-        {"status": "degraded", "version": app.version, "db": "unreachable"},
-        status_code=503,
+        {
+            "status": overall,
+            "version": app.version,
+            "components": components,
+        },
+        status_code=status_code,
     )
 
 

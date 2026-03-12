@@ -25,6 +25,7 @@ class EndpointResponse(BaseModel):
     heartbeat_interval: int
     last_seen_at: datetime | None
     created_at: datetime
+    is_stale: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -43,5 +44,6 @@ class EndpointStatusResponse(BaseModel):
     last_seen_at: datetime | None
     heartbeat_interval: int
     seconds_since_heartbeat: float | None
+    is_stale: bool = False
 
     model_config = {"from_attributes": True}
