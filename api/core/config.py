@@ -94,6 +94,9 @@ class Settings(BaseSettings):
     def smtp_configured(self) -> bool:
         return bool(self.smtp_host and self.smtp_from)
 
+    # Demo mode: seeds realistic sample data on startup
+    demo_mode: bool = False
+
     # Seed data (created on first startup if DB is empty)
     seed_admin_email: str = "admin@example.com"
     seed_admin_password: str = "change-me"

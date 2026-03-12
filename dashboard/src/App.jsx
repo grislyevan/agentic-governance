@@ -12,6 +12,7 @@ import PoliciesPage from './pages/PoliciesPage';
 import AuditLogPage from './pages/AuditLogPage';
 import AdminPage from './pages/AdminPage';
 import SettingsPage from './pages/SettingsPage';
+import DemoBanner from './components/layout/DemoBanner';
 
 const PATH_TO_PAGE = {
   '/endpoints': 'endpoints',
@@ -80,6 +81,7 @@ export default function App() {
       />
 
       <div className="flex flex-col flex-1 lg:ml-60 min-w-0">
+        <DemoBanner />
         <TopBar
           activePage={activePage}
           onNavigate={handleNavigate}

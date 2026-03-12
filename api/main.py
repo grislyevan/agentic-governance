@@ -54,7 +54,7 @@ from models.audit import AuditLog
 from models.endpoint import Endpoint
 from models.event import Event
 from models.policy import Policy
-from routers import agent_download, audit, auth, endpoints, enforcement, events, policies, retention, users, webhooks
+from routers import agent_download, audit, auth, demo, endpoints, enforcement, events, policies, retention, users, webhooks
 
 logger = logging.getLogger("agentic_governance")
 
@@ -254,11 +254,23 @@ def _seed() -> None:
         from core.baseline_policies import seed_baseline_policies
 
         n_policies = seed_baseline_policies(db, tenant.id)
+
+        n_endpoints = 0
+        n_events = 0
+        if settings.demo_mode:
+            from core.demo_seed import seed_demo_data
+            n_endpoints, n_events = seed_demo_data(db, tenant.id)
+
         db.commit()
         logger.info(
             "Seed: created tenant '%s', admin '%s', and %d baseline policies",
             tenant.name, admin.email, n_policies,
         )
+        if settings.demo_mode:
+            logger.info(
+                "Demo mode: seeded %d endpoints and %d events",
+                n_endpoints, n_events,
+            )
         env = os.getenv("ENV", "development").lower()
         if env in ("production", "staging"):
             logger.info(
@@ -400,6 +412,7 @@ app.include_router(policies.router, prefix=API_PREFIX)
 app.include_router(users.router, prefix=API_PREFIX)
 app.include_router(webhooks.router, prefix=API_PREFIX)
 app.include_router(enforcement.router, prefix=API_PREFIX)
+app.include_router(demo.router, prefix=API_PREFIX)
 
 
 @app.get("/metrics", tags=["meta"], include_in_schema=False)

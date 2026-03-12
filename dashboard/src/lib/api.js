@@ -45,6 +45,10 @@ async function apiFetch(path, { apiUrl } = {}) {
   return res.json();
 }
 
+export async function fetchDemoStatus() {
+  return apiFetch('/demo/status');
+}
+
 export async function fetchEndpoints(config, page = 1, pageSize = 200) {
   return apiFetch(`/endpoints?page=${page}&page_size=${pageSize}`, config);
 }
