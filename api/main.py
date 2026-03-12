@@ -311,7 +311,7 @@ if not settings.debug:
 app = FastAPI(
     title="Agentic Governance API",
     description="Endpoint telemetry and policy engine for agentic AI tool governance",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
     **_docs_kwargs,
 )

@@ -4,7 +4,7 @@ This package is imported by both the collector (agent side) and the API
 (server side) so the wire format stays in one place.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from protocol.wire import MessageType, encode_frame, decode_frame, FrameReader
 from protocol.messages import (
