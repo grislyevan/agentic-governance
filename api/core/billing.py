@@ -236,4 +236,5 @@ def _price_to_tier(price_id: str) -> str:
         return TIER_PRO
     if price_id == settings.stripe_price_id_enterprise:
         return TIER_ENTERPRISE
-    return TIER_PRO
+    logger.warning("Unknown Stripe price ID %r, defaulting to free tier", price_id)
+    return TIER_FREE

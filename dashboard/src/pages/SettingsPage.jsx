@@ -1310,7 +1310,7 @@ function DisabledServicesSection() {
                   <span className="text-sm font-medium text-detec-slate-200">{ep.hostname}</span>
                   <span className="text-xs text-detec-slate-500 font-mono">{ep.endpoint_id.slice(0, 8)}</span>
                 </div>
-                {ep.disabled_services.length > 1 && (
+                {ep.disabled_services?.length > 1 && (
                   <button
                     onClick={() => handleRestoreAll(ep.endpoint_id, ep.hostname)}
                     disabled={restoring[ep.endpoint_id]}
