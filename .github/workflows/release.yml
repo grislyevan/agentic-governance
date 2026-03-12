@@ -76,6 +76,8 @@ jobs:
   build-macos-agent:
     name: Build macOS Agent
     runs-on: macos-latest
+    env:
+      APPLE_DEVELOPER_ID_APPLICATION: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -91,9 +93,9 @@ jobs:
       - name: Build .app bundle
         run: bash packaging/macos/build-app.sh
       - name: Sign .app bundle
-        if: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION != '' }}
+        if: env.APPLE_DEVELOPER_ID_APPLICATION != ''
         run: |
-          codesign --deep --force --sign "${{ secrets.APPLE_DEVELOPER_ID_APPLICATION }}" \
+          codesign --deep --force --sign "${{ env.APPLE_DEVELOPER_ID_APPLICATION }}" \
             "dist/Detec Agent.app"
       - name: Build .pkg installer
         env:
