@@ -9,6 +9,7 @@ import EndpointContextBar from '../components/dashboard/EndpointContextBar';
 import ToolTabs from '../components/dashboard/ToolTabs';
 import ToolsTable from '../components/dashboard/ToolsTable';
 import Pagination from '../components/dashboard/Pagination';
+import PostureSummaryWidget from '../components/dashboard/PostureSummaryWidget';
 
 export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef, onAlertCountChange }) {
   const {
@@ -97,6 +98,8 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
       />
 
       <SummaryCards counts={counts} />
+
+      <PostureSummaryWidget onPostureReset={refresh} />
 
       <EndpointContextBar
         endpointCount={endpointCount}
