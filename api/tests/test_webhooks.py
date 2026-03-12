@@ -91,6 +91,73 @@ class TestWebhookCRUD:
         assert resp.status_code == 404
 
 
+class TestWebhookTemplates:
+    def test_list_templates_requires_auth(self, client):
+        resp = client.get(f"{API}/webhooks/templates")
+        assert resp.status_code == 401
+
+    def test_list_templates(self, client):
+        header = _setup_admin(client)
+        resp = client.get(f"{API}/webhooks/templates", headers=header)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+        ids = [t["id"] for t in data]
+        assert "splunk_hec" in ids
+        assert "elastic" in ids
+        assert "slack" in ids
+
+    def test_create_from_template_splunk(self, client):
+        header = _setup_admin(client)
+        resp = client.post(f"{API}/webhooks/from-template", json={
+            "template_id": "splunk_hec",
+            "config": {
+                "splunk_host": "splunk.example.com",
+                "hec_token": "test-token-123",
+            },
+        }, headers=header)
+        assert resp.status_code == 201
+        data = resp.json()
+        assert "https://splunk.example.com:8088/services/collector/event" in data["url"]
+        assert data["events"]
+        assert data["secret"].startswith("whsec_")
+
+    def test_create_from_template_missing_config(self, client):
+        header = _setup_admin(client)
+        resp = client.post(f"{API}/webhooks/from-template", json={
+            "template_id": "splunk_hec",
+            "config": {"splunk_host": "splunk.example.com"},
+        }, headers=header)
+        assert resp.status_code == 400
+        assert "hec_token" in resp.json().get("detail", "").lower() or "required" in resp.json().get("detail", "").lower()
+
+    def test_create_from_template_unknown(self, client):
+        header = _setup_admin(client)
+        resp = client.post(f"{API}/webhooks/from-template", json={
+            "template_id": "nonexistent",
+            "config": {},
+        }, headers=header)
+        assert resp.status_code == 404
+
+    def test_create_from_template_requires_admin(self, client):
+        admin_header = _setup_admin(client)
+        client.post(f"{API}/users", json={
+            "first_name": "Viewer",
+            "email": "viewer2@test.com",
+            "role": "viewer",
+            "password": "viewerpass1",
+        }, headers=admin_header)
+        login_resp = client.post(f"{API}/auth/login", json={
+            "email": "viewer2@test.com", "password": "viewerpass1",
+        })
+        viewer_header = _auth_header(login_resp.json()["access_token"])
+        resp = client.post(f"{API}/webhooks/from-template", json={
+            "template_id": "slack",
+            "config": {"webhook_url": "https://hooks.slack.com/services/T/B/X"},
+        }, headers=viewer_header)
+        assert resp.status_code == 403
+
+
 class TestWebhookValidation:
     def test_create_webhook_invalid_url(self, client):
         header = _setup_admin(client)

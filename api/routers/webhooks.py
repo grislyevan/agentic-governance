@@ -15,8 +15,21 @@ from core.database import get_db
 from core.tenant import resolve_auth, require_role
 from models.audit import AuditLog
 from models.webhook import Webhook, generate_webhook_secret
-from schemas.webhooks import WebhookCreate, WebhookListResponse, WebhookOut, WebhookUpdate
+from schemas.webhooks import (
+    WebhookCreate,
+    WebhookFromTemplateRequest,
+    WebhookListResponse,
+    WebhookOut,
+    WebhookUpdate,
+)
 from webhooks.sender import deliver
+from webhooks.templates import (
+    build_headers_from_template,
+    build_url_from_template,
+    get_recommended_events,
+    get_template,
+    get_templates,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +48,63 @@ def _audit(db: Session, *, tenant_id: str, actor_id: str | None, action: str,
         resource_id=resource_id,
         detail=detail or {},
     ))
+
+
+@router.get("/templates")
+def list_templates(
+    db: Session = Depends(get_db),
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+) -> list[dict]:
+    """Return available SIEM/SOC webhook templates. Authenticated, any role."""
+    resolve_auth(authorization, x_api_key, db)
+    return get_templates()
+
+
+@router.post("/from-template", response_model=WebhookOut, status_code=status.HTTP_201_CREATED)
+def create_from_template(
+    body: WebhookFromTemplateRequest,
+    db: Session = Depends(get_db),
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+) -> WebhookOut:
+    """Create a webhook from a pre-built SIEM/SOC template."""
+    auth = resolve_auth(authorization, x_api_key, db)
+    require_role(auth, "owner", "admin")
+
+    template = get_template(body.template_id)
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+
+    for field in template.get("config_fields", []):
+        if field.get("required") and field["key"] not in body.config:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Required config field missing: {field['key']}",
+            )
+
+    url = build_url_from_template(body.template_id, body.config)
+    headers = build_headers_from_template(body.template_id, body.config)
+    events = get_recommended_events(body.template_id)
+
+    webhook = Webhook(
+        id=str(uuid.uuid4()),
+        tenant_id=auth.tenant_id,
+        url=url,
+        secret=generate_webhook_secret(),
+        events=json.dumps(events),
+        headers=json.dumps(headers) if headers else None,
+        is_active=True,
+    )
+    db.add(webhook)
+    _audit(db, tenant_id=auth.tenant_id, actor_id=auth.user_id,
+           action="webhook.created", resource_id=webhook.id,
+           detail={"url": url, "template": body.template_id, "events": events})
+    db.commit()
+    db.refresh(webhook)
+
+    logger.info("Webhook %s created from template %s by %s", webhook.id, body.template_id, auth.user_id)
+    return WebhookOut.model_validate(webhook)
 
 
 @router.get("", response_model=WebhookListResponse)
@@ -187,7 +257,14 @@ async def test_webhook(
         "test": True,
     }
 
-    success = await deliver(webhook.url, webhook.secret, test_payload)
+    extra_headers = None
+    if webhook.headers:
+        try:
+            extra_headers = json.loads(webhook.headers)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    success = await deliver(webhook.url, webhook.secret, test_payload, extra_headers)
 
     _audit(db, tenant_id=auth.tenant_id, actor_id=auth.user_id,
            action="webhook.tested", resource_id=webhook.id,

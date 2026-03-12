@@ -31,11 +31,13 @@ async def deliver(
     url: str,
     secret: str,
     payload: dict[str, Any],
+    extra_headers: dict[str, str] | None = None,
 ) -> bool:
     """POST a webhook payload to the given URL with HMAC signature.
 
     Retries up to MAX_RETRIES times with exponential backoff.
     Returns True on success (2xx), False on permanent failure.
+    extra_headers are merged for SIEM auth (e.g. Splunk HEC, Elastic ApiKey).
     """
     delivery_id = uuid.uuid4().hex
     payload_bytes = json.dumps(payload, default=str, sort_keys=True).encode()
@@ -47,6 +49,8 @@ async def deliver(
         "X-Detec-Delivery-Id": delivery_id,
         "User-Agent": "Detec-Webhook/1.0",
     }
+    if extra_headers:
+        headers = {**headers, **extra_headers}
 
     for attempt in range(MAX_RETRIES):
         try:

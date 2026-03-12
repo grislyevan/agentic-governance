@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 import DetecLogo from '../components/branding/DetecLogo';
 import ResetPasswordPage from './ResetPasswordPage';
+import { fetchSsoStatus } from '../lib/api';
 
 export default function LoginPage() {
   const { login, register } = useAuth();
@@ -15,6 +16,13 @@ export default function LoginPage() {
   const [tenantName, setTenantName] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [ssoAvailable, setSsoAvailable] = useState(false);
+
+  useEffect(() => {
+    fetchSsoStatus()
+      .then((data) => setSsoAvailable(data?.configured === true))
+      .catch(() => {});
+  }, []);
 
   if (mode === 'forgot') {
     return <ResetPasswordPage onBack={() => setMode('login')} />;
@@ -141,6 +149,22 @@ export default function LoginPage() {
                   Forgot password?
                 </button>
               </div>
+            )}
+
+            {ssoAvailable && mode === 'login' && (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 border-t border-detec-slate-700" />
+                  <span className="text-xs text-detec-slate-500 uppercase tracking-wider">or</span>
+                  <div className="flex-1 border-t border-detec-slate-700" />
+                </div>
+                <a
+                  href="/api/auth/sso/login"
+                  className="block w-full px-4 py-2.5 border border-detec-slate-600 hover:border-detec-primary-500/50 text-detec-slate-200 text-sm font-medium rounded-lg transition-colors text-center"
+                >
+                  Sign in with SSO
+                </a>
+              </>
             )}
           </div>
 

@@ -35,6 +35,7 @@ if _COLLECTOR_DIR not in sys.path:
     sys.path.insert(0, _COLLECTOR_DIR)
 
 from config_loader import argparse_defaults
+from engine.attack_mapping import map_scan_result
 from engine.confidence import classify_confidence, compute_confidence
 from providers import get_best_provider
 from telemetry.event_store import EventStore
@@ -255,6 +256,11 @@ def build_event(
 
     severity_level = _compute_severity(confidence, scan.action_risk, sensitivity, policy)
     event["severity"] = {"level": severity_level}
+
+    # MITRE ATT&CK mapping
+    techniques = map_scan_result(scan)
+    if techniques:
+        event["mitre_attack"] = {"techniques": techniques}
 
     return event
 

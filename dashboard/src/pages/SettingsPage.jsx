@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getApiConfig, setApiConfig, fetchWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, downloadAgent, enrollAgentByEmail, fetchAllowList, addAllowListEntry, deleteAllowListEntry, updateTenantPosture, fetchPostureSummary, fetchDisabledServices, restoreServices } from '../lib/api';
+import { getApiConfig, setApiConfig, fetchSsoStatus, fetchWebhooks, fetchWebhookTemplates, createWebhook, createWebhookFromTemplate, updateWebhook, deleteWebhook, testWebhook, downloadAgent, enrollAgentByEmail, fetchAllowList, addAllowListEntry, deleteAllowListEntry, updateTenantPosture, fetchPostureSummary, fetchDisabledServices, restoreServices } from '../lib/api';
 import useAuth from '../hooks/useAuth';
 
 const EVENT_TYPES = [
@@ -88,6 +88,8 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {user?.role === 'owner' && <SsoConfigSection />}
+
         {canManageWebhooks && <AgentDownloadSection />}
 
         {canManageWebhooks && <WebhooksSection />}
@@ -102,6 +104,46 @@ export default function SettingsPage() {
   );
 }
 
+
+function SsoConfigSection() {
+  const [ssoStatus, setSsoStatus] = useState(null);
+
+  useEffect(() => {
+    fetchSsoStatus().then((data) => setSsoStatus(data)).catch(() => setSsoStatus({ configured: false }));
+  }, []);
+
+  return (
+    <div className="rounded-xl border border-detec-slate-700/50 bg-detec-slate-800/50 p-5 space-y-4">
+      <h2 className="text-sm font-semibold text-detec-slate-300 uppercase tracking-wider">
+        SSO Configuration
+      </h2>
+      <p className="text-xs text-detec-slate-500">
+        SSO is configured via environment variables on the server. Configure OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, and OIDC_REDIRECT_URI to enable sign-in with your identity provider.
+      </p>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-detec-slate-400">Status:</span>
+          {ssoStatus === null ? (
+            <span className="text-xs text-detec-slate-500">Loading...</span>
+          ) : ssoStatus.configured ? (
+            <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Configured
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-xs text-detec-slate-500">
+              <span className="h-1.5 w-1.5 rounded-full bg-detec-slate-600" />Not configured
+            </span>
+          )}
+        </div>
+        {ssoStatus?.configured && ssoStatus.issuer && (
+          <div className="text-xs text-detec-slate-500">
+            OIDC issuer: <code className="break-all">{ssoStatus.issuer}</code>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const PLATFORMS = [
   { value: 'macos', label: 'macOS' },
@@ -291,6 +333,7 @@ function WebhooksSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   const loadWebhooks = useCallback(async () => {
     setLoading(true);
@@ -345,12 +388,20 @@ function WebhooksSection() {
         <h2 className="text-sm font-semibold text-detec-slate-300 uppercase tracking-wider">
           Webhooks
         </h2>
-        <button
-          onClick={() => setShowForm(true)}
-          className="rounded-lg bg-detec-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-detec-primary-500 transition-colors"
-        >
-          Add webhook
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowTemplateModal(true)}
+            className="rounded-lg border border-detec-primary-500/50 px-3 py-1.5 text-xs font-medium text-detec-primary-400 hover:bg-detec-primary-500/10 transition-colors"
+          >
+            Create from template
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="rounded-lg bg-detec-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-detec-primary-500 transition-colors"
+          >
+            Add webhook
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -435,6 +486,162 @@ function WebhooksSection() {
           onSaved={() => { setShowForm(false); loadWebhooks(); }}
         />
       )}
+
+      {showTemplateModal && (
+        <WebhookTemplateModal
+          onClose={() => setShowTemplateModal(false)}
+          onSaved={() => { setShowTemplateModal(false); loadWebhooks(); }}
+          onError={(msg) => setError(msg)}
+        />
+      )}
+    </div>
+  );
+}
+
+
+function WebhookTemplateModal({ onClose, onSaved, onError }) {
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [config, setConfig] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setFormError(null);
+      try {
+        const data = await fetchWebhookTemplates();
+        if (!cancelled) setTemplates(data || []);
+      } catch (err) {
+        if (!cancelled) setFormError(err.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleSelectTemplate = (t) => {
+    setSelectedTemplate(t);
+    const initial = {};
+    for (const f of t.config_fields || []) {
+      initial[f.key] = f.default || '';
+    }
+    setConfig(initial);
+    setFormError(null);
+  };
+
+  const handleConfigChange = (key, value) => {
+    setConfig((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedTemplate) return;
+    setFormError(null);
+    const required = (selectedTemplate.config_fields || []).filter((f) => f.required);
+    for (const f of required) {
+      if (!(config[f.key] || '').trim()) {
+        setFormError(`${f.label} is required`);
+        return;
+      }
+    }
+    setSubmitting(true);
+    try {
+      await createWebhookFromTemplate(selectedTemplate.id, config);
+      onSaved();
+    } catch (err) {
+      setFormError(err.message);
+      onError?.(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onClose}>
+      <div
+        className="w-full max-w-lg rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold text-detec-slate-100 mb-4">Create Webhook from Template</h2>
+
+        {loading ? (
+          <p className="text-sm text-detec-slate-500">Loading templates...</p>
+        ) : !selectedTemplate ? (
+          <div className="space-y-2">
+            <p className="text-xs text-detec-slate-500 mb-3">Choose a SIEM or integration template:</p>
+            {templates.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => handleSelectTemplate(t)}
+                className="w-full text-left rounded-lg border border-detec-slate-700 bg-detec-slate-800/50 px-4 py-3 hover:border-detec-primary-500/30 hover:bg-detec-slate-800 transition-colors"
+              >
+                <div className="font-medium text-detec-slate-200">{t.name}</div>
+                <div className="text-xs text-detec-slate-500 mt-0.5">{t.description}</div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-detec-slate-200">{selectedTemplate.name}</h3>
+              <button
+                type="button"
+                onClick={() => setSelectedTemplate(null)}
+                className="text-xs text-detec-slate-500 hover:text-detec-slate-300"
+              >
+                Change template
+              </button>
+            </div>
+            <p className="text-xs text-detec-slate-500">{selectedTemplate.description}</p>
+
+            <div className="space-y-3">
+              {(selectedTemplate.config_fields || []).map((f) => (
+                <label key={f.key} className="block">
+                  <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">
+                    {f.label}
+                    {f.required && <span className="text-red-400 ml-0.5">*</span>}
+                  </span>
+                  <input
+                    type={f.secret ? 'password' : 'text'}
+                    value={config[f.key] ?? ''}
+                    onChange={(e) => handleConfigChange(f.key, e.target.value)}
+                    placeholder={f.placeholder || f.default || ''}
+                    spellCheck={false}
+                    className="mt-1 w-full rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-2 text-sm text-detec-slate-200 font-mono placeholder:text-detec-slate-600 focus:border-detec-primary-500 focus:outline-none"
+                  />
+                </label>
+              ))}
+            </div>
+
+            {formError && (
+              <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{formError}</div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-detec-slate-700 px-4 py-2 text-sm text-detec-slate-400 hover:bg-detec-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="rounded-lg bg-detec-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-detec-primary-500 disabled:opacity-50"
+              >
+                {submitting ? 'Creating...' : 'Create webhook'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

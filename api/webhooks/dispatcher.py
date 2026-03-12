@@ -152,9 +152,16 @@ def dispatch_event(
             if payload is None:
                 payload = _build_payload(event_data, tenant_id)
 
+            extra_headers = None
+            if wh.headers:
+                try:
+                    extra_headers = json.loads(wh.headers)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
             try:
                 loop = asyncio.get_running_loop()
-                loop.create_task(deliver(wh.url, wh.secret, payload))
+                loop.create_task(deliver(wh.url, wh.secret, payload, extra_headers))
             except RuntimeError:
                 logger.debug("No running event loop; skipping async webhook delivery")
             matched += 1

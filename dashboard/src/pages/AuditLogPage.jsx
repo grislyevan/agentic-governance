@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchAuditLog } from '../lib/api';
+import { fetchAuditLog, generateComplianceReport } from '../lib/api';
 import usePolling from '../hooks/usePolling';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
 import PollingStatus from '../components/PollingStatus';
@@ -80,6 +80,10 @@ function renderDetail(detail) {
   return JSON.stringify(detail);
 }
 
+function toDateStr(d) {
+  return d.toISOString().slice(0, 10);
+}
+
 export default function AuditLogPage() {
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
@@ -87,6 +91,13 @@ export default function AuditLogPage() {
   const [actionFilter, setActionFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportStart, setExportStart] = useState(() => toDateStr(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)));
+  const [exportEnd, setExportEnd] = useState(() => toDateStr(new Date()));
+  const [exportFormat, setExportFormat] = useState('pdf');
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportError, setExportError] = useState(null);
+  const [jsonPreview, setJsonPreview] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -108,6 +119,30 @@ export default function AuditLogPage() {
 
   const { lastUpdated, paused, togglePause } = usePolling(load);
 
+  const handleExport = async () => {
+    setExportLoading(true);
+    setExportError(null);
+    setJsonPreview(null);
+    try {
+      const result = await generateComplianceReport(exportStart, exportEnd, exportFormat);
+      if (exportFormat === 'json') {
+        setJsonPreview(result);
+      } else {
+        setExportModalOpen(false);
+      }
+    } catch (e) {
+      setExportError(e.message);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const closeExportModal = () => {
+    setExportModalOpen(false);
+    setExportError(null);
+    setJsonPreview(null);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -115,8 +150,94 @@ export default function AuditLogPage() {
           <h1 className="text-2xl font-bold text-detec-slate-100">Audit Log</h1>
           <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
         </div>
-        {loading && <ApertureSpinner size="sm" label="Loading audit log" />}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setExportModalOpen(true)}
+            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-detec-slate-600/50 bg-detec-slate-800/50 text-detec-slate-200 hover:bg-detec-slate-700/50 hover:border-detec-slate-500/50 transition-colors"
+          >
+            Export Compliance Report
+          </button>
+          {loading && <ApertureSpinner size="sm" label="Loading audit log" />}
+        </div>
       </div>
+
+      {exportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={closeExportModal}>
+          <div
+            className="rounded-xl border border-detec-slate-700/50 bg-detec-slate-900/95 p-6 max-w-md w-full mx-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold text-detec-slate-100 mb-4">Export Compliance Report</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-detec-slate-500 uppercase tracking-wider mb-1">Start date</label>
+                <input
+                  type="date"
+                  value={exportStart}
+                  onChange={(e) => setExportStart(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-detec-slate-600/50 bg-detec-slate-800 text-detec-slate-200 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-detec-slate-500 uppercase tracking-wider mb-1">End date</label>
+                <input
+                  type="date"
+                  value={exportEnd}
+                  onChange={(e) => setExportEnd(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-detec-slate-600/50 bg-detec-slate-800 text-detec-slate-200 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-detec-slate-500 uppercase tracking-wider mb-1">Format</label>
+                <select
+                  value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-detec-slate-600/50 bg-detec-slate-800 text-detec-slate-200 text-sm"
+                >
+                  <option value="json">JSON</option>
+                  <option value="csv">CSV</option>
+                  <option value="pdf">PDF</option>
+                </select>
+              </div>
+            </div>
+            {exportError && (
+              <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                {exportError}
+              </div>
+            )}
+            {jsonPreview && (
+              <div className="mt-4 max-h-64 overflow-auto rounded-lg border border-detec-slate-700/50 bg-detec-slate-800/50 p-3">
+                <pre className="text-xs text-detec-slate-300 whitespace-pre-wrap font-mono">
+                  {JSON.stringify(jsonPreview, null, 2)}
+                </pre>
+                <button
+                  onClick={() => window.open('data:application/json,' + encodeURIComponent(JSON.stringify(jsonPreview, null, 2)), '_blank')}
+                  className="mt-2 text-xs text-detec-slate-400 hover:text-detec-slate-200"
+                >
+                  Open in new tab
+                </button>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={closeExportModal}
+                className="px-3 py-1.5 text-sm text-detec-slate-400 hover:text-detec-slate-200"
+              >
+                {jsonPreview ? 'Close' : 'Cancel'}
+              </button>
+              {!jsonPreview && (
+                <button
+                  onClick={handleExport}
+                  disabled={exportLoading}
+                  className="px-4 py-1.5 text-sm font-medium rounded-lg bg-detec-slate-700 text-detec-slate-200 hover:bg-detec-slate-600 disabled:opacity-50"
+                >
+                  {exportLoading ? 'Generating...' : 'Generate Report'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Filter</span>

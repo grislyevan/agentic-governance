@@ -86,3 +86,20 @@ class TestListEvents:
         assert data["page_size"] == 2
         assert len(data["items"]) == 2
         assert data["total"] >= 5
+
+    def test_list_filter_by_mitre_technique(self, client):
+        headers = _auth(client)
+        body_with_mitre = _event_body(
+            "mitre-1",
+            mitre_attack={"techniques": [{"technique_id": "T1059", "technique_name": "Command and Scripting Interpreter", "tactic": "Execution"}]},
+        )
+        body_without_mitre = _event_body("mitre-2")
+        client.post(f"{API}/events", json=body_with_mitre, headers=headers)
+        client.post(f"{API}/events", json=body_without_mitre, headers=headers)
+        resp = client.get(f"{API}/events?mitre_technique=T1059", headers=headers)
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        assert all(
+            any(t.get("technique_id") == "T1059" for t in (e.get("payload", {}).get("mitre_attack", {}).get("techniques") or []))
+            for e in items
+        )

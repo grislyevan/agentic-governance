@@ -1,13 +1,16 @@
-"""Auth router: register, login, refresh, /me, forgot/reset password, accept invite."""
+"""Auth router: register, login, refresh, /me, forgot/reset password, accept invite, SSO."""
 
 from __future__ import annotations
 
 import logging
 import re
+import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.rate_limit import limiter
@@ -120,6 +123,11 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
 @limiter.limit("5/minute")
 def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
     user = db.query(User).filter(User.email == body.email).first()
+    if user and user.auth_provider != "local":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This account uses SSO. Please sign in with your identity provider.",
+        )
     if not user or not verify_password(body.password, user.hashed_password):
         masked = body.email.split("@")[0][:2] + "***@" + body.email.split("@")[-1] if "@" in body.email else "***"
         logger.warning("Failed login attempt for %s", masked)
@@ -167,6 +175,8 @@ def forgot_password(
 
     user = db.query(User).filter(User.email == body.email, User.is_active.is_(True)).first()
     if not user:
+        return PasswordResetResponse(message="If that email is registered, a reset link has been created.")
+    if user.auth_provider != "local":
         return PasswordResetResponse(message="If that email is registered, a reset link has been created.")
 
     db.query(AuthToken).filter(
@@ -344,3 +354,282 @@ def get_me(
 
     logger.warning("GET /auth/me called without valid credentials")
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+
+
+# ---------------------------------------------------------------------------
+# SSO / OIDC
+# ---------------------------------------------------------------------------
+
+
+class SsoCallbackRequest(BaseModel):
+    code: str = Field(..., min_length=1, max_length=2048)
+    state: str = Field(..., min_length=1, max_length=512)
+
+
+@router.get("/sso/status")
+def sso_status() -> dict:
+    """Return whether SSO is configured. Used by the dashboard to show/hide the SSO button."""
+    from core.config import settings
+    out: dict = {"configured": settings.oidc_configured}
+    if settings.oidc_configured and settings.oidc_issuer:
+        out["issuer"] = settings.oidc_issuer
+    return out
+
+
+@router.get("/sso/login")
+def sso_login(request: Request) -> RedirectResponse:
+    """Redirect to IdP authorization endpoint. Returns 503 if OIDC not configured."""
+    from core.config import settings
+
+    if not settings.oidc_configured:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="SSO is not configured",
+        )
+    if not settings.oidc_redirect_uri:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OIDC redirect URI is not configured",
+        )
+
+    import httpx
+    from authlib.integrations.httpx_client import AsyncOAuth2Client
+    from authlib.common.security import generate_token
+
+    discovery_url = settings.oidc_issuer.rstrip("/") + "/.well-known/openid-configuration"
+    with httpx.Client() as client:
+        resp = client.get(discovery_url)
+        resp.raise_for_status()
+        metadata = resp.json()
+
+    auth_endpoint = metadata.get("authorization_endpoint")
+    if not auth_endpoint:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OIDC discovery failed: no authorization_endpoint",
+        )
+
+    import jwt as pyjwt
+
+    nonce = generate_token(48)
+    state_jwt = pyjwt.encode(
+        {
+            "nonce": nonce,
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
+        },
+        settings.jwt_secret,
+        algorithm="HS256",
+    )
+
+    client = AsyncOAuth2Client(
+        client_id=settings.oidc_client_id,
+        client_secret=settings.oidc_client_secret,
+        scope="openid profile email",
+        redirect_uri=settings.oidc_redirect_uri,
+    )
+    uri, _ = client.create_authorization_url(
+        auth_endpoint,
+        state=state_jwt,
+        nonce=nonce,
+    )
+    return RedirectResponse(url=uri, status_code=status.HTTP_302_FOUND)
+
+
+@router.post("/sso/callback", response_model=TokenResponse)
+@limiter.limit("10/minute")
+def sso_callback(
+    request: Request,
+    body: SsoCallbackRequest,
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    """Exchange authorization code for tokens, validate ID token, create or log in user."""
+    from core.config import settings
+    import httpx
+    from authlib.integrations.httpx_client import OAuth2Client
+
+    if not settings.oidc_configured or not settings.oidc_redirect_uri:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="SSO is not configured",
+        )
+
+    try:
+        import jwt as pyjwt
+
+        payload = pyjwt.decode(
+            body.state,
+            settings.jwt_secret,
+            algorithms=["HS256"],
+        )
+        nonce = payload.get("nonce")
+    except Exception:
+        logger.warning("SSO callback: invalid or expired state")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired state. Please try signing in again.",
+        )
+
+    discovery_url = settings.oidc_issuer.rstrip("/") + "/.well-known/openid-configuration"
+    with httpx.Client() as client:
+        resp = client.get(discovery_url)
+        resp.raise_for_status()
+        metadata = resp.json()
+
+    token_endpoint = metadata.get("token_endpoint")
+    if not token_endpoint:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OIDC discovery failed: no token_endpoint",
+        )
+
+    from urllib.parse import urlencode
+
+    auth_response = (
+        f"{settings.oidc_redirect_uri}?{urlencode({'code': body.code, 'state': body.state})}"
+    )
+    oauth_client = OAuth2Client(
+        client_id=settings.oidc_client_id,
+        client_secret=settings.oidc_client_secret,
+        scope="openid profile email",
+        redirect_uri=settings.oidc_redirect_uri,
+        state=body.state,
+    )
+    token = oauth_client.fetch_token(
+        token_endpoint,
+        authorization_response=auth_response,
+    )
+
+    id_token = token.get("id_token")
+    if not id_token:
+        logger.warning("SSO callback: no id_token in response")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="IdP did not return an ID token",
+        )
+
+    jwks_uri = metadata.get("jwks_uri")
+    if not jwks_uri:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OIDC discovery failed: no jwks_uri",
+        )
+
+    import jwt as pyjwt
+
+    with httpx.Client() as client:
+        jwks_resp = client.get(jwks_uri)
+        jwks_resp.raise_for_status()
+        jwks = jwks_resp.json()
+
+    try:
+        decoded = pyjwt.decode(
+            id_token,
+            jwks,
+            algorithms=["RS256", "ES256", "HS256"],
+            audience=settings.oidc_client_id,
+            issuer=settings.oidc_issuer.rstrip("/"),
+        )
+        if decoded.get("nonce") != nonce:
+            raise ValueError("nonce mismatch")
+    except Exception as e:
+        logger.warning("SSO callback: ID token validation failed: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid ID token from identity provider",
+        )
+
+    userinfo = token.get("userinfo")
+    if not userinfo:
+        userinfo_endpoint = metadata.get("userinfo_endpoint")
+        if userinfo_endpoint and token.get("access_token"):
+            with httpx.Client() as client:
+                ui_resp = client.get(
+                    userinfo_endpoint,
+                    headers={"Authorization": f"Bearer {token['access_token']}"},
+                )
+                if ui_resp.is_success:
+                    userinfo = ui_resp.json()
+    if not userinfo:
+        userinfo = decoded
+
+    email = userinfo.get("email") or decoded.get("email") or decoded.get("sub")
+    if not email or "@" not in str(email):
+        logger.warning("SSO callback: no email in userinfo or id_token")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Identity provider did not return an email address",
+        )
+
+    first_name = userinfo.get("given_name") or userinfo.get("first_name") or ""
+    last_name = userinfo.get("family_name") or userinfo.get("last_name") or ""
+    name = userinfo.get("name") or ""
+    if name and not first_name and not last_name:
+        parts = name.split(None, 1)
+        first_name = parts[0] if parts else ""
+        last_name = parts[1] if len(parts) > 1 else ""
+
+    user = db.query(User).filter(User.email == email).first()
+    if user:
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account disabled",
+            )
+    else:
+        slug = _slugify((first_name + " " + last_name).strip() or email.split("@")[0])
+        existing_tenant = db.query(Tenant).filter(Tenant.slug == slug).first()
+        if existing_tenant:
+            slug = f"{slug}-{uuid.uuid4().hex[:6]}"
+        tenant = Tenant(
+            id=str(uuid.uuid4()),
+            name=(first_name + " " + last_name).strip() or email.split("@")[0],
+            slug=slug,
+        )
+        db.add(tenant)
+        db.flush()
+
+        placeholder_password = hash_password(secrets.token_hex(32))
+        user = User(
+            id=str(uuid.uuid4()),
+            tenant_id=tenant.id,
+            email=email,
+            hashed_password=placeholder_password,
+            first_name=first_name or None,
+            last_name=last_name or None,
+            role="analyst",
+            auth_provider="oidc",
+        )
+        db.add(user)
+        db.flush()
+
+        audit_record(
+            db,
+            tenant_id=tenant.id,
+            actor_id=user.id,
+            action="user.registered",
+            resource_type="user",
+            resource_id=user.id,
+            detail={"email": email, "auth_provider": "oidc"},
+            ip_address=request.client.host if request.client else None,
+        )
+
+    audit_record(
+        db,
+        tenant_id=user.tenant_id,
+        actor_id=user.id,
+        action="user.login",
+        resource_type="user",
+        resource_id=user.id,
+        detail={"auth_provider": "oidc"},
+        ip_address=request.client.host if request.client else None,
+    )
+    db.commit()
+
+    refresh_tok, refresh_jti = create_refresh_token(user.id, user.tenant_id)
+    user.refresh_jti = refresh_jti
+    db.commit()
+
+    return TokenResponse(
+        access_token=create_access_token(user.id, user.tenant_id),
+        refresh_token=refresh_tok,
+    )

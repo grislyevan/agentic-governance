@@ -99,3 +99,8 @@ class WebhookOut(BaseModel):
 class WebhookListResponse(BaseModel):
     items: list[WebhookOut]
     total: int
+
+
+class WebhookFromTemplateRequest(BaseModel):
+    template_id: str
+    config: dict[str, str]

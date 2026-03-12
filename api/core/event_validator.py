@@ -31,7 +31,7 @@ _ALLOWED_TOP_LEVEL_KEYS = frozenset({
     "actor", "endpoint", "tool", "action", "target",
     "policy", "approval", "exception", "evidence",
     "enforcement", "outcome", "severity", "posture",
-    "telemetry_providers",
+    "mitre_attack", "telemetry_providers",
     "_signature", "_key_fingerprint",
     "signature", "key_fingerprint",
 })
@@ -71,7 +71,7 @@ def validate_event_payload(data: dict[str, Any]) -> list[str]:
 
     for field in ("tool", "actor", "endpoint", "policy", "severity",
                    "action", "target", "enforcement", "outcome",
-                   "approval", "exception", "evidence", "posture"):
+                   "approval", "exception", "evidence", "posture", "mitre_attack"):
         val = data.get(field)
         if val is not None and not isinstance(val, dict):
             errors.append(f"'{field}' must be an object, got {type(val).__name__}")

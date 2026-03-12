@@ -6,6 +6,12 @@ import PollingStatus from '../components/PollingStatus';
 
 const PAGE_SIZE = 50;
 
+const MITRE_TECHNIQUES = [
+  'T1005', 'T1059', 'T1059.004', 'T1071', 'T1071.001', 'T1074', 'T1074.001',
+  'T1098', 'T1119', 'T1204', 'T1204.002', 'T1543', 'T1547', 'T1552', 'T1555',
+  'T1565', 'T1565.001', 'T1567', 'T1567.001', 'T1537',
+];
+
 const DECISION_COLORS = {
   allow: 'bg-detec-teal-500/15 text-detec-teal-500',
   block: 'bg-detec-enforce-block/15 text-detec-enforce-block',
@@ -36,6 +42,23 @@ function ConfidenceMeter({ value }) {
         <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
       </div>
       <span className="text-xs text-detec-slate-400 tabular-nums">{pct}%</span>
+    </div>
+  );
+}
+
+function MitreBadges({ techniques }) {
+  if (!techniques || techniques.length === 0) return <span className="text-detec-slate-600 text-xs">-</span>;
+  const ids = techniques.map(t => t.subtechnique || t.technique_id);
+  return (
+    <div className="flex flex-wrap gap-1">
+      {ids.slice(0, 4).map(id => (
+        <span key={id} className="text-xs px-1.5 py-0.5 rounded font-mono bg-detec-slate-700 text-detec-slate-300">
+          {id}
+        </span>
+      ))}
+      {ids.length > 4 && (
+        <span className="text-xs text-detec-slate-500">+{ids.length - 4}</span>
+      )}
     </div>
   );
 }
@@ -124,6 +147,7 @@ export default function EventsPage({ searchQuery }) {
 
   const [decisionFilter, setDecisionFilter] = useState('');
   const [toolFilter, setToolFilter] = useState('');
+  const [mitreFilter, setMitreFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const prevSearch = useRef(searchQuery);
 
@@ -141,6 +165,7 @@ export default function EventsPage({ searchQuery }) {
       const opts = { page, pageSize: PAGE_SIZE };
       if (decisionFilter) opts.decisionState = decisionFilter;
       if (toolFilter) opts.toolName = toolFilter;
+      if (mitreFilter) opts.mitreTechnique = mitreFilter;
       if (searchQuery) opts.search = searchQuery;
       const data = await fetchEvents(undefined, opts);
       setEvents(data.items || []);
@@ -150,7 +175,7 @@ export default function EventsPage({ searchQuery }) {
     } finally {
       setLoading(false);
     }
-  }, [page, decisionFilter, toolFilter, searchQuery]);
+  }, [page, decisionFilter, toolFilter, mitreFilter, searchQuery]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -189,9 +214,20 @@ export default function EventsPage({ searchQuery }) {
           className="bg-detec-slate-800 border border-detec-slate-700 rounded-lg px-3 py-3 sm:py-1.5 text-xs text-detec-slate-300 placeholder:text-detec-slate-600 focus:outline-none focus:border-detec-primary-500/50 w-full sm:w-44 min-h-[44px] sm:min-h-0"
         />
 
-        {(decisionFilter || toolFilter) && (
+        <select
+          value={mitreFilter}
+          onChange={e => { setMitreFilter(e.target.value); setPage(1); }}
+          className="bg-detec-slate-800 border border-detec-slate-700 rounded-lg px-3 py-3 sm:py-1.5 text-xs text-detec-slate-300 focus:outline-none focus:border-detec-primary-500/50 min-h-[44px] sm:min-h-0"
+        >
+          <option value="">All MITRE techniques</option>
+          {MITRE_TECHNIQUES.map(tid => (
+            <option key={tid} value={tid}>{tid}</option>
+          ))}
+        </select>
+
+        {(decisionFilter || toolFilter || mitreFilter) && (
           <button
-            onClick={() => { setDecisionFilter(''); setToolFilter(''); setPage(1); }}
+            onClick={() => { setDecisionFilter(''); setToolFilter(''); setMitreFilter(''); setPage(1); }}
             className="text-xs text-detec-slate-500 hover:text-detec-slate-300"
           >
             Clear filters
@@ -215,10 +251,10 @@ export default function EventsPage({ searchQuery }) {
             <PulseIcon />
           </div>
           <div className="text-detec-slate-400 text-sm font-medium mb-1">
-            {decisionFilter || toolFilter || searchQuery ? 'No matching events' : 'No events yet'}
+            {decisionFilter || toolFilter || mitreFilter || searchQuery ? 'No matching events' : 'No events yet'}
           </div>
           <div className="text-detec-slate-600 text-sm max-w-sm mx-auto">
-            {decisionFilter || toolFilter || searchQuery
+            {decisionFilter || toolFilter || mitreFilter || searchQuery
               ? 'Try adjusting your filters or search query.'
               : 'Detection, policy, and enforcement events will appear here as endpoints report in. Connect an agent to get started.'}
           </div>
@@ -236,6 +272,7 @@ export default function EventsPage({ searchQuery }) {
                 <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider hidden lg:table-cell">Class</th>
                 <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Decision</th>
                 <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Confidence</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider hidden lg:table-cell">MITRE ATT&amp;CK</th>
                 <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider hidden md:table-cell">Severity</th>
               </tr>
             </thead>
@@ -263,6 +300,9 @@ export default function EventsPage({ searchQuery }) {
                   </td>
                   <td className="px-3 sm:px-4 py-3">
                     <ConfidenceMeter value={ev.attribution_confidence} />
+                  </td>
+                  <td className="px-3 sm:px-4 py-3 hidden lg:table-cell">
+                    <MitreBadges techniques={ev.payload?.mitre_attack?.techniques} />
                   </td>
                   <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
                     <SeverityBadge level={ev.severity_level} />

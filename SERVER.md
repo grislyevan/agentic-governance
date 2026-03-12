@@ -480,6 +480,75 @@ All user-facing inputs have length limits enforced at the schema level (password
 
 ---
 
+## Secrets management
+
+Production secrets should never be stored in `.env` files on the server, committed to git, or hardcoded in source. The recommended approach depends on your deployment target.
+
+| Target | Method | Details |
+|--------|--------|---------|
+| Windows VM | System environment variables | Set via `setx /M` or System Properties. Readable by SYSTEM service account. |
+| Docker | `.env` file (gitignored) | Compose reads via `${VAR:?error}`. Use Docker Swarm secrets for multi-node. |
+| Fly.io | `fly secrets set` | Encrypted at rest, injected as env vars. |
+| Kubernetes | `Secret` resources | Base64-encoded; use SealedSecrets or external-secrets-operator for encryption. |
+
+### Windows VM setup
+
+From an elevated PowerShell prompt:
+
+```powershell
+$jwt = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Max 256) })
+[System.Environment]::SetEnvironmentVariable('JWT_SECRET', $jwt, 'Machine')
+[System.Environment]::SetEnvironmentVariable('SEED_ADMIN_PASSWORD', 'your-strong-password', 'Machine')
+[System.Environment]::SetEnvironmentVariable('ENV', 'production', 'Machine')
+```
+
+Restart the Detec service after setting variables. See [docs/secrets-management.md](docs/secrets-management.md) for the full secrets inventory and rotation guidance.
+
+### Migration path
+
+When the team grows or the deployment spans multiple environments, migrate to [Doppler](https://www.doppler.com/) (free tier, 5 projects) or AWS Secrets Manager. See [docs/secrets-management.md](docs/secrets-management.md) for the evaluation.
+
+---
+
+## Uptime monitoring
+
+External uptime monitoring ensures you are alerted when the server goes down, independent of the server itself.
+
+### Recommended: UptimeRobot (free tier)
+
+1. Create an account at [uptimerobot.com](https://uptimerobot.com/)
+2. Add an HTTP(s) monitor:
+   - URL: `https://your-server/api/health` (or `http://192.168.64.4:8000/api/health` for LAN-only)
+   - Interval: 60 seconds
+   - Alert contacts: your email (and Slack webhook if available)
+3. Set keyword monitoring: expect `"status":"ok"` in the response body
+
+The `/api/health` endpoint returns:
+- HTTP 200 with `{"status": "ok", "version": "...", "db": "ok"}` when healthy
+- HTTP 503 with `{"status": "degraded", "version": "...", "db": "unreachable"}` when the database is down
+
+### Alternative: Checkly or Better Uptime
+
+Both offer free tiers with 5-10 monitors. Configuration is similar: point an HTTP check at `/api/health` and alert on non-200 responses.
+
+### Optional: Grafana Cloud metrics
+
+The API exposes Prometheus metrics at `/metrics`. To visualize them:
+
+1. Create a free [Grafana Cloud](https://grafana.com/products/cloud/) account
+2. Configure a Prometheus remote-write or scrape target pointing at `/metrics`
+3. Import a basic dashboard with panels for: request rate, error rate, p95 latency, event ingestion rate
+
+### Alert escalation
+
+| Severity | Condition | Action |
+|----------|-----------|--------|
+| Warning | Health check returns `degraded` | Check database connectivity |
+| Critical | Health check fails (timeout or 5xx) for 2+ minutes | Restart the service, check server resources |
+| Emergency | No recovery after 10 minutes | SSH into the server, check logs at `C:\ProgramData\Detec\server.log` |
+
+---
+
 ## Production environment variables
 
 All settings are defined in `api/core/config.py` (pydantic-settings). Field names map to uppercase environment variables (e.g., `database_url` reads `DATABASE_URL`). The API also reads from an `.env` file in the `api/` working directory.
@@ -562,6 +631,31 @@ All four credentials (`EDR_PROVIDER`, `EDR_API_BASE`, `EDR_CLIENT_ID`, `EDR_CLIE
 | `SMTP_USE_TLS` | `true` | Use STARTTLS for the SMTP connection. |
 
 When `SMTP_HOST` and `SMTP_FROM` are set, admins can send agent download links directly to end users via the dashboard or the `POST /api/agent/enroll-email` endpoint.
+
+### SSO / OIDC
+
+Single sign-on via OpenID Connect. When configured, the login page shows a "Sign in with SSO" button and users are auto-provisioned on first login. SSO users cannot use password-based login or password reset.
+
+| Variable | Default | Description |
+|---|---|---|
+| `OIDC_ISSUER` | _(none)_ | IdP issuer URL (e.g., `https://login.microsoftonline.com/{tenant}/v2.0` or `https://dev-xxxx.okta.com/oauth2/default`). |
+| `OIDC_CLIENT_ID` | _(none)_ | OAuth2 client ID registered with the IdP. |
+| `OIDC_CLIENT_SECRET` | _(none)_ | OAuth2 client secret. |
+| `OIDC_REDIRECT_URI` | _(none)_ | Callback URL (e.g., `https://your-server/auth/sso/callback`). Must match the redirect URI registered in the IdP. |
+
+All four values must be set for SSO to activate. Check `GET /api/auth/sso/status` to verify configuration.
+
+### Stripe billing
+
+| Variable | Default | Description |
+|---|---|---|
+| `STRIPE_SECRET_KEY` | _(none)_ | Stripe API secret key. |
+| `STRIPE_PUBLISHABLE_KEY` | _(none)_ | Stripe publishable key (for frontend). |
+| `STRIPE_WEBHOOK_SECRET` | _(none)_ | Webhook signing secret for verifying Stripe callbacks. |
+| `STRIPE_PRICE_ID_PRO` | _(none)_ | Stripe Price ID for the Pro plan. |
+| `STRIPE_PRICE_ID_ENTERPRISE` | _(none)_ | Stripe Price ID for the Enterprise plan. |
+
+Both `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` must be set for billing to activate. The billing page shows "Billing not available" when Stripe is not configured.
 
 ---
 

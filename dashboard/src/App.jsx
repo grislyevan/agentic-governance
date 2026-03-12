@@ -6,6 +6,7 @@ import TopBar from './components/layout/TopBar';
 import ApertureSpinner from './components/branding/ApertureSpinner';
 import LoginPage from './pages/LoginPage';
 import SetPasswordPage from './pages/SetPasswordPage';
+import SsoCallbackPage from './pages/SsoCallbackPage';
 import DashboardPage from './pages/DashboardPage';
 import EventsPage from './pages/EventsPage';
 import PoliciesPage from './pages/PoliciesPage';
@@ -47,6 +48,10 @@ export default function App() {
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
+
+  if (location.pathname === '/auth/sso/callback') {
+    return <SsoCallbackPage />;
+  }
 
   if (loading) {
     return (

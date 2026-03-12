@@ -78,6 +78,7 @@
     "outcome": { "$ref": "#/$defs/outcome" },
     "posture": { "$ref": "#/$defs/posture" },
     "severity": { "$ref": "#/$defs/severity" },
+    "mitre_attack": { "$ref": "#/$defs/mitre_attack" },
     "telemetry_providers": {
       "type": "array",
       "items": {
@@ -735,6 +736,27 @@
       },
       "required": ["level"],
       "additionalProperties": false
+    },
+
+    "mitre_attack": {
+      "type": "object",
+      "description": "MITRE ATT&CK technique mapping for this detection.",
+      "properties": {
+        "techniques": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "technique_id": { "type": "string", "pattern": "^T[0-9]{4}(\\.[0-9]{3})?$" },
+              "technique_name": { "type": "string" },
+              "tactic": { "type": "string" },
+              "subtechnique": { "type": "string" }
+            },
+            "required": ["technique_id", "technique_name", "tactic"]
+          }
+        }
+      },
+      "required": ["techniques"]
     }
   }
 }

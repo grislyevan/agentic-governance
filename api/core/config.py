@@ -163,6 +163,18 @@ class Settings(BaseSettings):
     def stripe_configured(self) -> bool:
         return bool(self.stripe_secret_key and self.stripe_webhook_secret)
 
+    # SSO / OIDC
+    oidc_issuer: str = ""
+    oidc_client_id: str = ""
+    oidc_client_secret: str = ""
+    oidc_redirect_uri: str = ""
+
+    @property
+    def oidc_configured(self) -> bool:
+        return bool(
+            self.oidc_issuer and self.oidc_client_id and self.oidc_client_secret
+        )
+
     @model_validator(mode="after")
     def _apply_default_database_url(self) -> "Settings":
         if not self.database_url:

@@ -11,11 +11,12 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException, Query, Request, status
 from pydantic import BaseModel
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.audit_logger import record as audit_record
+from core.database import engine
 from core.metrics import detec_events_ingested_total
 from core.rate_limit import limiter
 from core.database import get_db
@@ -398,6 +399,7 @@ def list_events(
     endpoint_id: str | None = Query(default=None),
     observed_after: datetime | None = Query(default=None),
     observed_before: datetime | None = Query(default=None),
+    mitre_technique: str | None = Query(default=None, max_length=16),
     search: str | None = Query(default=None, max_length=200),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=500),
@@ -427,6 +429,24 @@ def list_events(
     if search:
         escaped = search.replace("%", r"\%").replace("_", r"\_")
         q = q.filter(Event.tool_name.ilike(f"%{escaped}%", escape="\\"))
+
+    if mitre_technique:
+        tid = mitre_technique.strip()
+        if engine.dialect.name == "sqlite":
+            q = q.filter(
+                text(
+                    "EXISTS (SELECT 1 FROM json_each(json_extract(payload, '$.mitre_attack.techniques')) "
+                    "WHERE json_extract(value, '$.technique_id') = :tid)"
+                ).bindparams(tid=tid)
+            )
+        else:
+            q = q.filter(
+                text(
+                    "EXISTS (SELECT 1 FROM json_array_elements("
+                    "COALESCE(payload->'mitre_attack'->'techniques', '[]'::json)) AS t "
+                    "WHERE t->>'technique_id' = :tid)"
+                ).bindparams(tid=tid)
+            )
 
     total = q.with_entities(func.count()).scalar() or 0
     items = (

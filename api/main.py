@@ -54,7 +54,7 @@ from models.audit import AuditLog
 from models.endpoint import Endpoint
 from models.event import Event
 from models.policy import Policy
-from routers import agent_download, audit, auth, billing, demo, endpoints, enforcement, events, policies, retention, users, webhooks
+from routers import agent_download, audit, auth, billing, demo, endpoints, enforcement, events, policies, reports, retention, users, webhooks
 
 logger = logging.getLogger("agentic_governance")
 
@@ -413,6 +413,7 @@ app.include_router(users.router, prefix=API_PREFIX)
 app.include_router(webhooks.router, prefix=API_PREFIX)
 app.include_router(enforcement.router, prefix=API_PREFIX)
 app.include_router(billing.router, prefix=API_PREFIX)
+app.include_router(reports.router, prefix=API_PREFIX)
 app.include_router(demo.router, prefix=API_PREFIX)
 
 

@@ -21,6 +21,9 @@ os.environ["SEED_ADMIN_PASSWORD"] = "testpass12345"
 os.environ["TESTING"] = "1"
 os.environ["RATELIMIT_ENABLED"] = "false"
 os.environ["GATEWAY_ENABLED"] = "false"
+# Ensure OIDC is not configured for auth tests (override any .env)
+for key in ("OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_REDIRECT_URI"):
+    os.environ[key] = ""
 
 import pytest
 from sqlalchemy import create_engine

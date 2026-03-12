@@ -65,6 +65,7 @@ export async function fetchEvents(config, {
   endpointId,
   observedAfter,
   observedBefore,
+  mitreTechnique,
   search,
 } = {}) {
   const params = new URLSearchParams({ page, page_size: pageSize });
@@ -73,6 +74,7 @@ export async function fetchEvents(config, {
   if (endpointId) params.set('endpoint_id', endpointId);
   if (observedAfter) params.set('observed_after', observedAfter);
   if (observedBefore) params.set('observed_before', observedBefore);
+  if (mitreTechnique) params.set('mitre_technique', mitreTechnique);
   if (search) params.set('search', search);
   return apiFetch(`/events?${params}`, config);
 }
@@ -171,6 +173,31 @@ export async function sendInvite({ email, role }) {
     email: email.trim(),
     role: role || 'analyst',
   });
+}
+
+// SSO
+
+export async function fetchSsoStatus() {
+  const config = getApiConfig();
+  const url = `${config.apiUrl.replace(/\/+$/, '')}/auth/sso/status`;
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`SSO status failed (${res.status})`);
+  return res.json();
+}
+
+export async function ssoCallback(code, state) {
+  const config = getApiConfig();
+  const url = `${config.apiUrl.replace(/\/+$/, '')}/auth/sso/callback`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, state }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `SSO callback failed (${res.status})`);
+  }
+  return res.json();
 }
 
 // Auth: password reset + invite flows (unauthenticated)
@@ -312,8 +339,19 @@ export async function fetchWebhooks() {
   return apiFetch('/webhooks');
 }
 
+export async function fetchWebhookTemplates() {
+  return apiFetch('/webhooks/templates');
+}
+
 export async function createWebhook(data) {
   return apiMutate('POST', '/webhooks', data);
+}
+
+export async function createWebhookFromTemplate(templateId, config) {
+  return apiMutate('POST', '/webhooks/from-template', {
+    template_id: templateId,
+    config,
+  });
 }
 
 export async function updateWebhook(id, data) {
@@ -350,4 +388,43 @@ export async function createPortalSession({ returnUrl }) {
   return apiMutate('POST', '/billing/portal', {
     return_url: returnUrl,
   });
+}
+
+// Compliance reports
+
+export async function generateComplianceReport(startDate, endDate, format) {
+  const config = getApiConfig();
+  const url = `${config.apiUrl.replace(/\/+$/, '')}/reports/compliance`;
+  const headers = { ...buildAuthHeaders(), 'Content-Type': 'application/json' };
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ start_date: startDate, end_date: endDate, format }),
+  });
+  if (res.status === 401 || res.status === 403) {
+    throw new Error('Authentication failed. Check your credentials.');
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `API returned ${res.status}`);
+  }
+  if (format === 'json') {
+    return res.json();
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const filename = match ? match[1] : `detec-compliance-${startDate}-${endDate}.${format}`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+  return { downloaded: true };
+}
+
+export async function fetchComplianceSummary() {
+  return apiFetch('/reports/compliance/summary');
 }
