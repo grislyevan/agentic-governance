@@ -32,10 +32,12 @@ _ARGPARSE_KEYS = {
     "report_all", "verbose", "dry_run",
     "protocol", "gateway_host", "gateway_port",
     "telemetry_provider",
+    "enforcement_posture", "auto_enforce_threshold",
 }
 
 _BOOL_KEYS = {"report_all", "verbose", "dry_run"}
 _INT_KEYS = {"interval", "gateway_port"}
+_FLOAT_KEYS = {"auto_enforce_threshold"}
 
 # Map config key → environment variable name.
 ENV_MAP: dict[str, str] = {
@@ -54,6 +56,8 @@ ENV_MAP: dict[str, str] = {
     "gateway_host":           f"{ENV_PREFIX}GATEWAY_HOST",
     "gateway_port":           f"{ENV_PREFIX}GATEWAY_PORT",
     "telemetry_provider":     f"{ENV_PREFIX}TELEMETRY_PROVIDER",
+    "enforcement_posture":    f"{ENV_PREFIX}ENFORCEMENT_POSTURE",
+    "auto_enforce_threshold": f"{ENV_PREFIX}AUTO_ENFORCE_THRESHOLD",
 }
 
 CODE_DEFAULTS: dict[str, Any] = {
@@ -72,6 +76,8 @@ CODE_DEFAULTS: dict[str, Any] = {
     "gateway_host": None,
     "gateway_port": 8001,
     "telemetry_provider": "auto",
+    "enforcement_posture": "passive",
+    "auto_enforce_threshold": 0.75,
 }
 
 
@@ -122,6 +128,11 @@ def _parse_env_file(path: Path) -> dict[str, Any]:
                     elif config_key in _INT_KEYS:
                         try:
                             result[config_key] = int(value)
+                        except ValueError:
+                            pass
+                    elif config_key in _FLOAT_KEYS:
+                        try:
+                            result[config_key] = float(value)
                         except ValueError:
                             pass
                     else:
@@ -188,6 +199,11 @@ def load_env_overrides() -> dict[str, Any]:
                 overrides[key] = int(raw)
             except ValueError:
                 logger.warning("Ignoring non-integer value for %s: %r", env_var, raw)
+        elif key in _FLOAT_KEYS:
+            try:
+                overrides[key] = float(raw)
+            except ValueError:
+                logger.warning("Ignoring non-float value for %s: %r", env_var, raw)
         else:
             overrides[key] = raw
     return overrides

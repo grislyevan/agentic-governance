@@ -17,6 +17,8 @@
         "attribution.updated",
         "policy.evaluated",
         "enforcement.applied",
+        "enforcement.simulated",
+        "enforcement.allow_listed",
         "approval.requested",
         "approval.resolved",
         "exception.lifecycle",
@@ -158,6 +160,24 @@
     {
       "if": {
         "properties": { "event_type": { "const": "enforcement.applied" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "action", "target", "policy", "enforcement", "outcome"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "enforcement.simulated" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "action", "target", "policy", "enforcement", "outcome"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "enforcement.allow_listed" } },
         "required": ["event_type"]
       },
       "then": {
@@ -490,7 +510,7 @@
       "properties": {
         "tactic": {
           "type": "string",
-          "description": "Enforcement tactic used (e.g. kill_process, quarantine)."
+          "description": "Enforcement tactic used (e.g. process_kill, network_null_route, hold_pending_approval, log_and_alert)."
         },
         "success": {
           "type": "boolean",
@@ -499,6 +519,16 @@
         "detail": {
           "type": "string",
           "description": "Human-readable description of the enforcement action and its result."
+        },
+        "simulated": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the agent is in audit posture; action was computed but not executed."
+        },
+        "allow_listed": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when enforcement was skipped because the tool matched an allow-list entry."
         }
       },
       "required": ["tactic", "success", "detail"],

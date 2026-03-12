@@ -111,6 +111,21 @@ def policy_push_msg(rules: list[dict[str, Any]], *, seq: int = 0) -> dict[str, A
     return _envelope(MessageType.POLICY_PUSH, seq, {"rules": rules})
 
 
+def posture_push_msg(
+    posture: str,
+    auto_enforce_threshold: float = 0.75,
+    allow_list: list[str] | None = None,
+    *,
+    seq: int = 0,
+) -> dict[str, Any]:
+    """Server -> Agent: set enforcement posture and allow-list."""
+    return _envelope(MessageType.POSTURE_PUSH, seq, {
+        "posture": posture,
+        "auto_enforce_threshold": auto_enforce_threshold,
+        "allow_list": allow_list or [],
+    })
+
+
 def command_msg(
     command: str,
     command_id: str,

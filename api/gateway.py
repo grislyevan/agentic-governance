@@ -34,6 +34,7 @@ from protocol.messages import (
     ack_msg,
     nack_msg,
     heartbeat_ack_msg,
+    posture_push_msg,
     error_msg,
 )
 
@@ -369,15 +370,19 @@ class AgentSession(BaseConnection):
 
     async def _handle_heartbeat(self, msg: dict[str, Any]) -> None:
         seq_id = msg.get("id", 0)
-        await asyncio.to_thread(self._update_heartbeat)
-        await self.send(heartbeat_ack_msg(
+        posture_info = await asyncio.to_thread(self._update_heartbeat)
+        ack = heartbeat_ack_msg(
             next_expected_in=settings.default_heartbeat_interval,
             endpoint_status=ENDPOINT_STATUS_ACTIVE,
             seq=seq_id,
-        ))
+        )
+        if posture_info:
+            ack["p"]["enforcement_posture"] = posture_info.get("enforcement_posture", "passive")
+            ack["p"]["auto_enforce_threshold"] = posture_info.get("auto_enforce_threshold", 0.75)
+        await self.send(ack)
 
-    def _update_heartbeat(self) -> None:
-        """Touch the endpoint's last_seen_at. Runs in a thread."""
+    def _update_heartbeat(self) -> dict[str, Any] | None:
+        """Touch the endpoint's last_seen_at and return posture info. Runs in a thread."""
         db = SessionLocal()
         try:
             ep = db.query(Endpoint).filter(Endpoint.id == self._endpoint_id).first()
@@ -385,9 +390,15 @@ class AgentSession(BaseConnection):
                 ep.last_seen_at = datetime.now(timezone.utc)
                 ep.status = ENDPOINT_STATUS_ACTIVE
                 db.commit()
+                return {
+                    "enforcement_posture": ep.enforcement_posture,
+                    "auto_enforce_threshold": ep.auto_enforce_threshold,
+                }
+            return None
         except Exception:
             db.rollback()
             logger.warning("Heartbeat update failed for %s", self._endpoint_id, exc_info=True)
+            return None
         finally:
             db.close()
 
@@ -542,3 +553,18 @@ class DetecGateway:
             except ConnectionError:
                 continue
         return sent
+
+    async def push_posture(
+        self,
+        endpoint_id: str,
+        posture: str,
+        auto_enforce_threshold: float = 0.75,
+        allow_list: list[str] | None = None,
+    ) -> bool:
+        """Push a posture update to a specific connected agent."""
+        msg = posture_push_msg(
+            posture=posture,
+            auto_enforce_threshold=auto_enforce_threshold,
+            allow_list=allow_list,
+        )
+        return await self.push_to_endpoint(endpoint_id, msg)

@@ -41,6 +41,7 @@ from telemetry.event_store import EventStore
 from engine.container import is_containerized as check_containerized
 from engine.policy import NetworkContext, PolicyDecision, evaluate_policy
 from enforcement.enforcer import Enforcer, EnforcementResult
+from enforcement.posture import PostureManager
 from output.emitter import EventEmitter
 from output.http_emitter import HttpEmitter
 from output.tcp_emitter import TcpEmitter
@@ -235,9 +236,15 @@ def build_event(
             "tactic": enforcement.tactic,
             "success": enforcement.success,
             "detail": enforcement.detail,
+            "simulated": enforcement.simulated,
+            "allow_listed": enforcement.allow_listed,
         }
+        if enforcement.simulated or enforcement.allow_listed:
+            outcome_result = "simulated"
+        else:
+            outcome_result = "denied" if enforcement.success else "allowed"
         event["outcome"] = {
-            "enforcement_result": "denied" if enforcement.success else "allowed",
+            "enforcement_result": outcome_result,
             "incident_flag": False,
             "incident_id": None,
         }
@@ -424,7 +431,7 @@ def _process_detection(
     if emitter.emit(policy_event):
         events_emitted += 1
 
-    if enforcer and policy_decision.decision_state == "block":
+    if enforcer and policy_decision.decision_state in ("block", "approval_required"):
         network_elevated = "NET" in (policy_decision.rule_id or "")
         enf_result = enforcer.enforce(
             decision=policy_decision,
@@ -434,12 +441,20 @@ def _process_detection(
             network_elevated=network_elevated,
         )
         if verbose:
-            print(f"  Enforcement: {enf_result.tactic} "
+            tag = "AUDIT" if enf_result.simulated else "LIVE"
+            print(f"  Enforcement [{tag}]: {enf_result.tactic} "
                   f"({'OK' if enf_result.success else 'FAILED'}) "
                   f"- {enf_result.detail}")
 
+        if enf_result.allow_listed:
+            event_type = "enforcement.allow_listed"
+        elif enf_result.simulated:
+            event_type = "enforcement.simulated"
+        else:
+            event_type = "enforcement.applied"
+
         enforcement_event = build_event(
-            event_type="enforcement.applied",
+            event_type=event_type,
             endpoint_id=endpoint_id,
             actor_id=actor_id,
             session_id=session_id,
@@ -452,7 +467,7 @@ def _process_detection(
             enforcement=enf_result,
         )
         if verbose:
-            print(f"  Emitting enforcement.applied event...")
+            print(f"  Emitting {event_type} event...")
         if emitter.emit(enforcement_event):
             events_emitted += 1
 
@@ -532,9 +547,22 @@ def run_scan(
     if own_emitter:
         emitter = EventEmitter(output_path=args.output, dry_run=args.dry_run)
 
-    enforcer: Enforcer | None = None
+    posture_mgr = PostureManager(
+        initial_posture=getattr(args, "enforcement_posture", "passive"),
+        initial_threshold=getattr(args, "auto_enforce_threshold", 0.75),
+    )
+
     if getattr(args, "enforce", False):
-        enforcer = Enforcer(dry_run=args.dry_run)
+        import warnings
+        warnings.warn(
+            "--enforce is deprecated and will be removed in a future release. "
+            "Use --posture active instead, or set posture from the central server.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        posture_mgr.update("active", source="cli_override")
+
+    enforcer = Enforcer(posture_manager=posture_mgr, dry_run=args.dry_run)
 
     network_allowlist = _load_network_allowlist(
         getattr(args, "network_allowlist_path", None)
@@ -855,8 +883,18 @@ def main() -> None:
         help="Report all detections every cycle (default: changes only)",
     )
     parser.add_argument(
+        "--posture", dest="enforcement_posture",
+        choices=["passive", "audit", "active"],
+        help="Enforcement posture (default: passive, or as set by central server)",
+    )
+    parser.add_argument(
         "--enforce", action="store_true", default=False,
-        help="Execute enforcement actions (process kill, network block) for block decisions",
+        help="[DEPRECATED] Use --posture active instead",
+    )
+    parser.add_argument(
+        "--auto-enforce-threshold", dest="auto_enforce_threshold",
+        type=float, metavar="SCORE",
+        help="Minimum confidence for auto-enforcement in active posture (default: 0.75)",
     )
     parser.add_argument(
         "--protocol", choices=["http", "tcp"], default="http",

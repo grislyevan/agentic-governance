@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         return [s.strip() for s in self.cors_origins.split(",") if s.strip()]
 
+    # Enforcement
+    default_enforcement_posture: str = "passive"
+    default_auto_enforce_threshold: float = 0.75
+
     # Heartbeat
     default_heartbeat_interval: int = 300
 

@@ -18,16 +18,19 @@ from protocol.messages import (
     heartbeat_msg,
     heartbeat_ack_msg,
     policy_push_msg,
+    posture_push_msg,
     command_msg,
     command_ack_msg,
     error_msg,
 )
+from protocol.posture import EnforcementPosture
 
 __all__ = [
     "MessageType",
     "encode_frame",
     "decode_frame",
     "FrameReader",
+    "EnforcementPosture",
     "auth_msg",
     "auth_ok_msg",
     "auth_fail_msg",
@@ -38,6 +41,7 @@ __all__ = [
     "heartbeat_msg",
     "heartbeat_ack_msg",
     "policy_push_msg",
+    "posture_push_msg",
     "command_msg",
     "command_ack_msg",
     "error_msg",

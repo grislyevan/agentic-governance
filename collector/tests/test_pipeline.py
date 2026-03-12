@@ -134,6 +134,8 @@ class TestBuildEvent(unittest.TestCase):
             tactic="kill_process",
             success=True,
             detail="Process terminated",
+            simulated=False,
+            allow_listed=False,
         )
         event = build_event(
             event_type="enforcement.applied",
@@ -163,6 +165,8 @@ class TestBuildEvent(unittest.TestCase):
             tactic="kill_process",
             success=False,
             detail="Process not found",
+            simulated=False,
+            allow_listed=False,
         )
         event = build_event(
             event_type="enforcement.applied",
@@ -261,7 +265,8 @@ class TestProcessDetection(unittest.TestCase):
         )
         enforcer = MagicMock(spec=Enforcer)
         enforcer.enforce.return_value = EnforcementResult(
-            tactic="kill_process", success=True, detail="killed"
+            tactic="kill_process", success=True, detail="killed",
+            simulated=False, allow_listed=False,
         )
         emitter = MagicMock()
         emitter.emit.return_value = True
@@ -295,7 +300,8 @@ class TestProcessDetection(unittest.TestCase):
         )
         enforcer = MagicMock(spec=Enforcer)
         enforcer.enforce.return_value = EnforcementResult(
-            tactic="kill_process", success=True, detail="killed"
+            tactic="kill_process", success=True, detail="killed",
+            simulated=False, allow_listed=False,
         )
         emitter = MagicMock()
         emitter.emit.return_value = True
@@ -318,8 +324,12 @@ class TestProcessDetection(unittest.TestCase):
             self.assertEqual(errors, [], f"{ev['event_type']} failed: {errors}")
 
     @patch("main.evaluate_policy")
-    def test_approval_required_does_not_enforce(self, mock_policy: MagicMock) -> None:
-        """approval_required must NOT trigger enforcement (M-28 fix)."""
+    def test_approval_required_does_not_kill(self, mock_policy: MagicMock) -> None:
+        """approval_required must NOT trigger OS-level enforcement (M-28 fix).
+
+        The enforcer IS called (it emits an enforcement event), but the
+        tactic is hold_pending_approval, not process_kill or network_block.
+        """
         mock_policy.return_value = PolicyDecision(
             decision_state="approval_required",
             rule_id="APPR-01",
@@ -328,6 +338,14 @@ class TestProcessDetection(unittest.TestCase):
             decision_confidence=0.8,
         )
         enforcer = MagicMock(spec=Enforcer)
+        enforcer.enforce.return_value = EnforcementResult(
+            tactic="hold_pending_approval",
+            success=True,
+            detail="Holding test_tool pending approval",
+            tool_name="test_tool",
+            simulated=False,
+            allow_listed=False,
+        )
         emitter = MagicMock()
         emitter.emit.return_value = True
 
@@ -343,8 +361,10 @@ class TestProcessDetection(unittest.TestCase):
             state_differ=None,
             verbose=False,
         )
-        self.assertEqual(count, 2)
-        enforcer.enforce.assert_not_called()
+        self.assertEqual(count, 3)
+        enforcer.enforce.assert_called_once()
+        result = enforcer.enforce.return_value
+        self.assertEqual(result.tactic, "hold_pending_approval")
 
     def test_state_differ_skips_unchanged(self) -> None:
         """StateDiffer returning (False, []) must suppress all events."""

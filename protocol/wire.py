@@ -38,6 +38,7 @@ class MessageType(enum.IntEnum):
     POLICY_PUSH = 0x30
     COMMAND = 0x31
     COMMAND_ACK = 0x32
+    POSTURE_PUSH = 0x33
 
     ERROR = 0xFF
 

@@ -18,6 +18,8 @@ class EndpointResponse(BaseModel):
     hostname: str
     os_info: str | None
     posture: str
+    enforcement_posture: str = "passive"
+    auto_enforce_threshold: float = 0.75
     status: str
     heartbeat_interval: int
     last_seen_at: datetime | None

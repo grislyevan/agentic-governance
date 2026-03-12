@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone as tz
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.config import settings
@@ -28,6 +28,8 @@ class Endpoint(Base):
     hostname: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     os_info: Mapped[str | None] = mapped_column(String(512))
     posture: Mapped[str] = mapped_column(String(32), nullable=False, default="unmanaged")
+    enforcement_posture: Mapped[str] = mapped_column(String(16), nullable=False, default="passive")
+    auto_enforce_threshold: Mapped[float] = mapped_column(Float, nullable=False, default=0.75)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default=ENDPOINT_STATUS_ACTIVE)
     heartbeat_interval: Mapped[int] = mapped_column(
         Integer, nullable=False, default=settings.default_heartbeat_interval

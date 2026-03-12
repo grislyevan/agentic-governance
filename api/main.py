@@ -48,7 +48,7 @@ from models.audit import AuditLog
 from models.endpoint import Endpoint
 from models.event import Event
 from models.policy import Policy
-from routers import agent_download, audit, auth, endpoints, events, policies, users, webhooks
+from routers import agent_download, audit, auth, endpoints, enforcement, events, policies, users, webhooks
 
 logger = logging.getLogger("agentic_governance")
 
@@ -307,6 +307,7 @@ app.include_router(endpoints.router, prefix=API_PREFIX)
 app.include_router(policies.router, prefix=API_PREFIX)
 app.include_router(users.router, prefix=API_PREFIX)
 app.include_router(webhooks.router, prefix=API_PREFIX)
+app.include_router(enforcement.router, prefix=API_PREFIX)
 
 
 @app.get("/health", tags=["meta"])

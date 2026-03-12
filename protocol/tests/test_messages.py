@@ -18,6 +18,7 @@ from protocol.messages import (
     heartbeat_msg,
     heartbeat_ack_msg,
     policy_push_msg,
+    posture_push_msg,
     command_msg,
     command_ack_msg,
     error_msg,
@@ -150,6 +151,33 @@ class TestServerPush:
         assert decoded["t"] == MessageType.COMMAND_ACK
         assert decoded["p"]["result"] == "success"
         assert decoded["p"]["detail"]["scanned"] == 12
+
+
+class TestPosturePush:
+    def test_posture_push_roundtrip(self) -> None:
+        msg = posture_push_msg("active", auto_enforce_threshold=0.80, seq=10)
+        decoded = _roundtrip(msg)
+        assert decoded["t"] == MessageType.POSTURE_PUSH
+        assert decoded["id"] == 10
+        assert decoded["p"]["posture"] == "active"
+        assert decoded["p"]["auto_enforce_threshold"] == 0.80
+        assert decoded["p"]["allow_list"] == []
+
+    def test_posture_push_with_allow_list(self) -> None:
+        msg = posture_push_msg(
+            "audit",
+            auto_enforce_threshold=0.60,
+            allow_list=["cursor", "copilot"],
+            seq=11,
+        )
+        decoded = _roundtrip(msg)
+        assert decoded["p"]["posture"] == "audit"
+        assert decoded["p"]["allow_list"] == ["cursor", "copilot"]
+
+    def test_posture_push_defaults(self) -> None:
+        msg = posture_push_msg("passive")
+        assert msg["p"]["auto_enforce_threshold"] == 0.75
+        assert msg["p"]["allow_list"] == []
 
 
 class TestError:

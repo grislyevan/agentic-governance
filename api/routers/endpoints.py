@@ -134,6 +134,8 @@ class HeartbeatResponse(BaseModel):
     endpoint_id: str
     endpoint_status: str
     next_expected_in: int
+    enforcement_posture: str = "passive"
+    auto_enforce_threshold: float = 0.75
 
 
 @router.post("/heartbeat", response_model=HeartbeatResponse, tags=["heartbeat"])
@@ -195,6 +197,8 @@ def heartbeat(
         endpoint_id=endpoint.id,
         endpoint_status=endpoint.status,
         next_expected_in=body.interval_seconds,
+        enforcement_posture=endpoint.enforcement_posture,
+        auto_enforce_threshold=endpoint.auto_enforce_threshold,
     )
 
 
