@@ -1,7 +1,7 @@
 # Agentic Governance — Progress Tracker
 
 **Last updated:** 2026-03-12  
-**Current phase:** M4 boundary — infrastructure complete, billing + enterprise remaining  
+**Current phase:** M5 — enterprise features complete, vendor integrations and live validation remaining  
 **Ultimate goal:** Production SaaS for agentic AI endpoint governance
 
 ---
@@ -79,7 +79,7 @@ API Client ────────────────────▶│ Mu
 - [x] Synthetic fixture tests for 5 new scanners (22 tests: Aider, LM Studio, Continue, GPT-Pilot, Cline)
 - [ ] Live lab-validate all 5 new scanners (lab run per tool — synthetic validation complete, live runs pending hardware)
 - [x] Schema v0.4.0: `enforcement.applied` example added, enum audit complete (8 live, 10 forward-declared)
-- [ ] Integration tests for `main.py` end-to-end + scanner stubs
+- [x] Integration tests for `main.py` end-to-end + scanner stubs
 - [ ] Playbook v0.4: integrate findings from new lab runs
 
 **Files:** `collector/scanner/`, `collector/tests/`, `dashboard/src/`, `schemas/`, `playbook/`
@@ -219,15 +219,15 @@ Items that are valuable but not yet scheduled:
 
 | Item | Ref | Notes |
 |---|---|---|
-| Evasion test suite | INIT-29 | Systematic coverage beyond LAB-RUN-EVASION-001 |
+| ~~Evasion test suite~~ | ~~INIT-29~~ | Done: `collector/scanner/evasion.py`, 30 tests |
 | Replay / simulation mode | INIT-28 | Replay canned events against policy engine |
 | Benchmark suite | INIT-31 | Scanner performance, confidence accuracy, FP rate |
 | ~~Capability brief~~ | ~~INIT-32~~ | Done (A2, `branding/capability-brief.md`) |
 | ~~Demo mode~~ | ~~INIT-37~~ | Done (A1, `api/core/demo_seed.py`, 10 tests) |
 | Deep-dive / positioning | INIT-36 | Market positioning document |
 | Metrics pipeline | INIT-30 | Detection rate, FP%, policy coverage KPIs |
-| MITRE tactics mapping | INIT-40 | Map signals to ATT&CK for enterprise buyers |
+| ~~MITRE tactics mapping~~ | ~~INIT-40~~ | Done (C3, `collector/engine/attack_mapping.py`, 21 tests) |
 | Lab runs 008–012 (live) | — | Aider, GPT-Pilot, Cline, LM Studio, Continue — synthetic validation complete, live runs pending hardware |
 | LAB-RUN-013 findings | — | Local LLM variant: confidence floor for infrastructure-class tools, co-residency detection, model-dependent behavioral weights |
 | LAB-RUN-014 findings | — | Claude Cowork: VM-based execution model, 10 GB footprint, cleartext identity, "soft proactive" scheduled tasks, DXT cross-app automation, 0.905 confidence (new highest) |
-| Active defense roadmap | — | All 6 phases complete (2026-03-12). See `docs/enforcement-remaining-work.md` for final status. |
+| ~~Active defense roadmap~~ | ~~—~~ | ~~All 6 phases complete (2026-03-12). See `docs/enforcement-remaining-work.md` for final status.~~ |

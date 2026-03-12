@@ -2,7 +2,7 @@
 
 **Generated:** 2026-03-12
 **Source:** `forward_priorities_a_b_c.plan.md`
-**Codebase state:** M4 boundary, 233 collector tests, 122 API tests, 45 protocol tests passing. CI/CD, deploy configs, observability, security, retention all complete.
+**Codebase state:** M5, 554 collector tests, 257 API tests, 48 protocol tests passing. CI/CD, deploy configs, observability, security, retention all complete.
 
 ---
 
@@ -25,7 +25,7 @@ Each task is scoped to roughly 30-60 minutes of focused implementation. Tasks ar
 > Reference: `init-issues/INIT-37-demo-script-evidence-pack.md`
 > Today: `_seed()` in `api/main.py:213-290` seeds admin + tenant + 15 baseline policies. No events, no endpoints, no enforcement data.
 
-#### A1.1 Config flag and settings
+#### [x] A1.1 Config flag and settings
 
 **Description:** Add `DEMO_MODE` env flag and supporting config to the API settings.
 
@@ -43,7 +43,7 @@ Each task is scoped to roughly 30-60 minutes of focused implementation. Tasks ar
 
 ---
 
-#### A1.2 Demo seed module: endpoints and tools
+#### [x] A1.2 Demo seed module: endpoints and tools
 
 **Description:** Create `api/core/demo_seed.py` with a function that generates 3 realistic endpoints (macOS, Windows, Linux) and registers them in the DB.
 
@@ -65,7 +65,7 @@ Each task is scoped to roughly 30-60 minutes of focused implementation. Tasks ar
 
 ---
 
-#### A1.3 Demo seed module: events across 5 tool types
+#### [x] A1.3 Demo seed module: events across 5 tool types
 
 **Description:** Generate ~50 canonical events spanning 5 tools (Claude Code, Cursor, Ollama, Aider, OpenClaw) distributed across the 3 demo endpoints. Events should cover all major `event_type` values from the schema.
 
@@ -95,7 +95,7 @@ Each task is scoped to roughly 30-60 minutes of focused implementation. Tasks ar
 
 ---
 
-#### A1.4 Demo seed module: policy evaluations with mixed decisions
+#### [x] A1.4 Demo seed module: policy evaluations with mixed decisions
 
 **Description:** Ensure demo events include policy evaluation data that exercises the full decision spectrum: allow, detect, block, escalate.
 
@@ -119,7 +119,7 @@ Each task is scoped to roughly 30-60 minutes of focused implementation. Tasks ar
 
 ---
 
-#### A1.5 Demo seed module: enforcement events
+#### [x] A1.5 Demo seed module: enforcement events
 
 **Description:** Create 2-3 enforcement action records that demonstrate the enforcement ladder (warn, throttle, block, kill).
 
@@ -138,7 +138,7 @@ Each task is scoped to roughly 30-60 minutes of focused implementation. Tasks ar
 
 ---
 
-#### A1.6 Wire demo seed into startup
+#### [x] A1.6 Wire demo seed into startup
 
 **Description:** Call the demo seed functions from `_seed()` in `api/main.py` when `DEMO_MODE=true`.
 
@@ -160,7 +160,7 @@ Each task is scoped to roughly 30-60 minutes of focused implementation. Tasks ar
 
 ---
 
-#### A1.7 Demo reset endpoint
+#### [x] A1.7 Demo reset endpoint
 
 **Description:** Add `POST /api/demo/reset` (owner only) that wipes and re-seeds demo data.
 
@@ -186,7 +186,7 @@ Each task is scoped to roughly 30-60 minutes of focused implementation. Tasks ar
 
 ---
 
-#### A1.8 Demo status endpoint
+#### [x] A1.8 Demo status endpoint
 
 **Description:** Add `GET /api/demo/status` that returns whether demo mode is active and data stats.
 
@@ -212,7 +212,7 @@ Each task is scoped to roughly 30-60 minutes of focused implementation. Tasks ar
 
 ---
 
-#### A1.9 Dashboard demo banner
+#### [x] A1.9 Dashboard demo banner
 
 **Description:** Show a subtle "Demo Environment" banner when the API reports demo mode is active.
 
@@ -237,7 +237,7 @@ Each task is scoped to roughly 30-60 minutes of focused implementation. Tasks ar
 
 ---
 
-#### A1.10 Demo mode tests
+#### [x] A1.10 Demo mode tests
 
 **Description:** Add tests for the demo seed and reset flow.
 
@@ -265,7 +265,7 @@ Each task is scoped to roughly 30-60 minutes of focused implementation. Tasks ar
 > Reference: `init-issues/INIT-33-one-page-capability-brief.md`, `branding/one-sheet.md`, `branding/brand-foundation.md`
 > Today: Brand content exists. No assembled brief. LaTeX template at `compliance/templates/default.latex`.
 
-#### A2.1 Draft capability brief content
+#### [x] A2.1 Draft capability brief content
 
 **Description:** Assemble the one-page capability brief in Markdown following INIT-33 structure: Headline, What We Detect, How We Decide, What We Enforce, Proof and Validation, Known Limits, CTA.
 
@@ -293,7 +293,7 @@ Each task is scoped to roughly 30-60 minutes of focused implementation. Tasks ar
 
 ---
 
-#### A2.2 PDF export pipeline
+#### [x] A2.2 PDF export pipeline
 
 **Description:** Create a Markdown-to-PDF pipeline for the capability brief using pandoc + a customized LaTeX template (adapt from `compliance/templates/default.latex`).
 
@@ -321,7 +321,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 > Reference: `.github/workflows/release.yml`, `fly.toml`, `SERVER.md`
 > Today: Release workflow has 5 jobs. `fly.toml` targets `detec-api` on port 8000. TCP gateway (8001) not exposed.
 
-#### A3.1 Tag and release v0.1.0
+#### [x] A3.1 Tag and release v0.1.0
 
 **Description:** Create and push the `v0.1.0` tag. Verify all 5 release workflow jobs complete successfully.
 
@@ -341,7 +341,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 
 ---
 
-#### A3.2 Deploy to Fly.io
+#### [x] A3.2 Deploy to Fly.io
 
 **Description:** Deploy the API to Fly.io with Fly Postgres. Configure secrets and verify health.
 
@@ -362,7 +362,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 
 ---
 
-#### A3.3 End-to-end agent connection test
+#### [x] A3.3 End-to-end agent connection test
 
 **Description:** Connect a local collector agent to the Fly.io-deployed server. Verify events flow.
 
@@ -381,7 +381,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 
 ---
 
-#### A3.4 Document deploy session
+#### [x] A3.4 Document deploy session
 
 **Description:** Write up findings, issues, and fixes from the deploy.
 
@@ -408,7 +408,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 
 > Done. Tenant model has billing columns (stripe_customer_id, subscription_tier, subscription_status, trial_ends_at, stripe_subscription_id). Stripe SDK integrated. Tier limits enforced. Billing dashboard and 23 tests complete.
 
-#### B1.1 Tenant model: add billing columns
+#### [x] B1.1 Tenant model: add billing columns
 
 **Description:** Add billing fields to the Tenant model.
 
@@ -431,7 +431,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 
 ---
 
-#### B1.2 Alembic migration 0012: billing columns
+#### [x] B1.2 Alembic migration 0012: billing columns
 
 **Description:** Create migration to add billing columns to tenants table.
 
@@ -448,7 +448,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 
 ---
 
-#### B1.3 Stripe SDK and config
+#### [x] B1.3 Stripe SDK and config
 
 **Description:** Add `stripe` to API dependencies and billing config settings.
 
@@ -476,7 +476,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 
 ---
 
-#### B1.4 Billing core module
+#### [x] B1.4 Billing core module
 
 **Description:** Create `api/core/billing.py` with Stripe client wrapper and business logic.
 
@@ -500,7 +500,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 
 ---
 
-#### B1.5 Billing router
+#### [x] B1.5 Billing router
 
 **Description:** Create billing API endpoints.
 
@@ -526,7 +526,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 
 ---
 
-#### B1.6 Tier enforcement middleware
+#### [x] B1.6 Tier enforcement middleware
 
 **Description:** Add middleware that checks subscription tier limits on API requests.
 
@@ -552,7 +552,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 
 ---
 
-#### B1.7 Dashboard billing page
+#### [x] B1.7 Dashboard billing page
 
 **Description:** Add a billing page to the dashboard.
 
@@ -581,7 +581,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 
 ---
 
-#### B1.8 Plan badge in settings/header
+#### [x] B1.8 Plan badge in settings/header
 
 **Description:** Show the current plan tier as a badge in the settings page and optionally the sidebar.
 
@@ -598,7 +598,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 
 ---
 
-#### B1.9 Billing tests
+#### [x] B1.9 Billing tests
 
 **Description:** Write tests for billing endpoints and tier enforcement.
 
@@ -626,7 +626,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 
 > Today: All credentials are env vars. `.env.example` documents them. Production validator rejects unsafe defaults. `docs/edr-credential-security.md` mentions Vault.
 
-#### B2.1 Evaluate and document secrets approach
+#### [x] B2.1 Evaluate and document secrets approach
 
 **Description:** Evaluate Fly.io secrets (if deploying on Fly), Doppler, and AWS Secrets Manager. Document the decision.
 
@@ -652,7 +652,7 @@ pandoc capability-brief.md -o capability-brief.pdf --template=templates/brief.la
 
 ---
 
-#### B2.2 Implement chosen approach
+#### [x] B2.2 Implement chosen approach
 
 **Description:** Configure the chosen secrets provider and migrate production credentials.
 
@@ -680,7 +680,7 @@ If Doppler:
 
 > Today: `/api/health` returns component-level status. `/metrics` exposes Prometheus metrics. `fly.toml` has internal health checks.
 
-#### B3.1 Configure external uptime monitor
+#### [x] B3.1 Configure external uptime monitor
 
 **Description:** Set up an external service to poll `/api/health` every 60s.
 
@@ -702,7 +702,7 @@ If Doppler:
 
 ---
 
-#### B3.2 Optional: Grafana Cloud for metrics
+#### [x] B3.2 Optional: Grafana Cloud for metrics
 
 **Description:** Set up Grafana Cloud free tier to scrape Prometheus metrics from `/metrics`.
 
@@ -720,7 +720,7 @@ If Doppler:
 
 ---
 
-#### B3.3 Document monitoring setup
+#### [x] B3.3 Document monitoring setup
 
 **Description:** Add monitoring configuration to `SERVER.md`.
 
@@ -747,7 +747,7 @@ If Doppler:
 
 > Today: `auth_provider` column exists (default `"local"`). `password_reset_required` flag exists. No OIDC libraries, no SSO endpoints, no SSO UI.
 
-#### C1.1 OIDC config and dependencies
+#### [x] C1.1 OIDC config and dependencies
 
 **Files:**
 - `api/requirements.txt` (edit: add `authlib`)
@@ -765,7 +765,7 @@ If Doppler:
 
 ---
 
-#### C1.2 SSO auth routes
+#### [x] C1.2 SSO auth routes
 
 **Files:**
 - `api/routers/auth.py` (edit: add SSO endpoints)
@@ -778,7 +778,7 @@ If Doppler:
 
 ---
 
-#### C1.3 SSO user provisioning
+#### [x] C1.3 SSO user provisioning
 
 **Description:** When a user authenticates via SSO for the first time, create their user record with `auth_provider="oidc"`, no local password.
 
@@ -788,7 +788,7 @@ If Doppler:
 
 ---
 
-#### C1.4 Dashboard SSO UI
+#### [x] C1.4 Dashboard SSO UI
 
 **Files:**
 - `dashboard/src/pages/LoginPage.jsx` (edit: add "Sign in with SSO" button)
@@ -798,7 +798,7 @@ If Doppler:
 
 ---
 
-#### C1.5 SSO tests
+#### [x] C1.5 SSO tests
 
 **Tests:** SSO login redirect, callback handling, user provisioning, password login blocked for SSO users.
 
@@ -810,7 +810,7 @@ If Doppler:
 
 > Today: Full webhook system with CRUD, HMAC, retries. Splunk HEC recipe in docs. No dedicated templates.
 
-#### C2.1 Webhook template definitions
+#### [x] C2.1 Webhook template definitions
 
 **Files:**
 - `api/webhooks/templates.py` (new)
@@ -821,7 +821,7 @@ If Doppler:
 
 ---
 
-#### C2.2 Template API endpoint
+#### [x] C2.2 Template API endpoint
 
 **Files:**
 - `api/routers/webhooks.py` (edit: add `GET /api/webhooks/templates`)
@@ -830,7 +830,7 @@ If Doppler:
 
 ---
 
-#### C2.3 Dashboard template selector
+#### [x] C2.3 Dashboard template selector
 
 **Files:**
 - `dashboard/src/pages/SettingsPage.jsx` (edit: template dropdown on webhook creation)
@@ -839,7 +839,7 @@ If Doppler:
 
 ---
 
-#### C2.4 SIEM integration docs
+#### [x] C2.4 SIEM integration docs
 
 **Files:**
 - `docs/siem-integration.md` (new): Per-SIEM setup guide (Splunk, Elastic, Sentinel)
@@ -852,7 +852,7 @@ If Doppler:
 
 > Today: 14 scanners, BEH-001 through BEH-008. INIT-40 in parking lot. No ATT&CK fields.
 
-#### C3.1 ATT&CK mapping module
+#### [x] C3.1 ATT&CK mapping module
 
 **Files:**
 - `collector/engine/attack_mapping.py` (new)
@@ -874,7 +874,7 @@ If Doppler:
 
 ---
 
-#### C3.2 Schema extension
+#### [x] C3.2 Schema extension
 
 **Files:**
 - `schemas/canonical-event-schema.json` (edit: add `mitre_attack` object)
@@ -893,7 +893,7 @@ If Doppler:
 
 ---
 
-#### C3.3 Event enrichment in collector
+#### [x] C3.3 Event enrichment in collector
 
 **Files:**
 - `collector/main.py` (edit: populate ATT&CK fields during event construction)
@@ -902,7 +902,7 @@ If Doppler:
 
 ---
 
-#### C3.4 Dashboard ATT&CK column
+#### [x] C3.4 Dashboard ATT&CK column
 
 **Files:**
 - `dashboard/src/pages/EventsPage.jsx` (edit: add column, filter)
@@ -915,7 +915,7 @@ If Doppler:
 
 > Today: SOC2 compliance program (61 controls). Audit log. Event retention. No export API.
 
-#### C4.1 Report generation endpoint
+#### [x] C4.1 Report generation endpoint
 
 **Files:**
 - `api/routers/reports.py` (new)
@@ -929,7 +929,7 @@ If Doppler:
 
 ---
 
-#### C4.2 PDF generation
+#### [x] C4.2 PDF generation
 
 **Files:**
 - `api/requirements.txt` (edit: add `weasyprint` or `reportlab`)
@@ -939,7 +939,7 @@ If Doppler:
 
 ---
 
-#### C4.3 Dashboard export button
+#### [x] C4.3 Dashboard export button
 
 **Files:**
 - `dashboard/src/pages/AuditLogPage.jsx` (edit: add "Export Report" button, date range picker)
