@@ -11,7 +11,8 @@ LIMITATION (Linux): Modern kernels removed iptables --pid-owner, so
 blocking falls back to --uid-owner.  This affects ALL processes owned
 by that UID, not just the target PID.  If the target tool runs under
 a shared user account, other processes (browser, IDE, shell) will also
-lose outbound connectivity until the rule is removed.
+lose outbound connectivity until the rule is removed.  When cgroup v2
+with net_cls is available, blocking scopes to the target PID only.
 """
 
 from __future__ import annotations
@@ -22,6 +23,14 @@ import subprocess
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+CGROUP_BASE = Path("/sys/fs/cgroup")
+CGROUP_DIR_PREFIX = "detec-block"
+
+
+def _classid_for_pid(pid: int) -> int:
+    """Derive a unique net_cls classid from a PID (major=0x0010, minor=pid & 0xFFFF)."""
+    return (0x0010 << 16) | (pid & 0xFFFF)
 
 
 def block_outbound(pids: set[int]) -> bool:
@@ -58,30 +67,131 @@ def _cgroup_v2_available() -> bool:
 
 
 def _cgroup_v2_block(pid: int) -> bool:
-    """Attempt to block a PID via cgroup v2 net_cls. Returns True if successful.
+    """Block a single PID's outbound traffic via cgroup v2 net_cls + iptables.
 
-    If cgroup v2 is available, creates a net_cls cgroup for the PID.
-    If not implementable yet, logs a warning and returns False so UID-owner fallback is used.
+    Steps:
+      1. Verify cgroup v2 unified hierarchy has net_cls controller.
+      2. Enable net_cls in the subtree control if needed.
+      3. Create ``/sys/fs/cgroup/detec-block-{pid}/`` and assign the PID.
+      4. Write a unique classid derived from the PID.
+      5. Add an iptables OUTPUT rule matching that classid.
+
+    Returns True on success, False if cgroup v2/net_cls isn't usable
+    (caller should fall back to UID-owner blocking).
     """
     if not _cgroup_v2_available():
         return False
+
     try:
-        controllers_path = Path("/sys/fs/cgroup/cgroup.controllers")
-        controllers = controllers_path.read_text().strip()
-        if "net_cls" not in controllers.split():
+        controllers_path = CGROUP_BASE / "cgroup.controllers"
+        controllers = controllers_path.read_text().strip().split()
+        if "net_cls" not in controllers:
             logger.warning(
-                "cgroup v2 net_cls controller not available; using uid-owner fallback for PID %d",
+                "cgroup v2 net_cls controller not available; "
+                "using uid-owner fallback for PID %d",
                 pid,
             )
             return False
-        logger.warning(
-            "cgroup v2 block for PID %d not yet implemented; using uid-owner fallback",
-            pid,
+
+        subtree_control = CGROUP_BASE / "cgroup.subtree_control"
+        if subtree_control.exists():
+            current = subtree_control.read_text().strip().split()
+            if "net_cls" not in current:
+                subtree_control.write_text("+net_cls\n")
+
+        cgroup_dir = CGROUP_BASE / f"{CGROUP_DIR_PREFIX}-{pid}"
+        cgroup_dir.mkdir(exist_ok=True)
+
+        (cgroup_dir / "cgroup.procs").write_text(f"{pid}\n")
+
+        classid = _classid_for_pid(pid)
+        (cgroup_dir / "net_cls.classid").write_text(f"{classid}\n")
+
+        comment = f"agentic-gov-block-cgroup-{pid}"
+        result = subprocess.run(
+            [
+                "iptables", "-A", "OUTPUT",
+                "-m", "cgroup", "--cgroup", str(classid),
+                "-j", "DROP",
+                "-m", "comment", "--comment", comment,
+            ],
+            capture_output=True, text=True, timeout=10,
         )
-        return False
+        if result.returncode != 0:
+            logger.warning(
+                "iptables cgroup rule failed for PID %d: %s",
+                pid, result.stderr.strip(),
+            )
+            _remove_cgroup(pid)
+            return False
+
+        logger.info(
+            "cgroup v2: blocked outbound for PID %d (classid 0x%08x)", pid, classid,
+        )
+        return True
+
     except Exception as exc:
-        logger.debug("cgroup v2 block check failed for PID %d: %s", pid, exc)
+        logger.debug("cgroup v2 block failed for PID %d: %s", pid, exc)
+        _remove_cgroup(pid)
         return False
+
+
+def _cgroup_v2_unblock(pid: int) -> bool:
+    """Remove a cgroup-based network block for a PID.
+
+    Removes the iptables rule, migrates processes back to the root cgroup,
+    and deletes the cgroup directory.
+    """
+    cgroup_dir = CGROUP_BASE / f"{CGROUP_DIR_PREFIX}-{pid}"
+    if not cgroup_dir.exists():
+        return False
+
+    classid = _classid_for_pid(pid)
+    comment = f"agentic-gov-block-cgroup-{pid}"
+    try:
+        subprocess.run(
+            [
+                "iptables", "-D", "OUTPUT",
+                "-m", "cgroup", "--cgroup", str(classid),
+                "-j", "DROP",
+                "-m", "comment", "--comment", comment,
+            ],
+            capture_output=True, text=True, timeout=10,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError) as exc:
+        logger.debug("Could not remove cgroup iptables rule for PID %d: %s", pid, exc)
+
+    _remove_cgroup(pid)
+    logger.info("cgroup v2: unblocked PID %d", pid)
+    return True
+
+
+def _remove_cgroup(pid: int) -> None:
+    """Move processes back to the root cgroup and remove the per-PID cgroup dir.
+
+    On a real cgroupfs, ``rmdir`` on the directory suffices because the kernel
+    manages pseudo-files.  We also attempt to unlink children first so that the
+    same code works on regular filesystems (e.g. in test fixtures).
+    """
+    cgroup_dir = CGROUP_BASE / f"{CGROUP_DIR_PREFIX}-{pid}"
+    if not cgroup_dir.exists():
+        return
+    try:
+        procs_file = cgroup_dir / "cgroup.procs"
+        if procs_file.exists():
+            for line in procs_file.read_text().strip().splitlines():
+                try:
+                    (CGROUP_BASE / "cgroup.procs").write_text(line.strip() + "\n")
+                except OSError:
+                    pass
+        for child in cgroup_dir.iterdir():
+            try:
+                child.unlink()
+            except OSError:
+                pass
+        cgroup_dir.rmdir()
+    except OSError as exc:
+        logger.debug("Could not remove cgroup dir for PID %d: %s", pid, exc)
 
 
 def _get_exe_path_windows(pid: int) -> str | None:
@@ -139,6 +249,9 @@ def _block_linux(pids: set[int]) -> bool:
 def _unblock_linux(pids: set[int]) -> bool:
     success = False
     for pid in pids:
+        if _cgroup_v2_unblock(pid):
+            success = True
+            continue
         uid = _get_uid_linux(pid)
         if uid is None:
             continue
