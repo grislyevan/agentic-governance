@@ -10,6 +10,7 @@ from .cursor import CursorScanner
 from .evasion import EvasionScanner
 from .gpt_pilot import GPTPilotScanner
 from .lm_studio import LMStudioScanner
+from .mcp import MCPScanner
 from .ollama import OllamaScanner
 from .open_interpreter import OpenInterpreterScanner
 from .openclaw import OpenClawScanner
@@ -27,6 +28,7 @@ __all__ = [
     "EvasionScanner",
     "GPTPilotScanner",
     "LMStudioScanner",
+    "MCPScanner",
     "OllamaScanner",
     "OpenInterpreterScanner",
     "OpenClawScanner",

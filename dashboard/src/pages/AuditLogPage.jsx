@@ -167,7 +167,7 @@ export default function AuditLogPage() {
             className="rounded-xl border border-detec-slate-700/50 bg-detec-slate-900/95 p-6 max-w-md w-full mx-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-lg font-semibold text-detec-slate-100 mb-4">Export Compliance Report</h2>
+            <h2 className="text-lg font-semibold text-detec-slate-100 mb-4">Export Compliance Report (EU AI Act)</h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-detec-slate-500 uppercase tracking-wider mb-1">Start date</label>

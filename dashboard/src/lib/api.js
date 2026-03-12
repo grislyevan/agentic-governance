@@ -429,6 +429,12 @@ export async function fetchComplianceSummary() {
   return apiFetch('/reports/compliance/summary');
 }
 
+// Data flow
+
+export async function fetchDataFlowSummary(days = 7) {
+  return apiFetch(`/data-flow/summary?days=${days}`);
+}
+
 // Tenants (organizations)
 
 export async function fetchCurrentTenant() {

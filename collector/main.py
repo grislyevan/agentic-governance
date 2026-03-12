@@ -61,6 +61,7 @@ from scanner.ollama import OllamaScanner
 from scanner.open_interpreter import OpenInterpreterScanner
 from scanner.behavioral import BehavioralScanner
 from scanner.evasion import EvasionScanner
+from scanner.mcp import MCPScanner
 from scanner.openclaw import OpenClawScanner
 
 logger = logging.getLogger(__name__)
@@ -673,6 +674,19 @@ def run_scan(
     except Exception:
         logger.warning(
             "EvasionScanner raised an exception; treating as inconclusive",
+            exc_info=True,
+        )
+
+    # Stage 1d: MCP/A2A protocol infrastructure scanner
+    mcp = MCPScanner(event_store=event_store)
+    try:
+        mcp_scan = mcp.scan(verbose=args.verbose)
+        if mcp_scan.detected:
+            detected_scans.append(mcp_scan)
+            detected_tools.add("MCP Infrastructure")
+    except Exception:
+        logger.warning(
+            "MCPScanner raised an exception; treating as inconclusive",
             exc_info=True,
         )
 

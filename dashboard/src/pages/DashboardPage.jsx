@@ -10,6 +10,7 @@ import ToolTabs from '../components/dashboard/ToolTabs';
 import ToolsTable from '../components/dashboard/ToolsTable';
 import Pagination from '../components/dashboard/Pagination';
 import PostureSummaryWidget from '../components/dashboard/PostureSummaryWidget';
+import DataFlowWidget from '../components/dashboard/DataFlowWidget';
 
 export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef, onAlertCountChange }) {
   const {
@@ -77,7 +78,7 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
     <div className="space-y-5 min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-          <h1 className="text-xl sm:text-2xl font-bold text-detec-slate-100">Dashboard</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-detec-slate-100">AI Asset Inventory</h1>
           <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
         </div>
         {loading && <ApertureSpinner size="sm" label="Scanning" />}
@@ -99,7 +100,10 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
 
       <SummaryCards counts={counts} />
 
-      <PostureSummaryWidget onPostureReset={refresh} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <PostureSummaryWidget onPostureReset={refresh} />
+        <DataFlowWidget />
+      </div>
 
       <EndpointContextBar
         endpointCount={endpointCount}

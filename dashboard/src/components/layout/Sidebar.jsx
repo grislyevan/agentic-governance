@@ -5,7 +5,7 @@ import { storeTokens } from '../../lib/auth';
 import useAuth from '../../hooks/useAuth';
 
 const NAV_ITEMS = [
-  { id: 'endpoints', label: 'Endpoints', icon: EndpointsIcon },
+  { id: 'endpoints', label: 'AI Inventory', icon: EndpointsIcon },
   { id: 'events', label: 'Events', icon: EventsIcon },
   { id: 'policies', label: 'Policies', icon: PoliciesIcon },
   { id: 'audit', label: 'Audit Log', icon: AuditIcon },

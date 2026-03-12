@@ -152,6 +152,41 @@ def generate_compliance_report(
     posture_pct = (audit_or_active / total_eps * 100) if total_eps else 0.0
     policy_coverage = (active_count / len(policies) * 100) if policies else 0.0
 
+    # AI tool inventory (unique tools detected across all endpoints)
+    tool_inventory: list[dict[str, Any]] = []
+    seen_tools: dict[str, dict[str, Any]] = {}
+    for ev in events:
+        if ev.event_type == "detection.observed" and ev.tool_name:
+            key = ev.tool_name
+            if key not in seen_tools:
+                seen_tools[key] = {
+                    "tool_name": ev.tool_name,
+                    "tool_class": ev.tool_class or "unknown",
+                    "endpoints_detected_on": set(),
+                    "last_seen": ev.observed_at,
+                    "max_confidence": ev.attribution_confidence or 0,
+                    "latest_decision": ev.decision_state,
+                }
+            entry = seen_tools[key]
+            if ev.endpoint_id:
+                entry["endpoints_detected_on"].add(ev.endpoint_id)
+            if ev.observed_at and ev.observed_at > entry["last_seen"]:
+                entry["last_seen"] = ev.observed_at
+                entry["latest_decision"] = ev.decision_state
+            if (ev.attribution_confidence or 0) > entry["max_confidence"]:
+                entry["max_confidence"] = ev.attribution_confidence or 0
+
+    for key, entry in seen_tools.items():
+        tool_inventory.append({
+            "tool_name": entry["tool_name"],
+            "tool_class": entry["tool_class"],
+            "endpoints_count": len(entry["endpoints_detected_on"]),
+            "last_seen": entry["last_seen"].isoformat() if entry["last_seen"] else None,
+            "max_confidence": round(entry["max_confidence"], 4),
+            "latest_decision": entry["latest_decision"],
+        })
+    tool_inventory.sort(key=lambda t: t["endpoints_count"], reverse=True)
+
     return {
         "report_metadata": {
             "report_id": report_id,
@@ -160,6 +195,10 @@ def generate_compliance_report(
             "start_date": start_date.isoformat(),
             "end_date": end_date.isoformat(),
             "generated_at": generated_at.isoformat(),
+        },
+        "ai_tool_inventory": {
+            "total_unique_tools": len(tool_inventory),
+            "tools": tool_inventory,
         },
         "endpoint_summary": {
             "total": total_eps,
@@ -197,6 +236,47 @@ def generate_compliance_report(
             "endpoints_audit_or_active_pct": round(posture_pct, 1),
             "policy_coverage_pct": round(policy_coverage, 1),
             "total_events_in_period": len(events),
+        },
+        "eu_ai_act_mapping": {
+            "note": "Maps report sections to EU AI Act (Regulation 2024/1689) articles. High-risk provisions enforceable 2 August 2026.",
+            "article_coverage": [
+                {
+                    "article": "Art. 9 - Risk Management System",
+                    "requirement": "Continuous, iterative risk management throughout AI system lifecycle",
+                    "report_sections": ["ai_tool_inventory", "policy_summary", "compliance_posture"],
+                    "evidence": f"{len(tool_inventory)} AI tools inventoried, {active_count} active policy rules, {round(posture_pct, 1)}% endpoints under governance",
+                },
+                {
+                    "article": "Art. 11 - Technical Documentation",
+                    "requirement": "Maintained documentation demonstrating compliance with high-risk requirements",
+                    "report_sections": ["ai_tool_inventory", "endpoint_summary"],
+                    "evidence": f"{total_eps} endpoints documented with OS, posture, and tool attribution data",
+                },
+                {
+                    "article": "Art. 12 - Record-keeping",
+                    "requirement": "Automatic recording of events for traceability of AI system functioning",
+                    "report_sections": ["event_summary"],
+                    "evidence": f"{len(events)} events recorded in period with type, severity, and tool attribution",
+                },
+                {
+                    "article": "Art. 13 - Transparency",
+                    "requirement": "Sufficient transparency to enable users to interpret system output",
+                    "report_sections": ["event_summary", "ai_tool_inventory"],
+                    "evidence": f"Tool detections include confidence scores, attribution sources, and decision rationale",
+                },
+                {
+                    "article": "Art. 14 - Human Oversight",
+                    "requirement": "Effective oversight by natural persons during AI system operation period",
+                    "report_sections": ["enforcement_summary", "user_access_summary"],
+                    "evidence": f"{len(users)} authorized users, {recent_logins} logins in 30d, {enf_total} enforcement actions reviewed",
+                },
+                {
+                    "article": "Art. 26 - Obligations of Deployers",
+                    "requirement": "Monitor operation of high-risk AI systems on basis of instructions for use",
+                    "report_sections": ["endpoint_summary", "compliance_posture"],
+                    "evidence": f"{round(posture_pct, 1)}% of endpoints in audit or active governance posture",
+                },
+            ],
         },
     }
 
@@ -289,10 +369,41 @@ def generate_pdf_report(report_data: dict[str, Any]) -> bytes:
 
     story = []
     story.append(Paragraph("Detec Compliance Report", title_style))
+    story.append(Paragraph("EU AI Act (Regulation 2024/1689) Compliance Evidence", styles["Normal"]))
+    story.append(Spacer(1, 0.1 * inch))
     story.append(Paragraph(f"Tenant: {tenant_name}", styles["Normal"]))
     story.append(Paragraph(f"Report Period: {start} to {end}", styles["Normal"]))
     story.append(Paragraph(f"Generated: {meta.get('generated_at', '')[:19]} UTC", styles["Normal"]))
     story.append(Spacer(1, 0.3 * inch))
+
+    # AI Tool Inventory
+    story.append(Paragraph("AI Tool Inventory", heading_style))
+    inv = report_data.get("ai_tool_inventory", {})
+    inv_tools = inv.get("tools", [])
+    if inv_tools:
+        inv_data = [["Tool", "Class", "Endpoints", "Max Confidence", "Decision"]]
+        for tool in inv_tools[:20]:
+            inv_data.append([
+                tool.get("tool_name", ""),
+                tool.get("tool_class", ""),
+                str(tool.get("endpoints_count", 0)),
+                f"{tool.get('max_confidence', 0):.2f}",
+                tool.get("latest_decision", "") or "",
+            ])
+        t_inv = Table(inv_data, colWidths=[1.8 * inch, 0.6 * inch, 1 * inch, 1.2 * inch, 1.4 * inch])
+        t_inv.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+            ("BACKGROUND", (0, 1), (-1, -1), colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+        story.append(t_inv)
+    else:
+        story.append(Paragraph(f"Total unique tools: {inv.get('total_unique_tools', 0)}", styles["Normal"]))
+    story.append(Spacer(1, 0.2 * inch))
 
     # Endpoint summary
     story.append(Paragraph("Endpoint Summary", heading_style))
@@ -426,6 +537,33 @@ def generate_pdf_report(report_data: dict[str, Any]) -> bytes:
         ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
     ]))
     story.append(t6)
+
+    # EU AI Act Mapping
+    ai_act = report_data.get("eu_ai_act_mapping", {})
+    articles = ai_act.get("article_coverage", [])
+    if articles:
+        story.append(Spacer(1, 0.3 * inch))
+        story.append(Paragraph("EU AI Act Compliance Mapping", heading_style))
+        story.append(Paragraph(
+            ai_act.get("note", ""),
+            ParagraphStyle(name="ActNote", parent=styles["Normal"], fontSize=8, textColor=colors.grey),
+        ))
+        story.append(Spacer(1, 0.1 * inch))
+        act_data = [["Article", "Evidence"]]
+        for art in articles:
+            act_data.append([art.get("article", ""), art.get("evidence", "")])
+        t_act = Table(act_data, colWidths=[2.2 * inch, 3.8 * inch])
+        t_act.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+            ("BACKGROUND", (0, 1), (-1, -1), colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        story.append(t_act)
 
     doc.build(story)
     return buffer.getvalue()
