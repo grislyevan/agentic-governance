@@ -38,6 +38,12 @@ packaging/windows/dist/
 build/
 dist/
 
+# Compiled native binaries (built in CI)
+collector/providers/esf_helper/esf_helper
+
+# Claude Code IDE config
+.claude/
+
 # Pytest cache
 .pytest_cache/
 
