@@ -283,7 +283,7 @@ begin
 
   { License page }
   WizardForm.LicenseMemo.Color := $002A170F;
-  WizardForm.LicenseMemo.Font.Color := $00B8A394;
+  WizardForm.LicenseMemo.Font.Color := $00F9F5F1;
   WizardForm.LicenseAcceptedRadio.Font.Color := $00F9F5F1;
   WizardForm.LicenseNotAcceptedRadio.Font.Color := $00F9F5F1;
   WizardForm.LicenseLabel1.Font.Color := $00F9F5F1;
