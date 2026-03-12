@@ -61,7 +61,7 @@ def create_endpoint(
         tenant_id=tenant_id,
         hostname=body.hostname,
         os_info=body.os_info,
-        posture=body.posture,
+        management_state=body.management_state,
     )
     db.add(endpoint)
     db.commit()
@@ -172,7 +172,7 @@ def heartbeat(
             id=str(uuid.uuid4()),
             tenant_id=tenant_id,
             hostname=body.hostname,
-            posture="unmanaged",
+            management_state="unmanaged",
             heartbeat_interval=body.interval_seconds,
             status=ENDPOINT_STATUS_ACTIVE,
             last_seen_at=now,
@@ -273,7 +273,7 @@ def enroll_endpoint(
             id=str(uuid.uuid4()),
             tenant_id=auth.tenant_id,
             hostname=body.hostname,
-            posture="unmanaged",
+            management_state="unmanaged",
             signing_public_key=body.public_key_pem,
             key_fingerprint=fingerprint,
             enrolled_at=now,

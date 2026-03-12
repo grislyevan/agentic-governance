@@ -241,7 +241,7 @@ class AgentSession(BaseConnection):
                 id=str(uuid.uuid4()),
                 tenant_id=tenant_id,
                 hostname=hostname,
-                posture="unmanaged",
+                management_state="unmanaged",
                 status=ENDPOINT_STATUS_ACTIVE,
                 last_seen_at=datetime.now(timezone.utc),
             )

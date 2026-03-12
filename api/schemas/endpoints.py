@@ -10,14 +10,14 @@ from pydantic import BaseModel, Field
 class EndpointCreate(BaseModel):
     hostname: str = Field(max_length=255)
     os_info: str | None = Field(default=None, max_length=512)
-    posture: str = Field(default="unmanaged", max_length=32)
+    management_state: str = Field(default="unmanaged", max_length=32)
 
 
 class EndpointResponse(BaseModel):
     id: str
     hostname: str
     os_info: str | None
-    posture: str
+    management_state: str
     enforcement_posture: str = "passive"
     auto_enforce_threshold: float = 0.75
     status: str

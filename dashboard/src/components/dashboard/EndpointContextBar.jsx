@@ -6,7 +6,7 @@ export default function EndpointContextBar({ endpointCount, endpoints, endpointS
 
   const hostname = multipleEndpoints ? 'Multiple' : (firstEp?.hostname || 'N/A');
   const os = multipleEndpoints ? 'Various' : (firstEp?.os_info || 'N/A');
-  const posture = multipleEndpoints ? null : (firstEp?.posture || 'unmanaged');
+  const managementState = multipleEndpoints ? null : (firstEp?.management_state || 'unmanaged');
 
   const lastSeen = firstEp?.last_seen_at
     ? timeSince(new Date(firstEp.last_seen_at))
@@ -42,10 +42,10 @@ export default function EndpointContextBar({ endpointCount, endpoints, endpointS
 
       <Sep />
 
-      {posture && (
+      {managementState && (
         <>
-          <span className={`font-mono text-xs px-2 py-0.5 rounded ${posture === 'managed' ? 'bg-detec-teal-500/15 text-detec-teal-500' : 'bg-detec-amber-500/15 text-detec-amber-500'}`}>
-            {posture === 'managed' ? 'Conformant' : 'Nonconformant'}
+          <span className={`font-mono text-xs px-2 py-0.5 rounded ${managementState === 'managed' ? 'bg-detec-teal-500/15 text-detec-teal-500' : 'bg-detec-amber-500/15 text-detec-amber-500'}`}>
+            {managementState === 'managed' ? 'Conformant' : 'Nonconformant'}
           </span>
           <Sep />
         </>

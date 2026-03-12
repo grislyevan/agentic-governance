@@ -54,7 +54,7 @@ def _get_or_create_endpoint(
             tenant_id=tenant_id,
             hostname=hostname,
             os_info=endpoint_data.get("os"),
-            posture=endpoint_data.get("posture", "unmanaged"),
+            management_state=endpoint_data.get("management_state", endpoint_data.get("posture", "unmanaged")),
         )
         db.add(ep)
         try:

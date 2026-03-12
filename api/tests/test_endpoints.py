@@ -20,16 +20,16 @@ class TestCreateEndpoint:
         assert data["status"] == "active"
         assert "id" in data
 
-    def test_create_with_os_info_and_posture(self, client):
+    def test_create_with_os_info_and_management_state(self, client):
         headers = _auth(client)
         resp = client.post(f"{API}/endpoints", json={
             "hostname": "ws-002",
             "os_info": "macOS 15.3",
-            "posture": "managed",
+            "management_state": "managed",
         }, headers=headers)
         assert resp.status_code == 201
         assert resp.json()["os_info"] == "macOS 15.3"
-        assert resp.json()["posture"] == "managed"
+        assert resp.json()["management_state"] == "managed"
 
     def test_create_duplicate_returns_409(self, client):
         headers = _auth(client)

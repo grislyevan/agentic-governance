@@ -172,9 +172,13 @@ async def set_endpoint_posture(
     x_api_key: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ):
-    """Set enforcement posture for a single endpoint. Requires admin or owner role."""
+    """Set enforcement posture for a single endpoint. Requires admin or owner role.
+    Active posture requires owner role only."""
     auth = resolve_auth(authorization, x_api_key, db)
-    require_role(auth, "owner", "admin")
+    if body.enforcement_posture == "active":
+        require_role(auth, "owner")
+    else:
+        require_role(auth, "owner", "admin")
 
     ep = db.query(Endpoint).filter(
         Endpoint.id == endpoint_id,

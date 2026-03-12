@@ -18,6 +18,12 @@ ENDPOINT_STATUS_DECOMMISSIONED = "decommissioned"
 
 
 class Endpoint(Base):
+    """Monitored workstation.
+
+    management_state: Whether this endpoint is under Detec governance (managed/unmanaged).
+    enforcement_posture: How the agent acts on block decisions (passive/audit/active).
+    Controlled centrally by admin.
+    """
     __tablename__ = "endpoints"
     __table_args__ = (
         UniqueConstraint("tenant_id", "hostname", name="uq_endpoints_tenant_hostname"),
@@ -27,7 +33,7 @@ class Endpoint(Base):
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False, index=True)
     hostname: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     os_info: Mapped[str | None] = mapped_column(String(512))
-    posture: Mapped[str] = mapped_column(String(32), nullable=False, default="unmanaged")
+    management_state: Mapped[str] = mapped_column(String(32), nullable=False, default="unmanaged")
     enforcement_posture: Mapped[str] = mapped_column(String(16), nullable=False, default="passive")
     auto_enforce_threshold: Mapped[float] = mapped_column(Float, nullable=False, default=0.75)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default=ENDPOINT_STATUS_ACTIVE)
