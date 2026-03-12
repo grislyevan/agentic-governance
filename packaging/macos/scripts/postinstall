@@ -81,6 +81,10 @@ chown -R "$REAL_USER:$REAL_GROUP" "$LOG_DIR"
 chown -R "$REAL_USER:$REAL_GROUP" "$STATE_DIR"
 chown -R "$REAL_USER:$REAL_GROUP" "$APP_SUPPORT_DIR"
 
+# Remove quarantine flag so unsigned builds launch without Gatekeeper blocking.
+# Signed+notarized production builds won't have this flag, so this is a no-op for them.
+xattr -rd com.apple.quarantine "$APP_PATH" 2>/dev/null || true
+
 # Copy baked-in config from the .app bundle if present.
 BAKED_CONFIG_DIR="${APP_PATH}/Contents/Resources/config"
 BAKED_ENV="${BAKED_CONFIG_DIR}/agent.env"

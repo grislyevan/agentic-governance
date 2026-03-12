@@ -157,6 +157,9 @@ echo ""
 echo "Running installer (you will be prompted for your password)..."
 sudo installer -pkg "$PKG" -target /
 
+# Remove quarantine flag so unsigned builds launch without Gatekeeper blocking.
+sudo xattr -rd com.apple.quarantine "/Applications/Detec Agent.app" 2>/dev/null || true
+
 echo ""
 echo "=== Install complete ==="
 echo "The Detec Agent is now running and will connect to your server automatically."
