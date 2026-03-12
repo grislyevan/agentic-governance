@@ -12,7 +12,7 @@ The enforcement roadmap describes six phases of work spanning 19-27 weeks. A cod
 
 | Phase | Status | Remaining |
 |-------|--------|-----------|
-| Phase 1: Admin Posture | Backend complete, dashboard missing | **Tasks 1-5** |
+| Phase 1: Admin Posture | Backend complete, API client done, tenant posture UI done | **Tasks 2, 4-5** |
 | Phase 2: Behavioral Scanner | Complete | None |
 | Phase 3: Enforcement Hardening | ~95% complete | **Task 6** |
 | Phase 4: Webhook Orchestration | Complete | None |
@@ -24,12 +24,13 @@ The enforcement roadmap describes six phases of work spanning 19-27 weeks. A cod
 
 ---
 
-## Task 1: Posture API Client Functions
+## Task 1: Posture API Client Functions ✅
 
 **Phase:** 1 (Admin Posture)
 **Priority:** High (blocks Tasks 2-5)
 **Effort:** 1-2 hours
 **Assignee role:** Frontend Developer
+**Status:** Complete (2026-03-12)
 
 The API routes exist in `api/routers/enforcement.py`. The dashboard API client (`dashboard/src/lib/api.js`) has EDR functions but no posture or allow-list functions.
 
@@ -66,9 +67,9 @@ export async function deleteAllowListEntry(entryId) { ... }
 
 ### Acceptance criteria
 
-- [ ] All six functions exported and call the correct routes
-- [ ] Functions follow the existing `apiFetch` / `apiMutate` patterns in the file
-- [ ] Error handling matches existing EDR functions in the same file
+- [x] All six functions exported and call the correct routes
+- [x] Functions follow the existing `apiFetch` / `apiMutate` patterns in the file
+- [x] Error handling matches existing EDR functions in the same file
 
 ---
 
@@ -115,35 +116,37 @@ Add an enforcement posture control to the endpoint detail area. This can be a ne
 
 ---
 
-## Task 3: Tenant Default Posture Setting
+## Task 3: Tenant Default Posture Setting ✅
 
 **Phase:** 1 (Admin Posture)
 **Priority:** Medium
 **Effort:** 2-3 hours
 **Depends on:** Task 1
 **Assignee role:** Frontend Developer
+**Status:** Complete (2026-03-12)
 
 The `SettingsPage` (`dashboard/src/pages/SettingsPage.jsx`) has webhook configuration but no tenant-level enforcement settings.
 
-### What to build
+### What was built
 
-Add a section to `SettingsPage` (or a new tab within it) for enforcement defaults:
+Added `TenantPostureSection` component to `SettingsPage` with:
 
-- **Default posture selector** (Passive / Audit / Active) for new endpoints in the tenant.
-- **Default threshold** slider (0.50 to 1.00).
-- Active requires the same confirmation treatment as Task 2.
-- "Apply to all existing endpoints" checkbox (calls `updateTenantPosture` which updates all endpoints in the tenant).
-- Save button calls `updateTenantPosture()`.
+- **Posture distribution summary** showing current endpoint counts per posture (passive/audit/active).
+- **Three-state posture selector** (Passive / Audit / Active) matching the EndpointContextBar pattern. Active is restricted to owner role.
+- **Threshold slider** (0.50 to 1.00, step 0.05) visible for audit and active postures.
+- **"Apply to all existing endpoints" checkbox** (required to enable save). Shows how many endpoints will be affected.
+- **Save button** calls `updateTenantPosture()` and displays success/error feedback with endpoint count.
+- **Active confirmation modal** (`ConfirmActiveTenantModal`) requires typing "ENABLE ACTIVE" to confirm tenant-wide active enforcement. Shows endpoint count and threshold.
 
-### Files to modify
+### Files modified
 
 - `dashboard/src/pages/SettingsPage.jsx`
 
 ### Acceptance criteria
 
-- [ ] Owner can set tenant default posture
-- [ ] "Apply to all" updates existing endpoints (confirmed in endpoint list after save)
-- [ ] Active requires confirmation dialog
+- [x] Owner can set tenant default posture
+- [x] "Apply to all" updates existing endpoints (confirmed in endpoint list after save)
+- [x] Active requires confirmation dialog
 
 ---
 
@@ -447,9 +450,9 @@ Task 11 (security) ── 11c ✅ complete; 11a, 11b standalone
 ### Recommended order
 
 1. ~~**Task 10** (column decision, 1 hour). Unblocks clear dashboard design.~~ ✅ Done.
-2. **Task 1** (API client, 1-2 hours). Unblocks all dashboard tasks.
+2. ~~**Task 1** (API client, 1-2 hours). Unblocks all dashboard tasks.~~ ✅ Done.
 3. **Tasks 2 + 4** in parallel (posture toggle + allow-list, each 3-5 hours).
-4. **Task 3** (tenant posture, 2-3 hours).
+4. ~~**Task 3** (tenant posture, 2-3 hours).~~ ✅ Done.
 5. **Task 5** (summary widget, 2-3 hours).
 6. **Tasks 6, 7, 9, 11** can run in parallel with dashboard work.
 7. **Task 8** when CrowdStrike sandbox access is available.

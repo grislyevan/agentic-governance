@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getApiConfig, setApiConfig, fetchWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, downloadAgent, enrollAgentByEmail, fetchAllowList, addAllowListEntry, deleteAllowListEntry } from '../lib/api';
+import { getApiConfig, setApiConfig, fetchWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, downloadAgent, enrollAgentByEmail, fetchAllowList, addAllowListEntry, deleteAllowListEntry, updateTenantPosture, fetchPostureSummary } from '../lib/api';
 import useAuth from '../hooks/useAuth';
 
 const EVENT_TYPES = [
@@ -91,6 +91,8 @@ export default function SettingsPage() {
         {canManageWebhooks && <AgentDownloadSection />}
 
         {canManageWebhooks && <WebhooksSection />}
+
+        {canManageWebhooks && <TenantPostureSection />}
 
         {canManageWebhooks && <AllowListSection />}
       </div>
@@ -431,6 +433,325 @@ function WebhooksSection() {
           onSaved={() => { setShowForm(false); loadWebhooks(); }}
         />
       )}
+    </div>
+  );
+}
+
+
+const POSTURE_META = {
+  passive: { label: 'Passive', color: 'bg-detec-slate-600/30 text-detec-slate-400', dot: 'bg-detec-slate-500' },
+  audit:   { label: 'Audit',   color: 'bg-detec-amber-500/15 text-detec-amber-500', dot: 'bg-detec-amber-500' },
+  active:  { label: 'Active',  color: 'bg-detec-enforce-block/15 text-detec-enforce-block', dot: 'bg-detec-enforce-block' },
+};
+
+const POSTURE_OPTIONS = [
+  { value: 'passive', label: 'Passive', desc: 'Detect and report only' },
+  { value: 'audit', label: 'Audit', desc: 'Log enforcement decisions without acting' },
+  { value: 'active', label: 'Active', desc: 'Autonomous process termination', ownerOnly: true },
+];
+
+function TenantPostureSection() {
+  const { user } = useAuth();
+  const isOwner = user?.role === 'owner';
+
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedPosture, setSelectedPosture] = useState('passive');
+  const [selectedThreshold, setSelectedThreshold] = useState(0.75);
+  const [applyToAll, setApplyToAll] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmInput, setConfirmInput] = useState('');
+
+  const loadSummary = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchPostureSummary();
+      setSummary(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadSummary(); }, [loadSummary]);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const t = setTimeout(() => setFeedback(null), 6000);
+    return () => clearTimeout(t);
+  }, [feedback]);
+
+  function handleSave() {
+    if (selectedPosture === 'active') {
+      setShowConfirm(true);
+      setConfirmInput('');
+    } else {
+      doSave();
+    }
+  }
+
+  async function doSave() {
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const result = await updateTenantPosture({
+        enforcement_posture: selectedPosture,
+        auto_enforce_threshold: selectedThreshold,
+      });
+      setFeedback({
+        type: 'success',
+        msg: `Tenant posture set to ${selectedPosture}. ${result.updated} endpoint${result.updated !== 1 ? 's' : ''} updated.`,
+      });
+      setShowConfirm(false);
+      setApplyToAll(false);
+      loadSummary();
+    } catch (err) {
+      setFeedback({ type: 'error', msg: err.message || 'Failed to update tenant posture' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const showThreshold = selectedPosture === 'audit' || selectedPosture === 'active';
+
+  return (
+    <div className="rounded-xl border border-detec-slate-700/50 bg-detec-slate-800/50 p-5 space-y-4">
+      <h2 className="text-sm font-semibold text-detec-slate-300 uppercase tracking-wider">
+        Enforcement Posture
+      </h2>
+      <p className="text-xs text-detec-slate-500">
+        Set the default enforcement posture for all endpoints in this tenant.
+        New endpoints inherit this posture on registration.
+      </p>
+
+      {error && (
+        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
+      )}
+
+      {feedback && (
+        <div className={`text-xs px-3 py-1.5 rounded detec-toast-enter ${
+          feedback.type === 'success'
+            ? 'bg-detec-teal-500/10 text-detec-teal-500 border border-detec-teal-500/20'
+            : 'bg-detec-enforce-block/10 text-detec-enforce-block border border-red-800/50'
+        }`}>
+          {feedback.msg}
+        </div>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-detec-slate-500">Loading...</p>
+      ) : (
+        <>
+          {/* Current posture distribution */}
+          {summary && (
+            <div className="flex gap-3 text-xs">
+              {['passive', 'audit', 'active'].map((p) => {
+                const meta = POSTURE_META[p];
+                const count = summary[p] || 0;
+                return (
+                  <div key={p} className={`flex items-center gap-1.5 rounded px-2.5 py-1 ${meta.color}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
+                    <span>{meta.label}</span>
+                    <span className="font-mono font-semibold">{count}</span>
+                  </div>
+                );
+              })}
+              <span className="text-detec-slate-600 self-center ml-1">
+                {summary.total} endpoint{summary.total !== 1 ? 's' : ''} total
+              </span>
+            </div>
+          )}
+
+          {/* Three-state posture selector */}
+          <div className="flex gap-2">
+            {POSTURE_OPTIONS.map((opt) => {
+              const selected = selectedPosture === opt.value;
+              const disabled = opt.ownerOnly && !isOwner;
+              const meta = POSTURE_META[opt.value];
+              return (
+                <button
+                  key={opt.value}
+                  disabled={disabled}
+                  onClick={() => !disabled && setSelectedPosture(opt.value)}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-left transition-all ${
+                    selected
+                      ? `border-detec-primary-500/50 ${meta.color} ring-1 ring-detec-primary-500/30`
+                      : disabled
+                        ? 'border-detec-slate-700/50 bg-detec-slate-800/30 opacity-40 cursor-not-allowed'
+                        : 'border-detec-slate-700 bg-detec-slate-800/50 hover:border-detec-slate-600 cursor-pointer'
+                  }`}
+                  title={disabled ? 'Owner role required for Active posture' : ''}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${selected ? meta.dot : 'bg-detec-slate-600'}`} />
+                    <span className={`text-sm font-medium ${selected ? '' : 'text-detec-slate-400'}`}>{opt.label}</span>
+                  </div>
+                  <p className="text-xs text-detec-slate-500 mt-1">{opt.desc}</p>
+                  {disabled && (
+                    <p className="text-xs text-detec-enforce-warn mt-1">Owner only</p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Threshold slider */}
+          {showThreshold && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-detec-slate-400">
+                  Auto-enforce threshold
+                </label>
+                <span className="text-sm font-mono text-detec-slate-200">{selectedThreshold.toFixed(2)}</span>
+              </div>
+              <input
+                type="range"
+                min="0.50"
+                max="1.00"
+                step="0.05"
+                value={selectedThreshold}
+                onChange={(e) => setSelectedThreshold(parseFloat(e.target.value))}
+                className="w-full accent-detec-primary-500 cursor-pointer"
+              />
+              <div className="flex justify-between text-xs text-detec-slate-600">
+                <span>0.50 (aggressive)</span>
+                <span>1.00 (conservative)</span>
+              </div>
+            </div>
+          )}
+
+          {/* Apply to all checkbox */}
+          <label className="flex items-start gap-2.5 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={applyToAll}
+              onChange={(e) => setApplyToAll(e.target.checked)}
+              className="mt-0.5 rounded border-detec-slate-600 bg-detec-slate-900 text-detec-primary-500 focus:ring-detec-primary-500/30"
+            />
+            <div>
+              <span className="text-sm text-detec-slate-300 group-hover:text-detec-slate-200 transition-colors">
+                Apply to all existing endpoints
+              </span>
+              {summary && (
+                <p className="text-xs text-detec-slate-500 mt-0.5">
+                  Updates {summary.total} existing endpoint{summary.total !== 1 ? 's' : ''} to the selected posture and threshold
+                </p>
+              )}
+            </div>
+          </label>
+
+          {/* Save */}
+          <div className="flex items-center gap-3">
+            <button
+              disabled={!applyToAll || saving}
+              onClick={handleSave}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                applyToAll && !saving
+                  ? 'bg-detec-primary-500 hover:bg-detec-primary-600 text-white cursor-pointer'
+                  : 'bg-detec-slate-700 text-detec-slate-500 cursor-not-allowed'
+              }`}
+            >
+              {saving ? 'Saving...' : 'Save Enforcement Defaults'}
+            </button>
+            {!applyToAll && (
+              <span className="text-xs text-detec-slate-600">
+                Check "Apply to all" to enable saving
+              </span>
+            )}
+          </div>
+        </>
+      )}
+
+      {showConfirm && (
+        <ConfirmActiveTenantModal
+          endpointCount={summary?.total || 0}
+          threshold={selectedThreshold}
+          confirmInput={confirmInput}
+          onInputChange={setConfirmInput}
+          onConfirm={doSave}
+          onCancel={() => setShowConfirm(false)}
+          saving={saving}
+        />
+      )}
+    </div>
+  );
+}
+
+const CONFIRM_PHRASE = 'ENABLE ACTIVE';
+
+function ConfirmActiveTenantModal({ endpointCount, threshold, confirmInput, onInputChange, onConfirm, onCancel, saving }) {
+  const confirmed = confirmInput === CONFIRM_PHRASE;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
+      <div
+        className="w-full max-w-lg rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-6 shadow-2xl space-y-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-bold text-detec-slate-100">Enable Active Enforcement for All Endpoints</h2>
+
+        <div className="rounded-lg border border-detec-enforce-block/30 bg-detec-enforce-block/10 p-4 text-sm text-detec-enforce-block space-y-2">
+          <p className="font-semibold">This is a destructive, tenant-wide action.</p>
+          <p>
+            Active enforcement enables <strong>autonomous process termination</strong> on
+            all <strong>{endpointCount}</strong> endpoint{endpointCount !== 1 ? 's' : ''} in
+            this tenant. Agents will automatically kill processes that exceed the confidence
+            threshold of <strong>{threshold.toFixed(2)}</strong> without human approval.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="text-detec-slate-500">Endpoints affected</span>
+              <p className="text-detec-slate-200 font-mono">{endpointCount}</p>
+            </div>
+            <div>
+              <span className="text-detec-slate-500">Threshold</span>
+              <p className="text-detec-slate-200 font-mono">{threshold.toFixed(2)}</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-detec-slate-400 mb-1.5">
+              Type <span className="font-mono text-detec-slate-200">{CONFIRM_PHRASE}</span> to confirm
+            </label>
+            <input
+              type="text"
+              value={confirmInput}
+              onChange={(e) => onInputChange(e.target.value)}
+              placeholder={CONFIRM_PHRASE}
+              autoFocus
+              className="w-full rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-2 text-sm text-detec-slate-200 placeholder:text-detec-slate-600 focus:outline-none focus:ring-1 focus:ring-detec-enforce-block/50"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onCancel}
+            className="text-sm px-4 py-1.5 rounded-lg text-detec-slate-400 hover:text-detec-slate-200 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            disabled={!confirmed || saving}
+            onClick={onConfirm}
+            className={`text-sm px-4 py-1.5 rounded-lg font-medium transition-colors ${
+              confirmed && !saving
+                ? 'bg-detec-enforce-block text-white hover:bg-red-600 cursor-pointer'
+                : 'bg-detec-slate-700 text-detec-slate-500 cursor-not-allowed'
+            }`}
+          >
+            {saving ? 'Enabling...' : 'Enable Active Enforcement'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
