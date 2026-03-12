@@ -24,6 +24,9 @@ class EventIngest(BaseModel):
     endpoint: dict[str, Any] | None = None
     policy: dict[str, Any] | None = None
     severity: dict[str, Any] | None = None
+    enforcement: dict[str, Any] | None = None
+    outcome: dict[str, Any] | None = None
+    posture: dict[str, Any] | None = None
 
     # Payload signing (Feature 4)
     signature: str | None = Field(default=None, alias="_signature")

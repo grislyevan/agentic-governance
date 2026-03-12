@@ -128,21 +128,26 @@ class TestWebhookValidation:
 
 class TestWebhookDispatcher:
     def test_dispatcher_matches_all_events(self, client):
-        """Webhook with empty events list should match any event."""
         from webhooks.dispatcher import _matches
-        assert _matches("[]", "enforcement.block") is True
-        assert _matches("[]", None) is True
+        assert _matches("[]", None, "block") is True
+        assert _matches("[]", None, None) is True
 
-    def test_dispatcher_matches_specific_event(self, client):
+    def test_dispatcher_matches_decision_state(self, client):
         from webhooks.dispatcher import _matches
-        events = json.dumps(["enforcement.block", "enforcement.warn"])
-        assert _matches(events, "enforcement.block") is True
-        assert _matches(events, "enforcement.allow") is False
+        events = json.dumps(["block", "warn"])
+        assert _matches(events, None, "block") is True
+        assert _matches(events, None, "allow") is False
+
+    def test_dispatcher_matches_event_type(self, client):
+        from webhooks.dispatcher import _matches
+        events = json.dumps(["enforcement.applied", "enforcement.failed"])
+        assert _matches(events, "enforcement.applied", "block") is True
+        assert _matches(events, "posture.changed", None) is False
 
     def test_dispatcher_no_match_on_wrong_event(self, client):
         from webhooks.dispatcher import _matches
-        events = json.dumps(["enforcement.block"])
-        assert _matches(events, "enforcement.allow") is False
+        events = json.dumps(["block"])
+        assert _matches(events, None, "allow") is False
 
     def test_build_payload(self, client):
         from webhooks.dispatcher import _build_payload
@@ -161,6 +166,36 @@ class TestWebhookDispatcher:
         assert payload["tool"]["name"] == "cursor"
         assert payload["policy"]["decision_state"] == "allow"
         assert payload["endpoint"]["hostname"] == "mac-01"
+
+    def test_build_payload_includes_enforcement_and_posture(self, client):
+        from webhooks.dispatcher import _build_payload
+        event_data = {
+            "event_id": "evt-456",
+            "event_type": "enforcement.applied",
+            "observed_at": "2026-03-11T03:14:22Z",
+            "tool": {"name": "Unknown Agent", "class": "C", "attribution_confidence": 0.82},
+            "policy": {"decision_state": "block", "rule_id": "ENFORCE-004"},
+            "severity": {"level": "S3"},
+            "endpoint": {"hostname": "prod-db-01", "posture": "active"},
+            "enforcement": {
+                "tactic": "process_kill",
+                "success": True,
+                "pids_killed": [12345, 12346, 12347],
+                "process_name": "python3",
+                "cmdline_snippet": "python3 agent.py --target prod-db",
+                "rate_limited": False,
+                "simulated": False,
+                "allow_listed": False,
+                "provider": "local",
+            },
+        }
+        payload = _build_payload(event_data, "tenant-xyz")
+        assert payload["event_type"] == "enforcement.applied"
+        assert payload["tool"]["attribution_confidence"] == 0.82
+        assert payload["endpoint"]["posture"] == "active"
+        assert payload["enforcement"]["tactic"] == "process_kill"
+        assert payload["enforcement"]["success"] is True
+        assert payload["enforcement"]["pids_killed"] == [12345, 12346, 12347]
 
 
 class TestWebhookSender:

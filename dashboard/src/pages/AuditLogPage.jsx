@@ -4,10 +4,87 @@ import usePolling from '../hooks/usePolling';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
 import PollingStatus from '../components/PollingStatus';
 
+const ACTION_FILTERS = [
+  { value: '', label: 'All' },
+  { value: 'enforcement.', label: 'Enforcement' },
+  { value: 'enforcement.posture', label: 'Posture' },
+  { value: 'enforcement.allow_list', label: 'Allow-list' },
+];
+
+function getActionBadgeClass(action) {
+  if (!action || typeof action !== 'string') return 'bg-detec-slate-700/50 text-detec-slate-300 border-detec-slate-600/50';
+  if (['enforcement.applied', 'enforcement.escalated', 'enforcement.failed'].includes(action)) {
+    return 'bg-red-500/10 text-red-400 border-red-500/30';
+  }
+  if (action === 'enforcement.simulated') return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+  if (['enforcement.allow_listed', 'enforcement.rate_limited'].includes(action)) {
+    return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
+  }
+  if (['enforcement.posture_changed', 'enforcement.tenant_posture_changed'].includes(action)) {
+    return 'bg-purple-500/10 text-purple-400 border-purple-500/30';
+  }
+  if (['enforcement.allow_list_added', 'enforcement.allow_list_removed'].includes(action)) {
+    return 'bg-teal-500/10 text-teal-400 border-teal-500/30';
+  }
+  return 'bg-detec-slate-700/50 text-detec-slate-300 border-detec-slate-600/50';
+}
+
+function formatActionLabel(action) {
+  if (!action || typeof action !== 'string') return action || '';
+  const labels = {
+    'enforcement.applied': 'Enforcement Applied',
+    'enforcement.escalated': 'Enforcement Escalated',
+    'enforcement.failed': 'Enforcement Failed',
+    'enforcement.simulated': 'Simulated',
+    'enforcement.allow_listed': 'Allow-listed',
+    'enforcement.rate_limited': 'Rate Limited',
+    'enforcement.posture_changed': 'Posture Changed',
+    'enforcement.tenant_posture_changed': 'Tenant Posture Changed',
+    'enforcement.allow_list_added': 'Allow-list Added',
+    'enforcement.allow_list_removed': 'Allow-list Removed',
+  };
+  return labels[action] || action.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function renderDetail(detail) {
+  if (!detail || typeof detail !== 'object') return String(detail || '');
+  if ('new_posture' in detail) {
+    const hostname = detail.hostname ? ` (${detail.hostname})` : '';
+    const endpoints = detail.endpoints_updated != null ? ` · ${detail.endpoints_updated} endpoint(s)` : '';
+    const transition = detail.old_posture != null ? `${detail.old_posture} → ` : '';
+    return (
+      <span className="text-detec-slate-300">
+        {transition}{detail.new_posture}{hostname}{endpoints}
+      </span>
+    );
+  }
+  const enf = detail.enforcement;
+  if (enf && typeof enf === 'object' && 'tactic' in enf) {
+    const parts = [enf.tactic];
+    if (enf.pids_killed != null) parts.push(`${enf.pids_killed} PID(s)`);
+    if (enf.process_name) parts.push(enf.process_name);
+    return (
+      <span className="text-detec-slate-300">
+        {parts.join(' · ')}
+      </span>
+    );
+  }
+  if ('pattern' in detail) {
+    const type = detail.pattern_type ? ` (${detail.pattern_type})` : '';
+    return (
+      <span className="text-detec-slate-300 font-mono text-xs">
+        {detail.pattern}{type}
+      </span>
+    );
+  }
+  return JSON.stringify(detail);
+}
+
 export default function AuditLogPage() {
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [actionFilter, setActionFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -15,7 +92,9 @@ export default function AuditLogPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchAuditLog(undefined, { page, pageSize: 50 });
+      const params = { page, pageSize: 50 };
+      if (actionFilter) params.action = actionFilter;
+      const data = await fetchAuditLog(undefined, params);
       setLogs(data.items || []);
       setTotal(data.total || 0);
     } catch (e) {
@@ -23,7 +102,7 @@ export default function AuditLogPage() {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, actionFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -37,6 +116,25 @@ export default function AuditLogPage() {
           <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
         </div>
         {loading && <ApertureSpinner size="sm" label="Loading audit log" />}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Filter</span>
+        <div className="inline-flex rounded-lg border border-detec-slate-700/50 bg-detec-slate-800/50 p-0.5">
+          {ACTION_FILTERS.map(({ value, label }) => (
+            <button
+              key={value || 'all'}
+              onClick={() => { setActionFilter(value); setPage(1); }}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                actionFilter === value
+                  ? 'bg-detec-slate-700 text-detec-slate-200'
+                  : 'text-detec-slate-400 hover:text-detec-slate-200 hover:bg-detec-slate-700/50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {error && (
@@ -81,17 +179,34 @@ export default function AuditLogPage() {
                   <td className="px-4 py-3 text-sm text-detec-slate-400 whitespace-nowrap">
                     {new Date(log.occurred_at).toLocaleString()}
                   </td>
-                  <td className="px-4 py-3 text-sm text-detec-slate-200 font-medium">{log.action}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium ${getActionBadgeClass(log.action)}`}>
+                      {formatActionLabel(log.action)}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-sm text-detec-slate-400">
-                    <span className="font-mono text-xs">{log.actor_type}</span>
-                    {log.actor_id ? <span className="text-detec-slate-600 ml-1">{log.actor_id.slice(0, 8)}</span> : null}
+                    {log.actor_type === 'agent' ? (
+                      <span className="inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 bg-detec-slate-700/50 border border-detec-slate-600/40">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-detec-slate-500 shrink-0" aria-hidden="true">
+                          <circle cx="12" cy="12" r="3" />
+                          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                        </svg>
+                        <span className="text-xs text-detec-slate-400">Agent</span>
+                        {log.actor_id ? <span className="text-detec-slate-600 ml-1 font-mono">{log.actor_id.slice(0, 8)}</span> : null}
+                      </span>
+                    ) : (
+                      <>
+                        <span className="font-mono text-xs">{log.actor_type}</span>
+                        {log.actor_id ? <span className="text-detec-slate-600 ml-1">{log.actor_id.slice(0, 8)}</span> : null}
+                      </>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-sm text-detec-slate-400">
                     {log.resource_type ? <span className="font-mono text-xs">{log.resource_type}</span> : null}
                     {log.resource_id ? <span className="text-detec-slate-600 ml-1">{log.resource_id.slice(0, 8)}</span> : null}
                   </td>
-                  <td className="px-4 py-3 text-sm text-detec-slate-500 max-w-xs truncate">
-                    {typeof log.detail === 'object' ? JSON.stringify(log.detail) : String(log.detail || '')}
+                  <td className="px-4 py-3 text-sm text-detec-slate-500 max-w-xs">
+                    {renderDetail(log.detail)}
                   </td>
                 </tr>
               ))}

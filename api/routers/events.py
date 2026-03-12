@@ -16,6 +16,7 @@ from sqlalchemy import desc, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from core.audit_logger import record as audit_record
 from core.database import get_db
 from core.event_validator import validate_event_payload
 from core.tenant import get_tenant_id as _get_tenant_id, resolve_auth, get_tenant_filter
@@ -250,6 +251,26 @@ def ingest_event(
             return EventResponse.model_validate(existing)
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Duplicate event_id")
     db.refresh(event)
+
+    event_type_val = body.event_type
+    if event_type_val and (
+        event_type_val.startswith("enforcement.") or event_type_val == "posture.changed"
+    ):
+        detail: dict[str, Any] = {}
+        if body.enforcement:
+            detail["enforcement"] = body.enforcement
+        if body.posture:
+            detail["posture"] = body.posture
+        audit_record(
+            db,
+            tenant_id=tenant_id,
+            actor_id=None,
+            actor_type="agent",
+            action=event_type_val,
+            resource_type="endpoint",
+            resource_id=endpoint_id,
+            detail=detail if detail else None,
+        )
 
     try:
         _dispatch_webhooks(db, tenant_id, body.model_dump(mode="json"))

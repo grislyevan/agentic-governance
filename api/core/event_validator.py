@@ -14,6 +14,7 @@ Used by both the HTTP ingest route and the TCP gateway.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -21,13 +22,15 @@ logger = logging.getLogger(__name__)
 
 _MAX_NESTED_DEPTH = 4
 _MAX_PAYLOAD_KEYS = 50
+_MAX_STRING_VALUE_LEN = 2048
+_MAX_PAYLOAD_SIZE_ESTIMATE = 65536
 
 _ALLOWED_TOP_LEVEL_KEYS = frozenset({
     "event_id", "event_type", "event_version", "observed_at", "ingested_at",
     "session_id", "trace_id", "parent_event_id",
     "actor", "endpoint", "tool", "action", "target",
     "policy", "approval", "exception", "evidence",
-    "enforcement", "outcome", "severity",
+    "enforcement", "outcome", "severity", "posture",
     "telemetry_providers",
     "_signature", "_key_fingerprint",
     "signature", "key_fingerprint",
@@ -68,7 +71,7 @@ def validate_event_payload(data: dict[str, Any]) -> list[str]:
 
     for field in ("tool", "actor", "endpoint", "policy", "severity",
                    "action", "target", "enforcement", "outcome",
-                   "approval", "exception", "evidence"):
+                   "approval", "exception", "evidence", "posture"):
         val = data.get(field)
         if val is not None and not isinstance(val, dict):
             errors.append(f"'{field}' must be an object, got {type(val).__name__}")
@@ -83,5 +86,27 @@ def validate_event_payload(data: dict[str, Any]) -> list[str]:
                     errors.append("tool.attribution_confidence must be between 0 and 1")
             except (TypeError, ValueError):
                 errors.append("tool.attribution_confidence must be a number")
+
+    enforcement = data.get("enforcement")
+    if isinstance(enforcement, dict):
+        for str_field in ("detail", "cmdline_snippet", "process_name", "tactic"):
+            val = enforcement.get(str_field)
+            if isinstance(val, str) and len(val) > _MAX_STRING_VALUE_LEN:
+                errors.append(
+                    f"enforcement.{str_field} exceeds max length of {_MAX_STRING_VALUE_LEN}"
+                )
+        pids = enforcement.get("pids_killed")
+        if pids is not None:
+            if not isinstance(pids, list):
+                errors.append("enforcement.pids_killed must be an array")
+            elif len(pids) > 1000:
+                errors.append("enforcement.pids_killed exceeds max length of 1000")
+
+    try:
+        size = len(json.dumps(data, default=str))
+    except (TypeError, ValueError):
+        size = 0
+    if size > _MAX_PAYLOAD_SIZE_ESTIMATE:
+        errors.append(f"Payload exceeds max size of {_MAX_PAYLOAD_SIZE_ESTIMATE} bytes")
 
     return errors

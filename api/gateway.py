@@ -24,6 +24,7 @@ from models.allow_list import AllowListEntry
 from models.endpoint import Endpoint, ENDPOINT_STATUS_ACTIVE
 from models.event import Event
 from models.user import User, verify_api_key, API_KEY_PREFIX_LEN
+from core.audit_logger import record as _audit_record
 from webhooks.dispatcher import dispatch_event as _dispatch_webhooks
 
 from protocol import __version__ as PROTOCOL_VERSION
@@ -350,6 +351,24 @@ class AgentSession(BaseConnection):
             )
             db.add(event)
             db.commit()
+
+            event_type_val = event_data.get("event_type", "")
+            if event_type_val.startswith("enforcement.") or event_type_val == "posture.changed":
+                enf_detail: dict[str, Any] = {}
+                if event_data.get("enforcement"):
+                    enf_detail["enforcement"] = event_data["enforcement"]
+                if event_data.get("posture"):
+                    enf_detail["posture"] = event_data["posture"]
+                _audit_record(
+                    db,
+                    tenant_id=self._tenant_id,
+                    actor_id=None,
+                    actor_type="agent",
+                    action=event_type_val,
+                    resource_type="endpoint",
+                    resource_id=self._endpoint_id,
+                    detail=enf_detail if enf_detail else None,
+                )
 
             try:
                 _dispatch_webhooks(db, self._tenant_id, event_data)

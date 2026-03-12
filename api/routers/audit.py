@@ -6,7 +6,7 @@ import logging
 
 from fastapi import APIRouter, Depends, Header, Query
 from pydantic import BaseModel
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
 from core.database import get_db
@@ -16,6 +16,21 @@ from models.audit import AuditLog
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/audit-log", tags=["audit"])
+
+
+def _action_filter(q, action: str | None):
+    """Apply action filter with prefix matching for enforcement categories."""
+    if not action:
+        return q
+    if action == "enforcement.posture":
+        return q.filter(
+            or_(
+                AuditLog.action.startswith("enforcement.posture"),
+                AuditLog.action.startswith("enforcement.tenant_posture"),
+                AuditLog.action == "posture.changed",
+            )
+        )
+    return q.filter(AuditLog.action.startswith(action))
 
 
 class AuditLogResponse(BaseModel):
@@ -54,9 +69,7 @@ def list_audit_logs(
     require_role(auth, "owner", "admin", "analyst")
 
     q = db.query(AuditLog).filter(get_tenant_filter(auth, AuditLog))
-
-    if action:
-        q = q.filter(AuditLog.action == action)
+    q = _action_filter(q, action)
     if resource_type:
         q = q.filter(AuditLog.resource_type == resource_type)
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.agentic-governance.internal/canonical-event/v0.3.0",
+  "$id": "https://schemas.agentic-governance.internal/canonical-event/v0.4.0",
   "title": "Agentic AI Canonical Event Envelope",
   "description": "Unified event schema for detection, policy, enforcement, and audit data across all agentic AI tools and environments. Defined in Playbook v0.3 Section 9.",
   "type": "object",
@@ -19,6 +19,9 @@
         "enforcement.applied",
         "enforcement.simulated",
         "enforcement.allow_listed",
+        "enforcement.rate_limited",
+        "enforcement.escalated",
+        "enforcement.failed",
         "approval.requested",
         "approval.resolved",
         "exception.lifecycle",
@@ -27,7 +30,8 @@
         "heartbeat.received",
         "heartbeat.missed",
         "agent.shutdown",
-        "detection.cleared"
+        "detection.cleared",
+        "posture.changed"
       ],
       "description": "Canonical event type driving downstream routing and conditional field requirements."
     },
@@ -72,6 +76,7 @@
     "evidence": { "$ref": "#/$defs/evidence" },
     "enforcement": { "$ref": "#/$defs/enforcement" },
     "outcome": { "$ref": "#/$defs/outcome" },
+    "posture": { "$ref": "#/$defs/posture" },
     "severity": { "$ref": "#/$defs/severity" },
     "telemetry_providers": {
       "type": "array",
@@ -182,6 +187,42 @@
       },
       "then": {
         "required": ["tool", "action", "target", "policy", "enforcement", "outcome"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "enforcement.rate_limited" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "enforcement", "outcome"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "enforcement.escalated" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "action", "target", "policy", "enforcement", "outcome"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "enforcement.failed" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "policy", "enforcement", "outcome"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "posture.changed" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["posture"]
       }
     },
     {
@@ -529,9 +570,57 @@
           "type": "boolean",
           "default": false,
           "description": "True when enforcement was skipped because the tool matched an allow-list entry."
+        },
+        "pids_killed": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "description": "List of process IDs terminated by the enforcement action."
+        },
+        "process_name": {
+          "type": "string",
+          "description": "Primary process name of the enforcement target."
+        },
+        "cmdline_snippet": {
+          "type": "string",
+          "description": "Truncated command line of the target process for audit context."
+        },
+        "rate_limited": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when enforcement was suppressed by the rate limiter."
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["local", "crowdstrike", "sentinelone", "webhook"],
+          "description": "Which enforcement provider executed the action."
         }
       },
       "required": ["tactic", "success", "detail"],
+      "additionalProperties": false
+    },
+
+    "posture": {
+      "type": "object",
+      "description": "Enforcement posture metadata for posture change events.",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["passive", "audit", "active"],
+          "description": "Current enforcement posture mode."
+        },
+        "auto_enforce_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum confidence score for autonomous enforcement."
+        },
+        "source": {
+          "type": "string",
+          "enum": ["server_push", "cli_override", "config_file"],
+          "description": "How the posture was applied."
+        }
+      },
+      "required": ["mode", "auto_enforce_threshold", "source"],
       "additionalProperties": false
     },
 
