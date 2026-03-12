@@ -391,7 +391,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["read", "write", "exec", "network", "repo", "privileged", "removal"],
+          "enum": ["read", "write", "exec", "network", "repo", "privileged", "removal", "observe"],
           "description": "Action category."
         },
         "risk_class": {

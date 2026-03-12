@@ -64,7 +64,7 @@ def build_trees(store: EventStore) -> list[ProcessNode]:
         )
 
     for node in nodes.values():
-        if node.ppid in nodes:
+        if node.ppid in nodes and node.ppid != node.pid:
             nodes[node.ppid].children.append(node)
 
     known_pids = set(nodes)
@@ -74,22 +74,35 @@ def build_trees(store: EventStore) -> list[ProcessNode]:
     ]
 
 
-def get_all_pids(tree: ProcessNode) -> set[int]:
-    """Recursively collect all PIDs in a tree."""
+def get_all_pids(tree: ProcessNode, _seen: set[int] | None = None) -> set[int]:
+    """Recursively collect all PIDs in a tree (cycle-safe)."""
+    if _seen is None:
+        _seen = set()
+    if tree.pid in _seen:
+        return set()
+    _seen.add(tree.pid)
     result = {tree.pid}
     for child in tree.children:
-        result |= get_all_pids(child)
+        result |= get_all_pids(child, _seen)
     return result
 
 
-def tree_depth(node: ProcessNode) -> int:
-    """Max depth of the process tree (root = 1)."""
-    if not node.children:
+def tree_depth(node: ProcessNode, _seen: set[int] | None = None) -> int:
+    """Max depth of the process tree (root = 1, cycle-safe)."""
+    if _seen is None:
+        _seen = set()
+    if node.pid in _seen or not node.children:
         return 1
-    return 1 + max(tree_depth(c) for c in node.children)
+    _seen.add(node.pid)
+    return 1 + max(tree_depth(c, _seen) for c in node.children)
 
 
-def _all_timestamps(node: ProcessNode) -> list[datetime]:
+def _all_timestamps(node: ProcessNode, _seen: set[int] | None = None) -> list[datetime]:
+    if _seen is None:
+        _seen = set()
+    if node.pid in _seen:
+        return []
+    _seen.add(node.pid)
     timestamps: list[datetime] = []
     if node.start_time is not None:
         timestamps.append(node.start_time)
@@ -98,7 +111,7 @@ def _all_timestamps(node: ProcessNode) -> list[datetime]:
     for e in node.file_events:
         timestamps.append(e.timestamp)
     for child in node.children:
-        timestamps.extend(_all_timestamps(child))
+        timestamps.extend(_all_timestamps(child, _seen))
     return timestamps
 
 

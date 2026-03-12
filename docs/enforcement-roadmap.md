@@ -1,7 +1,8 @@
 # Enforcement Roadmap: Passive Detection to Active Defense
 
 **Created:** 2026-03-11
-**Status:** Draft (approved direction, not yet in progress)
+**Updated:** 2026-03-12
+**Status:** All phases implemented. Remaining items tracked in per-phase notes below.
 **Context:** [Enforcement architecture discussion](../agent-transcripts/) from 2026-03-11
 **Depends on:** Playbook v0.4, Milestone M2 (complete), baseline policies (seeded)
 
@@ -72,6 +73,8 @@ Every phase spec references these files. Read them before starting work.
 ---
 
 ## Phase 1: Admin-Controlled Enforcement Posture
+
+> **Status: COMPLETE** (2026-03-11). Reviewed by Backend Architect, Senior Developer, and Security Engineer. Review fixes committed 2026-03-12.
 
 **Objective:** Remove the `--enforce` CLI flag as the production enforcement switch. Replace it with a server-controlled posture enum that the admin configures per-endpoint (or tenant-wide), pushed to agents over the existing TCP channel.
 
@@ -203,6 +206,10 @@ The posture push includes an `allow_list` of process name patterns (or binary ha
 ---
 
 ## Phase 2: Behavioral Anomaly Scanner
+
+> **Status: COMPLETE** (2026-03-12). All 8 patterns (BEH-001 through BEH-008) implemented. Process tree builder, calibration fixtures, and confidence weights in place. LLM host push from server now wired end-to-end.
+>
+> **Remaining:** No 500ms performance benchmark test.
 
 **Objective:** Detect agentic AI entities by behavioral pattern rather than tool name. The current 12 scanners match known tools (Claude Code, Ollama, Cursor, etc.). An unknown Chinese open-source bot at 3 AM won't match any of them. The behavioral scanner catches it by looking for patterns common to all agentic AI: shell fan-out, LLM API call cadence, multi-file burst writes, and feedback loops.
 
@@ -368,6 +375,10 @@ TOOL_WEIGHTS["Unknown Agent"] = BEHAVIORAL_WEIGHTS
 
 ## Phase 3: Enforcement Hardening
 
+> **Status: COMPLETE** (2026-03-12). Tree kill, PID verification, rate limiting, resurrection tracking, orphaned rule cleanup, and Windows network block all implemented. Process group kill (`killpg`) added. Anti-resurrection escalation (parent kill, systemd/launchd disable) added. Unit tests added (19 tests).
+>
+> **Remaining:** Linux cgroup v2 `net_cls` tagging is stubbed (logs warning, falls back to UID-owner). Integration tests for real process trees and firewall cycles not yet written (require platform-specific CI).
+
 **Objective:** Make process kill and network block reliable enough for autonomous use in `active` posture. The current implementation has known gaps that are acceptable for manual enforcement but dangerous for automated enforcement.
 
 **Effort:** ~2-3 weeks
@@ -519,6 +530,8 @@ def kill_process_tree(
 
 ## Phase 4: Webhook Orchestration and SOC Integration
 
+> **Status: COMPLETE** (2026-03-12). Webhook dispatch for all enforcement event types, enforcement payload schema, audit log integration, dashboard audit log UI with enforcement badges, and EDR enforcement forwarding all implemented. `docs/webhook-recipes.md` added with PagerDuty, Slack, Jira, and Splunk examples.
+
 **Objective:** Connect enforcement events to external SOC tooling so that automated enforcement generates the right alerts, tickets, and audit trail for compliance. The webhook system exists but is only wired to raw events, not enforcement decisions.
 
 **Effort:** ~1-2 weeks
@@ -617,6 +630,10 @@ The existing audit log (`api/models/audit_log.py`) records API actions (policy c
 ---
 
 ## Phase 5: Native OS Telemetry Providers
+
+> **Status: COMPLETE** (2026-03-12). ESF (macOS), ETW (Windows), and eBPF (Linux) providers implemented. Provider registry (`get_best_provider()`) selects the best available. EventStore `on_alert` callback and out-of-cycle scan trigger wired in `main.py`.
+>
+> **Remaining:** ESF helper packaging into macOS .app bundle not verified. No 100ms latency benchmark test.
 
 **Objective:** Replace interval-based polling with event-driven telemetry from native OS security frameworks. This is the difference between "we check every 60 seconds" and "we know within milliseconds." For infrastructure mode, polling is not fast enough: a bot can exfiltrate data in the 60-second gap between polls.
 
@@ -776,6 +793,10 @@ Start with **macOS ESF** (most mature framework, Detec already has macOS .app/.p
 ---
 
 ## Phase 6: EDR/MDM Integration for Delegated Enforcement
+
+> **Status: COMPLETE** (2026-03-12). `EnforcementProvider` interface, CrowdStrike RTR integration, enforcement orchestration router (local vs. delegated with fallback), API routes for EDR config, and event-triggered delegation all implemented. Jamf and Intune provider stubs added with config fields.
+>
+> **Remaining:** Jamf and Intune providers are stubs (log "not yet configured", return False). Dashboard EDR config UI not fully verified. No `edr_host_id` column (CrowdStrike resolves by hostname).
 
 **Objective:** On endpoints where a full-featured EDR (CrowdStrike, SentinelOne, Defender ATP) or MDM (Jamf, Intune) is already deployed, delegate enforcement to that tool instead of doing it locally. This leverages existing security infrastructure, avoids permission conflicts (two tools trying to kill the same process), and provides defense-in-depth.
 

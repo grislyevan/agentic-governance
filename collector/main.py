@@ -828,13 +828,21 @@ def _run_daemon(args: argparse.Namespace) -> None:
         )
     enforcer = Enforcer(posture_manager=posture_mgr, dry_run=args.dry_run)
 
-    def _on_posture(posture: str, auto_enforce_threshold: float | None = None, allow_list: list[str] | None = None) -> None:
+    def _on_posture(
+        posture: str,
+        auto_enforce_threshold: float | None = None,
+        allow_list: list[str] | None = None,
+        llm_hosts: list[str] | None = None,
+    ) -> None:
         posture_mgr.update(
             posture,
             auto_enforce_threshold=auto_enforce_threshold,
             allow_list=allow_list,
             source="server_push",
         )
+        if llm_hosts:
+            from scanner.behavioral_patterns import update_llm_hosts
+            update_llm_hosts(set(llm_hosts))
 
     if protocol == "tcp":
         gateway_host = getattr(args, "gateway_host", None)

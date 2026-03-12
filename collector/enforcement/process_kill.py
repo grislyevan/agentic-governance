@@ -11,6 +11,7 @@ kills caused by PID reuse.
 from __future__ import annotations
 
 import logging
+import os
 import signal
 import time
 from collections.abc import Iterable
@@ -89,6 +90,11 @@ def kill_process_tree(
 
     children = parent.children(recursive=True)
     all_pids = [c.pid for c in children] + [pid]
+
+    try:
+        os.killpg(os.getpgid(pid), signal.SIGTERM)
+    except (ProcessLookupError, PermissionError, OSError, AttributeError):
+        pass
 
     for p in children + [parent]:
         try:

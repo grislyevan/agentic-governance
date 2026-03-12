@@ -27,7 +27,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
-PostureCallback = Callable[[str, float | None, list[str] | None], None]
+PostureCallback = Callable[[str, float | None, list[str] | None, list[str] | None], None]
 
 from collector.agent.buffer import LocalBuffer
 
@@ -222,10 +222,12 @@ class HttpEmitter:
                         if posture is not None:
                             threshold = data.get("auto_enforce_threshold")
                             allow_list = data.get("allow_list")
+                            llm_hosts = data.get("llm_hosts")
                             self._on_posture(
                                 posture,
                                 float(threshold) if threshold is not None else None,
                                 allow_list if isinstance(allow_list, list) else None,
+                                llm_hosts if isinstance(llm_hosts, list) else None,
                             )
                     except (json.JSONDecodeError, ValueError):
                         pass

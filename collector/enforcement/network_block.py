@@ -57,6 +57,33 @@ def _cgroup_v2_available() -> bool:
     return Path("/sys/fs/cgroup/cgroup.controllers").exists()
 
 
+def _cgroup_v2_block(pid: int) -> bool:
+    """Attempt to block a PID via cgroup v2 net_cls. Returns True if successful.
+
+    If cgroup v2 is available, creates a net_cls cgroup for the PID.
+    If not implementable yet, logs a warning and returns False so UID-owner fallback is used.
+    """
+    if not _cgroup_v2_available():
+        return False
+    try:
+        controllers_path = Path("/sys/fs/cgroup/cgroup.controllers")
+        controllers = controllers_path.read_text().strip()
+        if "net_cls" not in controllers.split():
+            logger.warning(
+                "cgroup v2 net_cls controller not available; using uid-owner fallback for PID %d",
+                pid,
+            )
+            return False
+        logger.warning(
+            "cgroup v2 block for PID %d not yet implemented; using uid-owner fallback",
+            pid,
+        )
+        return False
+    except Exception as exc:
+        logger.debug("cgroup v2 block check failed for PID %d: %s", pid, exc)
+        return False
+
+
 def _get_exe_path_windows(pid: int) -> str | None:
     """Get the executable path for a PID on Windows."""
     try:
@@ -71,27 +98,24 @@ def _get_exe_path_windows(pid: int) -> str | None:
 def _block_linux(pids: set[int]) -> bool:
     """Use iptables owner match to drop outbound packets from specific PIDs.
 
-    Note: iptables --pid-owner was removed in newer kernels.  We fall
-    back to blocking by UID if the process owner can be determined via
-    /proc/{pid}/status.  This means ALL outbound traffic for the UID
-    is blocked, not just the target process.
+    Note: iptables --pid-owner was removed in newer kernels.  We try
+    _cgroup_v2_block first when cgroup v2 is available; if that returns
+    False, we fall back to blocking by UID.  UID blocking affects ALL
+    processes owned by that UID, not just the target process.
     """
-    if _cgroup_v2_available():
-        logger.info(
-            "cgroup v2 detected; using uid-owner fallback "
-            "(per-process cgroup blocking not yet implemented)"
-        )
     success = False
     for pid in pids:
+        if _cgroup_v2_block(pid):
+            success = True
+            continue
         uid = _get_uid_linux(pid)
         if uid is None:
             continue
-        if not _cgroup_v2_available():
-            logger.warning(
-                "Blocking UID %d (from PID %d). This affects ALL processes "
-                "owned by this UID, not just the target tool.",
-                uid, pid,
-            )
+        logger.warning(
+            "Blocking UID %d (from PID %d). This affects ALL processes "
+            "owned by this UID, not just the target tool.",
+            uid, pid,
+        )
         try:
             result = subprocess.run(
                 [

@@ -21,10 +21,12 @@ Posture controls whether tactics actually execute:
 from __future__ import annotations
 
 import logging
+import platform
+import subprocess
 import threading
 import time
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from engine.policy import PolicyDecision
@@ -49,6 +51,7 @@ class EnforcementResult:
     allow_listed: bool = False
     escalated: bool = False
     rate_limited: bool = False
+    escalation_details: list[str] = field(default_factory=list)
 
 
 class Enforcer:
@@ -234,6 +237,18 @@ class Enforcer:
     ) -> EnforcementResult:
         from enforcement.process_kill import kill_process_tree
 
+        target_pid = next((p for p in pids if p > 1), None)
+        parent_ppid: int | None = None
+        target_exe: str | None = None
+        if target_pid:
+            try:
+                import psutil
+                proc = psutil.Process(target_pid)
+                parent_ppid = proc.ppid()
+                target_exe = proc.exe()
+            except Exception:
+                pass
+
         all_killed: list[int] = []
         for pid in pids:
             if pid <= 1:
@@ -245,6 +260,65 @@ class Enforcer:
         self._rate_limiter.record()
 
         escalated = self._check_resurrection(tool_name)
+        escalation_details: list[str] = []
+
+        if escalated:
+            if parent_ppid and parent_ppid > 1:
+                try:
+                    kr = kill_process_tree(parent_ppid, grace_period=5.0)
+                    if kr.success:
+                        escalation_details.append(f"killed parent {parent_ppid}")
+                        logger.info("Escalation: killed parent PID %d for %s", parent_ppid, tool_name)
+                    else:
+                        escalation_details.append(f"parent kill failed: {kr.detail}")
+                        logger.warning("Escalation: failed to kill parent %d: %s", parent_ppid, kr.detail)
+                except Exception as exc:
+                    escalation_details.append(f"parent kill error: {exc}")
+                    logger.warning("Escalation: error killing parent %d: %s", parent_ppid, exc)
+
+            if platform.system() == "Linux" and target_pid:
+                try:
+                    with open(f"/proc/{target_pid}/cgroup") as f:
+                        for line in f:
+                            if "::" in line and (".service" in line or ".slice" in line):
+                                path = line.strip().split("::", 1)[-1].strip()
+                                for part in path.split("/"):
+                                    if part.endswith(".service"):
+                                        disable = subprocess.run(
+                                            ["systemctl", "disable", "--now", part],
+                                            capture_output=True, text=True, timeout=10,
+                                        )
+                                        if disable.returncode == 0:
+                                            escalation_details.append(f"disabled unit {part}")
+                                            logger.info("Escalation: disabled systemd unit %s", part)
+                                        break
+                                break
+                except Exception as exc:
+                    logger.debug("Escalation: systemd unit check failed: %s", exc)
+
+            if platform.system() == "Darwin" and target_exe:
+                try:
+                        for plist_dir in [
+                            "/Library/LaunchDaemons",
+                            "/Library/LaunchAgents",
+                            "/Users/*/Library/LaunchAgents",
+                        ]:
+                            try:
+                                from pathlib import Path
+                                import glob
+                                for path in glob.glob(plist_dir + "/*.plist"):
+                                    try:
+                                        with open(path) as f:
+                                            if target_exe in f.read():
+                                                escalation_details.append(f"found plist {path}")
+                                                logger.info("Escalation: found launchd plist %s for %s", path, target_exe)
+                                                break
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
+                except Exception as exc:
+                    logger.debug("Escalation: launchd check failed: %s", exc)
 
         detail = f"Killed PIDs {all_killed} for {tool_name}"
         if escalated:
@@ -256,6 +330,7 @@ class Enforcer:
             detail=detail,
             tool_name=tool_name,
             escalated=escalated,
+            escalation_details=escalation_details,
         )
         self._results.append(result)
         return result

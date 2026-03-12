@@ -18,7 +18,7 @@ import threading
 import time
 from typing import Any, Callable
 
-PostureCallback = Callable[[str, float | None, list[str] | None], None]
+PostureCallback = Callable[[str, float | None, list[str] | None, list[str] | None], None]
 
 from collector.agent.buffer import LocalBuffer
 
@@ -325,10 +325,12 @@ class TcpEmitter:
                 if posture is not None and self._on_posture:
                     threshold = p.get("auto_enforce_threshold")
                     allow_list = p.get("allow_list")
+                    llm_hosts = p.get("llm_hosts")
                     self._on_posture(
                         posture,
                         float(threshold) if threshold is not None else None,
                         allow_list if isinstance(allow_list, list) else None,
+                        llm_hosts if isinstance(llm_hosts, list) else None,
                     )
 
             elif msg_type == MessageType.POSTURE_PUSH:
@@ -337,10 +339,12 @@ class TcpEmitter:
                     posture = p.get("posture", "passive")
                     threshold = p.get("auto_enforce_threshold")
                     allow_list = p.get("allow_list")
+                    llm_hosts = p.get("llm_hosts")
                     self._on_posture(
                         posture,
                         float(threshold) if threshold is not None else None,
                         allow_list if isinstance(allow_list, list) else None,
+                        llm_hosts if isinstance(llm_hosts, list) else None,
                     )
 
             elif msg_type == MessageType.POLICY_PUSH:
@@ -420,10 +424,12 @@ class _AgentConnection(BaseConnection):
                 posture = p.get("posture", "passive")
                 threshold = p.get("auto_enforce_threshold")
                 allow_list = p.get("allow_list")
+                llm_hosts = p.get("llm_hosts")
                 self._on_posture(
                     posture,
                     float(threshold) if threshold is not None else None,
                     allow_list if isinstance(allow_list, list) else None,
+                    llm_hosts if isinstance(llm_hosts, list) else None,
                 )
 
         elif msg_type == MessageType.COMMAND:

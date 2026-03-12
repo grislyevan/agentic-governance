@@ -1,6 +1,6 @@
 # Webhook Recipes: SOC Integration Examples
 
-Detec fires HMAC-signed webhooks for enforcement events so your SOC can integrate with PagerDuty, Slack, Jira, ServiceNow, Splunk, and other tools. All webhooks include the `X-Detec-Signature` header (HMAC-SHA256) for payload verification and `X-Detec-Delivery-Id` for idempotency.
+Detec fires HMAC-signed webhooks for enforcement events so your SOC can integrate with PagerDuty, Slack, Jira, ServiceNow, Splunk, and other tools. All webhooks include the `X-Detec-Signature` header (HMAC-SHA256) for payload verification and `X-Detec-Delivery-Id` for idempotency. Failed deliveries are retried with exponential backoff (up to 3 attempts).
 
 ## Enforcement Event Types Reference
 

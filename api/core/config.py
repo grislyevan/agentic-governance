@@ -116,6 +116,28 @@ class Settings(BaseSettings):
     def edr_enforcement_configured(self) -> bool:
         return self.edr_enforcement_enabled and self.edr_configured
 
+    # Jamf Pro (macOS MDM enforcement)
+    jamf_url: str = ""
+    jamf_client_id: str = ""
+    jamf_client_secret: str = ""
+
+    @property
+    def jamf_configured(self) -> bool:
+        return bool(self.jamf_url and self.jamf_client_id and self.jamf_client_secret)
+
+    # Microsoft Intune (Windows MDM enforcement)
+    intune_tenant_id: str = ""
+    intune_client_id: str = ""
+    intune_client_secret: str = ""
+
+    @property
+    def intune_configured(self) -> bool:
+        return bool(
+            self.intune_tenant_id
+            and self.intune_client_id
+            and self.intune_client_secret
+        )
+
     @model_validator(mode="after")
     def _apply_default_database_url(self) -> "Settings":
         if not self.database_url:
