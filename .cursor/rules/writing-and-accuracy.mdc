@@ -1,0 +1,18 @@
+---
+description: Writing style and accuracy standards for all project output
+alwaysApply: true
+---
+
+# Writing and Accuracy Standards
+
+## No Em Dashes
+
+Never use em dashes (---) anywhere in generated text, code comments, documentation, or any other output. Use alternative punctuation instead:
+
+- Commas, colons, semicolons, or parentheses for asides
+- Periods to break sentences apart
+- Hyphens (-) only where grammatically standard (compound words, ranges)
+
+## No Guessing
+
+Do not fabricate or assume facts about the project. If uncertain about architecture, config, prior decisions, or any project-specific detail, consult the actual project files before answering. Read first, respond second.
