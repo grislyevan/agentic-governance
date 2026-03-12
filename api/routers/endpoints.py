@@ -139,6 +139,10 @@ class HeartbeatResponse(BaseModel):
     enforcement_posture: str = "passive"
     auto_enforce_threshold: float = 0.75
     allow_list: list[str] = Field(default_factory=list)
+    allow_list_updated_at: str | None = Field(
+        default=None,
+        description="ISO-8601 timestamp of the most recent allow-list change for this tenant",
+    )
 
 
 @router.post("/heartbeat", response_model=HeartbeatResponse, tags=["heartbeat"])
@@ -198,9 +202,10 @@ def heartbeat(
     db.commit()
     db.refresh(endpoint)
 
-    allow_list = [
-        e.pattern for e in db.query(AllowListEntry).filter(AllowListEntry.tenant_id == endpoint.tenant_id).all()
-    ]
+    entries = db.query(AllowListEntry).filter(AllowListEntry.tenant_id == endpoint.tenant_id).all()
+    allow_list = [e.pattern for e in entries]
+    latest_ts = max((e.created_at for e in entries), default=None) if entries else None
+    allow_list_updated_at = latest_ts.isoformat() if latest_ts else None
 
     return HeartbeatResponse(
         status="ok",
@@ -210,6 +215,7 @@ def heartbeat(
         enforcement_posture=endpoint.enforcement_posture,
         auto_enforce_threshold=endpoint.auto_enforce_threshold,
         allow_list=allow_list,
+        allow_list_updated_at=allow_list_updated_at,
     )
 
 

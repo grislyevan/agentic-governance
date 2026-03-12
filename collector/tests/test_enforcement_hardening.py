@@ -336,7 +336,7 @@ class TestResurrectionDetection:
         mgr = PostureManager(initial_posture="active", state_dir=tmp_path)
         enforcer = Enforcer(posture_manager=mgr, max_enforcements_per_minute=10)
 
-        time_values = [0.0] * 3 + [310.0] * 3 + [620.0] * 3
+        time_values = [0.0] * 4 + [310.0] * 4 + [620.0] * 4
 
         with mock.patch("enforcement.process_kill.kill_process_tree") as m_kill:
             m_kill.return_value = KillResult(pid=999, success=True, killed_pids=[999], detail="killed")

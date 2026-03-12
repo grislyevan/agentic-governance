@@ -129,6 +129,22 @@ class Enforcer:
         if posture == "audit" or self._dry_run:
             return self._simulate(decision, tool_name, tool_class, pids, network_elevated)
 
+        # Staleness gate (Task 11a): if the allow-list hasn't been synced
+        # recently, downgrade to audit to avoid killing a tool that was
+        # exempted on the server but hasn't reached this agent yet.
+        if self._posture_mgr and not self._posture_mgr.is_allow_list_fresh():
+            age = self._posture_mgr.allow_list_age_seconds
+            logger.warning(
+                "Allow-list data is %.0fs old; downgrading to audit for %s",
+                age, tool_name,
+            )
+            result = self._simulate(decision, tool_name, tool_class, pids, network_elevated)
+            result.detail = (
+                f"[STALE ALLOW-LIST] {result.detail} "
+                f"(allow-list age: {age:.0f}s, enforcement deferred to audit)"
+            )
+            return result
+
         # posture == "active": check confidence threshold
         if self._posture_mgr:
             threshold = self._posture_mgr.auto_enforce_threshold

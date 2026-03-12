@@ -18,7 +18,7 @@ The enforcement roadmap describes six phases of work spanning 19-27 weeks. A cod
 | Phase 4: Webhook Orchestration | Complete | None |
 | Phase 5: Native Telemetry | CI pipeline complete | ~~Task 7~~ |
 | Phase 6: EDR Integration | Interfaces complete | **Task 8** (validation only) |
-| Cross-cutting | Task 10 complete, 11c complete | **Tasks 9, 11a, 11b** |
+| Cross-cutting | Task 10 complete, 11a complete, 11c complete | **Tasks 9, 11b** |
 
 **Total remaining effort estimate:** 2-3 weeks.
 
@@ -395,16 +395,18 @@ No single test exercises the full detection-to-enforcement-to-audit path. Each p
 
 Three security concerns from the engineering review that need decisions or fixes.
 
-### 11a. Allow-list delivery timing for HTTP-only agents
+### 11a. Allow-list delivery timing for HTTP-only agents ✅
+
+**Status:** Complete (2026-03-12)
+**Decision:** Option 2 (allow-list staleness gate).
 
 **Problem:** HTTP-only agents poll every 300s. If an admin adds an allow-list entry, the agent won't receive it for up to 5 minutes. During that window, the agent could enforce against the newly-exempted tool.
 
-**Options:**
-1. Accept the risk (5 minutes is short; most enforcement is on active infrastructure with TCP).
-2. Add allow-list version to posture state. Agent skips enforcement if its allow-list version is stale by more than N seconds.
-3. Shorten the default HTTP heartbeat interval for active-posture endpoints.
-
-**Decision needed.** Document in the roadmap.
+**What was implemented:**
+- `PostureManager` tracks `_allow_list_synced_at` (monotonic time, persisted as wall-clock in `posture.json`). Exposes `is_allow_list_fresh(max_age)` and `allow_list_age_seconds`.
+- `Enforcer` checks `is_allow_list_fresh()` before active enforcement. If the allow-list is older than `allow_list_max_age` (default 600s), enforcement downgrades to audit mode with a `[STALE ALLOW-LIST]` annotation.
+- `HeartbeatResponse` includes `allow_list_updated_at` (ISO-8601 timestamp of the most recent allow-list change).
+- Decision documented in enforcement roadmap Cross-Cutting Concerns section.
 
 ### 11b. Anti-resurrection service recovery
 
@@ -445,7 +447,7 @@ Task 7 (CI pipeline) ── standalone
 Task 8 (EDR validation) ── standalone
 Task 9 (E2E test) ── standalone (but best done after Tasks 1-6)
 Task 10 (column resolution) ── ✅ complete
-Task 11 (security) ── 11c ✅ complete; 11a, 11b standalone
+Task 11 (security) ── 11a ✅ complete, 11c ✅ complete; 11b standalone
 ```
 
 ### Recommended order

@@ -939,6 +939,24 @@ Every phase includes an immediate way to disable enforcement without redeploymen
 | Rate limiter triggers | Automatic per-agent | After N enforcements/minute, auto-downgrade to audit |
 | Server broadcast `POSTURE_PUSH passive` | All connected agents | API call broadcasts passive posture via TCP gateway |
 
+### Allow-List Delivery Timing (Task 11a)
+
+HTTP-only agents poll every 300s by default. When an admin adds an allow-list entry, the agent may not receive it for up to 5 minutes. During that window an agent in active posture could enforce against the newly-exempted tool.
+
+**Decision: Allow-list staleness gate (Option 2).**
+
+The agent tracks when its allow-list was last synced from the server. Before executing active enforcement, the enforcer checks the allow-list age. If the data is older than `allow_list_max_age` (default: 600 seconds, roughly 2x the default heartbeat interval), the enforcer downgrades that enforcement action to audit mode and logs a warning. This prevents false-positive kills against tools that were exempted on the server but haven't reached the agent yet.
+
+TCP agents are unaffected: they receive allow-list updates in real time via `POSTURE_PUSH`.
+
+| Component | Change |
+|-----------|--------|
+| `PostureManager` | Tracks `_allow_list_synced_at` (monotonic clock). Persists wall-clock equivalent in `posture.json` for restart recovery. Exposes `is_allow_list_fresh()` and `allow_list_age_seconds`. |
+| `Enforcer` | Before active enforcement, checks `is_allow_list_fresh()`. If stale, calls `_simulate()` and annotates the result with `[STALE ALLOW-LIST]`. |
+| `HeartbeatResponse` | Includes `allow_list_updated_at` (ISO-8601 timestamp of the most recent allow-list change for the tenant). |
+
+**Future enhancement (Option 3):** The server could return a shorter `recommended_interval` (e.g., 60s) for active-posture endpoints, reducing the staleness window. The agent would honor this by adjusting its heartbeat and scan loop. This is not implemented yet because the staleness gate already provides a safety net.
+
 ### Event Schema Extensions
 
 The canonical event schema (`schemas/event-schema.json`) needs these additions across phases:
