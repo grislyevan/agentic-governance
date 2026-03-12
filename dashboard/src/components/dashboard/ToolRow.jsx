@@ -99,8 +99,8 @@ export default function ToolRow({ tool }) {
           focus:outline-none focus:ring-1 focus:ring-detec-primary-500/50 focus:ring-inset
         `}
       >
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-2.5">
+        <td className="px-3 sm:px-4 py-3">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             <span className="w-8 h-8 rounded-lg bg-detec-slate-800 border border-detec-slate-700 flex items-center justify-center text-sm">
               {icon}
             </span>
@@ -125,7 +125,7 @@ export default function ToolRow({ tool }) {
           </div>
         </td>
 
-        <td className="px-4 py-3">
+        <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
           <div className="text-sm text-detec-slate-300">
             {tool.rule_id || tool.policyLabel}
             {policyTime && (
@@ -139,7 +139,7 @@ export default function ToolRow({ tool }) {
           )}
         </td>
 
-        <td className="px-4 py-3">
+        <td className="px-3 sm:px-4 py-3 hidden lg:table-cell">
           <div className="text-sm text-detec-slate-400">
             {tool.summary || (tool.reason_codes?.length ? tool.reason_codes[0] : 'N/A')}
           </div>
@@ -161,7 +161,7 @@ export default function ToolRow({ tool }) {
           </div>
         </td>
 
-        <td className="px-3 py-3">
+        <td className="px-2 sm:px-3 py-3">
           <div className="relative" ref={menuRef}>
             <button
               onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}

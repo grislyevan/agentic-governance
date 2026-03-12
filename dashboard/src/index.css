@@ -3,12 +3,18 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    overflow-x: hidden;
+  }
+
   body {
     @apply m-0 font-sans bg-detec-slate-900 text-detec-slate-100 leading-relaxed antialiased;
+    overflow-x: hidden;
   }
 
   #root {
     @apply min-h-screen;
+    min-width: 0;
   }
 }
 

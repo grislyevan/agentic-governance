@@ -61,7 +61,7 @@ function EventDetailPanel({ event, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-lg h-full bg-detec-slate-900 border-l border-detec-slate-700 overflow-y-auto">
+      <div className="relative w-full sm:max-w-md lg:max-w-lg h-full bg-detec-slate-900 border-l border-detec-slate-700 overflow-y-auto">
         <div className="sticky top-0 bg-detec-slate-900 border-b border-detec-slate-700 px-5 py-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-detec-slate-200">Event Detail</h2>
           <button onClick={onClose} className="text-detec-slate-500 hover:text-detec-slate-300">
@@ -158,10 +158,10 @@ export default function EventsPage({ searchQuery }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-detec-slate-100">Events</h1>
+    <div className="space-y-4 min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+          <h1 className="text-xl sm:text-2xl font-bold text-detec-slate-100">Events</h1>
           <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
         </div>
         {loading && <ApertureSpinner size="sm" label="Loading events" />}
@@ -172,7 +172,7 @@ export default function EventsPage({ searchQuery }) {
         <select
           value={decisionFilter}
           onChange={e => { setDecisionFilter(e.target.value); setPage(1); }}
-          className="bg-detec-slate-800 border border-detec-slate-700 rounded-lg px-3 py-1.5 text-xs text-detec-slate-300 focus:outline-none focus:border-detec-primary-500/50"
+          className="bg-detec-slate-800 border border-detec-slate-700 rounded-lg px-3 py-3 sm:py-1.5 text-xs text-detec-slate-300 focus:outline-none focus:border-detec-primary-500/50 min-h-[44px] sm:min-h-0"
         >
           <option value="">All decisions</option>
           <option value="allow">Allow</option>
@@ -186,7 +186,7 @@ export default function EventsPage({ searchQuery }) {
           value={toolFilter}
           onChange={e => { setToolFilter(e.target.value); setPage(1); }}
           placeholder="Filter by tool name"
-          className="bg-detec-slate-800 border border-detec-slate-700 rounded-lg px-3 py-1.5 text-xs text-detec-slate-300 placeholder:text-detec-slate-600 focus:outline-none focus:border-detec-primary-500/50 w-44"
+          className="bg-detec-slate-800 border border-detec-slate-700 rounded-lg px-3 py-3 sm:py-1.5 text-xs text-detec-slate-300 placeholder:text-detec-slate-600 focus:outline-none focus:border-detec-primary-500/50 w-full sm:w-44 min-h-[44px] sm:min-h-0"
         />
 
         {(decisionFilter || toolFilter) && (
@@ -226,17 +226,17 @@ export default function EventsPage({ searchQuery }) {
       )}
 
       {events.length > 0 && (
-        <div className="rounded-xl border border-detec-slate-700/50 overflow-hidden">
-          <table className="w-full text-left" aria-label="Detection events">
+        <div className="rounded-xl border border-detec-slate-700/50 overflow-x-auto overflow-hidden">
+          <table className="w-full text-left min-w-[640px]" aria-label="Detection events">
             <thead>
               <tr className="bg-detec-slate-800/80 border-b border-detec-slate-700/50">
-                <th className="px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Time</th>
-                <th className="px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Type</th>
-                <th className="px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Tool</th>
-                <th className="px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Class</th>
-                <th className="px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Decision</th>
-                <th className="px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Confidence</th>
-                <th className="px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Severity</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Time</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Type</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider hidden md:table-cell">Tool</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider hidden lg:table-cell">Class</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Decision</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Confidence</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider hidden md:table-cell">Severity</th>
               </tr>
             </thead>
             <tbody>
@@ -246,25 +246,25 @@ export default function EventsPage({ searchQuery }) {
                   onClick={() => setSelectedEvent(ev)}
                   className="border-b border-detec-slate-700/40 hover:bg-detec-slate-800/40 cursor-pointer"
                 >
-                  <td className="px-4 py-3 text-sm text-detec-slate-400 whitespace-nowrap tabular-nums">
+                  <td className="px-3 sm:px-4 py-3 text-sm text-detec-slate-400 whitespace-nowrap tabular-nums">
                     {new Date(ev.observed_at).toLocaleString()}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 sm:px-4 py-3">
                     <span className="text-xs font-mono text-detec-slate-300">{ev.event_type}</span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-detec-slate-200 font-medium">
+                  <td className="px-3 sm:px-4 py-3 text-sm text-detec-slate-200 font-medium hidden md:table-cell">
                     {ev.tool_name || <span className="text-detec-slate-600">-</span>}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 sm:px-4 py-3 hidden lg:table-cell">
                     <span className="text-xs font-mono text-detec-slate-400">{ev.tool_class || '-'}</span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 sm:px-4 py-3">
                     <DecisionBadge state={ev.decision_state} />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 sm:px-4 py-3">
                     <ConfidenceMeter value={ev.attribution_confidence} />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
                     <SeverityBadge level={ev.severity_level} />
                   </td>
                 </tr>
@@ -279,7 +279,7 @@ export default function EventsPage({ searchQuery }) {
           <button
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="px-3 py-1.5 text-sm text-detec-slate-400 hover:text-detec-slate-200 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="px-4 py-3 sm:py-1.5 text-sm text-detec-slate-400 hover:text-detec-slate-200 disabled:opacity-30 disabled:cursor-not-allowed min-h-[44px] sm:min-h-0"
           >
             Previous
           </button>
@@ -289,7 +289,7 @@ export default function EventsPage({ searchQuery }) {
           <button
             onClick={() => setPage(p => p + 1)}
             disabled={page >= totalPages}
-            className="px-3 py-1.5 text-sm text-detec-slate-400 hover:text-detec-slate-200 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="px-4 py-3 sm:py-1.5 text-sm text-detec-slate-400 hover:text-detec-slate-200 disabled:opacity-30 disabled:cursor-not-allowed min-h-[44px] sm:min-h-0"
           >
             Next
           </button>

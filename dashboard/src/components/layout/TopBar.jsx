@@ -9,7 +9,7 @@ const TOP_NAV = [
   { id: 'admin', label: 'Admin' },
 ];
 
-export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, alertCount = 0 }) {
+export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, alertCount = 0, onMenuClick }) {
   const { user, logout } = useAuth();
   const [searchValue, setSearchValue] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -42,9 +42,17 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
   const initials = [user?.first_name?.[0], user?.last_name?.[0]].filter(Boolean).join('').toUpperCase() || '?';
 
   return (
-    <header className="h-14 bg-detec-slate-900 border-b border-detec-slate-700/50 flex items-center justify-between px-6 shrink-0">
-      <nav className="flex items-center gap-1" aria-label="Section navigation">
-        {TOP_NAV.map((item) => {
+    <header className="h-14 bg-detec-slate-900 border-b border-detec-slate-700/50 flex items-center justify-between gap-3 px-4 sm:px-6 shrink-0 min-h-[44px]">
+      <div className="flex items-center gap-2 min-w-0">
+        <button
+          onClick={onMenuClick}
+          className="lg:hidden p-2.5 -ml-1 text-detec-slate-400 hover:text-detec-slate-200 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+          aria-label="Open menu"
+        >
+          <MenuIcon />
+        </button>
+        <nav className="hidden lg:flex items-center gap-1" aria-label="Section navigation">
+          {TOP_NAV.map((item) => {
           const active = activePage === item.id;
           return (
             <button
@@ -63,9 +71,10 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
             </button>
           );
         })}
-      </nav>
+        </nav>
+      </div>
 
-      <div className="flex items-center gap-3 flex-1 max-w-md mx-6">
+      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 max-w-md lg:mx-6">
         <div className="relative flex-1">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-detec-slate-500" />
           <input
@@ -79,16 +88,16 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
         </div>
         <button
           onClick={onRefresh}
-          className="p-1.5 bg-detec-slate-800 border border-detec-slate-700 rounded-lg text-detec-slate-400 hover:text-detec-slate-200 transition-colors"
+          className="p-2.5 sm:p-1.5 bg-detec-slate-800 border border-detec-slate-700 rounded-lg text-detec-slate-400 hover:text-detec-slate-200 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center shrink-0"
           title="Refresh data"
         >
           <RefreshIcon />
         </button>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1 sm:gap-3 shrink-0">
         <button
-          className="relative p-1.5 text-detec-slate-400 hover:text-detec-slate-200 transition-colors"
+          className="relative p-2.5 sm:p-1.5 text-detec-slate-400 hover:text-detec-slate-200 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
           aria-label={`Notifications${alertCount > 0 ? `, ${alertCount} alerts` : ''}`}
           title={alertCount > 0 ? `${alertCount} alerts requiring attention` : 'No alerts'}
         >
@@ -106,13 +115,13 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
             aria-expanded={showUserMenu}
             aria-haspopup="true"
             aria-label="User menu"
-            className="flex items-center gap-2.5 pl-3 border-l border-detec-slate-700/50 cursor-pointer hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2 sm:gap-2.5 pl-2 sm:pl-3 border-l border-detec-slate-700/50 cursor-pointer hover:opacity-80 transition-opacity min-h-[44px] py-1"
           >
-            <div className="w-8 h-8 rounded-full bg-detec-primary-500/20 border border-detec-primary-500/30 flex items-center justify-center text-xs font-semibold text-detec-primary-400">
+            <div className="w-8 h-8 rounded-full bg-detec-primary-500/20 border border-detec-primary-500/30 flex items-center justify-center text-xs font-semibold text-detec-primary-400 shrink-0">
               {initials}
             </div>
-            <div className="text-right">
-              <div className="text-sm font-medium text-detec-slate-200 leading-tight">
+            <div className="text-right hidden sm:block">
+              <div className="text-sm font-medium text-detec-slate-200 leading-tight truncate max-w-[120px] lg:max-w-none">
                 {displayName}
               </div>
               <div className="text-xs text-detec-slate-500 leading-tight">
@@ -169,6 +178,16 @@ function BellIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
       <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
     </svg>
   );
 }

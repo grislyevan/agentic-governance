@@ -74,10 +74,10 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
   }, [updateFilters]);
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-detec-slate-100">Dashboard</h1>
+    <div className="space-y-5 min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+          <h1 className="text-xl sm:text-2xl font-bold text-detec-slate-100">Dashboard</h1>
           <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
         </div>
         {loading && <ApertureSpinner size="sm" label="Scanning" />}

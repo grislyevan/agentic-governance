@@ -123,7 +123,7 @@ export default function PostureSummaryWidget({ onPostureReset }) {
         </div>
 
         {/* Stat cards */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {POSTURE_CARDS.map((card) => {
             const count = data?.[card.key] ?? 0;
             const pct = data?.total ? Math.round((count / data.total) * 100) : 0;
@@ -202,9 +202,9 @@ export default function PostureSummaryWidget({ onPostureReset }) {
 
 function KillSwitchModal({ activeCount, onConfirm, onCancel, resetting }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onCancel}>
       <div
-        className="w-full max-w-md rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-6 shadow-2xl space-y-5"
+        className="w-full max-w-md rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-4 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-bold text-detec-slate-100">Reset All Endpoints to Passive</h2>

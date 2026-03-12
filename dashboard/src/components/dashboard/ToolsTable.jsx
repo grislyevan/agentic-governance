@@ -1,11 +1,11 @@
 import ToolRow from './ToolRow';
 
 const COLUMNS = [
-  { label: 'Tool', className: 'w-[220px]' },
-  { label: 'Confidence', className: 'w-[120px]' },
-  { label: 'Detected policy', className: '' },
-  { label: 'Triggered signal', className: '' },
-  { label: 'Actions', className: 'w-[260px]' },
+  { label: 'Tool', className: 'w-[180px] sm:w-[220px]' },
+  { label: 'Confidence', className: 'w-[100px] sm:w-[120px]' },
+  { label: 'Detected policy', className: 'hidden md:table-cell' },
+  { label: 'Triggered signal', className: 'hidden lg:table-cell' },
+  { label: 'Actions', className: 'w-[200px] lg:w-[260px]' },
   { label: '', className: 'w-10' },
 ];
 
@@ -29,8 +29,8 @@ export default function ToolsTable({ tools }) {
   }
 
   return (
-    <div className="rounded-xl border border-detec-slate-700/50 overflow-hidden">
-      <table className="w-full text-left" aria-label="Detected tools">
+    <div className="rounded-xl border border-detec-slate-700/50 overflow-x-auto overflow-hidden">
+      <table className="w-full text-left min-w-[640px]" aria-label="Detected tools">
         <thead>
           <tr className="bg-detec-slate-800/80 border-b border-detec-slate-700/50">
             {COLUMNS.map((col, i) => (

@@ -33,10 +33,10 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-detec-slate-100">Settings</h1>
+    <div className="space-y-6 min-w-0">
+      <h1 className="text-xl sm:text-2xl font-bold text-detec-slate-100">Settings</h1>
 
-      <div className="max-w-2xl space-y-6">
+      <div className="max-w-2xl space-y-6 w-full">
         <div className="rounded-xl border border-detec-slate-700/50 bg-detec-slate-800/50 p-5 space-y-4">
           <h2 className="text-sm font-semibold text-detec-slate-300 uppercase tracking-wider">
             API Connection
@@ -184,7 +184,7 @@ function AgentDownloadSection() {
         with zero manual setup after install.
       </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
         <label className="block space-y-1.5">
           <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">
             Platform
@@ -255,19 +255,19 @@ function AgentDownloadSection() {
         <h3 className="text-xs font-semibold text-detec-slate-400 uppercase tracking-wider">
           Email to User
         </h3>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <input
             type="email"
             value={enrollEmail}
             onChange={(e) => setEnrollEmail(e.target.value)}
             placeholder="user@company.com"
             spellCheck={false}
-            className="flex-1 bg-detec-slate-900 border border-detec-slate-700 rounded-lg px-3 py-2 text-sm text-detec-slate-200 font-mono placeholder:text-detec-slate-600 focus:outline-none focus:border-detec-primary-500/50 transition-colors"
+            className="flex-1 min-w-0 bg-detec-slate-900 border border-detec-slate-700 rounded-lg px-3 py-3 sm:py-2 text-sm text-detec-slate-200 font-mono placeholder:text-detec-slate-600 focus:outline-none focus:border-detec-primary-500/50 transition-colors min-h-[44px] sm:min-h-0"
           />
           <button
             onClick={handleEnroll}
             disabled={enrolling || !enrollEmail.trim()}
-            className="px-4 py-2 bg-detec-primary-600 hover:bg-detec-primary-500 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
+            className="px-4 py-3 sm:py-2 bg-detec-primary-600 hover:bg-detec-primary-500 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap min-h-[44px] sm:min-h-0"
           >
             {enrolling ? 'Sending...' : 'Send Download Link'}
           </button>
@@ -570,7 +570,7 @@ function TenantPostureSection() {
           )}
 
           {/* Three-state posture selector */}
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             {POSTURE_OPTIONS.map((opt) => {
               const selected = selectedPosture === opt.value;
               const disabled = opt.ownerOnly && !isOwner;
@@ -690,9 +690,9 @@ function ConfirmActiveTenantModal({ endpointCount, threshold, confirmInput, onIn
   const confirmed = confirmInput === CONFIRM_PHRASE;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onCancel}>
       <div
-        className="w-full max-w-lg rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-6 shadow-2xl space-y-5"
+        className="w-full max-w-lg rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-4 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-bold text-detec-slate-100">Enable Active Enforcement for All Endpoints</h2>
@@ -708,7 +708,7 @@ function ConfirmActiveTenantModal({ endpointCount, threshold, confirmInput, onIn
         </div>
 
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             <div>
               <span className="text-detec-slate-500">Endpoints affected</span>
               <p className="text-detec-slate-200 font-mono">{endpointCount}</p>
@@ -919,9 +919,9 @@ function AllowListFormModal({ onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-6 shadow-2xl"
+        className="w-full max-w-md rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold text-detec-slate-100 mb-4">Add Allow-List Entry</h2>
@@ -1194,9 +1194,9 @@ function WebhookFormModal({ onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-6 shadow-2xl"
+        className="w-full max-w-md rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold text-detec-slate-100 mb-4">Add Webhook</h2>
@@ -1218,7 +1218,7 @@ function WebhookFormModal({ onClose, onSaved }) {
             <label className="block text-xs font-medium text-detec-slate-400 mb-2">
               Event types <span className="font-normal text-detec-slate-600">(leave empty for all)</span>
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {EVENT_TYPES.map((evt) => (
                 <label
                   key={evt}

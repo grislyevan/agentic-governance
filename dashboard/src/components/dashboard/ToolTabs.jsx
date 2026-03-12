@@ -14,8 +14,8 @@ export default function ToolTabs({ activeTab, onTabChange, counts, totalTools, o
   };
 
   return (
-    <div className="flex items-center justify-between border-b border-detec-slate-700/50">
-      <div className="flex items-center gap-0.5" role="tablist" aria-label="Tool filter tabs">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-detec-slate-700/50 pb-3 sm:pb-0">
+      <div className="flex flex-wrap items-center gap-0.5 overflow-x-auto -mx-1 px-1" role="tablist" aria-label="Tool filter tabs">
         {TABS.map((tab) => {
           const active = activeTab === tab.id;
           const count = tabCounts[tab.id] ?? 0;
@@ -26,7 +26,7 @@ export default function ToolTabs({ activeTab, onTabChange, counts, totalTools, o
               aria-selected={active}
               onClick={() => onTabChange(tab.id)}
               className={`
-                flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors
+                flex items-center gap-1.5 px-4 py-3 sm:py-2.5 text-sm font-medium border-b-2 transition-colors min-h-[44px] sm:min-h-0 shrink-0
                 ${active
                   ? 'border-detec-primary-500 text-detec-slate-100'
                   : 'border-transparent text-detec-slate-400 hover:text-detec-slate-300'
@@ -48,7 +48,7 @@ export default function ToolTabs({ activeTab, onTabChange, counts, totalTools, o
         })}
       </div>
 
-      <div className="flex items-center gap-4 text-sm">
+      <div className="flex items-center gap-3 sm:gap-4 text-sm flex-shrink-0">
         <button
           onClick={() => onNavigate?.('events')}
           className="text-detec-slate-400 hover:text-detec-slate-200 transition-colors flex items-center gap-1.5"

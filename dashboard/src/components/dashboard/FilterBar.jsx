@@ -41,8 +41,8 @@ export default function FilterBar({ endpoints = [], selectedEndpoint, onEndpoint
     : 'All Endpoints';
 
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         {/* Endpoint selector */}
         <div className="relative" ref={epRef}>
           <button
@@ -122,7 +122,7 @@ export default function FilterBar({ endpoints = [], selectedEndpoint, onEndpoint
       </div>
 
       <button
-        className="flex items-center gap-2 px-4 py-1.5 bg-detec-primary-500/15 border border-detec-primary-500/30 rounded-lg text-sm font-medium text-detec-primary-400 hover:bg-detec-primary-500/25 transition-colors opacity-50 cursor-not-allowed"
+        className="flex items-center justify-center gap-2 px-4 py-3 sm:py-1.5 bg-detec-primary-500/15 border border-detec-primary-500/30 rounded-lg text-sm font-medium text-detec-primary-400 hover:bg-detec-primary-500/25 transition-colors opacity-50 cursor-not-allowed min-h-[44px] sm:min-h-0 w-full sm:w-auto"
         title="Acknowledge functionality coming soon"
         disabled
       >

@@ -8,9 +8,29 @@ const NAV_ITEMS = [
   { id: 'admin', label: 'Admin', icon: AdminIcon },
 ];
 
-export default function Sidebar({ activePage, onNavigate, alertCount = 0 }) {
+export default function Sidebar({ activePage, onNavigate, alertCount = 0, isOpen = false, onClose }) {
+  const handleNav = (page) => {
+    onNavigate(page);
+    onClose?.();
+  };
+
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-60 bg-detec-slate-950 border-r border-detec-slate-700/50 flex flex-col z-30">
+    <>
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`
+          fixed left-0 top-0 bottom-0 w-60 bg-detec-slate-950 border-r border-detec-slate-700/50 flex flex-col z-50
+          transform transition-transform duration-200 ease-out
+          lg:translate-x-0 lg:z-30
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
       <div className="flex items-center gap-2.5 px-5 py-5 border-b border-detec-slate-700/50">
         <DetecLogo size="sm" markOnly />
         <span className="text-sm font-semibold text-detec-slate-100 leading-tight">
@@ -25,10 +45,10 @@ export default function Sidebar({ activePage, onNavigate, alertCount = 0 }) {
           return (
             <button
               key={item.id}
-              onClick={() => onNavigate(item.id)}
+              onClick={() => handleNav(item.id)}
               aria-current={active ? 'page' : undefined}
               className={`
-                w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium min-h-[44px]
                 transition-colors duration-150 text-left
                 ${active
                   ? 'bg-detec-primary-500/15 text-detec-primary-400'
@@ -48,10 +68,10 @@ export default function Sidebar({ activePage, onNavigate, alertCount = 0 }) {
 
       <div className="px-3 py-3 border-t border-detec-slate-700/50">
         <button
-          onClick={() => onNavigate('settings')}
+          onClick={() => handleNav('settings')}
           aria-current={activePage === 'settings' ? 'page' : undefined}
           className={`
-            w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+            w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium min-h-[44px]
             transition-colors duration-150 text-left
             ${activePage === 'settings'
               ? 'bg-detec-primary-500/15 text-detec-primary-400'
@@ -64,6 +84,7 @@ export default function Sidebar({ activePage, onNavigate, alertCount = 0 }) {
         </button>
       </div>
     </aside>
+    </>
   );
 }
 

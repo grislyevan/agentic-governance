@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import useAuth from './hooks/useAuth';
 import Sidebar from './components/layout/Sidebar';
@@ -28,6 +28,7 @@ export default function App() {
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [alertCount, setAlertCount] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const refreshRef = useRef(null);
 
   const activePage = PATH_TO_PAGE[location.pathname] || 'endpoints';
@@ -40,6 +41,10 @@ export default function App() {
     refreshRef.current?.();
   }, []);
 
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-detec-slate-900 flex flex-col items-center justify-center gap-3">
@@ -49,7 +54,7 @@ export default function App() {
     );
   }
 
-  if (location.pathname === '/set-password') {
+  if (location.pathname === '/set-password' || location.pathname === '/accept-invite') {
     return <SetPasswordPage onComplete={() => navigate('/')} />;
   }
 
@@ -66,18 +71,25 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen bg-detec-slate-900">
-      <Sidebar activePage={activePage} onNavigate={handleNavigate} alertCount={alertCount} />
+      <Sidebar
+        activePage={activePage}
+        onNavigate={handleNavigate}
+        alertCount={alertCount}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
-      <div className="flex flex-col flex-1 ml-60">
+      <div className="flex flex-col flex-1 lg:ml-60 min-w-0">
         <TopBar
           activePage={activePage}
           onNavigate={handleNavigate}
           onSearch={setSearchQuery}
           onRefresh={handleRefresh}
           alertCount={alertCount}
+          onMenuClick={() => setSidebarOpen(true)}
         />
 
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto overflow-x-hidden">
           <Routes>
             <Route path="/endpoints" element={<DashboardPage {...pageProps} />} />
             <Route path="/events" element={<EventsPage {...pageProps} />} />

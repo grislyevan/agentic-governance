@@ -158,6 +158,17 @@ export async function deleteUser(id) {
   return apiMutate('DELETE', `/users/${id}`);
 }
 
+export async function sendInvite({ email, role }) {
+  const localPart = (email || '').split('@')[0] || 'User';
+  const first_name = localPart.charAt(0).toUpperCase() + localPart.slice(1).replace(/[^a-zA-Z0-9]/g, '') || 'User';
+  return apiMutate('POST', '/users', {
+    first_name,
+    last_name: null,
+    email: email.trim(),
+    role: role || 'analyst',
+  });
+}
+
 // Auth: password reset + invite flows (unauthenticated)
 
 export async function forgotPassword(email) {

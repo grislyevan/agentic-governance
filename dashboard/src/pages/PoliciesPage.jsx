@@ -137,10 +137,10 @@ export default function PoliciesPage() {
   const groups = groupByCategory(policies);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-detec-slate-100">Policies</h1>
+    <div className="space-y-4 min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+          <h1 className="text-xl sm:text-2xl font-bold text-detec-slate-100">Policies</h1>
           <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
         </div>
         <div className="flex items-center gap-3">
@@ -456,9 +456,9 @@ function PolicyFormModal({ policy, onClose, onSaved, onError }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-lg rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold text-detec-slate-100 mb-4">
@@ -471,7 +471,7 @@ function PolicyFormModal({ policy, onClose, onSaved, onError }) {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-detec-slate-400 mb-1">Rule ID</label>
               <input
@@ -580,9 +580,9 @@ function PolicyFormModal({ policy, onClose, onSaved, onError }) {
 
 function ConfirmModal({ title, message, confirmLabel, confirmClass, onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onCancel}>
       <div
-        className="w-full max-w-sm rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-6 shadow-2xl"
+        className="w-full max-w-sm rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-4 sm:p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-base font-semibold text-detec-slate-100 mb-2">{title}</h3>

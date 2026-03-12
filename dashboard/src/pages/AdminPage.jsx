@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import useAuth from '../hooks/useAuth';
-import { fetchUsers, createUser, updateUser, deleteUser } from '../lib/api';
+import { fetchUsers, createUser, updateUser, deleteUser, sendInvite } from '../lib/api';
 
 const ROLE_BADGES = {
   owner:   'bg-amber-900/40 text-amber-400 border-amber-700/40',
@@ -53,24 +53,26 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-detec-slate-100">Users</h1>
+    <div className="space-y-4 min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-detec-slate-100">Users</h1>
         <button
           onClick={() => { setEditingUser(null); setShowForm(true); }}
-          className="rounded-lg bg-detec-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-detec-primary-500 transition-colors"
+          className="rounded-lg bg-detec-primary-600 px-4 py-3 sm:py-2 text-sm font-medium text-white hover:bg-detec-primary-500 transition-colors min-h-[44px] sm:min-h-0 w-full sm:w-auto"
         >
           Invite user
         </button>
       </div>
 
-      <div className="flex items-center gap-3">
+      <InviteMemberSection onInvited={loadUsers} />
+
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <input
           type="text"
           placeholder="Search by name or email..."
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          className="w-72 rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-2 text-sm text-detec-slate-200 placeholder-detec-slate-500 focus:border-detec-primary-500 focus:outline-none"
+          className="w-full sm:w-72 rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-3 sm:py-2 text-sm text-detec-slate-200 placeholder-detec-slate-500 focus:border-detec-primary-500 focus:outline-none min-h-[44px] sm:min-h-0"
         />
         <span className="text-xs text-detec-slate-500">{total} user{total !== 1 ? 's' : ''}</span>
       </div>
@@ -79,16 +81,16 @@ export default function AdminPage() {
         <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">{error}</div>
       )}
 
-      <div className="rounded-xl border border-detec-slate-700/60 bg-detec-slate-800/50 overflow-hidden">
-        <table className="w-full text-sm" aria-label="Users">
+      <div className="rounded-xl border border-detec-slate-700/60 bg-detec-slate-800/50 overflow-x-auto overflow-hidden">
+        <table className="w-full text-sm min-w-[640px]" aria-label="Users">
           <thead>
             <tr className="border-b border-detec-slate-700/40 text-left text-xs font-medium uppercase tracking-wider text-detec-slate-500">
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Created</th>
-              <th className="px-4 py-3 text-right">Actions</th>
+              <th className="px-3 sm:px-4 py-3">Name</th>
+              <th className="px-3 sm:px-4 py-3 hidden md:table-cell">Email</th>
+              <th className="px-3 sm:px-4 py-3">Role</th>
+              <th className="px-3 sm:px-4 py-3 hidden lg:table-cell">Status</th>
+              <th className="px-3 sm:px-4 py-3 hidden md:table-cell">Created</th>
+              <th className="px-3 sm:px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -164,6 +166,118 @@ export default function AdminPage() {
 }
 
 
+function InviteMemberSection({ onInvited }) {
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState('analyst');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    if (!email.trim()) {
+      setError('Email is required');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const result = await sendInvite({ email: email.trim(), role });
+      if (result.invite_token) {
+        const inviteUrl = `${window.location.origin}/accept-invite?token=${result.invite_token}`;
+        setSuccess({ email: result.email, inviteUrl });
+        setEmail('');
+        onInvited?.();
+      } else {
+        setSuccess({ email: result.email, inviteUrl: null });
+        setEmail('');
+        onInvited?.();
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!success?.inviteUrl) return;
+    try {
+      await navigator.clipboard.writeText(success.inviteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard API unavailable
+    }
+  };
+
+  const clearSuccess = () => setSuccess(null);
+
+  return (
+    <div className="rounded-xl border border-detec-slate-700/60 bg-detec-slate-800/50 p-5 space-y-4">
+      <h2 className="text-sm font-semibold text-detec-slate-300 uppercase tracking-wider">
+        Invite Member
+      </h2>
+      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-end gap-3">
+        <div className="flex-1 min-w-0 sm:min-w-[200px]">
+          <label className="block text-xs font-medium text-detec-slate-400 mb-1">Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); clearSuccess(); }}
+            placeholder="user@company.com"
+            className="w-full rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-2 text-sm text-detec-slate-200 placeholder-detec-slate-500 focus:border-detec-primary-500 focus:outline-none"
+          />
+        </div>
+        <div className="w-full sm:w-32">
+          <label className="block text-xs font-medium text-detec-slate-400 mb-1">Role</label>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="w-full rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-2 text-sm text-detec-slate-200 focus:border-detec-primary-500 focus:outline-none"
+          >
+            {ASSIGNABLE_ROLES.map((r) => (
+              <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+            ))}
+          </select>
+        </div>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="rounded-lg bg-detec-primary-600 px-4 py-3 sm:py-2 text-sm font-medium text-white hover:bg-detec-primary-500 disabled:opacity-50 transition-colors min-h-[44px] sm:min-h-0"
+        >
+          {submitting ? 'Sending...' : 'Send Invite'}
+        </button>
+      </form>
+      {error && (
+        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
+      )}
+      {success && (
+        <div className="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-400 space-y-2">
+          <span>Invite sent to {success.email}.</span>
+          {success.inviteUrl && (
+            <div className="flex items-center gap-2 mt-2">
+              <code className="flex-1 rounded bg-detec-slate-800 px-2 py-1 text-xs text-detec-slate-300 break-all">
+                {success.inviteUrl}
+              </code>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="shrink-0 rounded border border-detec-slate-700 px-2 py-1 text-xs text-detec-slate-400 hover:bg-detec-slate-800"
+              >
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function UserRow({ u, currentUser, onEdit, onToggleActive }) {
   const displayName = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email;
   const initials = [u.first_name?.[0], u.last_name?.[0]].filter(Boolean).join('').toUpperCase() || u.email[0].toUpperCase();
@@ -173,7 +287,7 @@ function UserRow({ u, currentUser, onEdit, onToggleActive }) {
 
   return (
     <tr className="border-b border-detec-slate-700/20 hover:bg-detec-slate-800/40 transition-colors">
-      <td className="px-4 py-3">
+      <td className="px-3 sm:px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-detec-slate-700 text-xs font-semibold text-detec-slate-300">
             {initials}
@@ -181,13 +295,13 @@ function UserRow({ u, currentUser, onEdit, onToggleActive }) {
           <span className="font-medium text-detec-slate-200">{displayName}</span>
         </div>
       </td>
-      <td className="px-4 py-3 text-detec-slate-400">{u.email}</td>
-      <td className="px-4 py-3">
+      <td className="px-3 sm:px-4 py-3 text-detec-slate-400 hidden md:table-cell">{u.email}</td>
+      <td className="px-3 sm:px-4 py-3">
         <span className={`inline-block rounded-md border px-2 py-0.5 text-xs font-medium ${ROLE_BADGES[u.role] || ROLE_BADGES.viewer}`}>
           {u.role}
         </span>
       </td>
-      <td className="px-4 py-3">
+      <td className="px-3 sm:px-4 py-3 hidden lg:table-cell">
         {!u.is_active ? (
           <span className="inline-flex items-center gap-1 text-xs text-detec-slate-500">
             <span className="h-1.5 w-1.5 rounded-full bg-detec-slate-600" />Inactive
@@ -202,10 +316,10 @@ function UserRow({ u, currentUser, onEdit, onToggleActive }) {
           </span>
         )}
       </td>
-      <td className="px-4 py-3 text-detec-slate-500 text-xs">
+      <td className="px-3 sm:px-4 py-3 text-detec-slate-500 text-xs hidden md:table-cell">
         {new Date(u.created_at).toLocaleDateString()}
       </td>
-      <td className="px-4 py-3 text-right">
+      <td className="px-3 sm:px-4 py-3 text-right">
         {!isOwner && !isSelf && (
           <div className="flex items-center justify-end gap-2">
             <button
@@ -281,7 +395,7 @@ function UserFormModal({ user, currentUser, onClose, onSaved, onError }) {
   };
 
   const inviteUrl = inviteResult
-    ? `${window.location.origin}/set-password?token=${inviteResult.invite_token}&purpose=invite`
+    ? `${window.location.origin}/accept-invite?token=${inviteResult.invite_token}`
     : null;
 
   const handleCopy = async () => {
@@ -297,9 +411,9 @@ function UserFormModal({ user, currentUser, onClose, onSaved, onError }) {
 
   if (inviteResult) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => { onSaved(); }}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={() => { onSaved(); }}>
         <div
-          className="w-full max-w-md rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-6 shadow-2xl space-y-4"
+          className="w-full max-w-md rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="text-center">
@@ -344,9 +458,9 @@ function UserFormModal({ user, currentUser, onClose, onSaved, onError }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-6 shadow-2xl"
+        className="w-full max-w-md rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold text-detec-slate-100 mb-4">
@@ -354,7 +468,7 @@ function UserFormModal({ user, currentUser, onClose, onSaved, onError }) {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-detec-slate-400 mb-1">First name</label>
               <input

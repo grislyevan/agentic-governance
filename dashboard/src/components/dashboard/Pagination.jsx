@@ -4,9 +4,9 @@ export default function Pagination({ page, pageSize, total, onPageChange, onPage
   const pages = buildPageNumbers(page, totalPages);
 
   return (
-    <div className="flex items-center justify-between text-sm">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm">
       {/* Left: total count */}
-      <div className="text-detec-slate-500">
+      <div className="text-detec-slate-500 order-2 sm:order-1">
         Tool Scanners <span className="text-detec-slate-400 font-medium">{total} total</span>
       </div>
 
@@ -88,7 +88,7 @@ function NavButton({ children, disabled, ...props }) {
     <button
       disabled={disabled}
       className={`
-        flex items-center h-8 px-1.5 rounded-md transition-colors
+        flex items-center justify-center min-h-[44px] min-w-[44px] sm:min-h-8 sm:min-w-0 sm:h-8 px-1.5 rounded-md transition-colors
         ${disabled
           ? 'text-detec-slate-700 cursor-not-allowed'
           : 'text-detec-slate-400 hover:text-detec-slate-200 hover:bg-detec-slate-800'

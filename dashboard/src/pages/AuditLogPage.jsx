@@ -162,29 +162,29 @@ export default function AuditLogPage() {
       )}
 
       {logs.length > 0 && (
-        <div className="rounded-xl border border-detec-slate-700/50 overflow-hidden">
-          <table className="w-full text-left" aria-label="Audit log entries">
+        <div className="rounded-xl border border-detec-slate-700/50 overflow-x-auto overflow-hidden">
+          <table className="w-full text-left min-w-[640px]" aria-label="Audit log entries">
             <thead>
               <tr className="bg-detec-slate-800/80 border-b border-detec-slate-700/50">
-                <th className="px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Time</th>
-                <th className="px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Action</th>
-                <th className="px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Actor</th>
-                <th className="px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Resource</th>
-                <th className="px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Details</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Time</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Action</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider hidden md:table-cell">Actor</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider hidden lg:table-cell">Resource</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">Details</th>
               </tr>
             </thead>
             <tbody>
               {logs.map((log) => (
                 <tr key={log.id} className="border-b border-detec-slate-700/40 hover:bg-detec-slate-800/40">
-                  <td className="px-4 py-3 text-sm text-detec-slate-400 whitespace-nowrap">
+                  <td className="px-3 sm:px-4 py-3 text-sm text-detec-slate-400 whitespace-nowrap">
                     {new Date(log.occurred_at).toLocaleString()}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 sm:px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium ${getActionBadgeClass(log.action)}`}>
                       {formatActionLabel(log.action)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-detec-slate-400">
+                  <td className="px-3 sm:px-4 py-3 text-sm text-detec-slate-400 hidden md:table-cell">
                     {log.actor_type === 'agent' ? (
                       <span className="inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 bg-detec-slate-700/50 border border-detec-slate-600/40">
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-detec-slate-500 shrink-0" aria-hidden="true">
@@ -201,11 +201,11 @@ export default function AuditLogPage() {
                       </>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-detec-slate-400">
+                  <td className="px-3 sm:px-4 py-3 text-sm text-detec-slate-400 hidden lg:table-cell">
                     {log.resource_type ? <span className="font-mono text-xs">{log.resource_type}</span> : null}
                     {log.resource_id ? <span className="text-detec-slate-600 ml-1">{log.resource_id.slice(0, 8)}</span> : null}
                   </td>
-                  <td className="px-4 py-3 text-sm text-detec-slate-500 max-w-xs">
+                  <td className="px-3 sm:px-4 py-3 text-sm text-detec-slate-500 max-w-xs">
                     {renderDetail(log.detail)}
                   </td>
                 </tr>

@@ -87,7 +87,7 @@ export default function EndpointContextBar({ endpointCount, endpoints, endpointS
   return (
     <div className="space-y-2">
       {/* Context bar */}
-      <div className="flex items-center gap-4 text-sm text-detec-slate-400 flex-wrap">
+      <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-detec-slate-400 flex-wrap">
         <span className="flex items-center gap-1.5">
           <span className="text-detec-slate-200 font-semibold">{endpointCount}</span>
           Endpoint{endpointCount !== 1 ? 's' : ''} Connected
@@ -245,7 +245,7 @@ function PosturePanel({ hostname, selectedPosture, selectedThreshold, onPostureC
       </div>
 
       {/* Three-state selector */}
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         {postureOptions.map((opt) => {
           const selected = selectedPosture === opt.value;
           const disabled = opt.ownerOnly && !isOwner;
@@ -325,9 +325,9 @@ function ConfirmActiveModal({ hostname, threshold, confirmInput, onInputChange, 
   const confirmed = confirmInput === hostname;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onCancel}>
       <div
-        className="w-full max-w-lg rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-6 shadow-2xl space-y-5"
+        className="w-full max-w-lg rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-4 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-bold text-detec-slate-100">Enable Active Enforcement</h2>
