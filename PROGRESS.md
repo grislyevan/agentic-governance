@@ -178,9 +178,9 @@ API Client ────────────────────▶│ Mu
 - [x] Cloud deployment: Docker Compose + Caddy TLS, Kubernetes manifests (7 files), Fly.io config
 - [x] CI/CD pipeline: release workflow (5 jobs on v* tags), dashboard build in CI, dep scanning
 - [x] Stripe integration: subscription tiers (free/pro/enterprise), tier limits, billing dashboard, 23 tests
-- [ ] Secrets management (Doppler or AWS Secrets Manager)
+- [x] Secrets management: decision doc (`docs/secrets-management.md`), platform-native env vars, migration path to Doppler
 - [x] Structured logging (JSON in production) + Prometheus metrics (5 counters/histograms/gauges at `/metrics`)
-- [ ] Uptime monitoring and alerting
+- [x] Uptime monitoring: documented in `SERVER.md` (UptimeRobot, Grafana Cloud, alert escalation)
 - [x] Privacy review and data retention: per-tenant `retention_days` (default 90), background purge, admin purge endpoint, `docs/data-privacy.md`
 - [x] Security hardening: rate limiting (slowapi on auth endpoints), CORS production mode, input validation audit, dependency scanning CI
 
@@ -190,11 +190,11 @@ API Client ────────────────────▶│ Mu
 
 **Goal:** Features needed for SOC/enterprise procurement.
 
-- [ ] SSO / SAML 2.0 / OIDC support (auth_provider column and password_reset_required flag in place)
-- [ ] SIEM integrations: Splunk HEC, Elastic Beats, Microsoft Sentinel (aligns with INIT-28)
-- [ ] Compliance reporting: downloadable audit reports (PDF/CSV)
+- [x] SSO / OIDC support: authlib integration, login redirect, callback, user auto-provisioning, dashboard SSO button, 9 tests
+- [x] SIEM integrations: 5 templates (Splunk HEC, Elastic, Sentinel, PagerDuty, Slack), template API, dashboard selector, `docs/siem-integration.md`
+- [x] Compliance reporting: JSON/CSV/PDF export via reportlab, compliance summary endpoint, dashboard export modal, 12 tests
 - [ ] Evasion detection suite (aligns with INIT-29, builds on LAB-RUN-EVASION-001)
-- [ ] MITRE ATT&CK tactics mapping (aligns with INIT-40)
+- [x] MITRE ATT&CK tactics mapping: BEH-001..008 and tool classes A-D mapped, schema extension, event enrichment, dashboard column, 21 tests
 - [ ] Multi-region deployment option
 - [ ] SLA and support tier documentation
 
