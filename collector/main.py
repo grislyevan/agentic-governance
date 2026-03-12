@@ -47,6 +47,7 @@ from output.http_emitter import HttpEmitter
 from output.tcp_emitter import TcpEmitter
 from agent.state import StateDiffer
 from scanner.base import ScanResult
+from scanner.ai_extensions import AIExtensionScanner
 from scanner.aider import AiderScanner
 from scanner.claude_code import ClaudeCodeScanner
 from scanner.cline import ClineScanner
@@ -524,6 +525,8 @@ def run_scan(
     args: argparse.Namespace,
     emitter: AnyEmitter | None = None,
     state_differ: StateDiffer | None = None,
+    posture_manager: PostureManager | None = None,
+    enforcer: Enforcer | None = None,
 ) -> int:
     """Execute the full scan pipeline.
 
@@ -535,7 +538,8 @@ def run_scan(
     When *emitter* is None the function creates a local EventEmitter
     (one-shot mode).  When provided (daemon mode) it uses the caller-
     supplied emitter and optionally a StateDiffer to suppress unchanged
-    detections.
+    detections.  When *posture_manager* and *enforcer* are provided (daemon
+    mode), they are reused; otherwise new instances are created per run.
     """
     session_id = str(uuid.uuid4())
     trace_id = f"trace-collector-{session_id[:8]}"
@@ -547,22 +551,30 @@ def run_scan(
     if own_emitter:
         emitter = EventEmitter(output_path=args.output, dry_run=args.dry_run)
 
-    posture_mgr = PostureManager(
-        initial_posture=getattr(args, "enforcement_posture", "passive"),
-        initial_threshold=getattr(args, "auto_enforce_threshold", 0.75),
-    )
-
-    if getattr(args, "enforce", False):
-        import warnings
-        warnings.warn(
-            "--enforce is deprecated and will be removed in a future release. "
-            "Use --posture active instead, or set posture from the central server.",
-            DeprecationWarning,
-            stacklevel=2,
+    if posture_manager is None:
+        posture_mgr = PostureManager(
+            initial_posture=getattr(args, "enforcement_posture", "passive"),
+            initial_threshold=getattr(args, "auto_enforce_threshold", 0.75),
         )
-        posture_mgr.update("active", source="cli_override")
+        if getattr(args, "enforce", False):
+            import warnings
+            warnings.warn(
+                "--enforce is deprecated and will be removed in a future release. "
+                "Use --posture active instead, or set posture from the central server.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            posture_mgr.update("active", source="cli_override")
+        elif "--posture" in sys.argv:
+            posture_mgr.update(
+                getattr(args, "enforcement_posture", "passive"),
+                source="cli_override",
+            )
+    else:
+        posture_mgr = posture_manager
 
-    enforcer = Enforcer(posture_manager=posture_mgr, dry_run=args.dry_run)
+    if enforcer is None:
+        enforcer = Enforcer(posture_manager=posture_mgr, dry_run=args.dry_run)
 
     network_allowlist = _load_network_allowlist(
         getattr(args, "network_allowlist_path", None)
@@ -592,6 +604,7 @@ def run_scan(
         ContinueScanner(event_store=event_store),
         GPTPilotScanner(event_store=event_store),
         ClineScanner(event_store=event_store),
+        AIExtensionScanner(event_store=event_store),
     ]
 
     # Poll telemetry before scan (PollingProvider populates event store on-demand)
@@ -752,6 +765,34 @@ def _run_daemon(args: argparse.Namespace) -> None:
     hostname = args.endpoint_id
     protocol = getattr(args, "protocol", "http")
 
+    posture_mgr = PostureManager(
+        initial_posture=getattr(args, "enforcement_posture", "passive"),
+        initial_threshold=getattr(args, "auto_enforce_threshold", 0.75),
+    )
+    if getattr(args, "enforce", False):
+        import warnings
+        warnings.warn(
+            "--enforce is deprecated and will be removed in a future release. "
+            "Use --posture active instead, or set posture from the central server.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        posture_mgr.update("active", source="cli_override")
+    elif "--posture" in sys.argv:
+        posture_mgr.update(
+            getattr(args, "enforcement_posture", "passive"),
+            source="cli_override",
+        )
+    enforcer = Enforcer(posture_manager=posture_mgr, dry_run=args.dry_run)
+
+    def _on_posture(posture: str, auto_enforce_threshold: float | None = None, allow_list: list[str] | None = None) -> None:
+        posture_mgr.update(
+            posture,
+            auto_enforce_threshold=auto_enforce_threshold,
+            allow_list=allow_list,
+            source="server_push",
+        )
+
     if protocol == "tcp":
         gateway_host = getattr(args, "gateway_host", None)
         gateway_port = getattr(args, "gateway_port", 8001)
@@ -778,9 +819,14 @@ def _run_daemon(args: argparse.Namespace) -> None:
             hostname=hostname,
             agent_version=EVENT_VERSION,
             tls=tls_enabled,
+            on_posture=_on_posture,
         )
     else:
-        emitter = HttpEmitter(api_url=args.api_url, api_key=args.api_key)
+        emitter = HttpEmitter(
+            api_url=args.api_url,
+            api_key=args.api_key,
+            on_posture=_on_posture,
+        )
 
     differ = StateDiffer(report_all=args.report_all)
 
@@ -816,7 +862,13 @@ def _run_daemon(args: argparse.Namespace) -> None:
         if flushed and args.verbose:
             print(f"Flushed {flushed} buffered events")
 
-        run_scan(args, emitter=emitter, state_differ=differ)
+        run_scan(
+            args,
+            emitter=emitter,
+            state_differ=differ,
+            posture_manager=posture_mgr,
+            enforcer=enforcer,
+        )
 
         if stop_event.wait(timeout=args.interval):
             break

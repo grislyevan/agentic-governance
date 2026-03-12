@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pytest
 
+from scanner.ai_extensions import AIExtensionScanner
 from scanner.aider import AiderScanner
 from scanner.claude_code import ClaudeCodeScanner
 from scanner.claude_cowork import ClaudeCoworkScanner
@@ -29,6 +30,7 @@ VALID_ACTION_RISKS = {"R1", "R2", "R3", "R4"}
 VALID_ACTION_TYPES = {"exec", "read", "write", "observe", "warn", "approval_required", "none", "removal"}
 
 ALL_SCANNERS: list[type[BaseScanner]] = [
+    AIExtensionScanner,
     AiderScanner,
     ClaudeCodeScanner,
     ClaudeCoworkScanner,
