@@ -152,6 +152,17 @@ class Settings(BaseSettings):
             and self.intune_client_secret
         )
 
+    # Stripe Billing
+    stripe_secret_key: str = ""
+    stripe_publishable_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_id_pro: str = ""
+    stripe_price_id_enterprise: str = ""
+
+    @property
+    def stripe_configured(self) -> bool:
+        return bool(self.stripe_secret_key and self.stripe_webhook_secret)
+
     @model_validator(mode="after")
     def _apply_default_database_url(self) -> "Settings":
         if not self.database_url:

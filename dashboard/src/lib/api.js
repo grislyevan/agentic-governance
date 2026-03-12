@@ -327,3 +327,27 @@ export async function deleteWebhook(id) {
 export async function testWebhook(id) {
   return apiMutate('POST', `/webhooks/${id}/test`);
 }
+
+// Billing
+
+export async function fetchBillingStatus() {
+  return apiFetch('/billing/status');
+}
+
+export async function fetchBillingTiers() {
+  return apiFetch('/billing/tiers');
+}
+
+export async function createCheckoutSession({ tier, successUrl, cancelUrl }) {
+  return apiMutate('POST', '/billing/checkout', {
+    tier,
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+  });
+}
+
+export async function createPortalSession({ returnUrl }) {
+  return apiMutate('POST', '/billing/portal', {
+    return_url: returnUrl,
+  });
+}

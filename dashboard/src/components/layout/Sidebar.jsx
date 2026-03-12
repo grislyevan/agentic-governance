@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react';
 import DetecLogo from '../branding/DetecLogo';
+import { fetchBillingStatus } from '../../lib/api';
 
 const NAV_ITEMS = [
   { id: 'endpoints', label: 'Endpoints', icon: EndpointsIcon },
@@ -8,7 +10,21 @@ const NAV_ITEMS = [
   { id: 'admin', label: 'Admin', icon: AdminIcon },
 ];
 
+const TIER_BADGE_COLORS = {
+  free: 'bg-detec-slate-700 text-detec-slate-400',
+  pro: 'bg-detec-primary-500/20 text-detec-primary-400',
+  enterprise: 'bg-amber-500/20 text-amber-400',
+};
+
 export default function Sidebar({ activePage, onNavigate, alertCount = 0, isOpen = false, onClose }) {
+  const [planTier, setPlanTier] = useState(null);
+
+  useEffect(() => {
+    fetchBillingStatus()
+      .then((data) => setPlanTier(data.tier))
+      .catch(() => {});
+  }, []);
+
   const handleNav = (page) => {
     onNavigate(page);
     onClose?.();
@@ -66,7 +82,27 @@ export default function Sidebar({ activePage, onNavigate, alertCount = 0, isOpen
         })}
       </nav>
 
-      <div className="px-3 py-3 border-t border-detec-slate-700/50">
+      <div className="px-3 py-3 border-t border-detec-slate-700/50 space-y-0.5">
+        <button
+          onClick={() => handleNav('billing')}
+          aria-current={activePage === 'billing' ? 'page' : undefined}
+          className={`
+            w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium min-h-[44px]
+            transition-colors duration-150 text-left
+            ${activePage === 'billing'
+              ? 'bg-detec-primary-500/15 text-detec-primary-400'
+              : 'text-detec-slate-400 hover:text-detec-slate-200 hover:bg-detec-slate-800/60'
+            }
+          `}
+        >
+          <BillingIcon active={activePage === 'billing'} />
+          <span>Billing</span>
+          {planTier && (
+            <span className={`ml-auto px-1.5 py-0.5 rounded text-[10px] font-medium uppercase ${TIER_BADGE_COLORS[planTier] || TIER_BADGE_COLORS.free}`}>
+              {planTier}
+            </span>
+          )}
+        </button>
         <button
           onClick={() => handleNav('settings')}
           aria-current={activePage === 'settings' ? 'page' : undefined}
@@ -132,6 +168,15 @@ function AdminIcon({ active }) {
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
       <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function BillingIcon({ active }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={active ? 'text-detec-primary-400' : 'text-detec-slate-400'}>
+      <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+      <line x1="1" y1="10" x2="23" y2="10" />
     </svg>
   );
 }
