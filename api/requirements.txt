@@ -19,6 +19,6 @@ stripe>=8.0.0
 authlib>=1.3.0
 reportlab>=4.0
 # PostgreSQL support (only needed if using PostgreSQL instead of SQLite):
-# pip install psycopg2-binary>=2.9.9
+psycopg2-binary>=2.9.9
 # Windows Service support (only needed on Windows):
 # pip install pywin32

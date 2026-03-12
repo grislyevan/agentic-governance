@@ -25,7 +25,7 @@ def upgrade() -> None:
         sa.Column("url", sa.String(2048), nullable=False),
         sa.Column("secret", sa.String(128), nullable=False),
         sa.Column("events", sa.Text, nullable=False, server_default="[]"),
-        sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("1")),
+        sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )

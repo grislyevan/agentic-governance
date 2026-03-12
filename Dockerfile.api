@@ -6,6 +6,7 @@ COPY api/requirements.txt api/requirements.lock* ./
 RUN pip install --no-cache-dir -r $([ -f requirements.lock ] && echo requirements.lock || echo requirements.txt)
 
 COPY api/ .
+COPY protocol/ ./protocol/
 COPY dashboard/dist ./dashboard/dist
 
 RUN chmod +x entrypoint.sh
