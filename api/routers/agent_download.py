@@ -13,6 +13,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import os
 import struct
 import sys
 import zipfile
@@ -45,7 +46,8 @@ if getattr(sys, "frozen", False):
 else:
     _APP_ROOT = Path(__file__).resolve().parent.parent.parent
 
-_DIST_DIR = _APP_ROOT / "dist" / "packages"
+_dist_override = os.environ.get("AGENT_PACKAGES_DIR")
+_DIST_DIR = Path(_dist_override) if _dist_override else _APP_ROOT / "dist" / "packages"
 
 _PLATFORM_PACKAGES: dict[str, list[str]] = {
     "macos": ["DetecAgent-latest.pkg", "DetecAgent.pkg"],

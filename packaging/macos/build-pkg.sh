@@ -136,10 +136,18 @@ LATEST_PKG="$PROJECT_ROOT/dist/DetecAgent-latest.pkg"
 cp "$FINAL_PKG" "$LATEST_PKG"
 echo "  Latest alias: $LATEST_PKG"
 
+# ---- Copy to dist/packages/ for the API download endpoint ----
+PACKAGES_DIR="$PROJECT_ROOT/dist/packages"
+mkdir -p "$PACKAGES_DIR"
+cp "$FINAL_PKG" "$PACKAGES_DIR/"
+cp "$LATEST_PKG" "$PACKAGES_DIR/"
+echo "  API download dir: $PACKAGES_DIR/"
+
 echo ""
 echo "=== Package build complete ==="
 echo "Installer: $FINAL_PKG"
 echo "Latest:    $LATEST_PKG"
+echo "API ready: $PACKAGES_DIR/DetecAgent-latest.pkg"
 echo ""
 echo "To install locally:  sudo installer -pkg \"$FINAL_PKG\" -target /"
 echo "To deploy via MDM:   Upload $FINAL_PKG to Jamf Pro or Endpoint Central"

@@ -25,11 +25,14 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    volumes:
+      - ./dist/packages:/data/packages:ro
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-agentic_governance}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Set SEED_ADMIN_PASSWORD in .env}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost:3001}
+      AGENT_PACKAGES_DIR: /data/packages
     depends_on:
       db:
         condition: service_healthy
