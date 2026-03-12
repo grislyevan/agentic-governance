@@ -18,6 +18,8 @@ import threading
 import time
 from typing import Any, Callable
 
+PostureCallback = Callable[[str, float | None, list[str] | None], None]
+
 from collector.agent.buffer import LocalBuffer
 
 from protocol.wire import MessageType, FrameReader, encode_frame
@@ -69,6 +71,7 @@ class TcpEmitter:
         tls_ca: str | None = None,
         on_command: Callable[[str, str, dict], None] | None = None,
         on_policy: Callable[[list[dict]], None] | None = None,
+        on_posture: PostureCallback | None = None,
     ) -> None:
         self._host = gateway_host
         self._port = gateway_port
@@ -82,6 +85,7 @@ class TcpEmitter:
 
         self._on_command = on_command
         self._on_policy = on_policy
+        self._on_posture = on_posture
 
         self._send_queue: queue.Queue[_QueueItem] = queue.Queue(maxsize=5000)
         self._sent = 0
@@ -237,6 +241,7 @@ class TcpEmitter:
             label=f"agent:{self._hostname}",
             on_command=self._on_command,
             on_policy=self._on_policy,
+            on_posture=self._on_posture,
         )
 
         msg = auth_msg(self._api_key, self._hostname, self._agent_version, seq=conn.next_seq())
@@ -314,7 +319,29 @@ class TcpEmitter:
                     logger.warning("TcpEmitter: NACK seq=%s: %s", f.get("seq_id"), f.get("reason"))
 
             elif msg_type == MessageType.HEARTBEAT_ACK:
-                logger.debug("TcpEmitter: heartbeat ack, status=%s", msg.get("p", {}).get("endpoint_status"))
+                p = msg.get("p", {})
+                logger.debug("TcpEmitter: heartbeat ack, status=%s", p.get("endpoint_status"))
+                posture = p.get("enforcement_posture")
+                if posture is not None and self._on_posture:
+                    threshold = p.get("auto_enforce_threshold")
+                    allow_list = p.get("allow_list")
+                    self._on_posture(
+                        posture,
+                        float(threshold) if threshold is not None else None,
+                        allow_list if isinstance(allow_list, list) else None,
+                    )
+
+            elif msg_type == MessageType.POSTURE_PUSH:
+                p = msg.get("p", {})
+                if self._on_posture:
+                    posture = p.get("posture", "passive")
+                    threshold = p.get("auto_enforce_threshold")
+                    allow_list = p.get("allow_list")
+                    self._on_posture(
+                        posture,
+                        float(threshold) if threshold is not None else None,
+                        allow_list if isinstance(allow_list, list) else None,
+                    )
 
             elif msg_type == MessageType.POLICY_PUSH:
                 await conn.handle_message(msg)
@@ -367,6 +394,7 @@ class _AgentConnection(BaseConnection):
         label: str,
         on_command: Callable[[str, str, dict], None] | None = None,
         on_policy: Callable[[list[dict]], None] | None = None,
+        on_posture: Callable | None = None,
         **kwargs,
     ) -> None:
         super().__init__(reader, writer, label=label, **kwargs)
@@ -374,6 +402,7 @@ class _AgentConnection(BaseConnection):
         self.endpoint_id: str | None = None
         self._on_command = on_command
         self._on_policy = on_policy
+        self._on_posture = on_posture
 
     async def handle_message(self, msg: dict[str, Any]) -> None:
         msg_type = msg.get("t")
@@ -383,6 +412,19 @@ class _AgentConnection(BaseConnection):
             logger.info("Received policy push with %d rules", len(rules))
             if self._on_policy:
                 self._on_policy(rules)
+
+        elif msg_type == MessageType.POSTURE_PUSH:
+            p = msg.get("p", {})
+            logger.info("Received posture push: %s", p.get("posture"))
+            if self._on_posture:
+                posture = p.get("posture", "passive")
+                threshold = p.get("auto_enforce_threshold")
+                allow_list = p.get("allow_list")
+                self._on_posture(
+                    posture,
+                    float(threshold) if threshold is not None else None,
+                    allow_list if isinstance(allow_list, list) else None,
+                )
 
         elif msg_type == MessageType.COMMAND:
             payload = msg.get("p", {})

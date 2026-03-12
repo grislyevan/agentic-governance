@@ -36,6 +36,7 @@ def upgrade() -> None:
         sa.Column("description", sa.String(512), nullable=True),
         sa.Column("created_by", sa.String(36), sa.ForeignKey("users.id"), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.UniqueConstraint("tenant_id", "pattern", "pattern_type", name="uq_allow_list_tenant_pattern_type"),
     )
 
 

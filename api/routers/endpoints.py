@@ -19,6 +19,7 @@ from core.audit_logger import record as audit_record
 from core.config import settings
 from core.database import get_db
 from core.tenant import get_tenant_id as _get_tenant_id, resolve_auth, require_role, get_tenant_filter
+from models.allow_list import AllowListEntry
 from models.endpoint import (
     ENDPOINT_STATUS_ACTIVE,
     Endpoint,
@@ -136,6 +137,7 @@ class HeartbeatResponse(BaseModel):
     next_expected_in: int
     enforcement_posture: str = "passive"
     auto_enforce_threshold: float = 0.75
+    allow_list: list[str] = Field(default_factory=list)
 
 
 @router.post("/heartbeat", response_model=HeartbeatResponse, tags=["heartbeat"])
@@ -192,6 +194,10 @@ def heartbeat(
     db.commit()
     db.refresh(endpoint)
 
+    allow_list = [
+        e.pattern for e in db.query(AllowListEntry).filter(AllowListEntry.tenant_id == endpoint.tenant_id).all()
+    ]
+
     return HeartbeatResponse(
         status="ok",
         endpoint_id=endpoint.id,
@@ -199,6 +205,7 @@ def heartbeat(
         next_expected_in=body.interval_seconds,
         enforcement_posture=endpoint.enforcement_posture,
         auto_enforce_threshold=endpoint.auto_enforce_threshold,
+        allow_list=allow_list,
     )
 
 

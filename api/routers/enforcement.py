@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from core.audit_logger import record as audit_record
 from core.config import settings
-from core.database import get_db
+from core.database import get_db, SessionLocal
 from core.tenant import resolve_auth, require_role, get_tenant_filter
 from models.allow_list import AllowListEntry
 from models.endpoint import Endpoint
@@ -55,6 +55,38 @@ async def _push_posture_to_agent(
             logger.info("Pushed posture %s to endpoint %s via TCP", posture, endpoint_id)
     except Exception:
         logger.debug("Could not push posture to %s (not connected via TCP)", endpoint_id)
+
+
+async def _push_tenant_posture_to_tcp(
+    request: Request,
+    tenant_id: str,
+    posture: str,
+    threshold: float,
+) -> None:
+    """Push posture to all TCP-connected agents for the tenant."""
+    gateway = getattr(request.app.state, "gateway", None)
+    if not gateway:
+        return
+    db = SessionLocal()
+    try:
+        allow_list = [
+            e.pattern for e in db.query(AllowListEntry).filter(AllowListEntry.tenant_id == tenant_id).all()
+        ]
+        endpoints = db.query(Endpoint).filter(Endpoint.tenant_id == tenant_id).all()
+        for ep in endpoints:
+            try:
+                sent = await gateway.push_posture(
+                    endpoint_id=ep.id,
+                    posture=posture,
+                    auto_enforce_threshold=threshold,
+                    allow_list=allow_list,
+                )
+                if sent:
+                    logger.info("Pushed posture %s to endpoint %s via TCP", posture, ep.id)
+            except Exception:
+                logger.debug("Could not push posture to %s", ep.id)
+    finally:
+        db.close()
 
 
 # -- Schemas ----------------------------------------------------------------
@@ -111,7 +143,7 @@ class AllowListEntryResponse(BaseModel):
 
 
 class AllowListEntryCreate(BaseModel):
-    pattern: str = Field(..., min_length=1, max_length=512)
+    pattern: str = Field(..., min_length=3, max_length=512)
     pattern_type: str = Field(default="name", pattern="^(name|path|hash)$")
     description: str | None = Field(default=None, max_length=512)
 
@@ -143,7 +175,7 @@ async def set_endpoint_posture(
 
     ep = db.query(Endpoint).filter(
         Endpoint.id == endpoint_id,
-        get_tenant_filter(Endpoint, auth),
+        get_tenant_filter(auth, Endpoint),
     ).first()
     if not ep:
         raise HTTPException(status_code=404, detail="Endpoint not found")
@@ -155,12 +187,12 @@ async def set_endpoint_posture(
 
     audit_record(
         db,
-        tenant_id=auth["tenant_id"],
-        user_id=auth.get("user_id"),
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
         action="enforcement.posture_changed",
         resource_type="endpoint",
         resource_id=endpoint_id,
-        details={
+        detail={
             "old_posture": old_posture,
             "new_posture": body.enforcement_posture,
             "auto_enforce_threshold": ep.auto_enforce_threshold,
@@ -171,12 +203,16 @@ async def set_endpoint_posture(
     db.commit()
     db.refresh(ep)
 
+    allow_list = [
+        e.pattern for e in db.query(AllowListEntry).filter(AllowListEntry.tenant_id == auth.tenant_id).all()
+    ]
     background_tasks.add_task(
         _push_posture_to_agent,
         request,
         endpoint_id,
         ep.enforcement_posture,
         ep.auto_enforce_threshold,
+        allow_list,
     )
 
     return PostureResponse(
@@ -192,6 +228,7 @@ async def set_endpoint_posture(
 def set_tenant_posture(
     request: Request,
     body: TenantPostureUpdate,
+    background_tasks: BackgroundTasks,
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
     db: Session = Depends(get_db),
@@ -200,7 +237,7 @@ def set_tenant_posture(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner")
 
-    tenant_id = auth["tenant_id"]
+    tenant_id = auth.tenant_id
     threshold = body.auto_enforce_threshold or settings.default_auto_enforce_threshold
 
     updated = (
@@ -215,11 +252,11 @@ def set_tenant_posture(
     audit_record(
         db,
         tenant_id=tenant_id,
-        user_id=auth.get("user_id"),
+        actor_id=auth.user_id,
         action="enforcement.tenant_posture_changed",
         resource_type="tenant",
         resource_id=tenant_id,
-        details={
+        detail={
             "new_posture": body.enforcement_posture,
             "auto_enforce_threshold": threshold,
             "endpoints_updated": updated,
@@ -227,6 +264,14 @@ def set_tenant_posture(
     )
 
     db.commit()
+
+    background_tasks.add_task(
+        _push_tenant_posture_to_tcp,
+        request,
+        tenant_id,
+        body.enforcement_posture,
+        threshold,
+    )
 
     return TenantPostureResponse(
         updated=updated,
@@ -247,7 +292,7 @@ def posture_summary(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin", "analyst")
 
-    tenant_id = auth["tenant_id"]
+    tenant_id = auth.tenant_id
     rows = (
         db.query(Endpoint.enforcement_posture, func.count(Endpoint.id))
         .filter(Endpoint.tenant_id == tenant_id)
@@ -280,7 +325,7 @@ def list_allow_list(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin", "analyst")
 
-    tenant_id = auth["tenant_id"]
+    tenant_id = auth.tenant_id
     entries = (
         db.query(AllowListEntry)
         .filter(AllowListEntry.tenant_id == tenant_id)
@@ -313,6 +358,7 @@ def list_allow_list(
 def create_allow_list_entry(
     request: Request,
     body: AllowListEntryCreate,
+    background_tasks: BackgroundTasks,
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
     db: Session = Depends(get_db),
@@ -321,25 +367,25 @@ def create_allow_list_entry(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
 
-    tenant_id = auth["tenant_id"]
+    tenant_id = auth.tenant_id
     entry = AllowListEntry(
         id=str(uuid.uuid4()),
         tenant_id=tenant_id,
         pattern=body.pattern,
         pattern_type=body.pattern_type,
         description=body.description,
-        created_by=auth.get("user_id"),
+        created_by=auth.user_id,
     )
     db.add(entry)
 
     audit_record(
         db,
         tenant_id=tenant_id,
-        user_id=auth.get("user_id"),
+        actor_id=auth.user_id,
         action="enforcement.allow_list_added",
         resource_type="allow_list_entry",
         resource_id=entry.id,
-        details={
+        detail={
             "pattern": body.pattern,
             "pattern_type": body.pattern_type,
         },
@@ -347,6 +393,20 @@ def create_allow_list_entry(
 
     db.commit()
     db.refresh(entry)
+
+    allow_list = [
+        e.pattern for e in db.query(AllowListEntry).filter(AllowListEntry.tenant_id == tenant_id).all()
+    ]
+    endpoints = db.query(Endpoint).filter(Endpoint.tenant_id == tenant_id).all()
+    for ep in endpoints:
+        background_tasks.add_task(
+            _push_posture_to_agent,
+            request,
+            ep.id,
+            ep.enforcement_posture,
+            ep.auto_enforce_threshold,
+            allow_list,
+        )
 
     return AllowListEntryResponse(
         id=entry.id,
@@ -366,6 +426,7 @@ def create_allow_list_entry(
 def delete_allow_list_entry(
     request: Request,
     entry_id: str,
+    background_tasks: BackgroundTasks,
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
     db: Session = Depends(get_db),
@@ -376,20 +437,34 @@ def delete_allow_list_entry(
 
     entry = db.query(AllowListEntry).filter(
         AllowListEntry.id == entry_id,
-        AllowListEntry.tenant_id == auth["tenant_id"],
+        AllowListEntry.tenant_id == auth.tenant_id,
     ).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Allow-list entry not found")
 
     audit_record(
         db,
-        tenant_id=auth["tenant_id"],
-        user_id=auth.get("user_id"),
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
         action="enforcement.allow_list_removed",
         resource_type="allow_list_entry",
         resource_id=entry_id,
-        details={"pattern": entry.pattern, "pattern_type": entry.pattern_type},
+        detail={"pattern": entry.pattern, "pattern_type": entry.pattern_type},
     )
 
     db.delete(entry)
     db.commit()
+
+    allow_list = [
+        e.pattern for e in db.query(AllowListEntry).filter(AllowListEntry.tenant_id == auth.tenant_id).all()
+    ]
+    endpoints = db.query(Endpoint).filter(Endpoint.tenant_id == auth.tenant_id).all()
+    for ep in endpoints:
+        background_tasks.add_task(
+            _push_posture_to_agent,
+            request,
+            ep.id,
+            ep.enforcement_posture,
+            ep.auto_enforce_threshold,
+            allow_list,
+        )

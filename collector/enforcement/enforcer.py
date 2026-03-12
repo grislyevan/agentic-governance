@@ -59,7 +59,7 @@ class Enforcer:
     def posture(self) -> str:
         if self._posture_mgr:
             return self._posture_mgr.posture
-        return "active" if not self._dry_run else "audit"
+        return "passive" if not self._dry_run else "audit"
 
     def enforce(
         self,

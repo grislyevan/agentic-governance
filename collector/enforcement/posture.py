@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -93,7 +94,7 @@ class PostureManager:
     def is_allow_listed(self, tool_name: str) -> bool:
         """Check if a tool name matches any allow-list pattern (case-insensitive substring)."""
         with self._lock:
-            patterns = self._allow_list
+            patterns = list(self._allow_list)
         name_lower = tool_name.lower()
         return any(p.lower() in name_lower for p in patterns)
 
@@ -115,5 +116,6 @@ class PostureManager:
                 "source": self._source,
             }
             self._path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            os.chmod(self._path, 0o600)
         except OSError as exc:
             logger.error("Could not save posture state to %s: %s", self._path, exc)

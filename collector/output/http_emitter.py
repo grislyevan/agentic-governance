@@ -25,7 +25,9 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+
+PostureCallback = Callable[[str, float | None, list[str] | None], None]
 
 from collector.agent.buffer import LocalBuffer
 
@@ -57,11 +59,13 @@ class HttpEmitter:
         timeout: int = _DEFAULT_TIMEOUT,
         buffer: LocalBuffer | None = None,
         sign_events: bool = True,
+        on_posture: PostureCallback | None = None,
     ) -> None:
         self._api_url = api_url.rstrip("/")
         self._api_key = api_key
         self._timeout = timeout
         self._buffer = buffer or LocalBuffer()
+        self._on_posture = on_posture
         self._ssl_ctx = ssl.create_default_context()
         self._sent = 0
         self._buffered = 0
@@ -210,6 +214,21 @@ class HttpEmitter:
             )
             with urllib.request.urlopen(req, timeout=self._timeout, context=self._ssl_ctx) as resp:
                 ok = resp.status in (200, 201, 202)
+                if ok and self._on_posture:
+                    body = resp.read().decode("utf-8")
+                    try:
+                        data = json.loads(body)
+                        posture = data.get("enforcement_posture")
+                        if posture is not None:
+                            threshold = data.get("auto_enforce_threshold")
+                            allow_list = data.get("allow_list")
+                            self._on_posture(
+                                posture,
+                                float(threshold) if threshold is not None else None,
+                                allow_list if isinstance(allow_list, list) else None,
+                            )
+                    except (json.JSONDecodeError, ValueError):
+                        pass
                 if not ok:
                     logger.warning("HttpEmitter: heartbeat returned HTTP %d", resp.status)
                 return ok

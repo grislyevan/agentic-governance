@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.database import Base
@@ -18,6 +18,7 @@ from core.database import Base
 
 class AllowListEntry(Base):
     __tablename__ = "allow_list_entries"
+    __table_args__ = (UniqueConstraint("tenant_id", "pattern", "pattern_type", name="uq_allow_list_tenant_pattern_type"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False, index=True)

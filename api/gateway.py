@@ -20,6 +20,7 @@ from sqlalchemy.exc import IntegrityError
 from core.config import settings
 from core.database import SessionLocal
 from core.event_validator import validate_event_payload
+from models.allow_list import AllowListEntry
 from models.endpoint import Endpoint, ENDPOINT_STATUS_ACTIVE
 from models.event import Event
 from models.user import User, verify_api_key, API_KEY_PREFIX_LEN
@@ -379,6 +380,8 @@ class AgentSession(BaseConnection):
         if posture_info:
             ack["p"]["enforcement_posture"] = posture_info.get("enforcement_posture", "passive")
             ack["p"]["auto_enforce_threshold"] = posture_info.get("auto_enforce_threshold", 0.75)
+            if "allow_list" in posture_info:
+                ack["p"]["allow_list"] = posture_info["allow_list"]
         await self.send(ack)
 
     def _update_heartbeat(self) -> dict[str, Any] | None:
@@ -390,9 +393,13 @@ class AgentSession(BaseConnection):
                 ep.last_seen_at = datetime.now(timezone.utc)
                 ep.status = ENDPOINT_STATUS_ACTIVE
                 db.commit()
+                allow_list = [
+                    e.pattern for e in db.query(AllowListEntry).filter(AllowListEntry.tenant_id == ep.tenant_id).all()
+                ]
                 return {
                     "enforcement_posture": ep.enforcement_posture,
                     "auto_enforce_threshold": ep.auto_enforce_threshold,
+                    "allow_list": allow_list,
                 }
             return None
         except Exception:
