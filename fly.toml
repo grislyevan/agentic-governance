@@ -1,0 +1,28 @@
+# Fly.io deployment for Detec API
+# Deploy: fly deploy
+# Database: Attach Fly Postgres with: fly postgres create --name detec-db
+#   Then: fly postgres attach detec-db
+#   Set secrets: fly secrets set JWT_SECRET=... SEED_ADMIN_PASSWORD=... ALLOWED_ORIGINS=...
+# Note: The TCP gateway (port 8001) is not exposed on Fly. Use HTTP transport for agents.
+
+app = "detec-api"
+
+[build]
+  dockerfile = "Dockerfile.api"
+
+[env]
+  ENV = "production"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "15s"
+    interval = "15s"
+    method = "GET"
+    path = "/api/health"
+    timeout = "5s"

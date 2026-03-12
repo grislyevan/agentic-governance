@@ -268,6 +268,79 @@ Run the API under a process manager that restarts on failure:
 
 ---
 
+## Production Deployment
+
+Production-ready configurations are provided for Docker Compose, Kubernetes, and Fly.io.
+
+### Docker Compose (production)
+
+Use `docker-compose.prod.yml` for production deployments with Caddy TLS termination:
+
+```bash
+cd dashboard && npm run build && cd ..
+cp deploy/.env.production.template .env
+# Edit .env: set JWT_SECRET, SEED_ADMIN_PASSWORD, SEED_ADMIN_EMAIL, ALLOWED_ORIGINS, POSTGRES_PASSWORD, DOMAIN
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Services:
+- **postgres**: PostgreSQL 16 with persistent volume
+- **api**: Detec API (HTTP on 8000, TCP gateway on 8001). Dashboard is served at root.
+- **caddy**: TLS termination and reverse proxy on ports 80 and 443
+
+Set `DOMAIN` to your public hostname for automatic Let's Encrypt certificates. The gateway port 8001 is exposed for agent TCP connections.
+
+### Kubernetes
+
+Manifests are in `deploy/k8s/`. Apply in order:
+
+```bash
+kubectl apply -f deploy/k8s/namespace.yml
+kubectl apply -f deploy/k8s/secret.yml
+kubectl apply -f deploy/k8s/configmap.yml
+kubectl apply -f deploy/k8s/postgres-statefulset.yml
+kubectl apply -f deploy/k8s/deployment.yml
+kubectl apply -f deploy/k8s/service.yml
+kubectl apply -f deploy/k8s/ingress.yml
+```
+
+Edit `deploy/k8s/secret.yml` and replace placeholder values before applying. The ingress requires cert-manager for TLS. Update `deploy/k8s/ingress.yml` and `deploy/k8s/deployment.yml` with your image registry and hostname.
+
+### Fly.io
+
+Single-command cloud deployment with auto-HTTPS:
+
+```bash
+fly launch
+fly postgres create --name detec-db
+fly postgres attach detec-db
+fly secrets set JWT_SECRET="$(openssl rand -hex 32)" SEED_ADMIN_PASSWORD="<strong-password>" ALLOWED_ORIGINS="https://detec-api.fly.dev"
+fly deploy
+```
+
+The `fly.toml` at repo root configures internal port 8000, health check on `/api/health`, and HTTPS. The TCP gateway (port 8001) is not exposed on Fly; use HTTP transport for agents.
+
+### Production environment variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ENV` | Yes (production) | Set to `production` |
+| `JWT_SECRET` | Yes | Generate with `openssl rand -hex 32` |
+| `SEED_ADMIN_PASSWORD` | Yes | Strong password for seed admin |
+| `SEED_ADMIN_EMAIL` | Yes | Email for seed admin |
+| `ALLOWED_ORIGINS` | Yes | Comma-separated dashboard origins (no wildcards) |
+| `DATABASE_URL` | Yes (PostgreSQL) | `postgresql://user:pass@host:5432/dbname` |
+| `POSTGRES_PASSWORD` | Yes (Docker/K8s) | PostgreSQL password |
+| `DOMAIN` | Yes (Caddy) | Public hostname for TLS |
+
+### TLS / HTTPS
+
+- **Docker Compose**: Caddy obtains and renews Let's Encrypt certs when `DOMAIN` is set.
+- **Kubernetes**: Use cert-manager with the provided ingress, or configure your ingress controller for TLS.
+- **Fly.io**: HTTPS is automatic. No extra configuration.
+
+---
+
 ## Security hardening
 
 The API includes several hardening measures for production use.
