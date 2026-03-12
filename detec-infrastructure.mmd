@@ -1,0 +1,100 @@
+flowchart TD
+    subgraph Endpoints
+        agent1[Detec Agent<br/>macOS]
+        agent2[Detec Agent<br/>Linux]
+        agent3[Detec Agent<br/>Windows]
+    end
+
+    subgraph Collector
+        scanners[Scanners<br/>Claude Code, Cursor, Copilot,<br/>Ollama, Aider, LM Studio,<br/>Cline, Continue, GPT-Pilot,<br/>Open Interpreter, OpenClaw,<br/>AI Extensions]
+        confidence[Confidence Engine<br/>5-layer scoring]
+        policy[Policy Engine<br/>Playbook rules]
+        enforcer[Enforcer<br/>process kill, network block,<br/>proxy inject]
+        posture[Posture Manager<br/>passive / audit / active]
+        telemetry[Telemetry Store<br/>ring buffer]
+        providers[Telemetry Providers<br/>polling / native]
+        httpEmitter[HTTP Emitter]
+        tcpEmitter[TCP Emitter]
+        stateDiff[State Differ<br/>change detection]
+        localBuffer[Local Buffer<br/>offline queue]
+    end
+
+    providers --> telemetry
+    telemetry --> scanners
+    scanners --> confidence
+    confidence --> policy
+    policy --> enforcer
+    enforcer --> posture
+    scanners --> stateDiff
+    stateDiff --> httpEmitter
+    stateDiff --> tcpEmitter
+    httpEmitter --> localBuffer
+
+    subgraph Server
+        subgraph FastAPI
+            authRouter[Auth Router<br/>JWT, API key, invite tokens]
+            eventsRouter[Events Router]
+            endpointsRouter[Endpoints Router]
+            policiesRouter[Policies Router]
+            enforcementRouter[Enforcement Router]
+            usersRouter[Users Router]
+            webhooksRouter[Webhooks Router]
+            auditRouter[Audit Log Router]
+            agentDownload[Agent Download Router]
+        end
+
+        gateway[DetecGateway<br/>TCP port 8001<br/>binary msgpack protocol]
+        sessionRegistry[Session Registry<br/>active agent connections]
+
+        subgraph Integrations
+            edrEnrich[EDR Enrichment Pipeline]
+            crowdstrike[CrowdStrike Falcon<br/>OAuth2]
+            webhookDispatch[Webhook Dispatcher<br/>HMAC-SHA256 signed]
+        end
+
+        subgraph Database
+            db[(SQLite / PostgreSQL)]
+        end
+    end
+
+    httpEmitter -->|"POST /api/events<br/>POST /api/endpoints/heartbeat<br/>X-Api-Key"| eventsRouter
+    httpEmitter -->|heartbeat| endpointsRouter
+    localBuffer -.->|"retry on reconnect"| eventsRouter
+
+    tcpEmitter -->|"AUTH → EVENT / HEARTBEAT<br/>length-prefixed msgpack"| gateway
+    gateway --> sessionRegistry
+    gateway -->|"POSTURE_PUSH<br/>POLICY_PUSH<br/>COMMAND"| tcpEmitter
+
+    eventsRouter --> edrEnrich
+    edrEnrich --> crowdstrike
+    eventsRouter --> webhookDispatch
+    webhookDispatch -->|"HTTP POST + HMAC"| externalWebhook[External Webhook<br/>Endpoints]
+
+    eventsRouter --> db
+    endpointsRouter --> db
+    policiesRouter --> db
+    usersRouter --> db
+    auditRouter --> db
+    enforcementRouter --> db
+    gateway --> db
+
+    subgraph Dashboard
+        reactApp[React SPA<br/>Vite build]
+        endpoints[Endpoints View]
+        events[Events View]
+        policies[Policies View]
+        auditLog[Audit Log View]
+        admin[Admin Panel<br/>users, webhooks, agent download]
+    end
+
+    reactApp --> endpoints
+    reactApp --> events
+    reactApp --> policies
+    reactApp --> auditLog
+    reactApp --> admin
+
+    reactApp -->|"REST /api/*<br/>Bearer JWT"| FastAPI
+
+    agent1 --> Collector
+    agent2 --> Collector
+    agent3 --> Collector
