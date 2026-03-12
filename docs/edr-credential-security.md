@@ -20,6 +20,11 @@ Credentials are loaded from environment variables via `api/core/config.py`:
 | `EDR_ENFORCEMENT_ENABLED` | Master switch for delegated enforcement |
 | `EDR_ENFORCEMENT_FALLBACK` | Fallback behavior: `local` or `none` |
 
+When `EDR_ENFORCEMENT_ENABLED=true` and the EDR credentials are set, the
+API server registers the `CrowdStrikeEnforcementProvider` at startup
+(in the lifespan handler in `api/main.py`). If the provider is not
+registered, enforcement falls back to the local agent path.
+
 For development and testing, `.env` files are convenient. For production,
 environment variables alone are insufficient.
 
@@ -154,3 +159,33 @@ Where `/etc/detec/edr-credentials.env` is mode 0600 and contains only:
 EDR_CLIENT_ID=...
 EDR_CLIENT_SECRET=...
 ```
+
+## Validation Status (Task 8c, 2026-03-12)
+
+A codebase audit confirmed:
+
+- **No EDR credentials are stored in any tracked file.** The root `.env`
+  is in `.gitignore`. The `.env.example` files contain commented-out
+  placeholders with empty values only.
+- **No credentials are hardcoded in source code.** `CrowdStrikeProvider`
+  receives credentials as constructor arguments, sourced from
+  `Settings` (env vars / `.env`).
+- **`collector.json` does not contain EDR credentials.** The collector
+  agent has no need for them; EDR enforcement is server-side.
+- **Provider registration happens at startup** when
+  `edr_enforcement_configured` is true, so credentials are only read
+  once and held in memory.
+- **Token caching** in `CrowdStrikeProvider._ensure_token()` minimizes
+  credential use: tokens are refreshed only when expired (with a
+  60-second safety margin).
+
+### Recommended production credential flow
+
+1. Store `EDR_CLIENT_ID` and `EDR_CLIENT_SECRET` in a secrets manager
+   (Vault, AWS Secrets Manager, Azure Key Vault, or GCP Secret Manager).
+2. Inject as environment variables at process start (via sidecar,
+   init container, or systemd `EnvironmentFile`).
+3. Never write credentials to disk in plaintext on the API server.
+4. Rotate client secrets every 90 days.
+5. Scope CrowdStrike API credentials to Hosts (Read), RTR (Admin),
+   and Host Actions (Write) only.

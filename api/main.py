@@ -90,6 +90,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _seed()
     monitor_task = asyncio.create_task(_staleness_monitor())
 
+    if settings.edr_enforcement_configured:
+        from integrations.crowdstrike import CrowdStrikeProvider
+        from integrations.crowdstrike_enforcement import CrowdStrikeEnforcementProvider
+        from integrations import enforcement_router as enf_router
+
+        cs_provider = CrowdStrikeProvider(
+            api_base=settings.edr_api_base,
+            client_id=settings.edr_client_id,
+            client_secret=settings.edr_client_secret,
+        )
+        enf_router.register_provider(CrowdStrikeEnforcementProvider(cs_provider))
+
     gateway = None
     gateway_task = None
     if settings.gateway_enabled:
