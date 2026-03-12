@@ -1,0 +1,23 @@
+{
+  "lab_run": "LAB-RUN-BEH-002",
+  "tool_name": "Unknown Agent",
+  "tool_version": "unknown",
+  "tool_class": "C",
+  "platform": "macOS ARM64",
+  "date": "2026-03-11",
+  "signals": {
+    "process": 0.40,
+    "file": 0.0,
+    "network": 0.30,
+    "identity": 0.0,
+    "behavior": 0.30
+  },
+  "penalties": [
+    ["behavioral_only_no_file_artifact", 0.15],
+    ["weak_identity_correlation", 0.10]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Low",
+  "expected_score_range": [0.0, 0.05],
+  "notes": "CI pipeline false positive: one API call, log writes. Partial behavioral signals only. behavioral_only_no_file_artifact applies (file=0); weak_identity_correlation applies (identity=0)."
+}

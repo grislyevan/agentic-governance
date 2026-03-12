@@ -58,6 +58,7 @@ from scanner.gpt_pilot import GPTPilotScanner
 from scanner.lm_studio import LMStudioScanner
 from scanner.ollama import OllamaScanner
 from scanner.open_interpreter import OpenInterpreterScanner
+from scanner.behavioral import BehavioralScanner
 from scanner.openclaw import OpenClawScanner
 
 logger = logging.getLogger(__name__)
@@ -616,10 +617,28 @@ def run_scan(
     if hasattr(provider, "poll"):
         provider.poll()
 
-    # Stage 1: collect
+    # Stage 1: collect from named scanners
     detected_scans, detected_tools, scan_failures = _collect_scan_results(
         scanners, args.verbose,
     )
+
+    # Stage 1b: behavioral scanner runs after named scanners with PID dedup
+    named_pids: set[int] = set()
+    for scan in detected_scans:
+        named_pids.update(_extract_pids(scan))
+
+    behavioral = BehavioralScanner(event_store=event_store, exclude_pids=named_pids)
+    try:
+        beh_scan = behavioral.scan(verbose=args.verbose)
+        if beh_scan.detected:
+            detected_scans.append(beh_scan)
+            detected_tools.add(beh_scan.tool_name or "Unknown Agent")
+    except Exception:
+        logger.warning(
+            "BehavioralScanner raised an exception; treating as inconclusive",
+            exc_info=True,
+        )
+        scan_failures.add("Unknown Agent")
 
     # Stage 2: process each detection
     total_events = 0

@@ -115,15 +115,19 @@ def posture_push_msg(
     posture: str,
     auto_enforce_threshold: float = 0.75,
     allow_list: list[str] | None = None,
+    llm_hosts: list[str] | None = None,
     *,
     seq: int = 0,
 ) -> dict[str, Any]:
-    """Server -> Agent: set enforcement posture and allow-list."""
-    return _envelope(MessageType.POSTURE_PUSH, seq, {
+    """Server -> Agent: set enforcement posture, allow-list, and LLM host updates."""
+    payload: dict[str, Any] = {
         "posture": posture,
         "auto_enforce_threshold": auto_enforce_threshold,
         "allow_list": allow_list or [],
-    })
+    }
+    if llm_hosts:
+        payload["llm_hosts"] = llm_hosts
+    return _envelope(MessageType.POSTURE_PUSH, seq, payload)
 
 
 def command_msg(

@@ -1,0 +1,42 @@
+{
+    "_comment": "Behavioral anomaly scanner (Phase 2). Pattern thresholds for BEH-001 through BEH-008. Overridable by admin push from server. Keys starting with _ and config_version are stripped by config_loader.",
+    "config_version": "1.0.0",
+
+    "detection_threshold": 0.45,
+    "enabled": true,
+    "custom_llm_hosts": [],
+
+    "BEH-001": {
+        "shell_fanout_window_seconds": 60,
+        "shell_fanout_min_children": 5
+    },
+    "BEH-002": {
+        "llm_cadence_window_seconds": 120,
+        "llm_cadence_min_connections": 3
+    },
+    "BEH-003": {
+        "burst_write_window_seconds": 30,
+        "burst_write_min_files": 10,
+        "burst_write_min_directories": 3
+    },
+    "BEH-004": {
+        "rmw_loop_window_seconds": 10,
+        "rmw_loop_min_cycles": 2
+    },
+    "BEH-005": {
+        "session_min_duration_seconds": 600,
+        "session_activity_gap_max_seconds": 120
+    },
+    "BEH-006": {
+        "credential_access_min_files": 1,
+        "credential_require_network": true
+    },
+    "BEH-007": {
+        "git_automation_min_sequences": 1,
+        "git_automation_exclude_editors": true
+    },
+    "BEH-008": {
+        "resurrection_window_seconds": 30,
+        "resurrection_min_restarts": 2
+    }
+}

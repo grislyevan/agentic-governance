@@ -104,6 +104,17 @@ CLAUDE_COWORK_WEIGHTS: dict[str, float] = {
     "behavior": 0.15,
 }
 
+# Behavior layer is dominant for pattern-based detection of unknown agents.
+# Process and network are secondary; identity is deprioritized since unknown
+# agents rarely have attributable identity signals.
+BEHAVIORAL_WEIGHTS: dict[str, float] = {
+    "process": 0.20,
+    "file": 0.15,
+    "network": 0.20,
+    "identity": 0.10,
+    "behavior": 0.35,
+}
+
 TOOL_WEIGHTS: dict[str, dict[str, float]] = {
     "Ollama": OLLAMA_WEIGHTS,
     "Cursor": CURSOR_WEIGHTS,
@@ -116,6 +127,7 @@ TOOL_WEIGHTS: dict[str, dict[str, float]] = {
     "GPT-Pilot": GPT_PILOT_WEIGHTS,
     "Cline": CLINE_WEIGHTS,
     "Claude Cowork": CLAUDE_COWORK_WEIGHTS,
+    "Unknown Agent": BEHAVIORAL_WEIGHTS,
 }
 
 
