@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getApiConfig, setApiConfig, fetchWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, downloadAgent, enrollAgentByEmail } from '../lib/api';
+import { getApiConfig, setApiConfig, fetchWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, downloadAgent, enrollAgentByEmail, fetchAllowList, addAllowListEntry, deleteAllowListEntry } from '../lib/api';
 import useAuth from '../hooks/useAuth';
 
 const EVENT_TYPES = [
@@ -91,6 +91,8 @@ export default function SettingsPage() {
         {canManageWebhooks && <AgentDownloadSection />}
 
         {canManageWebhooks && <WebhooksSection />}
+
+        {canManageWebhooks && <AllowListSection />}
       </div>
     </div>
   );
@@ -433,6 +435,244 @@ function WebhooksSection() {
   );
 }
 
+
+const PATTERN_TYPES = [
+  { value: 'name', label: 'Name' },
+  { value: 'path', label: 'Path' },
+  { value: 'hash', label: 'Hash' },
+];
+
+function AllowListSection() {
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+
+  const loadEntries = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchAllowList();
+      setEntries(data.items || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadEntries(); }, [loadEntries]);
+
+  const handleDelete = async (id, pattern) => {
+    if (!confirm(`Remove "${pattern}" from the allow list?`)) return;
+    try {
+      await deleteAllowListEntry(id);
+      loadEntries();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const fmtDate = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  return (
+    <div className="rounded-xl border border-detec-slate-700/50 bg-detec-slate-800/50 p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-detec-slate-300 uppercase tracking-wider">
+          Enforcement Allow List
+        </h2>
+        <button
+          onClick={() => setShowForm(true)}
+          className="rounded-lg bg-detec-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-detec-primary-500 transition-colors"
+        >
+          Add entry
+        </button>
+      </div>
+
+      <p className="text-xs text-detec-slate-500">
+        Tools matching an allow-list entry are exempt from enforcement actions regardless of posture or policy.
+      </p>
+
+      {error && (
+        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-detec-slate-500">Loading...</p>
+      ) : entries.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-detec-slate-700 bg-detec-slate-800/30 px-6 py-8 text-center">
+          <p className="text-sm text-detec-slate-500">No allow-list entries.</p>
+          <p className="text-xs text-detec-slate-600 mt-1">Add an entry to exempt specific tools from enforcement.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-detec-slate-700/40 text-xs font-medium text-detec-slate-500 uppercase tracking-wider">
+                <th className="pb-2 pr-4">Pattern</th>
+                <th className="pb-2 pr-4">Type</th>
+                <th className="pb-2 pr-4">Description</th>
+                <th className="pb-2 pr-4">Created by</th>
+                <th className="pb-2 pr-4">Created</th>
+                <th className="pb-2 w-16" />
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((entry) => (
+                <tr key={entry.id} className="border-b border-detec-slate-700/20">
+                  <td className="py-2.5 pr-4">
+                    <code className="text-xs text-detec-slate-200 break-all">{entry.pattern}</code>
+                  </td>
+                  <td className="py-2.5 pr-4">
+                    <span className="inline-block rounded bg-detec-slate-700/50 px-2 py-0.5 text-xs text-detec-slate-400">
+                      {entry.pattern_type}
+                    </span>
+                  </td>
+                  <td className="py-2.5 pr-4 text-xs text-detec-slate-400">
+                    {entry.description || <span className="text-detec-slate-600 italic">none</span>}
+                  </td>
+                  <td className="py-2.5 pr-4 text-xs text-detec-slate-400">
+                    {entry.created_by || <span className="text-detec-slate-600">unknown</span>}
+                  </td>
+                  <td className="py-2.5 pr-4 text-xs text-detec-slate-500 whitespace-nowrap">
+                    {fmtDate(entry.created_at)}
+                  </td>
+                  <td className="py-2.5 text-right">
+                    <button
+                      onClick={() => handleDelete(entry.id, entry.pattern)}
+                      className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-950/40 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {showForm && (
+        <AllowListFormModal
+          onClose={() => setShowForm(false)}
+          onSaved={() => { setShowForm(false); loadEntries(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function AllowListFormModal({ onClose, onSaved }) {
+  const [pattern, setPattern] = useState('');
+  const [patternType, setPatternType] = useState('name');
+  const [description, setDescription] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFormError(null);
+    const trimmed = pattern.trim();
+    if (!trimmed) { setFormError('Pattern is required'); return; }
+    if (trimmed.length < 3) { setFormError('Pattern must be at least 3 characters'); return; }
+
+    setSubmitting(true);
+    try {
+      await addAllowListEntry({
+        pattern: trimmed,
+        pattern_type: patternType,
+        description: description.trim() || undefined,
+      });
+      onSaved();
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold text-detec-slate-100 mb-4">Add Allow-List Entry</h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-detec-slate-400 mb-1">Pattern</label>
+            <input
+              type="text"
+              value={pattern}
+              onChange={(e) => setPattern(e.target.value)}
+              placeholder="e.g. ollama, /usr/local/bin/ollama, sha256:abc..."
+              required
+              spellCheck={false}
+              className="w-full rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-2 text-sm text-detec-slate-200 font-mono focus:border-detec-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-detec-slate-400 mb-1">Match Type</label>
+            <select
+              value={patternType}
+              onChange={(e) => setPatternType(e.target.value)}
+              className="w-full rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-2 text-sm text-detec-slate-200 focus:border-detec-primary-500 focus:outline-none"
+            >
+              {PATTERN_TYPES.map((pt) => (
+                <option key={pt.value} value={pt.value}>{pt.label}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-detec-slate-600">
+              {patternType === 'name' && 'Match by tool or process name (e.g. "ollama")'}
+              {patternType === 'path' && 'Match by full executable path (e.g. "/usr/local/bin/ollama")'}
+              {patternType === 'hash' && 'Match by binary SHA-256 hash'}
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-detec-slate-400 mb-1">
+              Description <span className="font-normal text-detec-slate-600">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Why this tool is exempt"
+              className="w-full rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-2 text-sm text-detec-slate-200 focus:border-detec-primary-500 focus:outline-none"
+            />
+          </div>
+
+          {formError && (
+            <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{formError}</div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-detec-slate-700 px-4 py-2 text-sm text-detec-slate-400 hover:bg-detec-slate-800"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="rounded-lg bg-detec-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-detec-primary-500 disabled:opacity-50"
+            >
+              {submitting ? 'Adding...' : 'Add entry'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function WebhookFormModal({ onClose, onSaved }) {
   const [url, setUrl] = useState('');
