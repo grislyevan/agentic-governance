@@ -1,0 +1,8 @@
+name: Detec
+filePrefix: detec
+tickets:
+  github:
+    repo: agentic-governance
+    token: $GITHUB_TOKEN
+    username: grislyevan
+approvedBranch: "main"
