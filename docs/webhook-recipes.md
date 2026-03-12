@@ -159,7 +159,8 @@ Use an Incoming Webhook or Slack app to post formatted messages. Configure the w
 ### Webhook URL configuration
 
 1. Create a Slack Incoming Webhook (Settings > Integrations > Incoming Webhooks).
-2. Point your intermediary at the webhook URL (e.g. `https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX`).
+2. Point your intermediary at the webhook URL (replace the placeholder below with your real URL):
+   `https://hooks.slack.com/services/TXXXXXXXXX/BXXXXXXXXX/your-token-here`
 3. Subscribe the Detec webhook to `enforcement.simulated` and `posture.changed` only, or route via your intermediary.
 
 ## Jira / ServiceNow Recipe
