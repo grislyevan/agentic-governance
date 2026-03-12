@@ -229,3 +229,4 @@ Items that are valuable but not yet scheduled:
 | Lab runs 008–012 (live) | — | Aider, GPT-Pilot, Cline, LM Studio, Continue — synthetic validation complete, live runs pending hardware |
 | LAB-RUN-013 findings | — | Local LLM variant: confidence floor for infrastructure-class tools, co-residency detection, model-dependent behavioral weights |
 | LAB-RUN-014 findings | — | Claude Cowork: VM-based execution model, 10 GB footprint, cleartext identity, "soft proactive" scheduled tasks, DXT cross-app automation, 0.905 confidence (new highest) |
+| Active defense roadmap | — | Six-phase plan: admin posture control, behavioral scanner, enforcement hardening, webhook orchestration, native OS telemetry, EDR integration. See `docs/enforcement-roadmap.md`. |
