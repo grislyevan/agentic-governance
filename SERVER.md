@@ -310,6 +310,14 @@ Edit `deploy/k8s/secret.yml` and replace placeholder values before applying. The
 
 Single-command cloud deployment with auto-HTTPS:
 
+Ensure `dashboard/dist` exists before deploying (the API serves the pre-built dashboard at the root URL):
+
+```bash
+cd dashboard && npm ci && npm run build && cd ..
+```
+
+Then deploy:
+
 ```bash
 fly launch
 fly postgres create --name detec-db
