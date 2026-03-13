@@ -54,7 +54,7 @@ from models.audit import AuditLog
 from models.endpoint import Endpoint
 from models.event import Event
 from models.policy import Policy
-from routers import agent_download, audit, auth, billing, data_flow, demo, endpoints, enforcement, events, policies, reports, retention, tenants, users, webhooks
+from routers import agent_download, audit, auth, billing, data_flow, demo, endpoints, enforcement, events, policies, reports, response_playbooks, retention, tenants, users, webhooks
 
 logger = logging.getLogger("agentic_governance")
 
@@ -320,10 +320,12 @@ app.state.limiter = limiter
 
 
 async def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
-    return JSONResponse(
+    r = JSONResponse(
         status_code=429,
         content={"detail": "Too many requests. Please try again later."},
     )
+    _apply_security_headers(r)
+    return r
 
 
 app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
@@ -332,10 +334,12 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
 @app.exception_handler(Exception)
 async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.exception("Unhandled error on %s %s", request.method, request.url.path)
-    return JSONResponse(
+    r = JSONResponse(
         status_code=500,
         content={"detail": "Internal server error"},
     )
+    _apply_security_headers(r)
+    return r
 
 
 app.add_middleware(
@@ -348,6 +352,27 @@ app.add_middleware(
 
 
 SKIP_LOG_PATHS = {"/health", "/api/health", "/metrics"}
+
+
+def _apply_security_headers(response: Response) -> None:
+    """Apply security headers to any response (including from exception handlers).
+
+    Exception handler responses do not pass through middleware, so they must
+    receive the same headers here to avoid missing CSP/HSTS on error pages.
+    """
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    env = os.getenv("ENV", "development").lower()
+    if env in ("production", "staging"):
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; "
+            "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        )
 
 
 @app.middleware("http")
@@ -385,18 +410,7 @@ async def request_logging_and_metrics(request: Request, call_next):
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-    env = os.getenv("ENV", "development").lower()
-    if env in ("production", "staging"):
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; "
-            "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-        )
+    _apply_security_headers(response)
     return response
 
 
@@ -414,6 +428,7 @@ app.include_router(webhooks.router, prefix=API_PREFIX)
 app.include_router(enforcement.router, prefix=API_PREFIX)
 app.include_router(billing.router, prefix=API_PREFIX)
 app.include_router(reports.router, prefix=API_PREFIX)
+app.include_router(response_playbooks.router, prefix=API_PREFIX)
 app.include_router(data_flow.router, prefix=API_PREFIX)
 app.include_router(tenants.router, prefix=API_PREFIX)
 app.include_router(demo.router, prefix=API_PREFIX)

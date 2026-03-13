@@ -210,7 +210,7 @@ def forgot_password(
     if _settings.smtp_configured:
         logger.info("Password reset token created for %s (email delivery pending)", body.email)
     else:
-        logger.debug("Password reset token for %s (no SMTP): %s", body.email, raw_token)
+        logger.debug("Password reset token created for %s (no SMTP); token not logged", body.email)
 
     return PasswordResetResponse(
         message="If that email is registered, a reset link has been created.",

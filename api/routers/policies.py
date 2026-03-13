@@ -285,9 +285,11 @@ def apply_preset(
     try:
         applied = apply_preset_to_tenant(db, auth.tenant_id, body.preset_id)
     except ValueError as e:
+        from core.config import settings
+        detail = str(e) if settings.debug else "Invalid preset or request."
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            detail=detail,
         ) from e
 
     audit_record(

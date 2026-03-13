@@ -25,6 +25,9 @@ DEFAULT_CONFIG_PATH = CONFIG_DIR / "collector.json"
 
 ENV_PREFIX = "AGENTIC_GOV_"
 
+# Config keys that must never be logged (secrets).
+_SENSITIVE_KEYS = frozenset({"api_key"})
+
 # Keys whose argparse dest names match these config keys.
 _ARGPARSE_KEYS = {
     "output", "endpoint_id", "actor_id", "sensitivity",
@@ -198,12 +201,14 @@ def load_env_overrides() -> dict[str, Any]:
             try:
                 overrides[key] = int(raw)
             except ValueError:
-                logger.warning("Ignoring non-integer value for %s: %r", env_var, raw)
+                log_val = "<redacted>" if key in _SENSITIVE_KEYS else repr(raw)
+                logger.warning("Ignoring non-integer value for %s: %s", env_var, log_val)
         elif key in _FLOAT_KEYS:
             try:
                 overrides[key] = float(raw)
             except ValueError:
-                logger.warning("Ignoring non-float value for %s: %r", env_var, raw)
+                log_val = "<redacted>" if key in _SENSITIVE_KEYS else repr(raw)
+                logger.warning("Ignoring non-float value for %s: %s", env_var, log_val)
         else:
             overrides[key] = raw
     return overrides

@@ -165,7 +165,9 @@ async def stripe_webhook(request: Request):
         return {"received": True, "event_type": result.get("event_type")}
     except Exception as e:
         logger.error("Stripe webhook error: %s", str(e))
-        raise HTTPException(400, f"Webhook error: {str(e)}")
+        from core.config import settings
+        detail = f"Webhook error: {str(e)}" if settings.debug else "Webhook processing failed."
+        raise HTTPException(400, detail)
 
 
 def _tier_price_id(tier: str) -> str:
