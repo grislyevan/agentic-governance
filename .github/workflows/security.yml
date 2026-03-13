@@ -10,6 +10,48 @@ permissions:
   contents: read
 
 jobs:
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: agentic_governance_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install API dependencies
+        run: pip install -r api/requirements.txt
+      - name: Run API security tests
+        working-directory: api
+        env:
+          DATABASE_URL: postgresql://postgres:testpassword@localhost:5432/agentic_governance_test
+          JWT_SECRET: ci-test-secret-not-for-production
+          SEED_ADMIN_PASSWORD: ci-test-password
+        run: >-
+          python -m pytest
+          tests/test_security_pentest.py
+          tests/test_gateway_security.py
+          tests/test_rate_limits.py
+          -x -q
+      - name: Install collector dependencies
+        run: pip install -e ".[dev]"
+      - name: Run collector security tests
+        run: python -m pytest collector/tests/test_agent_security.py -x -q
+
   sast:
     name: Static Analysis (Semgrep)
     runs-on: ubuntu-latest
@@ -19,6 +61,7 @@ jobs:
         with:
           config: >-
             p/owasp-top-ten
+            p/cwe-top-25
             p/python
             p/javascript
 
