@@ -8,7 +8,7 @@ const POSTURE_META = {
   active:   { label: 'Active',  color: 'bg-detec-enforce-block/15 text-detec-enforce-block', dot: 'bg-detec-enforce-block' },
 };
 
-export default function EndpointContextBar({ endpointCount, endpoints, endpointStatuses = [], onPostureChange }) {
+export default function EndpointContextBar({ endpointCount, endpoints, endpointStatuses = [], onPostureChange, lastEventAt = null }) {
   const multipleEndpoints = endpoints?.length > 1;
   const firstEp = endpoints?.[0];
 
@@ -33,6 +33,7 @@ export default function EndpointContextBar({ endpointCount, endpoints, endpointS
   const { user } = useAuth();
   const isOwner = user?.role === 'owner';
 
+  const [expanded, setExpanded] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [selectedPosture, setSelectedPosture] = useState(enforcementPosture);
   const [selectedThreshold, setSelectedThreshold] = useState(currentThreshold);
@@ -84,10 +85,25 @@ export default function EndpointContextBar({ endpointCount, endpoints, endpointS
     }
   }
 
+  const telemetryLabel = showSingleEndpoint && firstEp?.telemetry_provider
+    ? (firstEp.telemetry_provider === 'polling' ? 'Polling' : `Native (${firstEp.telemetry_provider.toUpperCase()})`)
+    : null;
+  const mgmtBadgeClass = managementState === 'managed'
+    ? 'bg-detec-teal-500/15 text-detec-teal-500 border border-detec-teal-500/30'
+    : 'bg-detec-amber-500/15 text-detec-amber-500 border border-detec-amber-500/40 font-medium';
+
   return (
     <div className="space-y-2">
-      {/* Context bar */}
-      <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-detec-slate-400 flex-wrap">
+      {/* Context bar: hostname prominent, then tag-style badges; click to expand */}
+      <div
+        className={`flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-detec-slate-400 flex-wrap rounded-lg border border-transparent transition-colors ${
+          showSingleEndpoint ? 'cursor-pointer hover:bg-detec-slate-800/50 py-1 -mx-1 px-1' : ''
+        }`}
+        onClick={showSingleEndpoint ? () => setExpanded((e) => !e) : undefined}
+        role={showSingleEndpoint ? 'button' : undefined}
+        aria-expanded={showSingleEndpoint ? expanded : undefined}
+        aria-label={showSingleEndpoint ? (expanded ? 'Collapse endpoint details' : 'Expand endpoint details') : undefined}
+      >
         <span className="flex items-center gap-1.5">
           <span className="text-detec-slate-200 font-semibold">{endpointCount}</span>
           Endpoint{endpointCount !== 1 ? 's' : ''} Connected
@@ -96,67 +112,54 @@ export default function EndpointContextBar({ endpointCount, endpoints, endpointS
 
         <Sep />
 
-        <span className="flex items-center gap-1.5">
-          Hostname:
-          <span className="text-detec-slate-300">{hostname}</span>
-        </span>
-
-        <Sep />
-
-        <span className="flex items-center gap-1.5">
-          <span className="text-detec-slate-300">{os}</span>
-        </span>
-
-        <Sep />
+        <span className="text-base font-semibold text-detec-slate-100">{hostname}</span>
 
         {managementState && (
           <>
-            <span className="flex items-center gap-1.5">
-              <span className="text-detec-slate-500 text-xs">Mgmt:</span>
-              <span className={`font-mono text-xs px-2 py-0.5 rounded ${managementState === 'managed' ? 'bg-detec-teal-500/15 text-detec-teal-500' : 'bg-detec-amber-500/15 text-detec-amber-500'}`}>
-                {managementState === 'managed' ? 'Conformant' : 'Nonconformant'}
-              </span>
+            <span className={`font-mono text-xs px-2 py-0.5 rounded ${mgmtBadgeClass}`} title="Management state">
+              {managementState === 'managed' ? 'Conformant' : 'Nonconformant'}
             </span>
-            <Sep />
           </>
         )}
 
         {showSingleEndpoint && (
-          <>
-            <span className="flex items-center gap-1.5">
-              <span className="text-detec-slate-500 text-xs">Enforce:</span>
-              <button
-                onClick={() => setPanelOpen(!panelOpen)}
-                className={`font-mono text-xs px-2 py-0.5 rounded cursor-pointer transition-colors hover:ring-1 hover:ring-detec-slate-500 ${postureMeta.color}`}
-                title="Click to change enforcement posture"
-              >
-                <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${postureMeta.dot}`} />
-                {postureMeta.label}
-              </button>
-            </span>
-            <Sep />
-          </>
+          <button
+            onClick={(e) => { e.stopPropagation(); setPanelOpen(!panelOpen); }}
+            className={`font-mono text-xs px-2 py-0.5 rounded cursor-pointer transition-colors hover:ring-1 hover:ring-detec-slate-500 ${postureMeta.color}`}
+            title="How endpoints respond to policy: Passive (report only), Audit (log decisions), Active (auto-enforce). Click to change."
+          >
+            <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${postureMeta.dot}`} />
+            {postureMeta.label}
+          </button>
         )}
 
-        {showSingleEndpoint && firstEp?.telemetry_provider && (
-          <>
-            <span className="flex items-center gap-1.5">
-              <span className="text-detec-slate-500 text-xs">Telemetry:</span>
-              <span className={`font-mono text-xs px-2 py-0.5 rounded ${
-                firstEp.telemetry_provider === 'polling'
-                  ? 'bg-detec-slate-600/30 text-detec-slate-400'
-                  : 'bg-detec-primary-500/15 text-detec-primary-400'
-              }`}>
-                {firstEp.telemetry_provider === 'polling' ? 'Polling' : `Native (${firstEp.telemetry_provider.toUpperCase()})`}
-              </span>
-            </span>
-            <Sep />
-          </>
+        {telemetryLabel && (
+          <span
+            className={`font-mono text-xs px-2 py-0.5 rounded ${
+              firstEp.telemetry_provider === 'polling'
+                ? 'bg-detec-slate-600/30 text-detec-slate-400'
+                : 'bg-detec-primary-500/15 text-detec-primary-400'
+            }`}
+            title="Telemetry from the OS (e.g. ETW on Windows). Polling means process-based checks."
+          >
+            {telemetryLabel}
+          </span>
         )}
+
+        <Sep />
 
         <span className="flex items-center gap-1.5">
           Last Scan:
           <span className="text-detec-primary-400">{lastSeen}</span>
+        </span>
+
+        <Sep />
+
+        <span className="flex items-center gap-1.5">
+          Last Event:
+          <span className="text-detec-slate-300">
+            {lastEventAt ? timeSince(new Date(lastEventAt)) : 'none'}
+          </span>
         </span>
 
         <Sep />
@@ -172,6 +175,7 @@ export default function EndpointContextBar({ endpointCount, endpoints, endpointS
           className="ml-auto flex items-center gap-1.5"
           title={`${statusCounts.active} active, ${statusCounts.stale} stale, ${statusCounts.ungoverned} ungoverned`}
           aria-label={`Endpoint health: ${statusCounts.active} active, ${statusCounts.stale} stale, ${statusCounts.ungoverned} ungoverned`}
+          onClick={(e) => e.stopPropagation()}
         >
           <span className="text-[10px] uppercase tracking-wider text-detec-slate-500">Endpoint health</span>
           {statusBars(statusCounts).map((h, i) => (
@@ -182,7 +186,57 @@ export default function EndpointContextBar({ endpointCount, endpoints, endpointS
             />
           ))}
         </span>
+
+        {showSingleEndpoint && (
+          <span className="ml-0.5 text-detec-slate-500" aria-hidden="true">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className={`transition-transform ${expanded ? 'rotate-180' : ''}`}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </span>
+        )}
       </div>
+
+      {/* Expanded endpoint detail */}
+      {showSingleEndpoint && expanded && firstEp && (
+        <div className="rounded-lg border border-detec-slate-700/50 bg-detec-slate-800/30 px-4 py-3 space-y-3 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div>
+              <span className="text-detec-slate-500 block mb-0.5">Enforcement posture</span>
+              <span className={postureMeta.color}>{postureMeta.label}</span>
+            </div>
+            <div>
+              <span className="text-detec-slate-500 block mb-0.5">Telemetry</span>
+              <span className="text-detec-slate-300">{telemetryLabel || 'N/A'}</span>
+            </div>
+            <div>
+              <span className="text-detec-slate-500 block mb-0.5">Management state</span>
+              <span className="text-detec-slate-300">{managementState === 'managed' ? 'Conformant' : 'Nonconformant'}</span>
+            </div>
+          </div>
+          <div>
+            <span className="text-detec-slate-500 text-xs block mb-1">Recent Activity</span>
+            <p className="text-detec-slate-400 text-xs">No events yet</p>
+          </div>
+          <div>
+            <span className="text-detec-slate-500 text-xs block mb-1">Policy Status</span>
+            <p className="text-detec-slate-400 text-xs">No policies evaluated yet</p>
+          </div>
+          <div>
+            <span className="text-detec-slate-500 text-xs block mb-1">Agent</span>
+            <p className="text-detec-slate-400 text-xs">
+              Last heartbeat: {lastSeen}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Inline feedback */}
       {feedback && (

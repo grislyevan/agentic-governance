@@ -58,6 +58,16 @@
   to { stroke-dashoffset: 0; }
 }
 
+/* Gentle pulse for status banner (Attention state) */
+.detec-status-pulse {
+  animation: detec-status-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes detec-status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
 /* Respect reduced motion globally */
 @media (prefers-reduced-motion: reduce) {
   .detec-aperture-spin {
@@ -80,5 +90,10 @@
   .detec-checkmark {
     animation: none;
     stroke-dashoffset: 0;
+  }
+
+  .detec-status-pulse {
+    animation: none;
+    opacity: 1;
   }
 }

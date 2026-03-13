@@ -120,10 +120,15 @@ def data_flow_summary(
     )
     cloud_count = total_connections - local_count
 
+    all_tools: set[str] = set()
+    for d in destinations:
+        all_tools.update(d.get("tools", []))
+
     return {
         "period_days": days,
         "total_connections": total_connections,
         "unique_destinations": len(destinations),
+        "unique_tools": len(all_tools),
         "local_llm_connections": local_count,
         "cloud_llm_connections": cloud_count,
         "destinations": destinations,

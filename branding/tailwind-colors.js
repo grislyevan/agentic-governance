@@ -69,7 +69,7 @@ module.exports = {
     },
     enforce: {
       detect:   '#6366f1',
-      warn:     '#f59e0b',
+      warn:     '#fbbf24',
       approval: '#f97316',
       block:    '#ef4444',
     },

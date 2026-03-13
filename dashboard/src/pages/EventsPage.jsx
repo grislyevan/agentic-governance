@@ -241,27 +241,12 @@ export default function EventsPage({ searchQuery }) {
 
       {error && (
         <div className="rounded-lg border border-detec-enforce-block/30 bg-detec-enforce-block/10 px-4 py-3 text-sm text-detec-enforce-block">
-          {error}
+          <p>{error}</p>
+          <p className="text-detec-slate-400 mt-1 text-xs">Check the connection and try again.</p>
         </div>
       )}
 
-      {events.length === 0 && !loading && !error && (
-        <div className="rounded-xl border border-dashed border-detec-slate-700 bg-detec-slate-800/30 px-8 py-20 text-center">
-          <div className="text-3xl mb-3 opacity-40">
-            <PulseIcon />
-          </div>
-          <div className="text-detec-slate-400 text-sm font-medium mb-1">
-            {decisionFilter || toolFilter || mitreFilter || searchQuery ? 'No matching events' : 'No events yet'}
-          </div>
-          <div className="text-detec-slate-600 text-sm max-w-sm mx-auto">
-            {decisionFilter || toolFilter || mitreFilter || searchQuery
-              ? 'Try adjusting your filters or search query.'
-              : 'Detection, policy, and enforcement events will appear here as endpoints report in. Connect an agent to get started.'}
-          </div>
-        </div>
-      )}
-
-      {events.length > 0 && (
+      {!loading && !error && (
         <div className="rounded-xl border border-detec-slate-700/50 overflow-x-auto overflow-hidden">
           <table className="w-full text-left min-w-[640px]" aria-label="Detection events">
             <thead>
@@ -277,7 +262,20 @@ export default function EventsPage({ searchQuery }) {
               </tr>
             </thead>
             <tbody>
-              {events.map((ev) => (
+              {events.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center">
+                    <p className="text-detec-slate-400 text-sm font-medium">
+                      {decisionFilter || toolFilter || mitreFilter || searchQuery ? 'No matching events' : 'No events yet'}
+                    </p>
+                    <p className="text-detec-slate-600 text-xs mt-1 max-w-sm mx-auto">
+                      {decisionFilter || toolFilter || mitreFilter || searchQuery
+                        ? 'Try adjusting your filters or search query.'
+                        : 'Agent activity will appear here once endpoints are sending events.'}
+                    </p>
+                  </td>
+                </tr>
+              ) : events.map((ev) => (
                 <tr
                   key={ev.id}
                   onClick={() => setSelectedEvent(ev)}

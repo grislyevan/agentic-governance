@@ -92,7 +92,8 @@ export default function PostureSummaryWidget({ onPostureReset }) {
   if (error) {
     return (
       <div className="rounded-xl border border-detec-enforce-block/20 bg-detec-enforce-block/5 px-5 py-4 text-sm text-detec-enforce-block">
-        Failed to load posture summary: {error}
+        <p>Failed to load posture summary: {error}</p>
+        <p className="text-detec-slate-400 mt-1 text-xs">Check the connection and try again.</p>
       </div>
     );
   }
@@ -105,7 +106,7 @@ export default function PostureSummaryWidget({ onPostureReset }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <PostureIcon />
-            <h2 className="text-sm font-semibold text-detec-slate-200">Enforcement Posture</h2>
+            <h2 className="text-sm font-semibold text-detec-slate-200" title="How endpoints respond to policy: Passive (report only), Audit (log decisions), Active (auto-enforce).">Enforcement Posture</h2>
             <span className="text-xs text-detec-slate-500 font-normal">
               {data?.total ?? 0} endpoint{data?.total !== 1 ? 's' : ''}
             </span>

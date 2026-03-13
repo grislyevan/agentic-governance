@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import useEndpoints from '../hooks/useEndpoints';
 import usePolling from '../hooks/usePolling';
+import { fetchEvents, getApiConfig } from '../lib/api';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
 import PollingStatus from '../components/PollingStatus';
 import SummaryCards from '../components/dashboard/SummaryCards';
@@ -12,6 +13,7 @@ import Pagination from '../components/dashboard/Pagination';
 import PostureSummaryWidget from '../components/dashboard/PostureSummaryWidget';
 import DataFlowWidget from '../components/dashboard/DataFlowWidget';
 import ResponseTimelineWidget from '../components/dashboard/ResponseTimelineWidget';
+import SystemStatusBanner from '../components/dashboard/SystemStatusBanner';
 
 export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef, onAlertCountChange }) {
   const {
@@ -23,11 +25,31 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const { lastUpdated, paused, togglePause } = usePolling(refresh);
+  const [lastEventAt, setLastEventAt] = useState(null);
+  const refreshWithLatestEvent = useCallback(async () => {
+    await refresh();
+    const config = getApiConfig();
+    try {
+      const data = await fetchEvents(config, { pageSize: 1 });
+      setLastEventAt(data.items?.[0]?.observed_at ?? null);
+    } catch {
+      setLastEventAt(null);
+    }
+  }, [refresh]);
+
+  const { lastUpdated, paused, togglePause } = usePolling(refreshWithLatestEvent);
 
   useEffect(() => {
-    if (refreshRef) refreshRef.current = refresh;
-  }, [refresh, refreshRef]);
+    if (refreshRef) refreshRef.current = refreshWithLatestEvent;
+  }, [refreshWithLatestEvent, refreshRef]);
+
+  useEffect(() => {
+    const config = getApiConfig();
+    if (!config.apiKey && !config.accessToken) return;
+    fetchEvents(config, { pageSize: 1 })
+      .then((data) => setLastEventAt(data.items?.[0]?.observed_at ?? null))
+      .catch(() => setLastEventAt(null));
+  }, []);
 
   useEffect(() => {
     const alertCount = (counts.block || 0) + (counts.approval_required || 0);
@@ -87,7 +109,8 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
 
       {error && (
         <div className="rounded-lg border border-detec-enforce-block/30 bg-detec-enforce-block/10 px-4 py-3 text-sm text-detec-enforce-block">
-          {error}
+          <p>{error}</p>
+          <p className="text-detec-slate-400 mt-1 text-xs">Check the connection and try again.</p>
         </div>
       )}
 
@@ -98,6 +121,8 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
         timeRange={filters.observedAfter}
         onTimeRangeChange={handleTimeRangeChange}
       />
+
+      <SystemStatusBanner counts={counts} endpoints={endpoints} />
 
       <SummaryCards counts={counts} />
 
@@ -112,6 +137,7 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
         endpoints={endpoints}
         endpointStatuses={endpointStatuses}
         onPostureChange={refresh}
+        lastEventAt={lastEventAt}
       />
 
       <ToolTabs
