@@ -102,7 +102,19 @@ export async function fetchAllEvents(config, { observedAfter, observedBefore, en
     const data = await fetchEvents(config, { page, pageSize, observedAfter, observedBefore, endpointId });
     if (data.items) {
       for (const item of data.items) {
-        events.push(item.payload && Object.keys(item.payload).length > 0 ? item.payload : item);
+        const payload = item.payload && Object.keys(item.payload).length > 0 ? item.payload : {};
+        events.push({
+          ...payload,
+          event_type: payload.event_type ?? item.event_type,
+          tool: payload.tool ?? (item.tool_name ? { name: item.tool_name, class: item.tool_class, version: item.tool_version } : null),
+          tool_name: item.tool_name ?? payload.tool?.name,
+          tool_class: item.tool_class ?? payload.tool?.class,
+          decision_state: item.decision_state ?? payload.policy?.decision_state,
+          rule_id: item.rule_id ?? payload.policy?.rule_id,
+          severity_level: item.severity_level ?? payload.severity?.level,
+          observed_at: payload.observed_at ?? item.observed_at,
+          endpoint_id: item.endpoint_id ?? payload.endpoint?.id,
+        });
       }
     }
     if (page * pageSize >= data.total) break;
@@ -138,6 +150,30 @@ export async function deletePolicy(id) {
 
 export async function restoreDefaultPolicies() {
   return apiMutate('POST', '/policies/restore-defaults');
+}
+
+export async function fetchPlaybooks() {
+  return apiFetch('/playbooks');
+}
+
+export async function fetchPlaybook(id) {
+  return apiFetch(`/playbooks/${id}`);
+}
+
+export async function createPlaybook(data) {
+  return apiMutate('POST', '/playbooks', data);
+}
+
+export async function updatePlaybook(id, data) {
+  return apiMutate('PUT', `/playbooks/${id}`, data);
+}
+
+export async function deletePlaybook(id) {
+  return apiMutate('DELETE', `/playbooks/${id}`);
+}
+
+export async function testPlaybook(id, eventPayload = {}) {
+  return apiMutate('POST', `/playbooks/${id}/test`, { event_payload: eventPayload });
 }
 
 export async function fetchPolicyPresets(config) {

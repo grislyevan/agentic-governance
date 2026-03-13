@@ -4,36 +4,44 @@ import { getStoredTokens } from '../lib/auth';
 import { confidenceBand, policyLabel } from '../parseNdjson';
 
 function aggregateEvents(events) {
-  const KNOWN_TYPES = new Set(['detection.observed', 'policy.evaluated', 'enforcement.applied']);
+  const KNOWN_TYPES = new Set([
+    'detection.observed',
+    'policy.evaluated',
+    'enforcement.applied',
+    'enforcement.simulated',
+    'tool.detected',
+    'detection',
+  ]);
   const toolMap = new Map();
 
   for (const ev of events) {
-    if (!ev.tool || !KNOWN_TYPES.has(ev.event_type)) continue;
-    const name = ev.tool?.name ?? 'Unknown';
+    const tool = ev.tool || (ev.tool_name ? { name: ev.tool_name, class: ev.tool_class, version: ev.tool_version } : null);
+    if (!tool?.name || !KNOWN_TYPES.has(ev.event_type)) continue;
+    const name = tool.name ?? ev.tool_name ?? 'Unknown';
     const key = name;
 
     if (!toolMap.has(key)) {
       toolMap.set(key, {
         name,
-        class: ev.tool?.class ?? '-',
-        version: ev.tool?.version ?? null,
-        attribution_confidence: ev.tool?.attribution_confidence ?? null,
-        confidenceBand: confidenceBand(ev.tool?.attribution_confidence),
-        decision_state: null,
-        policyLabel: '-',
-        severity_level: null,
-        rule_id: null,
-        reason_codes: [],
+        class: tool.class ?? ev.tool_class ?? '-',
+        version: tool.version ?? ev.tool_version ?? null,
+        attribution_confidence: tool.attribution_confidence ?? ev.attribution_confidence ?? null,
+        confidenceBand: confidenceBand(tool.attribution_confidence ?? ev.attribution_confidence),
+        decision_state: ev.decision_state ?? null,
+        policyLabel: ev.decision_state ? policyLabel(ev.decision_state) : '-',
+        severity_level: ev.severity_level ?? ev.severity?.level ?? null,
+        rule_id: ev.rule_id ?? null,
+        reason_codes: ev.policy?.reason_codes ?? [],
         summary: '',
         observed_at: ev.observed_at,
         enforcement_applied: null,
-        endpoint_id: ev.endpoint?.id ?? null,
+        endpoint_id: ev.endpoint?.id ?? ev.endpoint_id ?? null,
       });
     }
 
     const entry = toolMap.get(key);
 
-    if (ev.event_type === 'policy.evaluated' || ev.event_type === 'enforcement.applied') {
+    if (ev.event_type === 'policy.evaluated' || ev.event_type === 'enforcement.applied' || ev.event_type === 'enforcement.simulated') {
       const ds = ev.policy?.decision_state;
       if (ds) {
         entry.decision_state = ds;
@@ -44,6 +52,11 @@ function aggregateEvents(events) {
     }
 
     if (ev.severity?.level) entry.severity_level = ev.severity.level;
+    if (ev.decision_state) {
+      entry.decision_state = ev.decision_state;
+      entry.policyLabel = policyLabel(ev.decision_state);
+    }
+    if (ev.rule_id) entry.rule_id = ev.rule_id;
     if (ev.action?.summary) entry.summary = ev.action.summary;
     if (ev.event_type === 'enforcement.applied') entry.enforcement_applied = ev.policy?.decision_state;
 
@@ -73,7 +86,11 @@ function aggregateEvents(events) {
     if (t.decision_state in counts) counts[t.decision_state]++;
   }
 
-  const endpointIds = new Set(events.filter(e => e.endpoint?.id).map(e => e.endpoint.id));
+  const endpointIds = new Set(
+    events
+      .map((e) => e.endpoint?.id ?? e.endpoint_id)
+      .filter(Boolean)
+  );
 
   return { tools, counts, endpointCount: endpointIds.size, totalEvents: events.length };
 }

@@ -11,6 +11,7 @@ import ToolsTable from '../components/dashboard/ToolsTable';
 import Pagination from '../components/dashboard/Pagination';
 import PostureSummaryWidget from '../components/dashboard/PostureSummaryWidget';
 import DataFlowWidget from '../components/dashboard/DataFlowWidget';
+import ResponseTimelineWidget from '../components/dashboard/ResponseTimelineWidget';
 
 export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef, onAlertCountChange }) {
   const {
@@ -100,9 +101,10 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
 
       <SummaryCards counts={counts} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <PostureSummaryWidget onPostureReset={refresh} />
         <DataFlowWidget />
+        <ResponseTimelineWidget onNavigate={onNavigate} />
       </div>
 
       <EndpointContextBar
@@ -120,7 +122,23 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
         onNavigate={onNavigate}
       />
 
-      <ToolsTable tools={paginatedTools} />
+      {!loading && !error && tools.length === 0 && (
+        <div className="rounded-lg border border-detec-slate-700/50 bg-detec-slate-800/30 px-6 py-10 text-center">
+          <p className="text-detec-slate-300 font-medium">No events yet</p>
+          <p className="text-sm text-detec-slate-500 mt-1 max-w-md mx-auto">
+            Run the Detec agent on your endpoints or send events to the API. Events will appear here as tools are detected and policy is evaluated.
+          </p>
+          <button
+            type="button"
+            onClick={() => onNavigate('events')}
+            className="mt-4 px-4 py-2 rounded-lg text-sm font-medium bg-detec-primary-500/20 text-detec-primary-400 hover:bg-detec-primary-500/30"
+          >
+            View Events
+          </button>
+        </div>
+      )}
+
+      {tools.length > 0 && <ToolsTable tools={paginatedTools} />}
 
       {filteredTools.length > 0 && (
         <Pagination
