@@ -3,7 +3,8 @@
 **Run ID:** LAB-RUN-014  
 **Tool:** Claude Cowork (Claude Desktop v1.1.4498, `com.anthropic.claudefordesktop`)  
 **Class:** C (Autonomous Executor) in Cowork mode; A (Assistive) in chat-only mode. Exhibits Class D indicators (scheduled tasks, self-modification via skill-creator, plugin extensibility) but lacks daemon persistence — proactive execution requires app to be running.  
-**Playbook Reference:** New profile (Section 4.x to be created), Section 12 (Lab Validation), Appendix B (Confidence Scoring)  
+**Playbook Reference:** Section 4.1b (Claude Cowork), Section 12 (Lab Validation), Appendix A (Cross-Layer Correlation Rules), Appendix B (Confidence Scoring)  
+**INIT-43 Reference:** [init-issues/INIT-43-claude-process-file-network-signal-map.md](../init-issues/INIT-43-claude-process-file-network-signal-map.md) — process/file/network signal map, normalization fields, failure modes, correlation rules C1–C4, validation plan. Lab outputs must satisfy INIT-43 required outputs (per-layer report, confidence trace, correlation rule evaluation, residual ambiguity).  
 **Target Scenario:** Positive — Standard install state capture + running state + session analysis + teardown  
 **Scenario ID:** CW-POS-01  
 **Status:** `COMPLETE`
@@ -40,9 +41,23 @@ mkdir -p "$LAB_DIR"/{baseline,phase1-install,phase2-onboard,phase3a-basic,phase3
 mkdir -p ~/cowork-lab-workspace
 ```
 
+### INIT-43 Signal Map Alignment
+
+Captures in this protocol map to INIT-43 normalization and correlation as follows:
+
+| INIT-43 layer | Normalization fields (INIT-43) | Protocol capture |
+|---|---|---|
+| **Process** | proc.path, parent_chain, child_chain, proc.signer | Phase 1: binary path, code-signing, entitlements. Phase 2: all-claude-processes (path, PID), pstree. Optional: pstree stream for session shape. |
+| **File** | artifact.path, artifact.type, artifact.last_modified, artifact.repo_scope | Baseline: claude-desktop-dir, config paths. Phase 1: vm_bundles, local-agent-mode-sessions, app-support-breakdown (recency via timestamps). Trusted folder = repo_scope. |
+| **Network** | net.dest_ip, net.conn_*, net.proc_link_confidence | Phase 2: claude-network-post-launch (PID per connection = process-to-connection linkage), dns-resolution. Optional: connections-stream for burst cadence. |
+
+Correlation rules C1–C4 (Appendix A) are evaluated in Phase 5. Penalties (INIT-43 Section 6, Appendix B): missing parent-child chain, wrapper/renamed binary, stale artifact only, non-default paths, ambiguous proxy, unresolved process–network linkage, containerized/remote execution, weak identity.
+
 ---
 
 ## Pre-Install: Baseline Capture
+
+**INIT-43:** Baseline establishes artifact.path, artifact.type, and recency reference for file layer; process and network state for comparison post-launch.
 
 ### File System Baseline
 
@@ -188,6 +203,30 @@ cat ~/Library/Application\ Support/Claude/claude_desktop_config.json > "$LAB_DIR
 cat ~/Library/Application\ Support/Claude/Preferences > "$LAB_DIR/phase2-onboard/preferences-running.txt"
 ```
 
+### Optional: Connection and Process Stream Monitors (INIT-43 process–network linkage)
+
+For process-to-connection linkage and burst cadence (INIT-43 network failure-mode mitigation), run in background; stop in Phase 4.
+
+```bash
+# Connection snapshot every 2 seconds (PID-attributable connections)
+while true; do
+  echo "=== $(date -u +%H:%M:%S) ===" >> "$LAB_DIR/phase2-onboard/connections-stream.txt"
+  lsof -i -nP 2>/dev/null | grep -i claude >> "$LAB_DIR/phase2-onboard/connections-stream.txt"
+  sleep 2
+done &
+CONN_PID=$!
+echo "CONN_PID=$CONN_PID" > "$LAB_DIR/phase2-onboard/monitor-pids.txt"
+
+# Process snapshot every 2 seconds
+while true; do
+  echo "=== $(date -u +%H:%M:%S) ===" >> "$LAB_DIR/phase2-onboard/pstree-stream.txt"
+  ps auxww | grep -iE 'claude|anthropic|Virtualization' | grep -v grep >> "$LAB_DIR/phase2-onboard/pstree-stream.txt"
+  sleep 2
+done &
+PS_PID=$!
+echo "PS_PID=$PS_PID" >> "$LAB_DIR/phase2-onboard/monitor-pids.txt"
+```
+
 ### Phase 2 Timestamp and Hashes
 
 ```bash
@@ -274,6 +313,13 @@ shasum -a 256 "$LAB_DIR/phase3c-selfmod/"* > "$LAB_DIR/phase3c-selfmod/EVIDENCE-
 
 ## Phase 4: Teardown — What Persists After Exit
 
+### Stop Optional Monitors (if started in Phase 2)
+
+```bash
+[ -f "$LAB_DIR/phase2-onboard/monitor-pids.txt" ] && . "$LAB_DIR/phase2-onboard/monitor-pids.txt"
+kill $CONN_PID $PS_PID 2>/dev/null
+```
+
 ### Stop Claude Desktop
 
 ```bash
@@ -318,6 +364,200 @@ shasum -a 256 "$LAB_DIR/MASTER-HASHES.txt" >> "$LAB_DIR/MASTER-HASHES.txt"
 | Phase 3B | Agentic execution — MCP integration evidence | 10 evidence files. Google Calendar integration confirmed |
 | Phase 3C | Self-modification — skills/plugin infrastructure | 6 evidence files. Schedule skill, skill-creator, 19+ marketplace plugins |
 | Phase 4 | Teardown — clean shutdown, persistence check | 9 evidence files. Clean exit, 10 GB passive persistence, no daemon |
+
+---
+
+## Phase 5: Evidence Analysis and Template Completion
+
+Complete in [LAB-RUN-014-RESULTS.md](LAB-RUN-014-RESULTS.md). This section defines the required structure (INIT-43 required outputs).
+
+### 5.1 Signal Observation Matrix
+
+Fill in from captured evidence. For each layer, classify every IOC from Playbook Section 4.1b:
+
+| Layer | IOC (from Section 4.1b) | Status | Evidence File | Notes |
+|---|---|---|---|---|
+| **Process** | Signed Claude Desktop app from `/Applications/Claude.app` | `[ ] Observed` `[ ] Different` `[ ] Not observed` | | |
+| **Process** | Multi-process Electron + Virtualization.VirtualMachine VM process | `[ ] Observed` `[ ] Different` `[ ] Not observed` | | |
+| **Process** | Plugin helper (DXT) and Network utility processes | `[ ] Observed` `[ ] Different` `[ ] Not observed` | | |
+| **File** | `~/Library/Application Support/Claude/` (vm_bundles, local-agent-mode-sessions) | `[ ] Observed` `[ ] Different` `[ ] Not observed` | | |
+| **File** | Session JSON with identity, egress allowlist, audit.jsonl | `[ ] Observed` `[ ] Different` `[ ] Not observed` | | |
+| **File** | DXT extensions, skills plugin, plugin marketplace | `[ ] Observed` `[ ] Different` `[ ] Not observed` | | |
+| **Network** | Outbound TLS from Network utility process (PID-attributable) | `[ ] Observed` `[ ] Different` `[ ] Not observed` | | |
+| **Network** | VM egress allowlist (session JSON), VM IP/MAC | `[ ] Observed` `[ ] Different` `[ ] Not observed` | | |
+| **Identity** | accountName, emailAddress in session JSON; code signing | `[ ] Observed` `[ ] Different` `[ ] Not observed` | | |
+| **Behavior** | tool_use_summary in audit.jsonl; MCP connector activity | `[ ] Observed` `[ ] Different` `[ ] Not observed` | | |
+| **Behavior** | schedule skill / coworkScheduledTasksEnabled; skill-creator | `[ ] Observed` `[ ] Different` `[ ] Not observed` | | |
+
+### 5.2 Correlation Rule Evaluation (INIT-43 / Appendix A)
+
+| Rule | Requirement | Result |
+|---|---|---|
+| **C1** High-confidence | Process entrypoint + lineage, at least one fresh artifact, network timing or behavioral continuity | `[ ] Met` `[ ] Not met` |
+| **C2** Medium-confidence | Any two layers align; missing process certainty or artifact recency | `[ ] Met` `[ ] Not met` |
+| **C3** Low-confidence | Single-layer only or conflicting signals | `[ ] Met` `[ ] Not met` |
+| **C4** Ambiguity override | Layers conflict; downgrade to warn/approval only | `[ ] Met` `[ ] Not met` |
+
+### 5.3 Confidence Score Calculation
+
+Using Appendix B formula (five-layer defaults or Cowork-calibrated weights):
+
+```
+Layer Weights (Appendix B; Cowork proposed in LAB-RUN-014-RESULTS):
+  Process:  0.25    File:  0.15 (default) / 0.20 (proposed)
+  Network:  0.15    Identity:  0.10 (default) / 0.15 (proposed)
+  Behavior: 0.15    Binary Hash: 0.20
+
+Applicable penalties (INIT-43 Section 6, Appendix B):
+  [ ] Missing parent-child process chain:          −0.15
+  [ ] Wrapper/renamed binary without resolution:   −0.15
+  [ ] Stale artifact only (no recent modification): −0.10
+  [ ] Non-default artifact paths:                  −0.10
+  [ ] Ambiguous proxy/gateway route:               −0.10
+  [ ] Unresolved process-to-network linkage:       −0.10
+  [ ] Containerized/remote execution:              −0.10
+  [ ] Weak/missing identity correlation:           −0.10
+
+final_confidence = max(0, base_score - penalties)
+Classification: ≥0.75 High; 0.45–0.74 Medium; <0.45 Low
+```
+
+**Calculated score:** `___`  
+**Classification:** `___`
+
+### 5.4 Completed Lab Run Evidence Template (Playbook Section 12.2)
+
+```
+Run ID:              LAB-RUN-014
+Date:                [execution date]
+Tool:                Claude Cowork (Claude Desktop [version])
+Scenario ID:         CW-POS-01
+Environment:         [OS, endpoint posture, network]
+Scenario Type:       Positive
+
+Signal Observations:
+  Process:           [observed / not observed — cite evidence files]
+  File/Artifact:     [observed / not observed — cite evidence files]
+  Network:           [observed / not observed — cite evidence files]
+  Identity:          [observed / not observed — cite evidence files]
+  Behavior:          [observed / not observed — cite evidence files]
+
+Confidence Result:   [score + rationale]
+Policy Decision:     [detect/warn/approval/block + rule_id]
+Evidence Links:      [MASTER-HASHES.txt and phase evidence]
+Pass/Fail:           [pass | conditional pass | fail]
+Residual Risk:       [coverage gaps — INIT-43 "residual ambiguity notes"]
+```
+
+### 5.5 Findings and Playbook Feedback
+
+| Finding | Affected Section | Recommended Change |
+|---|---|---|
+| | | |
+
+---
+
+## INIT-43 Validation Plan Coverage
+
+From INIT-43 Section 7:
+
+- **Positive checks:** (1) Canonical Cowork session with process/file/network alignment → CW-POS-01 (this run). (2) Multi-command/workflow with artifact and network corroboration → Phase 3B (MCP), session analysis. (3) Repeated session consistency → CW-POS-02 (scheduled task) when run.
+- **Adversarial checks:** Non-standard install, VPN-routed API, DXT modification → follow-on CW-EVA-01; same four outputs required.
+- **Required outputs (must appear in RESULTS):**
+  1. **Per-layer signal capture report** → Section 1 "Signal Observation Matrix" in LAB-RUN-014-RESULTS.md
+  2. **Confidence calculation trace** → Section 2 "Confidence Score Calculation" in LAB-RUN-014-RESULTS.md
+  3. **Correlation rule evaluation** → Section 5.2 above; can be summarized in RESULTS
+  4. **Residual ambiguity notes** → "Residual Risk" in completed evidence template (Section 5.4) and in RESULTS
+
+---
+
+## Evidence Inventory Checklist
+
+When complete, `$LAB_DIR` should contain:
+
+```
+LAB-RUN-014/
+├── MASTER-HASHES.txt
+├── baseline/
+│   ├── EVIDENCE-HASHES.txt
+│   ├── TIMESTAMP_MARKER
+│   ├── start-time.txt
+│   ├── home-tree.txt
+│   ├── claude-desktop-dir.txt
+│   ├── claude-cli-dir.txt
+│   ├── claude-desktop-config.txt
+│   ├── claude-desktop-preferences.txt
+│   ├── claude-extensions.txt
+│   ├── claude-extensions-settings.txt
+│   ├── tmp-listing.txt
+│   ├── ps-full.txt
+│   ├── pstree.txt
+│   ├── claude-process-check.txt
+│   ├── listening-ports.txt
+│   ├── active-connections.txt
+│   ├── env-vars.txt
+│   ├── ai-env.txt
+│   ├── crontab.txt
+│   ├── launch-agents.txt
+│   ├── claude-plist-check.txt
+│   └── *.bak (shell profile backups)
+├── phase1-install/
+│   ├── EVIDENCE-HASHES.txt
+│   ├── TIMESTAMP_MARKER
+│   ├── phase1-end-time.txt
+│   ├── binary-metadata.txt
+│   ├── code-signing.txt
+│   ├── info-plist.txt
+│   ├── entitlements.txt
+│   ├── claude-extensions-listing.txt
+│   ├── chrome-control-manifest.txt
+│   ├── notes-manifest.txt
+│   ├── vm-bundles.txt
+│   ├── vm-mac-address.txt
+│   ├── vm-ip.txt
+│   ├── vm-machine-id.txt
+│   ├── app-disk-footprint.txt
+│   ├── app-support-breakdown.txt
+│   └── local-agent-sessions.txt
+├── phase2-onboard/
+│   ├── EVIDENCE-HASHES.txt
+│   ├── TIMESTAMP_MARKER
+│   ├── phase2-end-time.txt
+│   ├── all-claude-processes.txt
+│   ├── claude-network-post-launch.txt
+│   ├── dns-resolution.txt
+│   ├── claude-config-running.txt
+│   ├── preferences-running.txt
+│   ├── connections-stream.txt       (optional)
+│   ├── pstree-stream.txt             (optional)
+│   └── monitor-pids.txt             (optional)
+├── phase3a-basic/
+│   ├── EVIDENCE-HASHES.txt
+│   ├── TIMESTAMP_MARKER
+│   ├── session-titles.txt
+│   └── full-audit-log.jsonl
+├── phase3b-agentic/
+│   ├── EVIDENCE-HASHES.txt
+│   └── TIMESTAMP_MARKER
+├── phase3c-selfmod/
+│   ├── EVIDENCE-HASHES.txt
+│   └── TIMESTAMP_MARKER
+├── phase4-teardown/
+│   ├── phase4-end-time.txt
+│   └── EVIDENCE-HASHES.txt
+└── [Phase 5 analysis in LAB-RUN-014-RESULTS.md]
+```
+
+---
+
+## Post-Run: Next Steps
+
+1. Complete Phase 5 analysis in LAB-RUN-014-RESULTS.md (signal matrix, correlation rules, confidence trace, evidence template, playbook feedback).
+2. Update Playbook Section 12.5 Lab Run Log and Section 12.4 Methodology with any new findings.
+3. If running CW-POS-02 / CW-POS-03 / skill-creator: use extended or scenario-specific protocols; produce same four INIT-43 outputs.
+4. Archive evidence per retention policy (Section 9.4).
+
+---
 
 ## Results
 

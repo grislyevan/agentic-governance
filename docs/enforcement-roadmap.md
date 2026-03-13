@@ -32,7 +32,7 @@ Every phase spec references these files. Read them before starting work.
 | 12 tool scanners | `collector/scanner/*.py` | Each extends `BaseScanner` (`scanner/base.py`). Returns `ScanResult` with `LayerSignals`, penalties, evidence. |
 | Confidence engine | `collector/engine/confidence.py` | `compute_confidence(scan)` applies per-tool weights, penalties, evasion boost. `classify_confidence(score)` returns Low/Medium/High. |
 | Policy engine | `collector/engine/policy.py` | `evaluate_policy()` runs deterministic rules ENFORCE-001 through ENFORCE-D03 plus overlays NET-001, NET-002, ISO-001. Returns `PolicyDecision(decision_state, rule_id, ...)`. |
-| 15 baseline policies | `api/core/baseline_policies.py` | Seeded per tenant. `is_baseline=True`, restorable. |
+| 15 baseline policies | `api/core/baseline_policies.py` | Seeded per tenant. `is_baseline=True`, restorable. **ISO-001** (container isolation) is advisory/recommendation only: runtime containerization of already-running processes is not implemented; the rule ships inactive and should be treated as recommendation until a dedicated implementation exists. |
 | Telemetry event store | `collector/telemetry/event_store.py` | Thread-safe ring buffer: `ProcessExecEvent`, `NetworkConnectEvent`, `FileChangeEvent`. 120s retention, 10k max. |
 | Polling provider | `collector/providers/polling.py` | `PollingProvider.poll()` snapshots psutil processes and TCP connections into the event store. Called each scan cycle. |
 | Provider interface | `collector/providers/base.py` | Abstract `TelemetryProvider`: `name`, `available()`, `start(store)`, `stop()`. No `poll()` in the base (designed for event-driven). |

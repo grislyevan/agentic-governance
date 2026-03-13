@@ -24,7 +24,7 @@
 | `docs/` | MDM deployment, macOS permissions. |
 | `branding/` | Logos, guidelines, agent-v1 UI reference. |
 | `legal/` | Terms of Service, Software License Agreement. Root `LICENSE` has BSL 1.1. |
-| `lab-runs/`, `init-issues/` | Lab results and backlog. |
+| `lab-runs/`, `init-issues/` | Lab results and backlog. Protocols and RESULTS in `lab-runs/`; capture scripts in `lab-runs/scripts/`. See [docs/lab-runs-and-results.md](docs/lab-runs-and-results.md) for full index. |
 
 ---
 
@@ -47,7 +47,7 @@ Default dashboard login: `admin@example.com` / `change-me` (unless overridden by
 ## Conventions
 
 - **Config:** Collector: `collector/config_loader.py` + `collector/config/collector.json` + env. API: `api/core/config.py` + root or `api/.env`. Production: set `ENV=production` and strong `JWT_SECRET` / `SEED_ADMIN_PASSWORD`.
-- **Docs:** Agent deployment → [DEPLOY.md](DEPLOY.md). Central server → [SERVER.md](SERVER.md). Playbook → `playbook/PLAYBOOK-v0.4-*.md`. Progress → [PROGRESS.md](PROGRESS.md).
+- **Docs:** Agent deployment → [DEPLOY.md](DEPLOY.md). Central server → [SERVER.md](SERVER.md). Playbook → `playbook/PLAYBOOK-v0.4-*.md`. Progress → [PROGRESS.md](PROGRESS.md). Lab runs, results, scripts, and links to playbook/INIT-43/calibration → [docs/lab-runs-and-results.md](docs/lab-runs-and-results.md).
 - **Versioning:** Playbook uses semantic version in filename and `Version:` header; see `.cursor/rules/git-and-versioning.mdc` for commit/version discipline.
 - **Tests:** `pytest collector/tests/` (233 tests), `pytest api/tests/` (244), `pytest protocol/tests/` (48). Run separately to avoid package conflicts.
 - **Calibration:** `pytest collector/tests/test_calibration.py -v` runs the replay harness against 8 lab-run fixtures. Runs automatically in CI as a dedicated "Calibration Regression" job on every push/PR to main. Run it locally before changing weights or penalties in `engine/confidence.py`. Add new fixtures to `collector/tests/fixtures/lab_runs/` after each lab run.

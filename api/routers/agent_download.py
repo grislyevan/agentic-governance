@@ -158,7 +158,11 @@ echo "Running installer (you will be prompted for your password)..."
 sudo installer -pkg "$PKG" -target /
 
 # Remove quarantine flag so unsigned builds launch without Gatekeeper blocking.
-sudo xattr -rd com.apple.quarantine "/Applications/Detec Agent.app" 2>/dev/null || true
+if sudo xattr -rd com.apple.quarantine "/Applications/Detec Agent.app" 2>/dev/null; then
+    echo "  Quarantine flag removed (app can open without Gatekeeper prompt)."
+else
+    echo "  If the app won't open: right-click it and choose Open, or run: sudo xattr -rd com.apple.quarantine '/Applications/Detec Agent.app'"
+fi
 
 echo ""
 echo "=== Install complete ==="

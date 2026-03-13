@@ -1,0 +1,445 @@
+[
+  {
+    "event_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+    "event_type": "detection.observed",
+    "event_version": "0.1.0",
+    "observed_at": "2026-02-26T10:14:32.000Z",
+    "ingested_at": "2026-02-26T10:14:33.412Z",
+    "session_id": "91a4f548-cc02-lab-run-002",
+    "trace_id": "trace-lab-run-002-cc-pos-02",
+    "parent_event_id": null,
+    "actor": {
+      "id": "echance@magnite.com",
+      "type": "human",
+      "trust_tier": "T2",
+      "identity_confidence": 0.85,
+      "org_context": "org"
+    },
+    "endpoint": {
+      "id": "MAGNITE-M2-001",
+      "os": "macOS 26.3 Darwin 25.3.0 ARM64",
+      "posture": "managed"
+    },
+    "tool": {
+      "name": "Claude Code",
+      "class": "C",
+      "version": "2.1.59",
+      "attribution_confidence": 0.77,
+      "attribution_sources": ["process", "file"]
+    },
+    "action": {
+      "type": "exec",
+      "risk_class": "R2",
+      "summary": "Claude Code CLI binary invoked from terminal; ~/.claude/ config directory detected with 308 files from active session.",
+      "raw_ref": "evidence://lab-run-002/phase1-launch/pstree-stream.txt"
+    },
+    "target": {
+      "type": "path",
+      "id": "/Users/echance/claude-lab/LAB-RUN-002/",
+      "scope": "claude-lab workspace",
+      "sensitivity_tier": "Tier0"
+    },
+    "severity": {
+      "level": "S1"
+    }
+  },
+
+  {
+    "event_id": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+    "event_type": "policy.evaluated",
+    "event_version": "0.1.0",
+    "observed_at": "2026-02-26T10:14:33.500Z",
+    "ingested_at": "2026-02-26T10:14:34.021Z",
+    "session_id": "91a4f548-cc02-lab-run-002",
+    "trace_id": "trace-lab-run-002-cc-pos-02",
+    "parent_event_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+    "actor": {
+      "id": "echance@magnite.com",
+      "type": "human",
+      "trust_tier": "T2",
+      "identity_confidence": 0.85,
+      "org_context": "org"
+    },
+    "endpoint": {
+      "id": "MAGNITE-M2-001",
+      "os": "macOS 26.3 Darwin 25.3.0 ARM64",
+      "posture": "managed"
+    },
+    "tool": {
+      "name": "Claude Code",
+      "class": "C",
+      "version": "2.1.59",
+      "attribution_confidence": 0.77,
+      "attribution_sources": ["process", "file", "identity", "behavior"]
+    },
+    "action": {
+      "type": "exec",
+      "risk_class": "R3",
+      "summary": "Agentic session: 6 source files created, pytest execution (16 tests), git init/add/commit with Co-Authored-By trailer.",
+      "raw_ref": "evidence://lab-run-002/phase2-agentic/git-log.txt"
+    },
+    "target": {
+      "type": "repo",
+      "id": "/Users/echance/claude-lab/LAB-RUN-002/",
+      "scope": "claude-lab workspace",
+      "sensitivity_tier": "Tier1"
+    },
+    "policy": {
+      "decision_state": "approval_required",
+      "rule_id": "ENFORCE-003",
+      "rule_version": "0.1.0",
+      "reason_codes": [
+        "class_c_autonomous_executor",
+        "high_confidence_attribution",
+        "multi_file_write_with_git_commit",
+        "shell_execution_observed"
+      ],
+      "decision_confidence": 0.77
+    },
+    "evidence": {
+      "ids": [
+        "ev-002-process-tree",
+        "ev-002-git-log",
+        "ev-002-commit-message",
+        "ev-002-child-chains"
+      ],
+      "integrity_status": "valid",
+      "hash_refs": [
+        "sha256:a3f1b2c4d5e6f7089012345abcdef6789abcdef012345678",
+        "sha256:b4c2d3e5f6a70891234567890abcdef0123456789abcdef01",
+        "sha256:c5d3e4f6a7b8091234567890abcdef0123456789abcdef012",
+        "sha256:d6e4f5a7b8c9012345678901abcdef0123456789abcdef013"
+      ]
+    },
+    "severity": {
+      "level": "S2"
+    }
+  },
+
+  {
+    "event_id": "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f",
+    "event_type": "enforcement.applied",
+    "event_version": "0.1.0",
+    "observed_at": "2026-02-26T10:18:45.000Z",
+    "ingested_at": "2026-02-26T10:18:45.892Z",
+    "session_id": "91a4f548-cc02-lab-run-002",
+    "trace_id": "trace-lab-run-002-cc-pos-02",
+    "parent_event_id": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+    "actor": {
+      "id": "echance@magnite.com",
+      "type": "human",
+      "trust_tier": "T2",
+      "identity_confidence": 0.85,
+      "org_context": "org"
+    },
+    "endpoint": {
+      "id": "MAGNITE-M2-001",
+      "os": "macOS 26.3 Darwin 25.3.0 ARM64",
+      "posture": "managed"
+    },
+    "tool": {
+      "name": "Claude Code",
+      "class": "C",
+      "version": "2.1.59",
+      "attribution_confidence": 0.77,
+      "attribution_sources": ["process", "file", "identity", "behavior"]
+    },
+    "action": {
+      "type": "exec",
+      "risk_class": "R3",
+      "summary": "Agentic session with shell execution and git operations approved by security delegate.",
+      "raw_ref": "evidence://lab-run-002/phase2-agentic/full-process-chain.txt"
+    },
+    "target": {
+      "type": "repo",
+      "id": "/Users/echance/claude-lab/LAB-RUN-002/",
+      "scope": "claude-lab workspace",
+      "sensitivity_tier": "Tier1"
+    },
+    "policy": {
+      "decision_state": "approval_required",
+      "rule_id": "ENFORCE-003",
+      "rule_version": "0.1.0",
+      "reason_codes": [
+        "class_c_autonomous_executor",
+        "high_confidence_attribution",
+        "approval_granted_by_delegate"
+      ],
+      "decision_confidence": 0.77
+    },
+    "approval": {
+      "id": "APPR-2026-0226-001",
+      "scope_id": "claude-code:exec:claude-lab-workspace"
+    },
+    "enforcement": {
+      "tactic": "approval_gate",
+      "success": true,
+      "detail": "Approval granted by security delegate; session allowed to proceed."
+    },
+    "outcome": {
+      "enforcement_result": "allowed",
+      "incident_flag": false,
+      "incident_id": null
+    },
+    "evidence": {
+      "ids": [
+        "ev-002-process-tree",
+        "ev-002-git-log",
+        "ev-002-terminal-session"
+      ],
+      "integrity_status": "valid",
+      "hash_refs": [
+        "sha256:a3f1b2c4d5e6f7089012345abcdef6789abcdef012345678",
+        "sha256:b4c2d3e5f6a70891234567890abcdef0123456789abcdef01",
+        "sha256:e7f5a6b8c9d0123456789012abcdef0123456789abcdef014"
+      ]
+    },
+    "severity": {
+      "level": "S1"
+    }
+  },
+
+  {
+    "event_id": "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f80",
+    "event_type": "detection.observed",
+    "event_version": "0.1.0",
+    "observed_at": "2026-02-26T14:22:10.000Z",
+    "ingested_at": "2026-02-26T14:22:11.204Z",
+    "session_id": "ollama-lab-run-003-session",
+    "trace_id": "trace-lab-run-003-ol-pos-01",
+    "parent_event_id": null,
+    "actor": {
+      "id": "echance@magnite.com",
+      "type": "human",
+      "trust_tier": "T2",
+      "identity_confidence": 0.50,
+      "org_context": "org"
+    },
+    "endpoint": {
+      "id": "MAGNITE-M2-001",
+      "os": "macOS 26.3 Darwin 25.3.0 ARM64",
+      "posture": "managed"
+    },
+    "tool": {
+      "name": "Ollama",
+      "class": "B",
+      "version": "0.17.0",
+      "attribution_confidence": 0.69,
+      "attribution_sources": ["file", "network"]
+    },
+    "action": {
+      "type": "exec",
+      "risk_class": "R2",
+      "summary": "Ollama daemon detected: ~/.ollama/models/ directory with 652 MB model storage (13 files, OCI manifests) and localhost:11434 TCP listener attributed to PID 60470.",
+      "raw_ref": "evidence://lab-run-003/phase2-launch/port-11434-at-launch.txt"
+    },
+    "target": {
+      "type": "host",
+      "id": "MAGNITE-M2-001",
+      "scope": "local endpoint",
+      "sensitivity_tier": "Tier0"
+    },
+    "severity": {
+      "level": "S0"
+    }
+  },
+
+  {
+    "event_id": "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8091",
+    "event_type": "policy.evaluated",
+    "event_version": "0.1.0",
+    "observed_at": "2026-02-26T14:22:12.000Z",
+    "ingested_at": "2026-02-26T14:22:12.587Z",
+    "session_id": "ollama-lab-run-003-session",
+    "trace_id": "trace-lab-run-003-ol-pos-01",
+    "parent_event_id": "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f80",
+    "actor": {
+      "id": "echance@magnite.com",
+      "type": "human",
+      "trust_tier": "T2",
+      "identity_confidence": 0.50,
+      "org_context": "org"
+    },
+    "endpoint": {
+      "id": "MAGNITE-M2-001",
+      "os": "macOS 26.3 Darwin 25.3.0 ARM64",
+      "posture": "managed"
+    },
+    "tool": {
+      "name": "Ollama",
+      "class": "B",
+      "version": "0.17.0",
+      "attribution_confidence": 0.69,
+      "attribution_sources": ["process", "file", "network", "behavior"]
+    },
+    "action": {
+      "type": "exec",
+      "risk_class": "R2",
+      "summary": "Local model runtime with active inference: 5-request burst in ~24s, scripted automation against local .py file, two models pulled (tinyllama 637 MB + all-minilm 45 MB).",
+      "raw_ref": "evidence://lab-run-003/phase3-inference/api-burst-responses.json"
+    },
+    "target": {
+      "type": "host",
+      "id": "MAGNITE-M2-001",
+      "scope": "local endpoint",
+      "sensitivity_tier": "Tier0"
+    },
+    "policy": {
+      "decision_state": "warn",
+      "rule_id": "ENFORCE-002",
+      "rule_version": "0.1.0",
+      "reason_codes": [
+        "class_b_local_model_runtime",
+        "medium_confidence_attribution",
+        "unapproved_model_pull",
+        "unauthenticated_api_listener"
+      ],
+      "decision_confidence": 0.69
+    },
+    "evidence": {
+      "ids": [
+        "ev-003-process-tree",
+        "ev-003-model-storage",
+        "ev-003-port-listener",
+        "ev-003-api-burst"
+      ],
+      "integrity_status": "valid",
+      "hash_refs": [
+        "sha256:f8a6b9c0d1e2345678901234abcdef0123456789abcdef015",
+        "sha256:09b7c1d2e3f4567890123456abcdef0123456789abcdef016",
+        "sha256:1ac8d2e3f4a5678901234567abcdef0123456789abcdef017",
+        "sha256:2bd9e3f4a5b6789012345678abcdef0123456789abcdef018"
+      ]
+    },
+    "severity": {
+      "level": "S1"
+    }
+  },
+
+  {
+    "event_id": "f6a7b8c9-d0e1-4f2a-3b4c-5d6e7f809102",
+    "event_type": "detection.observed",
+    "event_version": "0.1.0",
+    "observed_at": "2026-02-26T10:17:58.000Z",
+    "ingested_at": "2026-02-26T10:17:58.734Z",
+    "session_id": "91a4f548-cc02-lab-run-002",
+    "trace_id": "trace-lab-run-002-cc-pos-02",
+    "parent_event_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+    "actor": {
+      "id": "echance@magnite.com",
+      "type": "human",
+      "trust_tier": "T2",
+      "identity_confidence": 0.85,
+      "org_context": "org"
+    },
+    "endpoint": {
+      "id": "MAGNITE-M2-001",
+      "os": "macOS 26.3 Darwin 25.3.0 ARM64",
+      "posture": "managed"
+    },
+    "tool": {
+      "name": "Claude Code",
+      "class": "C",
+      "version": "2.1.59",
+      "attribution_confidence": 0.95,
+      "attribution_sources": ["behavior"]
+    },
+    "action": {
+      "type": "repo",
+      "risk_class": "R2",
+      "summary": "Co-Authored-By trailer detected in git commit: 'Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>'. Git author: ziltoidiaAttax <echance@magnite.com>. Near-zero false-positive attribution signal.",
+      "raw_ref": "evidence://lab-run-002/phase2-agentic/commit-message.txt"
+    },
+    "target": {
+      "type": "repo",
+      "id": "/Users/echance/claude-lab/LAB-RUN-002/.git",
+      "scope": "claude-lab workspace git repository",
+      "sensitivity_tier": "Tier0"
+    },
+    "evidence": {
+      "ids": [
+        "ev-002-git-log",
+        "ev-002-commit-message",
+        "ev-002-git-author"
+      ],
+      "integrity_status": "valid",
+      "hash_refs": [
+        "sha256:b4c2d3e5f6a70891234567890abcdef0123456789abcdef01",
+        "sha256:c5d3e4f6a7b8091234567890abcdef0123456789abcdef012",
+        "sha256:3ce0f4a5b6c7890123456789abcdef0123456789abcdef019"
+      ]
+    },
+    "severity": {
+      "level": "S0"
+    }
+  },
+
+  {
+    "event_id": "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f80",
+    "event_type": "detection.observed",
+    "event_version": "0.2.0",
+    "observed_at": "2026-03-05T14:22:10.000Z",
+    "ingested_at": "2026-03-05T14:22:11.203Z",
+    "session_id": "oc-pos-05-lab-run-013",
+    "trace_id": "trace-lab-run-013-oc-pos-05",
+    "parent_event_id": null,
+    "actor": {
+      "id": "echance@magnite.com",
+      "type": "human",
+      "trust_tier": "T2",
+      "identity_confidence": 0.80,
+      "org_context": "org"
+    },
+    "endpoint": {
+      "id": "MAGNITE-M2-001",
+      "os": "macOS 26.3 Darwin 25.3.0 ARM64",
+      "posture": "managed"
+    },
+    "tool": {
+      "name": "OpenClaw",
+      "class": "D",
+      "version": "2026.3.1",
+      "attribution_confidence": 0.725,
+      "attribution_sources": ["process", "file", "network", "identity", "behavior"]
+    },
+    "action": {
+      "type": "exec",
+      "risk_class": "R3",
+      "summary": "OpenClaw gateway daemon running with KeepAlive + RunAtLoad persistence. Local LLM backend (ollama/qwen3.5:0.8b via localhost:11434). Ollama co-residency detected. Model swap is config-only — behavioral risk is latent. 216 MB ~/.openclaw/ with config, credentials, skills, sessions.",
+      "raw_ref": "evidence://lab-run-013/phase2-agentic/process-list.txt"
+    },
+    "target": {
+      "type": "host",
+      "id": "MAGNITE-M2-001",
+      "scope": "full system — persistent daemon with shell execution capability",
+      "sensitivity_tier": "Tier2"
+    },
+    "policy": {
+      "decision_state": "approval_required",
+      "rule_id": "ENFORCE-D01",
+      "rule_version": "0.3.1",
+      "reason_codes": ["class_d_persistent_agent", "daemon_persistence", "self_modification_capable", "local_llm_coresidency"],
+      "decision_confidence": 0.725
+    },
+    "evidence": {
+      "ids": [
+        "ev-013-process-list",
+        "ev-013-openclaw-config",
+        "ev-013-launchagent-plist",
+        "ev-013-network-connections",
+        "ev-013-ollama-coresidency"
+      ],
+      "integrity_status": "valid",
+      "hash_refs": [
+        "sha256:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8091011121314",
+        "sha256:b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f80910111213141516",
+        "sha256:c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8091011121314151617",
+        "sha256:d4e5f6a7b8c9d0e1f2a3b4c5d6e7f809101112131415161718",
+        "sha256:e5f6a7b8c9d0e1f2a3b4c5d6e7f80910111213141516171819"
+      ]
+    },
+    "severity": {
+      "level": "S3"
+    }
+  }
+]

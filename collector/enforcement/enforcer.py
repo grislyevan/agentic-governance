@@ -109,6 +109,10 @@ class Enforcer:
             self._results.append(result)
             return result
 
+        # dry_run: always return a simulated result so callers get simulated=True
+        if self._dry_run:
+            return self._simulate(decision, tool_name, tool_class, pids, network_elevated)
+
         if posture == "passive":
             result = EnforcementResult(
                 tactic="log_and_alert",
@@ -118,6 +122,9 @@ class Enforcer:
             )
             self._results.append(result)
             return result
+
+        if posture == "audit":
+            return self._simulate(decision, tool_name, tool_class, pids, network_elevated)
 
         if self._posture_mgr and self._posture_mgr.is_allow_listed(tool_name):
             result = EnforcementResult(
@@ -129,9 +136,6 @@ class Enforcer:
             )
             self._results.append(result)
             return result
-
-        if posture == "audit" or self._dry_run:
-            return self._simulate(decision, tool_name, tool_class, pids, network_elevated)
 
         # Staleness gate (Task 11a): if the allow-list hasn't been synced
         # recently, downgrade to audit to avoid killing a tool that was

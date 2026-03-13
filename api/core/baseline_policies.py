@@ -244,9 +244,10 @@ BASELINE_POLICIES: list[dict] = [
         "category": "overlay",
         "is_active": False,
         "description": (
-            "Container isolation requirement for Class C autonomous executors. "
-            "Blocks when not running inside a container. Disabled by default; "
-            "enable for environments that mandate sandboxed execution."
+            "Container isolation for Class C autonomous executors (advisory/recommendation). "
+            "Runtime containerization of already-running processes is not yet implemented; "
+            "this rule is disabled by default. When enabled, blocks when not running inside "
+            "a container. Treat as recommendation until a dedicated implementation exists."
         ),
         "parameters": {
             "decision_state": "block",

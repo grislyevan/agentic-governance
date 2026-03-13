@@ -32,8 +32,18 @@ export function clearTokens() {
   removeStored(STORAGE_KEYS.refreshToken);
 }
 
+const DEFAULT_API_URL =
+  typeof window !== 'undefined' && window.location?.port === '8000'
+    ? '/api'
+    : 'http://localhost:8000/api';
+
+/** When not on API port, relative /api would hit the wrong host; use full URL. */
 function apiBase() {
-  const url = getStored(STORAGE_KEYS.apiUrl) || '/api';
+  let url = getStored(STORAGE_KEYS.apiUrl) || '';
+  if (typeof window !== 'undefined' && window.location?.port !== '8000') {
+    if (!url || url === '/api' || url.startsWith('/')) url = DEFAULT_API_URL;
+  }
+  url = url || DEFAULT_API_URL;
   return url.replace(/\/+$/, '');
 }
 

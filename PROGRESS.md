@@ -34,6 +34,25 @@
 | Billing (Stripe, tier limits, dashboard) | Done |
 | Enterprise features (SSO, SIEM, ATT&CK, compliance) | Done |
 
+**Completed init issues:** INIT-43 (process/file/network signal map) — complete; LAB-RUN-014/015 and capture script aligned.
+
+---
+
+## Pre-v1.0 / PM Brief (2026-03-12)
+
+Items from the internal technical assessment. Track here until done or explicitly deferred.
+
+| # | Item | Owner | Status |
+|---|------|--------|--------|
+| 1 | ESF entitlement application (macOS; unlocks full behavioral layer) | Eng | Not started; 3–6 month Apple timeline |
+| 2 | Cron/LaunchAgent artifact scanning (user crontab, LaunchAgents for AI binaries) | Eng | Planned |
+| 3 | LAB-RUN-015 (Cowork scheduled task, DXT, skill-creator) | Research | Protocol ready; run pending |
+| 4 | Aider calibration (LAB-RUN-008 or equivalent; add fixture) | Research | Pending |
+| 5 | ISO-001 advisory wording (container isolation = recommendation until implementation) | PM + Eng | Done |
+| 6 | Messaging alignment: Claude Code at Medium confidence; API/confidence limitations in docs | PM + Marketing | Pending |
+
+See [docs/esf-entitlement.md](docs/esf-entitlement.md) for ESF status. Claude Cowork scanner added to production scan list (main.py).
+
 ---
 
 ## Architecture Target (SaaS)

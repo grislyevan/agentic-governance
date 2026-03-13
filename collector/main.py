@@ -47,10 +47,12 @@ from output.emitter import EventEmitter
 from output.http_emitter import HttpEmitter
 from output.tcp_emitter import TcpEmitter
 from agent.state import DisabledServiceTracker, StateDiffer
-from scanner.base import ScanResult
+from scanner.base import LayerSignals, ScanResult
+from scanner.scheduler_artifacts import get_scheduler_evidence_by_tool
 from scanner.ai_extensions import AIExtensionScanner
 from scanner.aider import AiderScanner
 from scanner.claude_code import ClaudeCodeScanner
+from scanner.claude_cowork import ClaudeCoworkScanner
 from scanner.cline import ClineScanner
 from scanner.continue_ext import ContinueScanner
 from scanner.copilot import CopilotScanner
@@ -624,6 +626,7 @@ def run_scan(
 
     scanners = [
         ClaudeCodeScanner(event_store=event_store),
+        ClaudeCoworkScanner(event_store=event_store),
         OllamaScanner(event_store=event_store),
         CursorScanner(event_store=event_store),
         CopilotScanner(event_store=event_store),
@@ -687,6 +690,43 @@ def run_scan(
     except Exception:
         logger.warning(
             "MCPScanner raised an exception; treating as inconclusive",
+            exc_info=True,
+        )
+
+    # Stage 1e: cron/LaunchAgent artifact evidence (scheduler blind-spot fix)
+    try:
+        scheduler_by_tool = get_scheduler_evidence_by_tool()
+        for scan in detected_scans:
+            evidence_list = scheduler_by_tool.get(scan.tool_name or "")
+            if not evidence_list:
+                continue
+            scan.evidence_details.setdefault("scheduler_entries", []).extend(evidence_list)
+            # Bump file-layer signal for scheduler-backed detection (cap at 1.0)
+            current = scan.signals.file
+            scan.signals.file = min(1.0, current + 0.15)
+            if args.verbose:
+                print(f"  Scheduler artifact for {scan.tool_name}: {len(evidence_list)} entry(ies)")
+        for tool_name, evidence_list in scheduler_by_tool.items():
+            if tool_name in detected_tools:
+                continue
+            # Tool found only in scheduler (no running process / other layer)
+            first = evidence_list[0]
+            tool_class = first.get("tool_class", "C")
+            new_scan = ScanResult(
+                detected=True,
+                tool_name=tool_name,
+                tool_class=tool_class,
+                signals=LayerSignals(file=0.5, process=0.0, network=0.0, identity=0.0, behavior=0.0),
+                evidence_details={"scheduler_entries": list(evidence_list)},
+                action_summary=f"Scheduled execution (cron/LaunchAgent): {len(evidence_list)} entry(ies)",
+            )
+            detected_scans.append(new_scan)
+            detected_tools.add(tool_name)
+            if args.verbose:
+                print(f"  Scheduler-only detection: {tool_name} ({len(evidence_list)} entry(ies))")
+    except Exception:
+        logger.warning(
+            "Scheduler artifact scan raised an exception; skipping",
             exc_info=True,
         )
 

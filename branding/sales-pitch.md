@@ -71,7 +71,7 @@ You set the thresholds. Low risk gets visibility. Medium risk triggers warnings.
 
 **Every decision is scored, not binary.** Most tools give you yes or no. Detec gives you a confidence score with a full evidence chain. You can see which layers matched, how much each contributed, and what penalties applied when evidence was incomplete. This matters when a SOC analyst must explain a decision to an engineering lead, or when compliance needs an audit trail that holds up.
 
-**Honest limits.** Some environments reduce visibility, including containerized development flows and short-lived network connections without EDR integration. Evasion is possible. We test for it, document known vectors, and use multi-signal correlation to raise the cost. Trust is earned, not claimed.
+**Honest limits.** Detection confidence varies by tool and environment. High-risk autonomous tools such as Claude Code are typically reported at Medium confidence today (process and file anchors; network and behavioral layers improve with EDR or kernel telemetry). Some environments reduce visibility, including containerized development flows and short-lived network connections without EDR integration. Evasion is possible. We test for it, document known vectors, and use multi-signal correlation to raise the cost. Trust is earned, not claimed.
 
 ---
 

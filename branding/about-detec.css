@@ -1,0 +1,243 @@
+/*
+ * Detec — About page styles
+ * Uses brand color system and typography. Load color-system.css first or inline its :root.
+ * Fonts: load IBM Plex Sans (400, 500, 600, 700) and IBM Plex Mono (400, 500) from Google Fonts.
+ */
+
+@import "color-system.css";
+
+/* ──────────────────────────────────────────────
+ * Base
+ * ────────────────────────────────────────────── */
+
+.about {
+  --about-bg: var(--detec-surface-light);
+  --about-text: var(--detec-text-primary-light);
+  --about-text-secondary: var(--detec-text-secondary-light);
+  --about-text-muted: var(--detec-text-muted-light);
+  --about-accent: var(--detec-primary-500);
+  --about-accent-soft: var(--detec-primary-50);
+  --about-border: var(--detec-slate-200);
+  --about-max-width: 42rem;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--about-text);
+  background-color: var(--about-bg);
+}
+
+.about *,
+.about *::before,
+.about *::after {
+  box-sizing: border-box;
+}
+
+/* ──────────────────────────────────────────────
+ * Container
+ * ────────────────────────────────────────────── */
+
+.about__container {
+  max-width: var(--about-max-width);
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .about__container {
+    padding: 4rem 2rem;
+  }
+}
+
+/* ──────────────────────────────────────────────
+ * Hero
+ * ────────────────────────────────────────────── */
+
+.about__hero {
+  margin-bottom: 2.5rem;
+}
+
+.about__tagline {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  color: var(--about-text);
+  margin: 0 0 0.75rem 0;
+}
+
+@media (min-width: 640px) {
+  .about__tagline {
+    font-size: 1.75rem;
+  }
+}
+
+.about__descriptor {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--about-text-secondary);
+  margin: 0;
+}
+
+/* ──────────────────────────────────────────────
+ * Sections
+ * ────────────────────────────────────────────── */
+
+.about__section {
+  margin-bottom: 2rem;
+}
+
+.about__section:last-child {
+  margin-bottom: 0;
+}
+
+.about__heading {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--about-text);
+  margin: 0 0 0.5rem 0;
+  text-transform: none;
+}
+
+.about__body {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--about-text-secondary);
+  margin: 0;
+}
+
+.about__body + .about__body {
+  margin-top: 0.75rem;
+}
+
+/* ──────────────────────────────────────────────
+ * Values list (What we believe)
+ * ────────────────────────────────────────────── */
+
+.about__values {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0 0;
+}
+
+.about__values li {
+  position: relative;
+  padding-left: 1.25rem;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  color: var(--about-text-secondary);
+}
+
+.about__values li:last-child {
+  margin-bottom: 0;
+}
+
+.about__values li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.5em;
+  width: 4px;
+  height: 4px;
+  border-radius: 2px;
+  background-color: var(--about-accent);
+}
+
+.about__values strong {
+  font-weight: 600;
+  color: var(--about-text);
+}
+
+/* ──────────────────────────────────────────────
+ * Name / pronunciation
+ * ────────────────────────────────────────────── */
+
+.about__pronunciation {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--about-text-muted);
+  margin-top: 0.25rem;
+}
+
+/* ──────────────────────────────────────────────
+ * CTA / Next step
+ * ────────────────────────────────────────────── */
+
+.about__cta {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--about-border);
+}
+
+.about__cta-text {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--about-text);
+  margin: 0 0 0.75rem 0;
+}
+
+.about__cta-link {
+  display: inline-block;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--about-accent);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  background-color: var(--about-accent-soft);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.about__cta-link:hover {
+  background-color: var(--detec-primary-100);
+  color: var(--detec-primary-700);
+}
+
+.about__cta-link:focus {
+  outline: 2px solid var(--about-accent);
+  outline-offset: 2px;
+}
+
+/* ──────────────────────────────────────────────
+ * Divider (optional; for visual separation)
+ * ────────────────────────────────────────────── */
+
+.about__hr {
+  border: none;
+  height: 1px;
+  background-color: var(--about-border);
+  margin: 2rem 0;
+}
+
+/* ──────────────────────────────────────────────
+ * Dark mode
+ * ────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  .about {
+    --about-bg: var(--detec-surface-dark);
+    --about-text: var(--detec-text-primary-dark);
+    --about-text-secondary: var(--detec-text-secondary-dark);
+    --about-text-muted: var(--detec-text-muted-dark);
+    --about-accent: var(--detec-primary-400);
+    --about-accent-soft: var(--detec-primary-900);
+    --about-border: var(--detec-slate-700);
+  }
+
+  .about__cta-link:hover {
+    background-color: var(--detec-primary-800);
+    color: var(--detec-primary-200);
+  }
+}
+
+/* Optional: force dark mode via class on container */
+.about.about--dark {
+  --about-bg: var(--detec-surface-dark);
+  --about-text: var(--detec-text-primary-dark);
+  --about-text-secondary: var(--detec-text-secondary-dark);
+  --about-text-muted: var(--detec-text-muted-dark);
+  --about-accent: var(--detec-primary-400);
+  --about-accent-soft: var(--detec-primary-900);
+  --about-border: var(--detec-slate-700);
+}

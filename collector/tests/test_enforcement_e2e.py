@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -205,19 +206,20 @@ class TestEnforcementEndToEnd(unittest.TestCase):
             is_containerized=False,
         )
 
-        posture_mgr = PostureManager(
-            initial_posture="active",
-            initial_threshold=0.60,
-            state_dir=None,
-        )
-        enforcer = Enforcer(posture_manager=posture_mgr, dry_run=True)
+        with tempfile.TemporaryDirectory() as state_dir:
+            posture_mgr = PostureManager(
+                initial_posture="active",
+                initial_threshold=0.60,
+                state_dir=Path(state_dir),
+            )
+            enforcer = Enforcer(posture_manager=posture_mgr, dry_run=True)
 
-        enf_result = enforcer.enforce(
-            decision=decision,
-            tool_name=result.tool_name or "Unknown Agent",
-            tool_class=result.tool_class or "C",
-            pids={1000},
-        )
+            enf_result = enforcer.enforce(
+                decision=decision,
+                tool_name=result.tool_name or "Unknown Agent",
+                tool_class=result.tool_class or "C",
+                pids={1000},
+            )
 
         self.assertTrue(enf_result.simulated, "dry-run should produce a simulated result")
         self.assertIn(enf_result.tactic, ("process_kill", "log_and_alert"))
@@ -253,33 +255,34 @@ class TestEnforcementEndToEnd(unittest.TestCase):
             is_containerized=False,
         )
 
-        posture_mgr = PostureManager(
-            initial_posture="active",
-            initial_threshold=0.60,
-            state_dir=None,
-        )
-        enforcer = Enforcer(posture_manager=posture_mgr, dry_run=False)
+        with tempfile.TemporaryDirectory() as state_dir:
+            posture_mgr = PostureManager(
+                initial_posture="active",
+                initial_threshold=0.60,
+                state_dir=Path(state_dir),
+            )
+            enforcer = Enforcer(posture_manager=posture_mgr, dry_run=False)
 
-        mock_proc = mock.Mock()
-        mock_proc.pid = 1000
-        mock_proc.cmdline.return_value = ["python3", "/opt/agent/run.py", "--autonomous"]
-        mock_proc.children.return_value = []
-        mock_proc.send_signal = mock.Mock()
+            mock_proc = mock.Mock()
+            mock_proc.pid = 1000
+            mock_proc.cmdline.return_value = ["python3", "/opt/agent/run.py", "--autonomous"]
+            mock_proc.children.return_value = []
+            mock_proc.send_signal = mock.Mock()
 
-        m_psutil = mock.MagicMock()
-        m_psutil.Process.return_value = mock_proc
-        m_psutil.wait_procs.return_value = ([mock_proc], [])
+            m_psutil = mock.MagicMock()
+            m_psutil.Process.return_value = mock_proc
+            m_psutil.wait_procs.return_value = ([mock_proc], [])
 
-        with mock.patch.dict("sys.modules", {"psutil": m_psutil}):
-            with mock.patch("enforcement.process_kill.os.killpg"), \
-                 mock.patch("enforcement.process_kill.os.getpgid"):
-                enf_result = enforcer.enforce(
-                    decision=decision,
-                    tool_name=result.tool_name or "Unknown Agent",
-                    tool_class=result.tool_class or "C",
-                    pids={1000},
-                    process_patterns=result.process_patterns,
-                )
+            with mock.patch.dict("sys.modules", {"psutil": m_psutil}):
+                with mock.patch("enforcement.process_kill.os.killpg"), \
+                     mock.patch("enforcement.process_kill.os.getpgid"):
+                    enf_result = enforcer.enforce(
+                        decision=decision,
+                        tool_name=result.tool_name or "Unknown Agent",
+                        tool_class=result.tool_class or "C",
+                        pids={1000},
+                        process_patterns=result.process_patterns,
+                    )
 
         self.assertFalse(enf_result.simulated, "Active posture should not simulate")
         self.assertEqual(enf_result.tactic, "process_kill")

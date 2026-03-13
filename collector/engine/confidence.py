@@ -104,6 +104,16 @@ CLAUDE_COWORK_WEIGHTS: dict[str, float] = {
     "behavior": 0.15,
 }
 
+# LAB-RUN-001/002: process and file are primary; network weak without EDR.
+# Confidence typically Medium (0.68–0.74) until artifact/behavior signals improve.
+CLAUDE_CODE_WEIGHTS: dict[str, float] = {
+    "process": 0.32,
+    "file": 0.23,
+    "network": 0.12,
+    "identity": 0.18,
+    "behavior": 0.15,
+}
+
 # Behavior layer is dominant for pattern-based detection of unknown agents.
 # Process and network are secondary; identity is deprioritized since unknown
 # agents rarely have attributable identity signals.
@@ -116,6 +126,7 @@ BEHAVIORAL_WEIGHTS: dict[str, float] = {
 }
 
 TOOL_WEIGHTS: dict[str, dict[str, float]] = {
+    "Claude Code": CLAUDE_CODE_WEIGHTS,
     "Ollama": OLLAMA_WEIGHTS,
     "Cursor": CURSOR_WEIGHTS,
     "GitHub Copilot": COPILOT_WEIGHTS,

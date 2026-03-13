@@ -339,6 +339,7 @@ class TestRunScanCleanSystem:
         with (
             patch("main.get_best_provider", return_value=mock_provider),
             patch("main.ClaudeCodeScanner") as m1,
+            patch("main.ClaudeCoworkScanner") as m_cowork,
             patch("main.OllamaScanner") as m2,
             patch("main.CursorScanner") as m3,
             patch("main.CopilotScanner") as m4,
@@ -352,8 +353,9 @@ class TestRunScanCleanSystem:
             patch("main.AIExtensionScanner") as m12,
             patch("main.BehavioralScanner") as m_beh,
             patch("main.EvasionScanner") as m_ev,
+            patch("main.get_scheduler_evidence_by_tool", return_value={}),
         ):
-            for m in [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
+            for m in [m1, m_cowork, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
                 inst = m.return_value
                 inst.tool_name = "stub"
                 inst.scan.return_value = not_detected
@@ -385,6 +387,7 @@ class TestRunScanSingleDetection:
         with (
             patch("main.get_best_provider", return_value=mock_provider),
             patch("main.ClaudeCodeScanner") as m1,
+            patch("main.ClaudeCoworkScanner") as m_cowork,
             patch("main.OllamaScanner") as m2,
             patch("main.CursorScanner") as m3,
             patch("main.CopilotScanner") as m4,
@@ -398,10 +401,11 @@ class TestRunScanSingleDetection:
             patch("main.AIExtensionScanner") as m12,
             patch("main.BehavioralScanner") as m_beh,
             patch("main.EvasionScanner") as m_ev,
+            patch("main.get_scheduler_evidence_by_tool", return_value={}),
         ):
             m1.return_value.tool_name = "Claude Code"
             m1.return_value.scan.return_value = cc_scan
-            for m in [m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
+            for m in [m2, m_cowork, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
                 inst = m.return_value
                 inst.tool_name = "stub"
                 inst.scan.return_value = not_detected
@@ -439,6 +443,7 @@ class TestRunScanMultipleDetections:
         with (
             patch("main.get_best_provider", return_value=mock_provider),
             patch("main.ClaudeCodeScanner") as m1,
+            patch("main.ClaudeCoworkScanner") as m_cowork,
             patch("main.OllamaScanner") as m2,
             patch("main.CursorScanner") as m3,
             patch("main.CopilotScanner") as m4,
@@ -452,12 +457,13 @@ class TestRunScanMultipleDetections:
             patch("main.AIExtensionScanner") as m12,
             patch("main.BehavioralScanner") as m_beh,
             patch("main.EvasionScanner") as m_ev,
+            patch("main.get_scheduler_evidence_by_tool", return_value={}),
         ):
             m1.return_value.tool_name = "Claude Code"
             m1.return_value.scan.return_value = cc_scan
             m2.return_value.tool_name = "Ollama"
             m2.return_value.scan.return_value = ol_scan
-            for m in [m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
+            for m in [m_cowork, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
                 inst = m.return_value
                 inst.tool_name = "stub"
                 inst.scan.return_value = not_detected
@@ -501,6 +507,7 @@ class TestBehavioralScannerPidDedup:
         with (
             patch("main.get_best_provider", return_value=mock_provider),
             patch("main.ClaudeCodeScanner") as m1,
+            patch("main.ClaudeCoworkScanner") as m_cowork,
             patch("main.OllamaScanner") as m2,
             patch("main.CursorScanner") as m3,
             patch("main.CopilotScanner") as m4,
@@ -514,10 +521,11 @@ class TestBehavioralScannerPidDedup:
             patch("main.AIExtensionScanner") as m12,
             patch("main.BehavioralScanner", side_effect=capture_behavioral),
             patch("main.EvasionScanner") as m_ev,
+            patch("main.get_scheduler_evidence_by_tool", return_value={}),
         ):
             m1.return_value.tool_name = "Claude Code"
             m1.return_value.scan.return_value = cc_scan
-            for m in [m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
+            for m in [m2, m_cowork, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
                 inst = m.return_value
                 inst.tool_name = "stub"
                 inst.scan.return_value = not_detected
@@ -551,6 +559,7 @@ class TestEvasionBoost:
         with (
             patch("main.get_best_provider", return_value=mock_provider),
             patch("main.ClaudeCodeScanner") as m1,
+            patch("main.ClaudeCoworkScanner") as m_cowork,
             patch("main.OllamaScanner") as m2,
             patch("main.CursorScanner") as m3,
             patch("main.CopilotScanner") as m4,
@@ -564,8 +573,9 @@ class TestEvasionBoost:
             patch("main.AIExtensionScanner") as m12,
             patch("main.BehavioralScanner") as m_beh,
             patch("main.EvasionScanner") as m_ev,
+            patch("main.get_scheduler_evidence_by_tool", return_value={}),
         ):
-            for m in [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
+            for m in [m1, m_cowork, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
                 inst = m.return_value
                 inst.tool_name = "stub"
                 inst.scan.return_value = not_detected
@@ -602,6 +612,7 @@ class TestScannerFailureGraceful:
         with (
             patch("main.get_best_provider", return_value=mock_provider),
             patch("main.ClaudeCodeScanner") as m1,
+            patch("main.ClaudeCoworkScanner") as m_cowork,
             patch("main.OllamaScanner") as m2,
             patch("main.CursorScanner") as m3,
             patch("main.CopilotScanner") as m4,
@@ -615,11 +626,12 @@ class TestScannerFailureGraceful:
             patch("main.AIExtensionScanner") as m12,
             patch("main.BehavioralScanner") as m_beh,
             patch("main.EvasionScanner") as m_ev,
+            patch("main.get_scheduler_evidence_by_tool", return_value={}),
         ):
             # First scanner throws
             m1.return_value.tool_name = "Claude Code"
             m1.return_value.scan.side_effect = RuntimeError("boom")
-            for m in [m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
+            for m in [m2, m_cowork, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
                 inst = m.return_value
                 inst.tool_name = "stub"
                 inst.scan.return_value = not_detected
@@ -641,6 +653,7 @@ class TestScannerFailureGraceful:
         with (
             patch("main.get_best_provider", return_value=mock_provider),
             patch("main.ClaudeCodeScanner") as m1,
+            patch("main.ClaudeCoworkScanner") as m_cowork,
             patch("main.OllamaScanner") as m2,
             patch("main.CursorScanner") as m3,
             patch("main.CopilotScanner") as m4,
@@ -654,8 +667,9 @@ class TestScannerFailureGraceful:
             patch("main.AIExtensionScanner") as m12,
             patch("main.BehavioralScanner") as m_beh,
             patch("main.EvasionScanner") as m_ev,
+            patch("main.get_scheduler_evidence_by_tool", return_value={}),
         ):
-            for m in [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
+            for m in [m1, m_cowork, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
                 inst = m.return_value
                 inst.tool_name = "stub"
                 inst.scan.return_value = not_detected
@@ -677,6 +691,7 @@ class TestScannerFailureGraceful:
         with (
             patch("main.get_best_provider", return_value=mock_provider),
             patch("main.ClaudeCodeScanner") as m1,
+            patch("main.ClaudeCoworkScanner") as m_cowork,
             patch("main.OllamaScanner") as m2,
             patch("main.CursorScanner") as m3,
             patch("main.CopilotScanner") as m4,
@@ -690,8 +705,9 @@ class TestScannerFailureGraceful:
             patch("main.AIExtensionScanner") as m12,
             patch("main.BehavioralScanner") as m_beh,
             patch("main.EvasionScanner") as m_ev,
+            patch("main.get_scheduler_evidence_by_tool", return_value={}),
         ):
-            for m in [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
+            for m in [m1, m_cowork, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
                 inst = m.return_value
                 inst.tool_name = "stub"
                 inst.scan.return_value = not_detected
@@ -908,6 +924,7 @@ class TestRunScanEventVersioning:
         with (
             patch("main.get_best_provider", return_value=mock_provider),
             patch("main.ClaudeCodeScanner") as m1,
+            patch("main.ClaudeCoworkScanner") as m_cowork,
             patch("main.OllamaScanner") as m2,
             patch("main.CursorScanner") as m3,
             patch("main.CopilotScanner") as m4,
@@ -921,10 +938,11 @@ class TestRunScanEventVersioning:
             patch("main.AIExtensionScanner") as m12,
             patch("main.BehavioralScanner") as m_beh,
             patch("main.EvasionScanner") as m_ev,
+            patch("main.get_scheduler_evidence_by_tool", return_value={}),
         ):
             m1.return_value.tool_name = "Claude Code"
             m1.return_value.scan.return_value = cc_scan
-            for m in [m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
+            for m in [m2, m_cowork, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
                 inst = m.return_value
                 inst.tool_name = "stub"
                 inst.scan.return_value = not_detected

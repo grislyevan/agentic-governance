@@ -199,6 +199,15 @@ class ClaudeCoworkScanner(BaseScanner):
             if extensions:
                 result.evidence_details["dxt_extensions"] = extensions
                 self._log(f"DXT extensions: {extensions}", verbose)
+            # Schedule-type skill: extension or skill dir with "schedule" in name (LAB-RUN-015)
+            schedule_related = [
+                p.name for p in self._EXTENSIONS.rglob("*")
+                if "schedule" in p.name.lower() and (p.is_dir() or p.suffix in (".json", ".py", ".md", ".yaml", ".yml"))
+            ]
+            if schedule_related:
+                result.evidence_details["schedule_skill_artifacts"] = schedule_related[:20]
+                strength = max(strength, 0.55)
+                self._log(f"Schedule-related artifacts: {schedule_related[:5]}", verbose)
 
         skills_dirs = list(self._SESSIONS.rglob("skills-plugin")) if self._SESSIONS.is_dir() else []
         if skills_dirs:
@@ -359,7 +368,11 @@ class ClaudeCoworkScanner(BaseScanner):
     def _apply_class_escalation(self, result: ScanResult) -> None:
         """Escalate to C+ if scheduled tasks or self-modification detected."""
         details = result.evidence_details
-        if details.get("scheduled_tasks_enabled") or details.get("skills_plugin_present"):
+        if (
+            details.get("scheduled_tasks_enabled")
+            or details.get("skills_plugin_present")
+            or details.get("schedule_skill_artifacts")
+        ):
             result.action_risk = "R2"
             result.action_summary += " Class D-adjacent: scheduled tasks or self-modification capability detected."
 

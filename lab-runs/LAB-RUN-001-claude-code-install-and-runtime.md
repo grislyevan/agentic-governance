@@ -4,6 +4,7 @@
 **Tool:** Claude Code (`@anthropic-ai/claude-code`)  
 **Class:** C (Autonomous Executor)  
 **Playbook Reference:** Section 4.1 (IOCs), Section 12 (Lab Validation), Appendix B (Confidence Scoring)  
+**INIT-43 Reference:** [init-issues/INIT-43-claude-process-file-network-signal-map.md](../init-issues/INIT-43-claude-process-file-network-signal-map.md) — process/file/network signal map, normalization fields, failure modes, correlation rules C1–C4, validation plan. Lab outputs must satisfy INIT-43 required outputs (per-layer report, confidence trace, correlation rule evaluation, residual ambiguity).  
 **Target Scenario:** Positive — Standard install, first launch, agentic task execution  
 **Status:** `NOT STARTED`
 
@@ -41,6 +42,18 @@ which pstree         # process tree viewer (install: apt install psmisc / brew i
 export LAB_DIR=~/claude-lab/LAB-RUN-001
 mkdir -p "$LAB_DIR"/{baseline,phase1-install,phase2-launch,phase3-agentic,phase4-teardown}
 ```
+
+### INIT-43 Signal Map Alignment
+
+Captures in this protocol map to INIT-43 normalization and correlation as follows:
+
+| INIT-43 layer | Normalization fields (INIT-43) | Protocol capture |
+|---------------|--------------------------------|------------------|
+| **Process** | proc.path, parent_chain, child_chain, proc.signer | Phase 1: binary path, npm list, which claude, binary-metadata (hash). Phase 2: claude-process-tree, pstree-stream, claude-tree-idle, auth-processes. Phase 3: pstree-stream (1s), strace-agentic (clone/execve/openat/connect). |
+| **File** | artifact.path, artifact.type, artifact.last_modified, artifact.repo_scope | Baseline: home-tree, claude-dir-check, claude-artifact-scan. Phase 1: new-files, claude-dir-post. Phase 2: new-files-at-launch, claude-dir-at-launch, claude-config-contents. Phase 3: workspace-files, workspace-contents, new-files-during-agentic, claude-dir-post-agentic. Phase 4: home-tree-diff, claude-dir-final, claude-artifacts-detail. |
+| **Network** | net.dest_ip, net.conn_*, net.proc_link_confidence | Phase 1: install-traffic.pcap, dns-queries. Phase 2: launch-traffic.pcap, connections-stream, outbound-at-launch. Phase 3: agentic-traffic.pcap, connections-stream. (Process-to-socket linkage requires lsof -i per PID or EDR; 2s polling limits attribution.) |
+
+Correlation rules C1–C4 (Appendix A) are evaluated in Phase 5. Penalties (INIT-43 Section 6, Appendix B): missing parent-child chain, wrapper/renamed binary, stale artifact only, non-default paths, ambiguous proxy, unresolved process–network linkage, containerized/remote execution, weak identity.
 
 ---
 
@@ -588,7 +601,16 @@ Fill in from captured evidence. For each layer, classify every IOC from Playbook
 | **Behavior** | Shell command orchestration from AI session context | `[ ] Observed` `[ ] Different` `[ ] Not observed` | | |
 | **Behavior** | Git commit/patch generation after model interaction | `[ ] Observed` `[ ] Different` `[ ] Not observed` | | |
 
-### 5.2 Confidence Score Calculation
+### 5.2 Correlation Rule Evaluation (INIT-43 / Appendix A)
+
+| Rule | Requirement | Result |
+|------|--------------|--------|
+| **C1** High-confidence | Process entrypoint + lineage, at least one fresh artifact, network timing or behavioral continuity | `[ ] Met` `[ ] Not met` |
+| **C2** Medium-confidence | Any two layers align; missing process certainty or artifact recency | `[ ] Met` `[ ] Not met` |
+| **C3** Low-confidence | Single-layer only or conflicting signals | `[ ] Met` `[ ] Not met` |
+| **C4** Ambiguity override | Layers conflict; downgrade to warn/approval only | `[ ] Met` `[ ] Not met` |
+
+### 5.3 Confidence Score Calculation
 
 Using Appendix B formula with Claude Code signal weights (INIT-43):
 
@@ -632,7 +654,7 @@ Classification:
 **Classification:** `___`  
 **Does this score seem right given what you observed?** `___`
 
-### 5.3 Completed Lab Run Evidence Template
+### 5.4 Completed Lab Run Evidence Template
 
 ```
 Run ID:              LAB-RUN-001
@@ -656,7 +678,7 @@ Pass/Fail:           [pass | conditional pass | fail]
 Residual Risk:       [coverage gaps identified during the run]
 ```
 
-### 5.4 Findings and Playbook Feedback
+### 5.5 Findings and Playbook Feedback
 
 Document any observations that should feed back into the playbook:
 
@@ -665,6 +687,20 @@ Document any observations that should feed back into the playbook:
 | | | |
 | | | |
 | | | |
+
+---
+
+## INIT-43 Validation Plan Coverage
+
+From INIT-43 Section 7:
+
+- **Positive checks:** (1) Canonical Claude CLI session with process/file/network alignment → CC-POS-01 (this run). (2) Multi-command/workflow with artifact and network corroboration → CC-POS-02 (git-heavy task). (3) Repeated session consistency → rerun or CC-POS-03 when defined.
+- **Adversarial checks:** Wrapper/renamed binary, proxy-routed API → CC-EVA-01 (see LAB-RUN-EVASION-001); same four outputs required.
+- **Required outputs (must appear in RESULTS):**
+  1. **Per-layer signal capture report** → Section 1 "Signal Observation Matrix" in LAB-RUN-001-RESULTS.md
+  2. **Confidence calculation trace** → Section 2 "Confidence Score Calculation" in LAB-RUN-001-RESULTS.md
+  3. **Correlation rule evaluation** → Section 5.2 above; summarize in RESULTS
+  4. **Residual ambiguity notes** → "Residual Risk" in completed evidence template (Section 5.4) and in RESULTS
 
 ---
 

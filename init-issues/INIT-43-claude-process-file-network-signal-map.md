@@ -190,4 +190,4 @@ These are starting values and must be calibrated in replay.
 - [x] Network signal set defined with attribution caveats.
 - [x] Cross-layer correlation rules and confidence guidance documented.
 - [x] Subtask-level validation plan specified.
-- [ ] Empirical run artifacts linked.
+- [x] Empirical run artifacts linked. Claude Cowork (same process/file/network discipline): protocol [lab-runs/LAB-RUN-014-claude-cowork-install-and-runtime.md](../lab-runs/LAB-RUN-014-claude-cowork-install-and-runtime.md) with INIT-43 alignment table, Phase 5 template (per-layer report, confidence trace, C1–C4 evaluation, residual ambiguity); results [lab-runs/LAB-RUN-014-RESULTS.md](../lab-runs/LAB-RUN-014-RESULTS.md). Gap scenarios: [lab-runs/LAB-RUN-015-claude-cowork-scheduled-dxt-skill.md](../lab-runs/LAB-RUN-015-claude-cowork-scheduled-dxt-skill.md). Capture script: [lab-runs/scripts/cowork-capture.sh](../lab-runs/scripts/cowork-capture.sh).
