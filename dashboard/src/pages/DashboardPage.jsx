@@ -119,14 +119,13 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
         onTabChange={handleTabChange}
         counts={counts}
         totalTools={tools.length}
-        onNavigate={onNavigate}
       />
 
       {!loading && !error && tools.length === 0 && (
         <div className="rounded-lg border border-detec-slate-700/50 bg-detec-slate-800/30 px-6 py-10 text-center">
-          <p className="text-detec-slate-300 font-medium">No events yet</p>
+          <p className="text-detec-slate-300 font-medium">No AI tools detected yet</p>
           <p className="text-sm text-detec-slate-500 mt-1 max-w-md mx-auto">
-            Run the Detec agent on your endpoints or send events to the API. Events will appear here as tools are detected and policy is evaluated.
+            Run the Detec agent on your endpoints to send events. Detected tools and their policy status will appear here. This table is your AI tool and asset inventory.
           </p>
           <button
             type="button"

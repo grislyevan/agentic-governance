@@ -168,7 +168,12 @@ export default function EndpointContextBar({ endpointCount, endpoints, endpointS
           </span>
         </span>
 
-        <span className="ml-auto flex items-center gap-1" title={`${statusCounts.active} active, ${statusCounts.stale} stale, ${statusCounts.ungoverned} ungoverned`}>
+        <span
+          className="ml-auto flex items-center gap-1.5"
+          title={`${statusCounts.active} active, ${statusCounts.stale} stale, ${statusCounts.ungoverned} ungoverned`}
+          aria-label={`Endpoint health: ${statusCounts.active} active, ${statusCounts.stale} stale, ${statusCounts.ungoverned} ungoverned`}
+        >
+          <span className="text-[10px] uppercase tracking-wider text-detec-slate-500">Endpoint health</span>
           {statusBars(statusCounts).map((h, i) => (
             <span
               key={i}

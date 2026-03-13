@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import useAuth from './hooks/useAuth';
 import Sidebar from './components/layout/Sidebar';
 import TopBar from './components/layout/TopBar';
+import AdminLayout from './components/layout/AdminLayout';
 import ApertureSpinner from './components/branding/ApertureSpinner';
 import LoginPage from './pages/LoginPage';
 import SetPasswordPage from './pages/SetPasswordPage';
@@ -10,6 +11,7 @@ import SsoCallbackPage from './pages/SsoCallbackPage';
 import DashboardPage from './pages/DashboardPage';
 import EventsPage from './pages/EventsPage';
 import PoliciesPage from './pages/PoliciesPage';
+import PlaybooksPage from './pages/PlaybooksPage';
 import AuditLogPage from './pages/AuditLogPage';
 import AdminPage from './pages/AdminPage';
 import SettingsPage from './pages/SettingsPage';
@@ -21,6 +23,7 @@ const PATH_TO_PAGE = {
   '/endpoints': 'endpoints',
   '/events': 'events',
   '/policies': 'policies',
+  '/playbooks': 'admin',
   '/audit': 'audit',
   '/admin': 'admin',
   '/settings': 'settings',
@@ -105,8 +108,13 @@ export default function App() {
             <Route path="/endpoints" element={<DashboardPage {...pageProps} />} />
             <Route path="/events" element={<EventsPage {...pageProps} />} />
             <Route path="/policies" element={<PoliciesPage {...pageProps} />} />
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminPage {...pageProps} />} />
+            </Route>
+            <Route path="/playbooks" element={<AdminLayout />}>
+              <Route index element={<PlaybooksPage {...pageProps} />} />
+            </Route>
             <Route path="/audit" element={<AuditLogPage {...pageProps} />} />
-            <Route path="/admin" element={<AdminPage {...pageProps} />} />
             <Route path="/settings" element={<SettingsPage {...pageProps} />} />
             <Route path="/billing" element={<BillingPage {...pageProps} />} />
             <Route path="/org" element={<OrgPage {...pageProps} />} />

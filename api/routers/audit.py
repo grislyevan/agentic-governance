@@ -19,7 +19,7 @@ router = APIRouter(prefix="/audit-log", tags=["audit"])
 
 
 def _action_filter(q, action: str | None):
-    """Apply action filter with prefix matching for enforcement categories."""
+    """Apply action filter with prefix matching for enforcement and admin categories."""
     if not action:
         return q
     if action == "enforcement.posture":
@@ -28,6 +28,25 @@ def _action_filter(q, action: str | None):
                 AuditLog.action.startswith("enforcement.posture"),
                 AuditLog.action.startswith("enforcement.tenant_posture"),
                 AuditLog.action == "posture.changed",
+            )
+        )
+    if action == "admin":
+        return q.filter(
+            or_(
+                AuditLog.action.startswith("user."),
+                AuditLog.action.startswith("policy."),
+                AuditLog.action.startswith("playbook."),
+                AuditLog.action.startswith("playbooks."),
+                AuditLog.action.startswith("invite."),
+                AuditLog.action.startswith("password."),
+                AuditLog.action.startswith("settings."),
+            )
+        )
+    if action == "playbook":
+        return q.filter(
+            or_(
+                AuditLog.action.startswith("playbook."),
+                AuditLog.action.startswith("playbooks."),
             )
         )
     return q.filter(AuditLog.action.startswith(action))

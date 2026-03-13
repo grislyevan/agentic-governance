@@ -13,13 +13,20 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
   const { user, logout } = useAuth();
   const [searchValue, setSearchValue] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [alertOnApproval, setAlertOnApproval] = useState(true);
+  const [emailDigest, setEmailDigest] = useState(false);
   const userMenuRef = useRef(null);
+  const notificationsRef = useRef(null);
   const debounceRef = useRef(null);
 
   useEffect(() => {
     function handleClickOutside(e) {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
         setShowUserMenu(false);
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target)) {
+        setShowNotifications(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -96,18 +103,58 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
       </div>
 
       <div className="flex items-center gap-1 sm:gap-3 shrink-0">
-        <button
-          className="relative p-2.5 sm:p-1.5 text-detec-slate-400 hover:text-detec-slate-200 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
-          aria-label={`Notifications${alertCount > 0 ? `, ${alertCount} alerts` : ''}`}
-          title={alertCount > 0 ? `${alertCount} alerts requiring attention` : 'No alerts'}
-        >
-          <BellIcon />
-          {alertCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-detec-enforce-block text-[10px] font-bold text-white flex items-center justify-center">
-              {alertCount > 99 ? '99+' : alertCount}
-            </span>
+        <div className="relative" ref={notificationsRef}>
+          <button
+            type="button"
+            onClick={() => setShowNotifications(!showNotifications)}
+            aria-expanded={showNotifications}
+            aria-haspopup="true"
+            aria-label={`Notifications${alertCount > 0 ? `, ${alertCount} alerts` : ''}`}
+            title={alertCount > 0 ? `${alertCount} alerts requiring attention` : 'Notification settings'}
+            className="relative p-2.5 sm:p-1.5 text-detec-slate-400 hover:text-detec-slate-200 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
+          >
+            <BellIcon />
+            {alertCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-detec-enforce-block text-[10px] font-bold text-white flex items-center justify-center">
+                {alertCount > 99 ? '99+' : alertCount}
+              </span>
+            )}
+          </button>
+          {showNotifications && (
+            <div className="absolute right-0 top-full mt-2 w-64 bg-detec-slate-800 border border-detec-slate-700 rounded-lg shadow-lg py-1 z-50">
+              <div className="px-3 py-2 border-b border-detec-slate-700/50">
+                <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">Notifications</span>
+              </div>
+              <label className="flex items-center gap-2 px-3 py-2.5 text-sm text-detec-slate-300 hover:bg-detec-slate-700/50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={alertOnApproval}
+                  onChange={(e) => setAlertOnApproval(e.target.checked)}
+                  className="rounded border-detec-slate-600 bg-detec-slate-800 text-detec-primary-500 focus:ring-detec-primary-500/50"
+                />
+                <span>Alert me when tools need approval</span>
+              </label>
+              <label className="flex items-center gap-2 px-3 py-2.5 text-sm text-detec-slate-300 hover:bg-detec-slate-700/50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={emailDigest}
+                  onChange={(e) => setEmailDigest(e.target.checked)}
+                  className="rounded border-detec-slate-600 bg-detec-slate-800 text-detec-primary-500 focus:ring-detec-primary-500/50"
+                />
+                <span>Email digest</span>
+              </label>
+              <div className="border-t border-detec-slate-700/50">
+                <button
+                  type="button"
+                  onClick={() => { onNavigate('events'); setShowNotifications(false); }}
+                  className="w-full text-left px-3 py-2 text-sm text-detec-slate-300 hover:bg-detec-slate-700/50 transition-colors"
+                >
+                  View all events
+                </button>
+              </div>
+            </div>
           )}
-        </button>
+        </div>
 
         <div className="relative" ref={userMenuRef}>
           <button

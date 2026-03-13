@@ -5,7 +5,7 @@ const TABS = [
   { id: 'warn', label: 'Warned' },
 ];
 
-export default function ToolTabs({ activeTab, onTabChange, counts, totalTools, onNavigate }) {
+export default function ToolTabs({ activeTab, onTabChange, counts, totalTools }) {
   const tabCounts = {
     all: totalTools,
     block: counts.block,
@@ -47,41 +47,7 @@ export default function ToolTabs({ activeTab, onTabChange, counts, totalTools, o
           );
         })}
       </div>
-
-      <div className="flex items-center gap-3 sm:gap-4 text-sm flex-shrink-0">
-        <button
-          onClick={() => onNavigate?.('events')}
-          className="text-detec-slate-400 hover:text-detec-slate-200 transition-colors flex items-center gap-1.5"
-        >
-          <LogIcon />
-          Collector logs
-        </button>
-        <button
-          onClick={() => onNavigate?.('policies')}
-          className="text-detec-primary-400 hover:text-detec-primary-300 transition-colors flex items-center gap-1.5"
-        >
-          <EyeIcon />
-          View policies
-        </button>
-      </div>
     </div>
   );
 }
 
-function LogIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-    </svg>
-  );
-}
-
-function EyeIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}

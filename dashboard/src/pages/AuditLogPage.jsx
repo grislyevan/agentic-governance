@@ -5,6 +5,7 @@ import ApertureSpinner from '../components/branding/ApertureSpinner';
 import PollingStatus from '../components/PollingStatus';
 
 const ACTION_FILTERS = [
+  { value: 'admin', label: 'Admin' },
   { value: '', label: 'All' },
   { value: 'enforcement.', label: 'Enforcement' },
   { value: 'enforcement.posture', label: 'Posture' },
@@ -13,6 +14,10 @@ const ACTION_FILTERS = [
 
 function getActionBadgeClass(action) {
   if (!action || typeof action !== 'string') return 'bg-detec-slate-700/50 text-detec-slate-300 border-detec-slate-600/50';
+  if (action.startsWith('user.')) return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30';
+  if (action.startsWith('policy.')) return 'bg-sky-500/10 text-sky-400 border-sky-500/30';
+  if (action.startsWith('playbook.') || action.startsWith('playbooks.')) return 'bg-violet-500/10 text-violet-400 border-violet-500/30';
+  if (action.startsWith('invite.') || action.startsWith('password.') || action.startsWith('settings.')) return 'bg-slate-500/10 text-slate-300 border-slate-600/50';
   if (['enforcement.applied', 'enforcement.escalated', 'enforcement.failed'].includes(action)) {
     return 'bg-red-500/10 text-red-400 border-red-500/30';
   }
@@ -32,6 +37,23 @@ function getActionBadgeClass(action) {
 function formatActionLabel(action) {
   if (!action || typeof action !== 'string') return action || '';
   const labels = {
+    'user.created': 'User Created',
+    'user.updated': 'User Updated',
+    'user.deactivated': 'User Deactivated',
+    'user.registered': 'User Registered',
+    'user.login': 'User Login',
+    'user.invited': 'User Invited',
+    'invite.accepted': 'Invite Accepted',
+    'password.reset_requested': 'Password Reset Requested',
+    'password.reset_completed': 'Password Reset Completed',
+    'policy.created': 'Policy Created',
+    'policy.updated': 'Policy Updated',
+    'policy.deleted': 'Policy Deleted',
+    'policy.restore_defaults': 'Policies Restored',
+    'policy.preset_applied': 'Preset Applied',
+    'playbook.created': 'Playbook Created',
+    'playbook.updated': 'Playbook Updated',
+    'playbooks.restore_defaults': 'Playbooks Restored',
     'enforcement.applied': 'Enforcement Applied',
     'enforcement.escalated': 'Enforcement Escalated',
     'enforcement.failed': 'Enforcement Failed',
@@ -88,7 +110,7 @@ export default function AuditLogPage() {
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [actionFilter, setActionFilter] = useState('');
+  const [actionFilter, setActionFilter] = useState('admin');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -146,8 +168,13 @@ export default function AuditLogPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-detec-slate-100">Audit Log</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-detec-slate-100">Audit Log</h1>
+            <p className="text-sm text-detec-slate-500 mt-0.5">
+              Admin actions within Detec and enforcement events.
+            </p>
+          </div>
           <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
         </div>
         <div className="flex items-center gap-2">
