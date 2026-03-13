@@ -1,5 +1,10 @@
 import { getStoredTokens, STORAGE_KEYS } from './auth';
 
+const DEFAULT_API_URL =
+  typeof window !== 'undefined' && window.location?.port === '8000'
+    ? '/api'
+    : 'http://localhost:8000/api';
+
 function getStored(key, fallback) {
   try {
     return localStorage.getItem(key) || fallback;
@@ -8,9 +13,18 @@ function getStored(key, fallback) {
   }
 }
 
+/** When not on API port, relative /api would hit the wrong host; use full URL. */
+function resolveApiUrl() {
+  const stored = getStored(STORAGE_KEYS.apiUrl, '');
+  if (typeof window !== 'undefined' && window.location?.port !== '8000') {
+    if (!stored || stored === '/api' || stored.startsWith('/')) return DEFAULT_API_URL;
+  }
+  return stored || DEFAULT_API_URL;
+}
+
 export function getApiConfig() {
   return {
-    apiUrl: getStored(STORAGE_KEYS.apiUrl, '/api'),
+    apiUrl: resolveApiUrl(),
     apiKey: getStored(STORAGE_KEYS.apiKey, ''),
   };
 }
@@ -124,6 +138,14 @@ export async function deletePolicy(id) {
 
 export async function restoreDefaultPolicies() {
   return apiMutate('POST', '/policies/restore-defaults');
+}
+
+export async function fetchPolicyPresets(config) {
+  return apiFetch('/policies/presets', config);
+}
+
+export async function applyPolicyPreset(presetId) {
+  return apiMutate('POST', '/policies/apply-preset', { preset_id: presetId });
 }
 
 async function apiMutate(method, path, body) {

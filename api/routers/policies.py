@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from core.audit_logger import record as audit_record
 from core.baseline_policies import get_baseline_rule_ids, seed_baseline_policies
 from core.database import get_db
+from core.policy_presets import apply_preset_to_tenant, get_presets_list
 from core.tenant import resolve_auth, require_role, get_tenant_filter
 from models.policy import Policy
 
@@ -72,6 +73,25 @@ class PolicyListResponse(BaseModel):
 
 class RestoreDefaultsResponse(BaseModel):
     restored: int
+    message: str
+
+
+class PresetSummary(BaseModel):
+    id: str
+    name: str
+    description: str
+
+
+class PresetsListResponse(BaseModel):
+    presets: list[PresetSummary]
+
+
+class ApplyPresetBody(BaseModel):
+    preset_id: str = Field(max_length=64)
+
+
+class ApplyPresetResponse(BaseModel):
+    applied: int
     message: str
 
 
@@ -235,6 +255,56 @@ def delete_policy(
     )
     db.delete(policy)
     db.commit()
+
+
+@router.get("/presets", response_model=PresetsListResponse)
+def list_presets(
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> PresetsListResponse:
+    """Return code-defined policy presets (id, name, description). Tenant-scoped read."""
+    resolve_auth(authorization, x_api_key, db)
+    presets = get_presets_list()
+    return PresetsListResponse(presets=[PresetSummary(**p) for p in presets])
+
+
+@router.post("/apply-preset", response_model=ApplyPresetResponse)
+@limiter.limit("10/minute")
+def apply_preset(
+    request: Request,
+    body: ApplyPresetBody,
+    db: Session = Depends(get_db),
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+) -> ApplyPresetResponse:
+    """Apply a preset to the current tenant's baseline policies. Owner or admin only."""
+    auth = resolve_auth(authorization, x_api_key, db)
+    require_role(auth, "owner", "admin")
+
+    try:
+        applied = apply_preset_to_tenant(db, auth.tenant_id, body.preset_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+
+    audit_record(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="policy.preset_applied",
+        resource_type="policy",
+        resource_id="baseline",
+        detail={"preset_id": body.preset_id, "applied_count": applied},
+        ip_address=request.client.host if request.client else None,
+    )
+    db.commit()
+    return ApplyPresetResponse(
+        applied=applied,
+        message=f"Preset '{body.preset_id}' applied. {applied} baseline rules updated.",
+    )
 
 
 @router.post("/restore-defaults", response_model=RestoreDefaultsResponse)

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import useAuth from '../hooks/useAuth';
-import { fetchPolicies, createPolicy, updatePolicy, deletePolicy, restoreDefaultPolicies } from '../lib/api';
+import { fetchPolicies, createPolicy, updatePolicy, deletePolicy, restoreDefaultPolicies, fetchPolicyPresets, applyPolicyPreset } from '../lib/api';
 import usePolling from '../hooks/usePolling';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
 import PollingStatus from '../components/PollingStatus';
@@ -20,6 +20,25 @@ const CATEGORY_LABELS = {
 };
 
 const CATEGORY_ORDER = ['enforcement', 'class_d', 'overlay', 'fallback'];
+
+/** Short human-readable labels for baseline rule IDs (optional display). */
+const RULE_ID_LABELS = {
+  'ENFORCE-001': 'Low confidence, read-only',
+  'ENFORCE-002': 'Medium confidence, scoped write',
+  'ENFORCE-003': 'Sensitive assets, approval',
+  'ENFORCE-004': 'High confidence, block',
+  'ENFORCE-005': 'Crown-jewel deny',
+  'ENFORCE-006': 'Autonomous (Class C) approval',
+  'ENFORCE-D01': 'Class D block',
+  'ENFORCE-D02': 'Class D approval',
+  'ENFORCE-D03': 'Class D warn floor',
+  'NET-001': 'Unknown outbound approval',
+  'NET-002': 'High-volume outbound block',
+  'ISO-001': 'Container isolation',
+  'ENFORCE-001-F': 'Fallback low',
+  'ENFORCE-002-F': 'Fallback medium/high',
+  'ENFORCE-003-F': 'Fallback high R3',
+};
 
 function groupByCategory(policies) {
   const groups = {};
@@ -58,6 +77,9 @@ export default function PoliciesPage() {
   const [restoring, setRestoring] = useState(false);
   const [confirmDisable, setConfirmDisable] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [presets, setPresets] = useState([]);
+  const [selectedPresetId, setSelectedPresetId] = useState('');
+  const [applyingPreset, setApplyingPreset] = useState(false);
 
   const canManage = user?.role === 'owner' || user?.role === 'admin';
 
@@ -75,9 +97,35 @@ export default function PoliciesPage() {
     }
   }, []);
 
+  const loadPresets = useCallback(async () => {
+    try {
+      const data = await fetchPolicyPresets();
+      const list = data.presets || [];
+      setPresets(list);
+      setSelectedPresetId((prev) => (prev || list[0]?.id || ''));
+    } catch {
+      // Non-fatal; presets section can stay empty
+    }
+  }, []);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadPresets(); }, [loadPresets]);
 
   const { lastUpdated, paused, togglePause } = usePolling(load);
+
+  const handleApplyPreset = async () => {
+    if (!selectedPresetId) return;
+    setApplyingPreset(true);
+    setError(null);
+    try {
+      await applyPolicyPreset(selectedPresetId);
+      await load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setApplyingPreset(false);
+    }
+  };
 
   const handleToggleActive = async (policy) => {
     if (policy.is_baseline && policy.is_active) {
@@ -165,6 +213,49 @@ export default function PoliciesPage() {
         </div>
       </div>
 
+      {presets.length > 0 && (
+        <div className="rounded-xl border border-detec-slate-700 bg-detec-slate-800/50 p-4 space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-detec-slate-500">
+            Policy preset
+          </h2>
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1 min-w-0">
+              <label htmlFor="preset-select" className="block text-xs font-medium text-detec-slate-400 mb-1">
+                Predefined policy
+              </label>
+              <select
+                id="preset-select"
+                value={selectedPresetId}
+                onChange={(e) => setSelectedPresetId(e.target.value)}
+                className="w-full rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-2 text-sm text-detec-slate-200 focus:border-detec-primary-500 focus:outline-none"
+              >
+                <option value="">Select a preset</option>
+                {presets.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              {selectedPresetId && (
+                <p className="text-xs text-detec-slate-500 mt-1.5">
+                  {presets.find((p) => p.id === selectedPresetId)?.description}
+                </p>
+              )}
+            </div>
+            {canManage && (
+              <button
+                type="button"
+                onClick={handleApplyPreset}
+                disabled={!selectedPresetId || applyingPreset}
+                className="rounded-lg bg-detec-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-detec-primary-500 transition-colors disabled:opacity-50 shrink-0"
+              >
+                {applyingPreset ? 'Applying...' : 'Apply this policy'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">
           {error}
@@ -207,6 +298,7 @@ export default function PoliciesPage() {
               <PolicyCard
                 key={policy.id}
                 policy={policy}
+                ruleLabel={RULE_ID_LABELS[policy.rule_id]}
                 canManage={canManage}
                 onEdit={() => { setEditingPolicy(policy); setShowForm(true); }}
                 onToggleActive={() => handleToggleActive(policy)}
@@ -261,7 +353,7 @@ export default function PoliciesPage() {
 }
 
 
-function PolicyCard({ policy, canManage, onEdit, onToggleActive, onDelete }) {
+function PolicyCard({ policy, ruleLabel, canManage, onEdit, onToggleActive, onDelete }) {
   const decisionState = policy.parameters?.decision_state;
   const badgeClass = DECISION_BADGES[decisionState] || 'bg-detec-slate-800/60 text-detec-slate-400 border-detec-slate-700/40';
   const isInactiveBaseline = policy.is_baseline && !policy.is_active;
@@ -274,6 +366,11 @@ function PolicyCard({ policy, canManage, onEdit, onToggleActive, onDelete }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-sm font-semibold text-detec-slate-200 font-mono">{policy.rule_id}</span>
+            {ruleLabel && (
+              <span className="text-xs text-detec-slate-500 font-normal">
+                {ruleLabel}
+              </span>
+            )}
             <span className="text-xs px-1.5 py-0.5 rounded bg-detec-slate-700 text-detec-slate-400">
               v{policy.rule_version}
             </span>
