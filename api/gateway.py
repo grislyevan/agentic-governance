@@ -183,6 +183,11 @@ class AgentSession(BaseConnection):
             await self.close()
             return
 
+        if len(hostname) > _MAX_HOSTNAME_LEN:
+            await self.send(auth_fail_msg("Hostname too long"))
+            await self.close()
+            return
+
         db = SessionLocal()
         try:
             tenant_id = self._verify_api_key(api_key, db)
@@ -484,6 +489,7 @@ class AgentSession(BaseConnection):
 _MAX_GLOBAL_CONNECTIONS = 500
 _MAX_CONNECTIONS_PER_IP = 20
 _READ_TIMEOUT = 120  # seconds; idle connections closed after this
+_MAX_HOSTNAME_LEN = 255  # matches Endpoint.hostname column
 
 
 class DetecGateway:

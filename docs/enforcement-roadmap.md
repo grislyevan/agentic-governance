@@ -70,6 +70,10 @@ Every phase spec references these files. Read them before starting work.
 | `collector/main.py:427-457` | Enforcement block | `if enforcer and policy_decision.decision_state == "block"`: calls `enforcer.enforce()`, emits `enforcement.applied` event. `enforcer` only exists when `--enforce` flag is set. |
 | `collector/main.py:583-590` | Daemon loop | `while not stop_event.is_set()`: flush buffer, `run_scan()`, `stop_event.wait(timeout=interval)`. Purely interval-driven. |
 
+### Policy architecture (CISO review)
+
+Baseline policies in [api/core/baseline_policies.py](../api/core/baseline_policies.py) (BASELINE_VERSION 0.4.0) and the collector policy engine in [collector/engine/policy.py](../collector/engine/policy.py) (RULE_VERSION 0.4.0) are aligned with Playbook Section 6.3 and this roadmap. The 15 rules (6 enforcement, 3 Class D, 3 overlay, 3 fallback) implement the same escalation ladder (Detect, Warn, Approval Required, Block). Overlay rules (NET-001, NET-002, ISO-001) only escalate; they never downgrade a decision. NET-001 (1+ unknown outbound) sets approval_required; NET-002 (3+ unknown outbound) sets block. ISO-001 (container isolation for Class C) ships inactive in the baseline and is advisory only: runtime containerization of already-running processes is not implemented, and the rule should be treated as a recommendation until a dedicated implementation exists. NET-003 (malicious destination) is referenced in policy.py as a placeholder for future threat-intel integration; no baseline or playbook rule exists yet. No change to the rule set is recommended unless the product adds new tool classes or sensitivity tiers; if Class D tools beyond OpenClaw are onboarded, re-validate ENFORCE-D01 through ENFORCE-D03 and the Class D warn floor.
+
 ---
 
 ## Phase 1: Admin-Controlled Enforcement Posture
