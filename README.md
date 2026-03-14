@@ -1,6 +1,45 @@
 # Detec (agentic-governance)
 
-**Discover and control autonomous AI tools on developer endpoints.**
+**Discover what AI tools run on developer machines; then control and govern them with evidence-based policy.**
+
+## One-minute demo
+
+Detec discovers which AI tools run on developer machines (Cursor, Claude Code, Ollama, Copilot, and more), scores each with explainable confidence, and can enforce policy. Install and run a one-shot scan to see detections in under a minute.
+
+**Install** (from repo):
+
+```bash
+pip install -e .
+```
+
+**Run a one-shot scan:**
+
+```bash
+detec-agent scan --verbose
+```
+
+Or use the short CLI: `detec scan --verbose`.
+
+Example output (detected tools, confidence, and scan summary):
+
+```text
+=== Scanning for Cursor ===
+  Cursor: change detected (initial)
+  Confidence: 0.7234 (High)
+  Signals - P:0.85 F:0.90 N:0.70 I:0.65 B:0.00
+  Emitting detection.observed event...
+
+=== Scanning for Ollama ===
+  Ollama: change detected (initial)
+  Confidence: 0.8100 (High)
+  Signals - P:0.95 F:0.80 N:0.90 I:0.00 B:0.00
+  Emitting detection.observed event...
+
+============================================================
+Scan complete. Events emitted: 2, validation failures: 0
+```
+
+---
 
 Detec gives security teams evidence-based visibility and control: discover what runs, how confident each detection is, and whether it fits your policy. See what AI agents do; govern what they're allowed to.
 
