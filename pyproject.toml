@@ -36,6 +36,7 @@ gui-win = [
 
 [project.scripts]
 detec-agent = "collector.agent_cli:main"
+detec = "collector.agent_cli:main"
 
 [project.gui-scripts]
 detec-agent-gui = "collector.gui.menubar:main"
