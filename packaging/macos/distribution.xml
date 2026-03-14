@@ -22,7 +22,7 @@
 
     <choice id="detec-agent-choice"
             title="Detec Agent"
-            description="Installs the Detec endpoint agent to /Applications and configures it to start at login."
+            description="Installs the Detec endpoint agent to /Applications and configures it to start at boot (LaunchDaemon)."
             visible="true"
             selected="true">
         <pkg-ref id="com.detec.agent"/>

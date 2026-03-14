@@ -394,8 +394,13 @@ class AgentSession(BaseConnection):
     async def _handle_heartbeat(self, msg: dict[str, Any]) -> None:
         seq_id = msg.get("id", 0)
         posture_info = await asyncio.to_thread(self._update_heartbeat)
+        next_expected = (
+            posture_info.get("interval_seconds")
+            if posture_info and posture_info.get("interval_seconds") is not None
+            else settings.default_heartbeat_interval
+        )
         ack = heartbeat_ack_msg(
-            next_expected_in=settings.default_heartbeat_interval,
+            next_expected_in=next_expected,
             endpoint_status=ENDPOINT_STATUS_ACTIVE,
             seq=seq_id,
         )
@@ -404,13 +409,25 @@ class AgentSession(BaseConnection):
             ack["p"]["auto_enforce_threshold"] = posture_info.get("auto_enforce_threshold", 0.75)
             if "allow_list" in posture_info:
                 ack["p"]["allow_list"] = posture_info["allow_list"]
+            if posture_info.get("interval_seconds") is not None:
+                ack["p"]["interval_seconds"] = posture_info["interval_seconds"]
         await self.send(ack)
 
     def _update_heartbeat(self) -> dict[str, Any] | None:
-        """Touch the endpoint's last_seen_at and return posture info. Runs in a thread."""
+        """Touch the endpoint's last_seen_at and return posture/interval info. Runs in a thread.
+
+        When the endpoint has a profile, returns profile's scan_interval_seconds so TCP agents
+        receive server-pushed interval like HTTP heartbeat does.
+        """
         db = SessionLocal()
         try:
-            ep = db.query(Endpoint).filter(Endpoint.id == self._endpoint_id).first()
+            from sqlalchemy.orm import joinedload
+            ep = (
+                db.query(Endpoint)
+                .options(joinedload(Endpoint.endpoint_profile))
+                .filter(Endpoint.id == self._endpoint_id)
+                .first()
+            )
             if ep:
                 ep.last_seen_at = datetime.now(timezone.utc)
                 ep.status = ENDPOINT_STATUS_ACTIVE
@@ -418,11 +435,14 @@ class AgentSession(BaseConnection):
                 allow_list = [
                     e.pattern for e in db.query(AllowListEntry).filter(AllowListEntry.tenant_id == ep.tenant_id).all()
                 ]
-                return {
+                out = {
                     "enforcement_posture": ep.enforcement_posture,
                     "auto_enforce_threshold": ep.auto_enforce_threshold,
                     "allow_list": allow_list,
                 }
+                if ep.endpoint_profile is not None:
+                    out["interval_seconds"] = ep.endpoint_profile.scan_interval_seconds
+                return out
             return None
         except Exception:
             db.rollback()

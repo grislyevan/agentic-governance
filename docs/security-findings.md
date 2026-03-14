@@ -71,3 +71,15 @@
 | Implement fixes (optional) | Backend Architect, Security Engineer | Code Reviewer | Code changes and tests |
 
 **Orchestrator use:** project-manager-senior turns this plan into a task list; Security Engineer performs assessments and writes findings; Backend Architect supports with code references and remediation; Code Reviewer validates references and severity; API Tester adds/runs tests for Critical/High fixes.
+
+---
+
+## Post–Agent Reliability Review (2025-03-13)
+
+A combined Dev-Eng / Security Engineer / CISO review of the Agent Reliability and Admin Control implementation (endpoint profiles, tamper controls, packaging) is in [docs/security-review-agent-reliability.md](security-review-agent-reliability.md). Three items were identified and remediated:
+
+| ID | Title | Severity | Remediation | Status |
+|----|--------|----------|-------------|--------|
+| R-001 | TCP gateway did not return profile-derived interval_seconds | Medium | Gateway loads endpoint with profile, returns interval_seconds in HEARTBEAT_ACK and uses it for next_expected_in. | Fixed |
+| R-002 | Endpoint profile enforcement_posture not validated | Low | Pydantic pattern `^(passive\|audit\|active)$` on Create/Update/Config schemas. | Fixed |
+| R-003 | macOS uninstall without root check when LaunchDaemon present | Low | uninstall.sh exits with clear message if LaunchDaemon plist exists and effective uid != 0. | Fixed |

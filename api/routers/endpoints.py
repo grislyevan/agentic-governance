@@ -24,11 +24,13 @@ from models.endpoint import (
     ENDPOINT_STATUS_ACTIVE,
     Endpoint,
 )
+from models.endpoint_profile import EndpointProfile
 from schemas.endpoints import (
     EndpointCreate,
     EndpointListResponse,
     EndpointResponse,
     EndpointStatusResponse,
+    EndpointUpdate,
 )
 
 logger = logging.getLogger(__name__)
@@ -141,6 +143,10 @@ class HeartbeatResponse(BaseModel):
     endpoint_id: str
     endpoint_status: str
     next_expected_in: int
+    interval_seconds: int | None = Field(
+        default=None,
+        description="Server-desired heartbeat/scan interval; agent should apply and persist if present",
+    )
     enforcement_posture: str = "passive"
     auto_enforce_threshold: float = 0.75
     allow_list: list[str] = Field(default_factory=list)
@@ -225,11 +231,16 @@ def heartbeat(
         endpoint.pending_restore_services = None
         db.commit()
 
+    interval_seconds: int | None = None
+    if endpoint.endpoint_profile is not None:
+        interval_seconds = endpoint.endpoint_profile.scan_interval_seconds
+
     return HeartbeatResponse(
         status="ok",
         endpoint_id=endpoint.id,
         endpoint_status=endpoint.status,
         next_expected_in=body.interval_seconds,
+        interval_seconds=interval_seconds,
         enforcement_posture=endpoint.enforcement_posture,
         auto_enforce_threshold=endpoint.auto_enforce_threshold,
         allow_list=allow_list,
@@ -252,6 +263,42 @@ def get_endpoint(
     if not endpoint:
         logger.warning("Endpoint %s not found for user %s", endpoint_id, auth.user_id)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+    return EndpointResponse.model_validate(endpoint)
+
+
+@router.patch("/{endpoint_id}", response_model=EndpointResponse)
+def update_endpoint(
+    endpoint_id: str,
+    body: EndpointUpdate,
+    db: Session = Depends(get_db),
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+) -> EndpointResponse:
+    auth = resolve_auth(authorization, x_api_key, db)
+    require_role(auth, "owner", "admin")
+    endpoint = db.query(Endpoint).filter(
+        Endpoint.id == endpoint_id, get_tenant_filter(auth, Endpoint)
+    ).first()
+    if not endpoint:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+    if body.endpoint_profile_id is not None:
+        if body.endpoint_profile_id == "":
+            endpoint.endpoint_profile_id = None
+        else:
+            profile = db.query(EndpointProfile).filter(
+                EndpointProfile.id == body.endpoint_profile_id,
+                EndpointProfile.tenant_id == auth.tenant_id,
+            ).first()
+            if not profile:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Profile not found or not in this tenant",
+                )
+            endpoint.endpoint_profile_id = body.endpoint_profile_id
+    if body.management_state is not None:
+        endpoint.management_state = body.management_state
+    db.commit()
+    db.refresh(endpoint)
     return EndpointResponse.model_validate(endpoint)
 
 

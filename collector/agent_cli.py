@@ -3,7 +3,7 @@
 Entry point for running the collector agent in various modes:
   - One-shot scan: ``detec-agent scan``
   - Daemon (foreground): ``detec-agent run``
-  - Windows Service management: ``detec-agent install|start|stop|remove``
+  - Windows Service management: ``detec-agent install|start|stop|remove|set-recovery``
   - Configuration: ``detec-agent setup``
   - Status check: ``detec-agent status``
 
@@ -212,6 +212,19 @@ def cmd_stop(args: argparse.Namespace) -> None:
     win32serviceutil.HandleCommandLine(DetecAgentService)
 
 
+def cmd_set_recovery(args: argparse.Namespace) -> None:
+    if not _IS_WINDOWS:
+        print("Service set-recovery is only supported on Windows.")
+        sys.exit(1)
+
+    _require_pywin32()
+
+    from win_agent_service import set_service_failure_recovery
+
+    set_service_failure_recovery()
+    print("Failure recovery configured: service will restart after 60 s on failure.")
+
+
 # -------------------------------------------------------------------
 # ``detec-agent status``
 # -------------------------------------------------------------------
@@ -336,6 +349,12 @@ def main() -> None:
 
     p_stop = sub.add_parser("stop", help="Stop the Windows Service")
     p_stop.set_defaults(func=cmd_stop)
+
+    p_set_recovery = sub.add_parser(
+        "set-recovery",
+        help="Configure restart-on-failure for the Windows Service (run after install)",
+    )
+    p_set_recovery.set_defaults(func=cmd_set_recovery)
 
     # --- status ---
     p_status = sub.add_parser("status", help="Show agent status and config")

@@ -14,10 +14,11 @@ import PostureSummaryWidget from '../components/dashboard/PostureSummaryWidget';
 import DataFlowWidget from '../components/dashboard/DataFlowWidget';
 import ResponseTimelineWidget from '../components/dashboard/ResponseTimelineWidget';
 import SystemStatusBanner from '../components/dashboard/SystemStatusBanner';
+import EndpointsTable from '../components/dashboard/EndpointsTable';
 
 export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef, onAlertCountChange }) {
   const {
-    tools, counts, endpointCount, endpoints, endpointStatuses,
+    tools, counts, endpointCount, endpoints, endpointStatuses, profiles,
     loading, error, refresh, filters, updateFilters,
   } = useEndpoints();
 
@@ -136,9 +137,19 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
         endpointCount={endpointCount}
         endpoints={endpoints}
         endpointStatuses={endpointStatuses}
+        profiles={profiles}
         onPostureChange={refresh}
+        onProfileChange={refresh}
         lastEventAt={lastEventAt}
       />
+
+      {endpoints.length > 0 && (
+        <EndpointsTable
+          endpoints={endpoints}
+          profiles={profiles}
+          onUpdate={refresh}
+        />
+      )}
 
       <ToolTabs
         activeTab={activeTab}

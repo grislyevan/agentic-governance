@@ -12,6 +12,7 @@ import DashboardPage from './pages/DashboardPage';
 import EventsPage from './pages/EventsPage';
 import PoliciesPage from './pages/PoliciesPage';
 import PlaybooksPage from './pages/PlaybooksPage';
+import EndpointProfilesPage from './pages/EndpointProfilesPage';
 import AuditLogPage from './pages/AuditLogPage';
 import AdminPage from './pages/AdminPage';
 import SettingsPage from './pages/SettingsPage';
@@ -24,6 +25,7 @@ const PATH_TO_PAGE = {
   '/events': 'events',
   '/policies': 'policies',
   '/playbooks': 'admin',
+  '/endpoint-profiles': 'admin',
   '/audit': 'audit',
   '/admin': 'admin',
   '/settings': 'settings',
@@ -113,6 +115,9 @@ export default function App() {
             </Route>
             <Route path="/playbooks" element={<AdminLayout />}>
               <Route index element={<PlaybooksPage {...pageProps} />} />
+            </Route>
+            <Route path="/endpoint-profiles" element={<AdminLayout />}>
+              <Route index element={<EndpointProfilesPage {...pageProps} />} />
             </Route>
             <Route path="/audit" element={<AuditLogPage {...pageProps} />} />
             <Route path="/settings" element={<SettingsPage {...pageProps} />} />

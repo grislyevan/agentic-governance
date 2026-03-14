@@ -23,6 +23,11 @@ logger = logging.getLogger(__name__)
 CONFIG_DIR = Path(__file__).resolve().parent / "config"
 DEFAULT_CONFIG_PATH = CONFIG_DIR / "collector.json"
 
+# Server-pushed state (interval, etc.) persisted so it survives restart.
+# Same directory as the agent pid file (~/.agentic-gov).
+AGENT_STATE_DIR = Path.home() / ".agentic-gov"
+AGENT_STATE_FILE = AGENT_STATE_DIR / "agent_state.json"
+
 ENV_PREFIX = "AGENTIC_GOV_"
 
 # Config keys that must never be logged (secrets).
@@ -93,9 +98,14 @@ def _platform_config_paths() -> list[Path]:
 
     These are locations where a server-generated installer may drop
     agent.env or collector.json so the agent auto-discovers them.
+    On macOS, system-wide config under /Library/Application Support/Detec
+    is checked first (used by LaunchDaemon); then per-user ~/Library/...
     """
     paths: list[Path] = []
     if sys.platform == "darwin":
+        system_app_support = Path("/Library/Application Support/Detec")
+        paths.append(system_app_support / "collector.json")
+        paths.append(system_app_support / "agent.env")
         app_support = Path.home() / "Library" / "Application Support" / "Detec"
         paths.append(app_support / "collector.json")
         paths.append(app_support / "agent.env")
@@ -188,6 +198,44 @@ def _load_json_config(p: Path) -> dict[str, Any]:
         return {}
 
 
+def load_server_interval_state() -> dict[str, Any]:
+    """Load persisted server-pushed state (e.g. interval_seconds).
+
+    Returns a dict with keys such as interval_seconds, or empty if missing/invalid.
+    """
+    if not AGENT_STATE_FILE.exists():
+        return {}
+    try:
+        with open(AGENT_STATE_FILE) as fh:
+            data = json.load(fh)
+        if not isinstance(data, dict):
+            return {}
+        return data
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.debug("Cannot read agent state %s: %s", AGENT_STATE_FILE, exc)
+        return {}
+
+
+def save_server_interval(interval_seconds: int) -> None:
+    """Persist server-desired scan/heartbeat interval so it survives restart.
+
+    Call this when the heartbeat response includes interval_seconds.
+    Valid range matches API: 30 to 86400.
+    """
+    if not (30 <= interval_seconds <= 86400):
+        logger.warning("Ignoring out-of-range server interval %s", interval_seconds)
+        return
+    try:
+        AGENT_STATE_DIR.mkdir(parents=True, exist_ok=True)
+        data = load_server_interval_state()
+        data["interval_seconds"] = interval_seconds
+        with open(AGENT_STATE_FILE, "w") as fh:
+            json.dump(data, fh, separators=(",", ":"))
+        logger.info("Persisted server interval_seconds=%s to %s", interval_seconds, AGENT_STATE_FILE)
+    except OSError as exc:
+        logger.warning("Could not persist server interval to %s: %s", AGENT_STATE_FILE, exc)
+
+
 def load_env_overrides() -> dict[str, Any]:
     """Read ``AGENTIC_GOV_*`` environment variables and coerce types."""
     overrides: dict[str, Any] = {}
@@ -227,6 +275,12 @@ def load_collector_config(config_path: Path | None = None) -> dict[str, Any]:
     for k, v in file_cfg.items():
         if k in merged and v is not None:
             merged[k] = v
+
+    # Server-pushed interval (persisted from last heartbeat) overrides file default.
+    state = load_server_interval_state()
+    state_interval = state.get("interval_seconds")
+    if isinstance(state_interval, int) and 30 <= state_interval <= 86400:
+        merged["interval"] = state_interval
 
     env_cfg = load_env_overrides()
     for k, v in env_cfg.items():

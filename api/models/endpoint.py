@@ -32,6 +32,9 @@ class Endpoint(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False, index=True)
+    endpoint_profile_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("endpoint_profiles.id"), nullable=True, index=True
+    )
     hostname: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     os_info: Mapped[str | None] = mapped_column(String(512))
     management_state: Mapped[str] = mapped_column(String(32), nullable=False, default="unmanaged")
@@ -64,6 +67,9 @@ class Endpoint(Base):
     enrolled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     tenant: Mapped["Tenant"] = relationship("Tenant", back_populates="endpoints")  # noqa: F821
+    endpoint_profile: Mapped["EndpointProfile | None"] = relationship(  # noqa: F821
+        "EndpointProfile", back_populates="endpoints", lazy="select"
+    )
     events: Mapped[list["Event"]] = relationship("Event", back_populates="endpoint", lazy="select")  # noqa: F821
 
     def compute_status(self) -> str:

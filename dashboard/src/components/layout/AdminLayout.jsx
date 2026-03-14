@@ -4,6 +4,7 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const onPlaybooks = location.pathname === '/playbooks';
+  const onProfiles = location.pathname === '/endpoint-profiles';
 
   return (
     <div className="space-y-4 min-w-0">
@@ -12,8 +13,8 @@ export default function AdminLayout() {
         <nav className="flex rounded-lg border border-detec-slate-700/50 bg-detec-slate-800/50 p-0.5" aria-label="Admin sections">
           <button
             onClick={() => navigate('/admin')}
-            aria-current={!onPlaybooks ? 'page' : undefined}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${!onPlaybooks ? 'bg-detec-slate-700 text-detec-slate-200' : 'text-detec-slate-400 hover:text-detec-slate-200'}`}
+            aria-current={location.pathname === '/admin' ? 'page' : undefined}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${location.pathname === '/admin' ? 'bg-detec-slate-700 text-detec-slate-200' : 'text-detec-slate-400 hover:text-detec-slate-200'}`}
           >
             Users
           </button>
@@ -23,6 +24,13 @@ export default function AdminLayout() {
             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${onPlaybooks ? 'bg-detec-slate-700 text-detec-slate-200' : 'text-detec-slate-400 hover:text-detec-slate-200'}`}
           >
             Playbooks
+          </button>
+          <button
+            onClick={() => navigate('/endpoint-profiles')}
+            aria-current={onProfiles ? 'page' : undefined}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${onProfiles ? 'bg-detec-slate-700 text-detec-slate-200' : 'text-detec-slate-400 hover:text-detec-slate-200'}`}
+          >
+            Endpoint Profiles
           </button>
         </nav>
       </div>

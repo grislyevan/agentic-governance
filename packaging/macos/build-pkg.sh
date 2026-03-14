@@ -103,8 +103,9 @@ if [ -n "${SIGNING_IDENTITY:-}" ]; then
     echo "  Signing with: $SIGNING_IDENTITY"
 fi
 
-# Copy resources alongside the distribution.xml
+# Copy resources alongside the distribution.xml (required by distribution.xml)
 cp "$SCRIPT_DIR/resources/welcome.html" "$PKG_DIR/welcome.html"
+cp "$SCRIPT_DIR/resources/license.html" "$PKG_DIR/license.html"
 cp "$SCRIPT_DIR/resources/readme.html" "$PKG_DIR/readme.html"
 
 eval productbuild \

@@ -41,6 +41,9 @@ class Tenant(Base):
 
     users: Mapped[list["User"]] = relationship("User", back_populates="tenant", lazy="select")  # noqa: F821
     endpoints: Mapped[list["Endpoint"]] = relationship("Endpoint", back_populates="tenant", lazy="select")  # noqa: F821
+    endpoint_profiles: Mapped[list["EndpointProfile"]] = relationship(  # noqa: F821
+        "EndpointProfile", back_populates="tenant", lazy="select"
+    )
     events: Mapped[list["Event"]] = relationship("Event", back_populates="tenant", lazy="select")  # noqa: F821
     policies: Mapped[list["Policy"]] = relationship("Policy", back_populates="tenant", lazy="select")  # noqa: F821
 

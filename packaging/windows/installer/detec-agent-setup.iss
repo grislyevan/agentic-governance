@@ -4,6 +4,12 @@
 ; Shows a clean progress log during install, then auto-closes with a
 ; brief countdown. No wizard pages. Supports /VERYSILENT for headless.
 ;
+; Tamper controls (see docs/tamper-controls.md):
+;   - PrivilegesRequired=admin: install and uninstall require elevation (UAC).
+;   - Service stop/delete: Windows SCM restricts sc stop / sc delete to admins.
+;   - Optional uninstall token: ProgramData\Detec\Agent\allow_uninstall.token
+;     for scripted/MDM uninstall (documented in tamper-controls.md).
+;
 ; Config embedding (zero-touch):
 ;   When downloaded from the Detec Server dashboard, this installer has
 ;   tenant configuration (API URL, key, interval) appended after the PE
@@ -296,6 +302,15 @@ begin
       '  ' + PadRight('Starting agent', 40) + 'FAIL';
     InstallHadErrors := True;
   end;
+  WizardForm.Refresh;
+
+  LogStep('  Configuring failure recovery...');
+  if RunCmd(AppDir + '\detec-agent.exe', 'set-recovery', AppDir) then
+    LogMemo.Lines[LogMemo.Lines.Count - 1] :=
+      '  ' + PadRight('Configuring failure recovery', 40) + 'done'
+  else
+    LogMemo.Lines[LogMemo.Lines.Count - 1] :=
+      '  ' + PadRight('Configuring failure recovery', 40) + 'skipped';
   WizardForm.Refresh;
 
   LogStep('');

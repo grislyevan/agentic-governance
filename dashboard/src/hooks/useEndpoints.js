@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { fetchEndpoints, fetchEndpointStatus, fetchAllEvents, getApiConfig } from '../lib/api';
+import { fetchEndpoints, fetchEndpointStatus, fetchEndpointProfiles, fetchAllEvents, getApiConfig } from '../lib/api';
 import { getStoredTokens } from '../lib/auth';
 import { confidenceBand, policyLabel } from '../parseNdjson';
 
@@ -103,6 +103,7 @@ export default function useEndpoints() {
     totalEvents: 0,
     endpoints: [],
     endpointStatuses: [],
+    profiles: [],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -122,13 +123,14 @@ export default function useEndpoints() {
     const activeFilters = filterOverrides || filters;
 
     try {
-      const [events, epData, statuses] = await Promise.all([
+      const [events, epData, statuses, profilesData] = await Promise.all([
         fetchAllEvents(config, {
           observedAfter: activeFilters.observedAfter || undefined,
           endpointId: activeFilters.endpointId || undefined,
         }),
         fetchEndpoints(config).catch(() => ({ items: [], total: 0 })),
         fetchEndpointStatus(config).catch(() => []),
+        fetchEndpointProfiles(config, { pageSize: 200 }).catch(() => ({ items: [] })),
       ]);
 
       const aggregated = aggregateEvents(events);
@@ -138,6 +140,7 @@ export default function useEndpoints() {
         endpoints: epData.items || [],
         endpointStatuses: Array.isArray(statuses) ? statuses : [],
         endpointCount: aggregated.endpointCount || (epData.items || []).length,
+        profiles: profilesData?.items || [],
       });
     } catch (e) {
       setError(e.message);

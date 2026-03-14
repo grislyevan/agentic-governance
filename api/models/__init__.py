@@ -2,6 +2,7 @@ from .allow_list import AllowListEntry
 from .audit import AuditLog
 from .auth_token import AuthToken
 from .endpoint import Endpoint
+from .endpoint_profile import EndpointProfile
 from .event import Event
 from .policy import Policy
 from .tenant import Tenant
@@ -14,6 +15,7 @@ __all__ = [
     "AuditLog",
     "AuthToken",
     "Endpoint",
+    "EndpointProfile",
     "Event",
     "Policy",
     "Tenant",

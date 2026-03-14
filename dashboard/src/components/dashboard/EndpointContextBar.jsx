@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getApiConfig, updateEndpointPosture } from '../../lib/api';
+import { getApiConfig, updateEndpointPosture, updateEndpoint } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
 
 const POSTURE_META = {
@@ -32,9 +32,11 @@ export default function EndpointContextBar({ endpointCount, endpoints, endpointS
 
   const { user } = useAuth();
   const isOwner = user?.role === 'owner';
+  const canManage = user?.role === 'owner' || user?.role === 'admin';
 
   const [expanded, setExpanded] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedPosture, setSelectedPosture] = useState(enforcementPosture);
   const [selectedThreshold, setSelectedThreshold] = useState(currentThreshold);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -120,6 +122,22 @@ export default function EndpointContextBar({ endpointCount, endpoints, endpointS
               {managementState === 'managed' ? 'Conformant' : 'Nonconformant'}
             </span>
           </>
+        )}
+
+        {showSingleEndpoint && (
+          canManage ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); setProfileModalOpen(true); }}
+              className="font-mono text-xs px-2 py-0.5 rounded cursor-pointer transition-colors hover:ring-1 hover:ring-detec-slate-500 bg-detec-slate-700/50 text-detec-slate-300"
+              title="Endpoint profile (scan interval, posture). Click to change."
+            >
+              {profileName ?? 'No profile'}
+            </button>
+          ) : (
+            <span className="font-mono text-xs px-2 py-0.5 rounded bg-detec-slate-700/50 text-detec-slate-400">
+              {profileName ?? 'No profile'}
+            </span>
+          )
         )}
 
         {showSingleEndpoint && (
@@ -265,6 +283,21 @@ export default function EndpointContextBar({ endpointCount, endpoints, endpointS
         />
       )}
 
+      {/* Profile assignment modal */}
+      {profileModalOpen && showSingleEndpoint && firstEp && (
+        <ProfileAssignModal
+          endpoint={firstEp}
+          profiles={profiles}
+          currentProfileId={firstEp.endpoint_profile_id}
+          onClose={() => setProfileModalOpen(false)}
+          onSaved={(profileId) => {
+            setProfileModalOpen(false);
+            onProfileChange?.();
+          }}
+          onError={(msg) => setFeedback({ type: 'error', msg })}
+        />
+      )}
+
       {/* Confirmation modal for active posture */}
       {showConfirm && (
         <ConfirmActiveModal
@@ -379,6 +412,69 @@ function PosturePanel({ hostname, selectedPosture, selectedThreshold, onPostureC
   );
 }
 
+
+function ProfileAssignModal({ endpoint, profiles, currentProfileId, onClose, onSaved, onError }) {
+  const [selectedProfileId, setSelectedProfileId] = useState(currentProfileId ?? '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateEndpoint(endpoint.id, {
+        endpoint_profile_id: selectedProfileId === '' ? '' : selectedProfileId,
+      });
+      onSaved(selectedProfileId || null);
+    } catch (err) {
+      onError?.(err.message || 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const hasChange = selectedProfileId !== (currentProfileId ?? '');
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-xl border border-detec-slate-700 bg-detec-slate-900 p-4 sm:p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-bold text-detec-slate-100 mb-2">Assign profile</h2>
+        <p className="text-sm text-detec-slate-400 mb-4">
+          {endpoint.hostname}
+        </p>
+        <div className="space-y-3">
+          <label className="block text-xs font-medium text-detec-slate-400">Profile</label>
+          <select
+            value={selectedProfileId}
+            onChange={(e) => setSelectedProfileId(e.target.value)}
+            className="w-full rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-3 py-2 text-sm text-detec-slate-200 focus:border-detec-primary-500 focus:outline-none"
+          >
+            <option value="">No profile</option>
+            {(profiles || []).map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex justify-end gap-3 mt-5">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-detec-slate-700 px-4 py-2 text-sm text-detec-slate-400 hover:bg-detec-slate-800"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!hasChange || saving}
+            className="rounded-lg bg-detec-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-detec-primary-500 disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ConfirmActiveModal({ hostname, threshold, confirmInput, onInputChange, onConfirm, onCancel, saving }) {
   const confirmed = confirmInput === hostname;

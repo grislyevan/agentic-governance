@@ -29,6 +29,7 @@ from typing import Any, Callable
 
 PostureCallback = Callable[[str, float | None, list[str] | None, list[str] | None], None]
 RestoreCallback = Callable[[list[str]], None]
+IntervalCallback = Callable[[int], None]
 
 from collector.agent.buffer import LocalBuffer
 
@@ -62,6 +63,7 @@ class HttpEmitter:
         sign_events: bool = True,
         on_posture: PostureCallback | None = None,
         on_restore: RestoreCallback | None = None,
+        on_interval: IntervalCallback | None = None,
     ) -> None:
         self._api_url = api_url.rstrip("/")
         self._api_key = api_key
@@ -69,6 +71,7 @@ class HttpEmitter:
         self._buffer = buffer or LocalBuffer()
         self._on_posture = on_posture
         self._on_restore = on_restore
+        self._on_interval = on_interval
         self._ssl_ctx = ssl.create_default_context()
         self._sent = 0
         self._buffered = 0
@@ -247,6 +250,14 @@ class HttpEmitter:
                         restore = data.get("restore_services")
                         if restore and isinstance(restore, list) and self._on_restore:
                             self._on_restore(restore)
+                        interval_seconds = data.get("interval_seconds")
+                        if (
+                            self._on_interval
+                            and interval_seconds is not None
+                            and isinstance(interval_seconds, int)
+                            and 30 <= interval_seconds <= 86400
+                        ):
+                            self._on_interval(interval_seconds)
                     except (json.JSONDecodeError, ValueError):
                         pass
                 if not ok:

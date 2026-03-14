@@ -35,6 +35,16 @@ The wizard walks the user through these steps:
 
 No wizard pages. The installer shows only a branded progress log during install, then auto-closes with a brief countdown. When downloaded from the Detec Server dashboard, the installer has tenant configuration (API URL, key, interval) embedded and applies it automatically (zero-touch). If no embedded config is found, the agent installs but requires manual setup via `detec-agent setup`.
 
+#### Service registration
+
+Post-install runs the agent binary from the install directory with working directory set to the app directory so the Windows Service is registered with the correct paths:
+
+- **Binary path:** `{app}\detec-agent.exe` (e.g. `C:\Program Files\Detec\Agent\detec-agent.exe`).
+- **Working directory:** `{app}`. The Inno Setup `[Code]` section calls `Exec(Filename, Params, WorkDir, ...)` with `WorkDir = AppDir` for both `install` and `start`.
+- **Steps:** `detec-agent.exe install`, then `detec-agent.exe start`, then `detec-agent.exe set-recovery` (configures restart-on-failure).
+
+The service is therefore created with the correct image path and can load config from `%PROGRAMDATA%\Detec\Agent\` at runtime.
+
 #### Security
 
 - Admin credentials are passed to the setup process via environment variable, not on the command line, to prevent exposure in Task Manager or process listings.

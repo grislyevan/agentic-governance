@@ -67,6 +67,33 @@ export async function fetchEndpoints(config, page = 1, pageSize = 200) {
   return apiFetch(`/endpoints?page=${page}&page_size=${pageSize}`, config);
 }
 
+export async function updateEndpoint(endpointId, data) {
+  return apiMutate('PATCH', `/endpoints/${endpointId}`, data);
+}
+
+// Endpoint profiles (tenant-scoped agent profiles)
+
+export async function fetchEndpointProfiles(config, { page = 1, pageSize = 50 } = {}) {
+  const params = new URLSearchParams({ page, page_size: pageSize });
+  return apiFetch(`/endpoint-profiles?${params}`, config);
+}
+
+export async function fetchEndpointProfile(profileId) {
+  return apiFetch(`/endpoint-profiles/${profileId}`);
+}
+
+export async function createEndpointProfile(data) {
+  return apiMutate('POST', '/endpoint-profiles', data);
+}
+
+export async function updateEndpointProfile(profileId, data) {
+  return apiMutate('PATCH', `/endpoint-profiles/${profileId}`, data);
+}
+
+export async function deleteEndpointProfile(profileId) {
+  return apiMutate('DELETE', `/endpoint-profiles/${profileId}`);
+}
+
 export async function fetchEndpointStatus(config) {
   return apiFetch('/endpoints/status', config);
 }

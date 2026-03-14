@@ -13,11 +13,17 @@ class EndpointCreate(BaseModel):
     management_state: str = Field(default="unmanaged", max_length=32)
 
 
+class EndpointUpdate(BaseModel):
+    endpoint_profile_id: str | None = Field(default=None, max_length=36)
+    management_state: str | None = Field(default=None, max_length=32)
+
+
 class EndpointResponse(BaseModel):
     id: str
     hostname: str
     os_info: str | None
     management_state: str
+    endpoint_profile_id: str | None = None
     enforcement_posture: str = "passive"
     auto_enforce_threshold: float = 0.75
     telemetry_provider: str | None = None

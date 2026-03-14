@@ -34,7 +34,7 @@ _COLLECTOR_DIR = str(Path(__file__).resolve().parent)
 if _COLLECTOR_DIR not in sys.path:
     sys.path.insert(0, _COLLECTOR_DIR)
 
-from config_loader import argparse_defaults
+from config_loader import argparse_defaults, save_server_interval
 from engine.attack_mapping import map_scan_result
 from engine.confidence import classify_confidence, compute_confidence
 from providers import get_best_provider
@@ -782,16 +782,20 @@ def run_scan(
 def _heartbeat_loop(
     emitter: HttpEmitter | TcpEmitter,
     hostname: str,
-    interval: int,
+    interval_holder: dict[str, int],
     stop_event: threading.Event,
     telemetry_provider: str = "polling",
     disabled_svc_tracker: DisabledServiceTracker | None = None,
 ) -> None:
-    """Background thread: send heartbeats every interval seconds."""
-    while not stop_event.wait(timeout=interval):
+    """Background thread: send heartbeats every interval seconds.
+
+    interval_holder["interval"] may be updated by the server via on_interval;
+    the next wait uses the new value.
+    """
+    while not stop_event.wait(timeout=interval_holder["interval"]):
         kwargs: dict[str, Any] = {
             "hostname": hostname,
-            "interval_seconds": interval,
+            "interval_seconds": interval_holder["interval"],
             "telemetry_provider": telemetry_provider,
         }
         if disabled_svc_tracker and isinstance(emitter, HttpEmitter):
@@ -938,6 +942,14 @@ def _run_daemon(args: argparse.Namespace) -> None:
             from scanner.behavioral_patterns import update_llm_hosts
             update_llm_hosts(set(llm_hosts))
 
+    # Server can push interval_seconds via heartbeat response; we apply and persist.
+    current_interval_holder: dict[str, int] = {"interval": args.interval}
+
+    def _on_interval(interval_seconds: int) -> None:
+        current_interval_holder["interval"] = interval_seconds
+        save_server_interval(interval_seconds)
+        logger.info("Applied server interval_seconds=%s", interval_seconds)
+
     if protocol == "tcp":
         gateway_host = getattr(args, "gateway_host", None)
         gateway_port = getattr(args, "gateway_port", 8001)
@@ -985,6 +997,7 @@ def _run_daemon(args: argparse.Namespace) -> None:
             api_key=args.api_key,
             on_posture=_on_posture,
             on_restore=_on_restore,
+            on_interval=_on_interval,
         )
 
     differ = StateDiffer(report_all=args.report_all)
@@ -1019,7 +1032,7 @@ def _run_daemon(args: argparse.Namespace) -> None:
 
     heartbeat_thread = threading.Thread(
         target=_heartbeat_loop,
-        args=(emitter, hostname, args.interval, stop_event, telemetry_provider_name, disabled_svc_tracker),
+        args=(emitter, hostname, current_interval_holder, stop_event, telemetry_provider_name, disabled_svc_tracker),
         daemon=True,
         name="heartbeat",
     )
@@ -1027,7 +1040,7 @@ def _run_daemon(args: argparse.Namespace) -> None:
 
     print(
         f"Agentic-gov endpoint agent started — "
-        f"interval={args.interval}s  api={args.api_url}  "
+        f"interval={current_interval_holder['interval']}s  api={args.api_url}  "
         f"mode={'report-all' if args.report_all else 'changes-only'}",
         file=sys.stderr,
     )
@@ -1051,8 +1064,8 @@ def _run_daemon(args: argparse.Namespace) -> None:
         )
 
         # Wait for the interval OR an alert, whichever comes first.
-        # If stop_event fires, the outer loop condition exits.
-        scan_trigger.wait(timeout=args.interval)
+        # Interval may be updated by server via heartbeat response (on_interval).
+        scan_trigger.wait(timeout=current_interval_holder["interval"])
         if stop_event.is_set():
             break
 

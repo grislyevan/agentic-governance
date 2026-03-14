@@ -19,6 +19,7 @@ import time
 from typing import Any, Callable
 
 PostureCallback = Callable[[str, float | None, list[str] | None, list[str] | None], None]
+IntervalCallback = Callable[[int], None]
 
 from collector.agent.buffer import LocalBuffer
 
@@ -72,6 +73,7 @@ class TcpEmitter:
         on_command: Callable[[str, str, dict], None] | None = None,
         on_policy: Callable[[list[dict]], None] | None = None,
         on_posture: PostureCallback | None = None,
+        on_interval: IntervalCallback | None = None,
     ) -> None:
         self._host = gateway_host
         self._port = gateway_port
@@ -86,6 +88,7 @@ class TcpEmitter:
         self._on_command = on_command
         self._on_policy = on_policy
         self._on_posture = on_posture
+        self._on_interval = on_interval
 
         self._send_queue: queue.Queue[_QueueItem] = queue.Queue(maxsize=5000)
         self._sent = 0

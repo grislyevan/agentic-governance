@@ -33,11 +33,17 @@ try:
     import win32event  # type: ignore[import-untyped]
     import win32service  # type: ignore[import-untyped]
     import win32serviceutil  # type: ignore[import-untyped]
+    import pywintypes  # type: ignore[import-untyped]
 except ImportError:
     raise SystemExit(
         "pywin32 is required for Windows Service support.\n"
         "Install with: pip install pywin32"
     )
+
+# Failure recovery: restart after 60 s on first, second, and subsequent failures.
+# ResetPeriod: seconds after which failure count resets (1 day).
+_RESTART_DELAY_MS = 60_000
+_RESET_PERIOD_SEC = 86400
 
 
 def _data_dir() -> Path:
