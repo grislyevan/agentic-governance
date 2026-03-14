@@ -20,18 +20,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import sys
-
-_COLLECTOR_DIR = str(Path(__file__).resolve().parent.parent)
-if _COLLECTOR_DIR not in sys.path:
-    sys.path.insert(0, _COLLECTOR_DIR)
-
-from main import (
+from main import run_scan
+from orchestrator import (
     build_event,
-    _process_detection,
-    _emit_cleared_events,
     _collect_scan_results,
-    run_scan,
+    _emit_cleared_events,
+    _process_detection,
 )
 from scanner.base import ScanResult, LayerSignals
 from engine.policy import PolicyDecision
@@ -253,7 +247,7 @@ class TestProcessDetection(unittest.TestCase):
         det_id = events[0]["event_id"]
         self.assertEqual(events[1]["parent_event_id"], det_id)
 
-    @patch("main.evaluate_policy")
+    @patch("orchestrator.evaluate_policy")
     def test_block_emits_three_events(self, mock_policy: MagicMock) -> None:
         """A block decision with enforcement: 3 events total."""
         mock_policy.return_value = PolicyDecision(
@@ -288,7 +282,7 @@ class TestProcessDetection(unittest.TestCase):
         self.assertEqual(events[2]["event_type"], "enforcement.applied")
         self.assertEqual(events[2]["parent_event_id"], events[1]["event_id"])
 
-    @patch("main.evaluate_policy")
+    @patch("orchestrator.evaluate_policy")
     def test_enforcement_events_pass_schema(self, mock_policy: MagicMock) -> None:
         """All three events from a block decision must pass schema validation."""
         mock_policy.return_value = PolicyDecision(
@@ -323,7 +317,7 @@ class TestProcessDetection(unittest.TestCase):
             errors = self.validator.validate(ev)
             self.assertEqual(errors, [], f"{ev['event_type']} failed: {errors}")
 
-    @patch("main.evaluate_policy")
+    @patch("orchestrator.evaluate_policy")
     def test_approval_required_does_not_kill(self, mock_policy: MagicMock) -> None:
         """approval_required must NOT trigger OS-level enforcement (M-28 fix).
 
@@ -490,45 +484,71 @@ class TestRunScanEndToEnd(unittest.TestCase):
         defaults.update(overrides)
         return argparse.Namespace(**defaults)
 
-    @patch("main.ClineScanner")
-    @patch("main.GPTPilotScanner")
-    @patch("main.ContinueScanner")
-    @patch("main.LMStudioScanner")
-    @patch("main.AiderScanner")
-    @patch("main.OpenClawScanner")
-    @patch("main.OpenInterpreterScanner")
-    @patch("main.CopilotScanner")
-    @patch("main.CursorScanner")
-    @patch("main.OllamaScanner")
-    @patch("main.ClaudeCodeScanner")
+    @patch("orchestrator.get_best_provider")
+    @patch("orchestrator.MCPScanner")
+    @patch("orchestrator.EvasionScanner")
+    @patch("orchestrator.BehavioralScanner")
+    @patch("orchestrator.AIExtensionScanner")
+    @patch("orchestrator.ClineScanner")
+    @patch("orchestrator.GPTPilotScanner")
+    @patch("orchestrator.ContinueScanner")
+    @patch("orchestrator.LMStudioScanner")
+    @patch("orchestrator.AiderScanner")
+    @patch("orchestrator.OpenClawScanner")
+    @patch("orchestrator.OpenInterpreterScanner")
+    @patch("orchestrator.CopilotScanner")
+    @patch("orchestrator.CursorScanner")
+    @patch("orchestrator.OllamaScanner")
+    @patch("orchestrator.ClaudeCoworkScanner")
+    @patch("orchestrator.ClaudeCodeScanner")
     def test_dry_run_no_detections(self, *mock_scanners: MagicMock) -> None:
         """Dry-run with no detections: zero events, exit code 0."""
-        for m in mock_scanners:
-            instance = m.return_value
-            instance.tool_name = "Mock"
-            instance.scan.return_value = ScanResult(detected=False, tool_name="Mock")
+        mock_provider = MagicMock()
+        mock_provider.name = "polling"
+        mock_provider.start = MagicMock()
+        mock_provider.stop = MagicMock()
+        mock_provider.poll = MagicMock()
+        mock_scanners[-1].return_value = mock_provider  # get_best_provider (top decorator)
+        for m in mock_scanners[:-1]:  # scanner mocks
+            if hasattr(m.return_value, "scan"):
+                instance = m.return_value
+                instance.tool_name = "Mock"
+                instance.scan.return_value = ScanResult(detected=False, tool_name="Mock")
 
         args = self._make_args()
         code = run_scan(args)
         self.assertEqual(code, 0)
 
-    @patch("main.ClineScanner")
-    @patch("main.GPTPilotScanner")
-    @patch("main.ContinueScanner")
-    @patch("main.LMStudioScanner")
-    @patch("main.AiderScanner")
-    @patch("main.OpenClawScanner")
-    @patch("main.OpenInterpreterScanner")
-    @patch("main.CopilotScanner")
-    @patch("main.CursorScanner")
-    @patch("main.OllamaScanner")
-    @patch("main.ClaudeCodeScanner")
+    @patch("orchestrator.get_best_provider")
+    @patch("orchestrator.MCPScanner")
+    @patch("orchestrator.EvasionScanner")
+    @patch("orchestrator.BehavioralScanner")
+    @patch("orchestrator.AIExtensionScanner")
+    @patch("orchestrator.ClineScanner")
+    @patch("orchestrator.GPTPilotScanner")
+    @patch("orchestrator.ContinueScanner")
+    @patch("orchestrator.LMStudioScanner")
+    @patch("orchestrator.AiderScanner")
+    @patch("orchestrator.OpenClawScanner")
+    @patch("orchestrator.OpenInterpreterScanner")
+    @patch("orchestrator.CopilotScanner")
+    @patch("orchestrator.CursorScanner")
+    @patch("orchestrator.OllamaScanner")
+    @patch("orchestrator.ClaudeCoworkScanner")
+    @patch("orchestrator.ClaudeCodeScanner")
     def test_detection_writes_ndjson(self, *mock_scanners: MagicMock) -> None:
         """Single detection in NDJSON mode writes valid events."""
-        for m in mock_scanners:
-            instance = m.return_value
-            instance.tool_name = "NoTool"
-            instance.scan.return_value = ScanResult(detected=False, tool_name="NoTool")
+        mock_provider = MagicMock()
+        mock_provider.name = "polling"
+        mock_provider.start = MagicMock()
+        mock_provider.stop = MagicMock()
+        mock_provider.poll = MagicMock()
+        mock_scanners[-1].return_value = mock_provider
+        for m in mock_scanners[:-1]:
+            if hasattr(m.return_value, "scan"):
+                instance = m.return_value
+                instance.tool_name = "NoTool"
+                instance.scan.return_value = ScanResult(detected=False, tool_name="NoTool")
 
         mock_scanners[0].return_value.tool_name = "ClaudeCode"
         mock_scanners[0].return_value.scan.return_value = _make_scan("ClaudeCode", "C")

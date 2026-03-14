@@ -15,10 +15,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
-_COLLECTOR_DIR = str(Path(__file__).resolve().parent.parent)
-if _COLLECTOR_DIR not in sys.path:
-    sys.path.insert(0, _COLLECTOR_DIR)
-
 from enforcement.enforcer import Enforcer, EnforcementResult
 from enforcement.posture import PostureManager
 from engine.confidence import classify_confidence, compute_confidence

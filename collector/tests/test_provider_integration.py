@@ -18,10 +18,6 @@ import time
 
 import pytest
 
-_COLLECTOR_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if _COLLECTOR_DIR not in sys.path:
-    sys.path.insert(0, _COLLECTOR_DIR)
-
 from telemetry.event_store import EventStore
 
 

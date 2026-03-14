@@ -20,10 +20,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-_COLLECTOR_DIR = str(Path(__file__).resolve().parent.parent)
-if _COLLECTOR_DIR not in sys.path:
-    sys.path.insert(0, _COLLECTOR_DIR)
-
 from config_loader import load_collector_config
 from output.http_emitter import HttpEmitter
 from output.tcp_emitter import TcpEmitter

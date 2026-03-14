@@ -14,10 +14,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-_COLLECTOR_DIR = str(Path(__file__).resolve().parent.parent)
-if _COLLECTOR_DIR not in sys.path:
-    sys.path.insert(0, _COLLECTOR_DIR)
-
 import rumps
 
 from collector.gui.assets import get_menubar_icon_path

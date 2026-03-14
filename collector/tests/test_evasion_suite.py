@@ -11,13 +11,6 @@ from pathlib import Path
 
 import pytest
 
-_COLLECTOR_DIR = str(Path(__file__).resolve().parent.parent)
-_TESTS_DIR = str(Path(__file__).resolve().parent)
-if _COLLECTOR_DIR not in sys.path:
-    sys.path.insert(0, _COLLECTOR_DIR)
-if _TESTS_DIR not in sys.path:
-    sys.path.insert(0, _TESTS_DIR)
-
 from evasion_suite_scenarios import EVASION_SCENARIOS, EvasionScenario
 
 

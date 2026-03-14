@@ -9,11 +9,6 @@ from unittest.mock import patch
 
 import pytest
 
-import sys
-_COLLECTOR_DIR = str(Path(__file__).resolve().parent.parent)
-if _COLLECTOR_DIR not in sys.path:
-    sys.path.insert(0, _COLLECTOR_DIR)
-
 from enforcement.posture import PostureManager, DEFAULT_ALLOW_LIST_MAX_AGE
 from enforcement.enforcer import Enforcer, EnforcementResult
 from engine.policy import PolicyDecision

@@ -1,6 +1,11 @@
 # Agentic-governance collector
 
-Endpoint telemetry collector for agentic AI tool detection (Detec Agent). Scans for tools (Claude Code, Ollama, Cursor, Copilot, Open Interpreter), computes confidence, evaluates policy, and emits NDJSON events.
+Endpoint telemetry collector for agentic AI tool detection (Detec Agent). Scans for tools (Claude Code, Ollama, Cursor, Copilot, Open Interpreter, and others), computes confidence, evaluates policy, and emits NDJSON events.
+
+## Telemetry and detection
+
+**Current:** Only the **polling provider** (psutil-based process, file, and network signals) is implemented. It works on macOS, Windows, and Linux.  
+**Roadmap:** Native telemetry (macOS ESF, Windows ETW, Linux eBPF) is in development for lower latency and stronger guarantees. See [docs/esf-entitlement.md](../docs/esf-entitlement.md) for ESF status.
 
 ## Install
 
@@ -77,22 +82,12 @@ cd collector && python main.py --sensitivity Tier2 --dry-run
 
 ## Running tests
 
-From the **repository root** (with `collector` on the Python path):
+From the **repository root** (path bootstrap is in `collector/tests/conftest.py`; prefer `pip install -e .` so the package is on the path):
 
 ```bash
-PYTHONPATH=collector python -m unittest discover -s collector/tests -p 'test_*.py' -t .
+python -m pytest collector/tests/ -v
 ```
 
-Or with pytest (if installed):
-
-```bash
-PYTHONPATH=collector python -m pytest collector/tests/ -v
-```
-
-From the **collector directory** (no `PYTHONPATH` needed):
-
-```bash
-cd collector && python -m unittest discover -s tests -p 'test_*.py'
-```
+Avoid running `python main.py` from inside `collector/`; use `python -m collector.main` from repo root or `detec-agent` after install.
 
 Tests cover the confidence engine, policy engine, schema validation, and NDJSON emitter. They do not require real tool installs; scanner tests use mocks where applicable.

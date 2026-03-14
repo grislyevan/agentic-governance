@@ -8,10 +8,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-_COLLECTOR_DIR = str(Path(__file__).resolve().parent.parent)
-if _COLLECTOR_DIR not in sys.path:
-    sys.path.insert(0, _COLLECTOR_DIR)
-
 from providers.polling import PollingProvider
 from providers.registry import get_best_provider
 

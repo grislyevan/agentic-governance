@@ -1,5 +1,18 @@
 # Contributing
 
+## First time here? (Evaluating Detec)
+
+If you're trying Detec for the first time or evaluating the product:
+
+1. **Try the agent** — From repo root: `pip install -e .` then `detec-agent --dry-run --verbose` to see a one-shot scan with no API.
+2. **Run the full stack** — Follow the [README quick start](README.md#quick-start-full-stack): build the dashboard, start the API, open http://localhost:8000.
+3. **See results in the dashboard** — Log in (seed admin or register), open Endpoints and Policies, and inspect detected tools and policy state.
+4. **Deploy** — For agent auto-start and MDM deployment, see [DEPLOY.md](DEPLOY.md).
+
+For a short project brief and where to look in the repo, read [AGENTS.md](AGENTS.md).
+
+---
+
 ## Development Setup
 
 ### Prerequisites
@@ -9,17 +22,20 @@
 
 ### Collector (Python)
 
+From repo root, use the installed package or run as a module (avoid `python main.py` from inside `collector/`):
+
 ```bash
-cd collector
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python main.py --dry-run --verbose
+pip install -e .   # from repo root
+detec-agent --dry-run --verbose
 ```
 
-Run tests:
+Or with a venv and no install: `python -m collector.main --dry-run --verbose` from repo root. For a collector-only venv: `cd collector && python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt` then from repo root: `python -m collector.main --dry-run --verbose`.
+
+Run tests from repo root (path bootstrap in `collector/tests/conftest.py`):
 ```bash
-python -m pytest tests/ -v
+python -m pytest collector/tests/ -v
 ```
+Run from repo root with `python -m collector.main` or install and use `detec-agent`; avoid `python main.py` from inside `collector/`.
 
 ### Dashboard (React/Vite)
 

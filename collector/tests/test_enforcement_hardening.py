@@ -8,10 +8,6 @@ from unittest import mock
 
 import pytest
 
-_COLLECTOR_DIR = str(Path(__file__).resolve().parent.parent)
-if _COLLECTOR_DIR not in sys.path:
-    sys.path.insert(0, _COLLECTOR_DIR)
-
 from enforcement.process_kill import kill_process_tree, KillResult
 from enforcement.rate_limiter import EnforcementRateLimiter
 from enforcement.cleanup import cleanup_orphaned_rules

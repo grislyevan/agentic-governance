@@ -23,10 +23,6 @@ logger = logging.getLogger("detec.agent")
 
 _IS_WINDOWS = sys.platform == "win32"
 
-_collector_dir = Path(__file__).resolve().parent
-if str(_collector_dir) not in sys.path:
-    sys.path.insert(0, str(_collector_dir))
-
 
 def _data_dir() -> Path:
     if _IS_WINDOWS:

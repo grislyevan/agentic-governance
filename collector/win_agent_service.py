@@ -24,10 +24,6 @@ from pathlib import Path
 
 logger = logging.getLogger("detec.agent.service")
 
-_collector_dir = Path(__file__).resolve().parent
-if str(_collector_dir) not in sys.path:
-    sys.path.insert(0, str(_collector_dir))
-
 try:
     import servicemanager  # type: ignore[import-untyped]
     import win32event  # type: ignore[import-untyped]

@@ -1,6 +1,6 @@
 # Agentic Governance Dashboard
 
-SOC operator console for the Detec platform. Multi-endpoint view of detected AI tools, confidence scoring, policy decisions, and enforcement state.
+SOC operator console for the Detec platform. Multi-endpoint view of detected AI tools, confidence scoring, policy decisions, and enforcement state. For a short product roadmap (evidence drill-down, approval flows, alerts, etc.), see [docs/dashboard-roadmap.md](../docs/dashboard-roadmap.md).
 
 ## Prerequisites
 

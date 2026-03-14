@@ -1,8 +1,10 @@
 # Agentic Governance — Progress Tracker
 
-**Last updated:** 2026-03-12  
-**Current phase:** M5 — enterprise features complete, vendor integrations and live validation remaining  
+**Last updated:** 2026-03-14  
+**Current phase:** M5 — enterprise feature set complete; live validation and native telemetry (ESF/ETW/eBPF) in progress.  
 **Ultimate goal:** Production SaaS for agentic AI endpoint governance
+
+**What's production-ready:** The stack is feature-complete for pilot and production use: endpoint agent, multi-tenant API, SOC dashboard, billing, SSO, SIEM templates, ATT&CK mapping, and baseline policies. Remaining work is live lab validation for some scanners, native OS telemetry providers (roadmap), and optional multi-region/SLA docs. Limitations and roadmap details are in the Pre-v1.0 table and [docs](docs/) (e.g. [esf-entitlement](docs/esf-entitlement.md), [lab-runs-and-results](docs/lab-runs-and-results.md)).
 
 ---
 
