@@ -31,7 +31,7 @@ _ALLOWED_TOP_LEVEL_KEYS = frozenset({
     "actor", "endpoint", "tool", "action", "target",
     "policy", "approval", "exception", "evidence",
     "enforcement", "outcome", "severity", "posture",
-    "mitre_attack", "telemetry_providers",
+    "mitre_attack", "correlation_context", "telemetry_providers",
     "_signature", "_key_fingerprint",
     "signature", "key_fingerprint",
 })

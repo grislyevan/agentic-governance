@@ -79,6 +79,7 @@
     "posture": { "$ref": "#/$defs/posture" },
     "severity": { "$ref": "#/$defs/severity" },
     "mitre_attack": { "$ref": "#/$defs/mitre_attack" },
+    "correlation_context": { "$ref": "#/$defs/correlation_context" },
     "telemetry_providers": {
       "type": "array",
       "items": {
@@ -705,8 +706,8 @@
       "properties": {
         "enforcement_result": {
           "type": "string",
-          "enum": ["allowed", "held", "denied"],
-          "description": "Result of enforcement: allowed (proceed), held (pending approval), denied (blocked)."
+          "enum": ["allowed", "held", "denied", "simulated"],
+          "description": "Result of enforcement: allowed (proceed), held (pending approval), denied (blocked), simulated (audit posture; action computed but not executed)."
         },
         "incident_flag": {
           "type": "boolean",
@@ -757,6 +758,24 @@
         }
       },
       "required": ["techniques"]
+    },
+
+    "correlation_context": {
+      "type": "object",
+      "description": "Optional correlation metadata when multiple tools or agents are related (e.g. same process tree).",
+      "properties": {
+        "multi_agent": {
+          "type": "boolean",
+          "description": "True when this event is correlated with other agentic tools in the same context."
+        },
+        "related_tool_names": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Names of other tools detected in the same correlation set."
+        }
+      },
+      "required": ["multi_agent", "related_tool_names"],
+      "additionalProperties": false
     }
   }
 }

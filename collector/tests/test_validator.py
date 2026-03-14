@@ -77,6 +77,45 @@ class TestEventValidator(unittest.TestCase):
         self.assertGreater(len(errors), 0)
         self.assertFalse(self.validator.is_valid({}))
 
+    def test_scan_cleanliness_baseline_action_type_fails(self) -> None:
+        """action.type 'approval_required' (from e.g. Claude Cowork) fails schema enum."""
+        valid = _load_example_events()[0]
+        invalid = json.loads(json.dumps(valid))
+        invalid["action"]["type"] = "approval_required"
+        errors = self.validator.validate(invalid)
+        self.assertGreater(len(errors), 0, "action.type approval_required must fail until schema or payload fixed")
+        self.assertTrue(any("action" in e and "approval_required" in e for e in errors) or any("action" in e for e in errors))
+
+    def test_scan_cleanliness_enforcement_result_simulated_passes(self) -> None:
+        """outcome.enforcement_result 'simulated' (audit posture) is allowed by schema."""
+        events = _load_example_events()
+        applied = next((e for e in events if e.get("event_type") == "enforcement.applied"), None)
+        if not applied:
+            self.skipTest("example-events.json has no enforcement.applied event")
+        event = json.loads(json.dumps(applied))
+        event["outcome"]["enforcement_result"] = "simulated"
+        errors = self.validator.validate(event)
+        self.assertEqual(errors, [], f"enforcement_result 'simulated' must pass: {errors}")
+        self.assertTrue(self.validator.is_valid(event))
+
+    def test_scan_cleanliness_correlation_context_passes(self) -> None:
+        """Root-level correlation_context is allowed when schema defines it."""
+        valid = _load_example_events()[0]
+        event = json.loads(json.dumps(valid))
+        event["correlation_context"] = {"multi_agent": True, "related_tool_names": ["Tool A", "Tool B"]}
+        errors = self.validator.validate(event)
+        self.assertEqual(errors, [], f"correlation_context must pass: {errors}")
+        self.assertTrue(self.validator.is_valid(event))
+
+    def test_scan_cleanliness_tool_class_x_fails(self) -> None:
+        """tool.class 'X' (e.g. EvasionScanner) fails schema enum; collector normalizes to A."""
+        valid = _load_example_events()[0]
+        invalid = json.loads(json.dumps(valid))
+        invalid["tool"]["class"] = "X"
+        errors = self.validator.validate(invalid)
+        self.assertGreater(len(errors), 0, "tool.class 'X' must fail schema enum")
+        self.assertTrue(any("tool" in e and "X" in e for e in errors) or any("tool" in e for e in errors))
+
 
 if __name__ == "__main__":
     unittest.main()

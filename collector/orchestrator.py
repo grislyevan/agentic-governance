@@ -176,17 +176,39 @@ def build_event(
         },
     }
 
+    # Schema allows only A, B, C, D. Scanners like EvasionScanner may use "X"; normalize to schema enum.
+    _SCHEMA_TOOL_CLASSES = frozenset({"A", "B", "C", "D"})
+    tool_class = (
+        scan.tool_class
+        if (scan.tool_class and scan.tool_class in _SCHEMA_TOOL_CLASSES)
+        else "A"
+    )
     event["tool"] = {
         "name": scan.tool_name,
-        "class": scan.tool_class,
+        "class": tool_class,
         "version": scan.tool_version,
         "attribution_confidence": confidence,
         "attribution_sources": scan.signals.active_layers(),
     }
 
+    # Schema allows only: read, write, exec, network, repo, privileged, removal, observe.
+    # Scanners may set policy-like values (e.g. approval_required, warn, none); normalize to schema enum.
+    _SCHEMA_ACTION_TYPES = frozenset(
+        {"read", "write", "exec", "network", "repo", "privileged", "removal", "observe"}
+    )
+    action_type = (
+        scan.action_type
+        if (scan.action_type and scan.action_type in _SCHEMA_ACTION_TYPES)
+        else "observe"
+    )
+    risk_class = (
+        scan.action_risk
+        if (scan.action_risk and scan.action_risk in ("R1", "R2", "R3", "R4"))
+        else "R1"
+    )
     event["action"] = {
-        "type": scan.action_type,
-        "risk_class": scan.action_risk,
+        "type": action_type,
+        "risk_class": risk_class,
         "summary": scan.action_summary,
         "raw_ref": f"evidence://collector-scan/{scan.tool_name or 'unknown'}/{session_id}",
     }
