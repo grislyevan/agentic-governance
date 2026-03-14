@@ -74,6 +74,21 @@ def client():
         yield c
 
 
+@pytest.fixture()
+def client_with_ratelimit():
+    """TestClient with rate limiting enabled (for test_rate_limits.py)."""
+    Base.metadata.drop_all(bind=_test_engine)
+    Base.metadata.create_all(bind=_test_engine)
+
+    from main import app, limiter
+    limiter.enabled = True
+    try:
+        with TestClient(app, raise_server_exceptions=False) as c:
+            yield c
+    finally:
+        limiter.enabled = False
+
+
 def _auth_header(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
