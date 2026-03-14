@@ -3,7 +3,7 @@
 Entry point for running the collector agent in various modes:
   - One-shot scan: ``detec-agent scan``
   - Daemon (foreground): ``detec-agent run``
-  - Windows Service management: ``detec-agent install|start|stop|remove|set-recovery``
+  - Windows Service management: ``detec-agent install|start|stop|remove|set-recovery|install-service``
   - Configuration: ``detec-agent setup``
   - Status check: ``detec-agent status``
 
@@ -225,6 +225,27 @@ def cmd_set_recovery(args: argparse.Namespace) -> None:
     print("Failure recovery configured: service will restart after 60 s on failure.")
 
 
+def cmd_install_service(args: argparse.Namespace) -> None:
+    """Install, start, and configure failure recovery for the Windows Service in one step."""
+    if not _IS_WINDOWS:
+        print("Service install-service is only supported on Windows.")
+        sys.exit(1)
+
+    import subprocess
+
+    _load_env()
+    _require_pywin32()
+
+    exe = sys.executable
+    cwd = os.getcwd()
+    for step in ("install", "start", "set-recovery"):
+        result = subprocess.run([exe, step], cwd=cwd)
+        if result.returncode != 0:
+            logger.error("install-service: %s failed with exit code %d", step, result.returncode)
+            sys.exit(result.returncode)
+    print("Service installed, started, and failure recovery configured.")
+
+
 # -------------------------------------------------------------------
 # ``detec-agent status``
 # -------------------------------------------------------------------
@@ -355,6 +376,12 @@ def main() -> None:
         help="Configure restart-on-failure for the Windows Service (run after install)",
     )
     p_set_recovery.set_defaults(func=cmd_set_recovery)
+
+    p_install_service = sub.add_parser(
+        "install-service",
+        help="Install, start, and set recovery for the Windows Service (one step)",
+    )
+    p_install_service.set_defaults(func=cmd_install_service)
 
     # --- status ---
     p_status = sub.add_parser("status", help="Show agent status and config")

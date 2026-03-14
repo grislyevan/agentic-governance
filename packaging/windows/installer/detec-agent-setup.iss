@@ -60,10 +60,10 @@ Source: "..\dist\detec-agent\*"; DestDir: "{app}"; Flags: ignoreversion recurses
 Source: "..\dist\detec-agent-gui\*"; DestDir: "{app}\Agent-GUI"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "DetecAgentGUI"; ValueData: """{app}\Agent-GUI\detec-agent-gui.exe"""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "DetecAgentGUI"; ValueData: """{app}\Agent-GUI\detec-agent-gui.exe"""; Flags: uninsdeletevalue; Check: ShouldAddTrayToRun
 
 [Run]
-Filename: "{app}\Agent-GUI\detec-agent-gui.exe"; Flags: nowait runasoriginaluser skipifsilent
+Filename: "{app}\Agent-GUI\detec-agent-gui.exe"; Flags: nowait runasoriginaluser; Check: LaunchTrayCheck
 
 [UninstallRun]
 Filename: "{app}\detec-agent.exe"; Parameters: "stop"; Flags: runhidden waituntilterminated; RunOnceId: "StopAgentService"
@@ -98,6 +98,35 @@ begin
   Result := S;
   while Length(Result) < Len do
     Result := Result + ' ';
+end;
+
+function NotrayCheck: Boolean;
+var
+  Param: string;
+begin
+  { True when user requested service-only install (no tray in Run, no launch) }
+  Param := ExpandConstant('{param:NOTRAY}');
+  Result := (Param = '1') or (CompareText(Param, 'yes') = 0);
+end;
+
+function ShouldAddTrayToRun: Boolean;
+begin
+  Result := not NotrayCheck();
+end;
+
+function LaunchTrayCheck: Boolean;
+var
+  Param: string;
+begin
+  { Launch tray when not silent, or when silent with /LAUNCHTRAY=1 or /LAUNCHTRAY=yes; never when /NOTRAY=1 }
+  if NotrayCheck() then
+    Result := False
+  else if not WizardSilent() then
+    Result := True
+  else begin
+    Param := ExpandConstant('{param:LAUNCHTRAY}');
+    Result := (Param = '1') or (CompareText(Param, 'yes') = 0);
+  end;
 end;
 
 { ── InitializeWizard ───────────────────────────────────────────────── }
@@ -154,13 +183,29 @@ end;
 
 procedure ExtractEmbeddedConfig;
 var
-  ScriptPath, ResultFile, DataDir, SetupExe: string;
+  ScriptPath, ResultFile, DataDir, SetupExe, SetupDir: string;
   Lines: TArrayOfString;
   ResultLines: TArrayOfString;
   ResultCode: Integer;
 begin
   SetupExe := ExpandConstant('{srcexe}');
   DataDir := ExpandConstant('{sd}\ProgramData\Detec\Agent');
+  SetupDir := ExpandConstant('{param:CONFIGDIR}');
+  if (SetupDir = '') or not DirExists(SetupDir) then
+    SetupDir := ExtractFilePath(SetupExe);
+
+  { Config in same directory as setup EXE or in CONFIGDIR (e.g. from extracted zip): copy to ProgramData }
+  if FileExists(SetupDir + 'agent.env') or FileExists(SetupDir + 'collector.json') then
+  begin
+    ForceDirectories(DataDir);
+    if FileExists(SetupDir + 'agent.env') then
+      Exec('cmd.exe', '/c copy /Y "' + SetupDir + 'agent.env" "' + DataDir + '\agent.env"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    if FileExists(SetupDir + 'collector.json') then
+      Exec('cmd.exe', '/c copy /Y "' + SetupDir + 'collector.json" "' + DataDir + '\collector.json"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    ConfigExtracted := True;
+    Exit;
+  end;
+
   ScriptPath := ExpandConstant('{tmp}\extract-config.ps1');
   ResultFile := ExpandConstant('{tmp}\config-result.txt');
 
@@ -282,35 +327,15 @@ begin
       '  ' + PadRight('Server configuration', 40) + 'skipped';
   WizardForm.Refresh;
 
-  LogStep('  Installing Windows Service...');
-  if RunCmd(AppDir + '\detec-agent.exe', 'install', AppDir) then
+  LogStep('  Installing and starting Windows Service...');
+  if RunCmd(AppDir + '\detec-agent.exe', 'install-service', AppDir) then
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  ' + PadRight('Installing Windows Service', 40) + 'done'
+      '  ' + PadRight('Installing and starting Windows Service', 40) + 'done'
   else begin
     LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  ' + PadRight('Installing Windows Service', 40) + 'FAIL';
+      '  ' + PadRight('Installing and starting Windows Service', 40) + 'FAIL';
     InstallHadErrors := True;
   end;
-  WizardForm.Refresh;
-
-  LogStep('  Starting agent...');
-  if RunCmd(AppDir + '\detec-agent.exe', 'start', AppDir) then
-    LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  ' + PadRight('Starting agent', 40) + 'done'
-  else begin
-    LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  ' + PadRight('Starting agent', 40) + 'FAIL';
-    InstallHadErrors := True;
-  end;
-  WizardForm.Refresh;
-
-  LogStep('  Configuring failure recovery...');
-  if RunCmd(AppDir + '\detec-agent.exe', 'set-recovery', AppDir) then
-    LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  ' + PadRight('Configuring failure recovery', 40) + 'done'
-  else
-    LogMemo.Lines[LogMemo.Lines.Count - 1] :=
-      '  ' + PadRight('Configuring failure recovery', 40) + 'skipped';
   WizardForm.Refresh;
 
   LogStep('');

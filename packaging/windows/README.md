@@ -4,7 +4,7 @@ Build and install Detec components as Windows Services.
 
 ## GUI Installers (recommended for clients)
 
-Both installers use a full dark theme (Slate 900 background, Soft Indigo accent bar, Segoe UI header typography) built with [Inno Setup 6](https://jrsoftware.org/isdl.php). They support `/VERYSILENT` for fully headless deployment.
+Both installers use a full dark theme (Slate 900 background, Soft Indigo accent bar, Segoe UI header typography) built with [Inno Setup 6](https://jrsoftware.org/isdl.php). They support `/VERYSILENT` for fully headless deployment. To install the agent silently but still show the system tray immediately, use `/VERYSILENT /LAUNCHTRAY=1` (otherwise the tray starts at next user logon). To install the Windows Service only without adding the tray to Run or launching it (e.g. for headless servers), use `/NOTRAY=1`.
 
 ### Building
 
@@ -33,7 +33,7 @@ The wizard walks the user through these steps:
 
 ### Agent installer (`DetecAgentSetup.exe`)
 
-No wizard pages. The installer shows only a branded progress log during install, then auto-closes with a brief countdown. When downloaded from the Detec Server dashboard, the installer has tenant configuration (API URL, key, interval) embedded and applies it automatically (zero-touch). If no embedded config is found, the agent installs but requires manual setup via `detec-agent setup`.
+No wizard pages. The installer shows only a branded progress log during install, then auto-closes with a brief countdown. When downloaded from the Detec Server dashboard, you get a zip containing the installer plus `agent.env` and `collector.json`. Extract the zip and run `DetecAgentSetup.exe` from the same folder; the installer applies the config automatically (zero-touch). You can also pass `/CONFIGDIR=path` to point to a folder containing the config files. If no config is found (no sidecar files and no embedded payload), the agent installs but requires manual setup via `detec-agent setup`.
 
 #### Service registration
 
@@ -41,7 +41,7 @@ Post-install runs the agent binary from the install directory with working direc
 
 - **Binary path:** `{app}\detec-agent.exe` (e.g. `C:\Program Files\Detec\Agent\detec-agent.exe`).
 - **Working directory:** `{app}`. The Inno Setup `[Code]` section calls `Exec(Filename, Params, WorkDir, ...)` with `WorkDir = AppDir` for both `install` and `start`.
-- **Steps:** `detec-agent.exe install`, then `detec-agent.exe start`, then `detec-agent.exe set-recovery` (configures restart-on-failure).
+- **Steps:** Post-install runs `detec-agent.exe install-service` (install, start, and set restart-on-failure in one step).
 
 The service is therefore created with the correct image path and can load config from `%PROGRAMDATA%\Detec\Agent\` at runtime.
 
@@ -52,7 +52,7 @@ The service is therefore created with the correct image path and can load config
 
 #### Install log
 
-The installer writes a log of all post-install steps to `C:\ProgramData\Detec\install.log`. This persists after the wizard closes, so support can diagnose failures after the fact.
+The installer writes a log of all post-install steps to `C:\ProgramData\Detec\Agent\install.log`. This persists after the wizard closes, so support can diagnose failures after the fact.
 
 #### Upgrades
 

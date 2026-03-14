@@ -207,32 +207,31 @@ If you ran the .pkg directly instead of using install.sh:
 Then relaunch the agent or wait for the next scan cycle.
 """,
     "windows": """\
-# Detec Agent - Windows (zip fallback)
+# Detec Agent - Windows
 
-If a DetecAgentSetup.exe installer was available, it was served directly
-with embedded configuration. This zip package is the fallback for scripted
-or MDM deployments.
+This zip contains the installer and pre-filled configuration. No manual setup needed.
 
 ## Quick Start
 
-1. Extract `detec-agent.zip` to `C:\\Program Files\\Detec\\`.
-2. Copy config to the data directory:
+1. Extract this zip to a folder (e.g. Desktop or Downloads).
+2. Run `DetecAgentSetup.exe` from that folder (right-click, Run as administrator).
+3. The installer applies the config from the extracted files and installs the agent. The agent connects to your server automatically.
 
-       mkdir %PROGRAMDATA%\\Detec\\Agent
-       copy collector.json %PROGRAMDATA%\\Detec\\Agent\\collector.json
-       copy agent.env %PROGRAMDATA%\\Detec\\Agent\\agent.env
+Config files (`agent.env`, `collector.json`) must stay in the same folder as the installer when you run it so the installer can apply them.
 
-3. From an elevated prompt, install and start the service:
+## Silent install
 
-       cd "C:\\Program Files\\Detec\\detec-agent"
-       .\\detec-agent.exe install
-       .\\detec-agent.exe start
+From an elevated command prompt:
+
+    DetecAgentSetup.exe /VERYSILENT
+
+To also launch the system tray after install: `DetecAgentSetup.exe /VERYSILENT /LAUNCHTRAY=1`
 
 ## Files Included
 
-- `detec-agent.zip` - Windows agent distribution
+- `DetecAgentSetup.exe` - Windows installer (do not modify; run from same folder as config)
+- `agent.env` - Pre-filled server config
 - `collector.json` - Pre-filled JSON config
-- `agent.env` - Pre-filled environment config
 - This README
 """,
     "linux": """\
@@ -336,25 +335,11 @@ def _build_download_response(
 ) -> Response:
     """Build the appropriate download response for the given package.
 
-    For .exe packages (Windows installer): embed config directly into
-    the binary and serve as application/octet-stream.
-    For all other formats: wrap in a zip with sidecar config files.
+    All platforms (including Windows) are served as a zip containing the
+    installer plus agent.env and collector.json. The Windows installer
+    reads config from the same directory as the EXE, so no EXE modification
+    is needed (enables code signing and avoids AV false positives).
     """
-    if pkg_path.suffix.lower() == ".exe":
-        exe_bytes = pkg_path.read_bytes()
-        content = _embed_config_in_exe(
-            exe_bytes, api_url, api_key, interval, protocol, gateway_host,
-        )
-        filename = f"DetecAgentSetup.exe"
-        return Response(
-            content=content,
-            media_type="application/octet-stream",
-            headers={
-                "Content-Disposition": f'attachment; filename="{filename}"',
-                "Content-Length": str(len(content)),
-            },
-        )
-
     buf = _build_zip(pkg_path, api_url, api_key, interval, protocol, gateway_host, platform)
     content = buf.getvalue()
     filename = f"detec-agent-{platform}.zip"

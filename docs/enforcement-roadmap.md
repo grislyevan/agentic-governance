@@ -43,7 +43,7 @@ Every phase spec references these files. Read them before starting work.
 |-----------|------|---------------|-----|
 | Enforcer dispatcher | `collector/enforcement/enforcer.py` | Routes `block` decisions to `process_kill` or `network_block`. `approval_required` returns a label ("hold_pending_approval") with no actual action. Only runs if `--enforce` CLI flag is set. | No server-controlled posture. No child-process recursion. No PID verification on kill. |
 | Process kill | `collector/enforcement/process_kill.py` | SIGTERM then SIGKILL after 3s grace. Has `expected_pattern` param for cmdline verification, but the enforcer **does not pass it**. Skips PID <= 1. | Pattern not wired. No recursive child kill. No process-group kill. |
-| Network block | `collector/enforcement/network_block.py` | `pfctl` anchors (macOS), `iptables` UID-owner (Linux). `unblock_outbound()` exists. Windows not supported. | Linux blocks ALL processes for a UID (not just target). No cleanup on agent exit. No Windows support. |
+| Network block | `collector/enforcement/network_block.py` | `pfctl` anchors (macOS), `iptables` UID-owner (Linux), `netsh advfirewall` (Windows). `unblock_outbound()` exists. | Linux blocks ALL processes for a UID (not just target). No cleanup on agent exit. Windows uses per-PID/per-exe firewall rules. |
 | Proxy inject | `collector/enforcement/proxy_inject.py` | Sets `HTTP_PROXY`/`HTTPS_PROXY` env vars. | Not wired into the enforcer. |
 
 ### Communication (working, extensible)
