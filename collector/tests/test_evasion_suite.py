@@ -62,3 +62,8 @@ class TestEvasionSuite:
         """At least one E1 scenario for binary/entry-point regression."""
         e1 = [s for s in EVASION_SCENARIOS if s.evasion_category == "E1"]
         assert len(e1) >= 1
+
+    def test_e2_container_scenario_present(self) -> None:
+        """At least one E2 scenario for environment isolation (container/remote-dev) regression."""
+        e2 = [s for s in EVASION_SCENARIOS if s.evasion_category == "E2"]
+        assert len(e2) >= 1

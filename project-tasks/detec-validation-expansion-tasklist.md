@@ -34,7 +34,7 @@
 - Acceptance: One new LAB-RUN-XXX with protocol, RESULTS, and fixture; calibration test passes.
 - Note: Reaching 20–30 tools requires many such runs; this task is one concrete instance. Repeat for other tools as separate tasks.
 
-### [ ] Task 1.3 — Update lab index and playbook lab log
+### [x] Task 1.3 — Update lab index and playbook lab log
 
 - Ensure [docs/lab-runs-and-results.md](docs/lab-runs-and-results.md) and playbook Section 12.5 reflect any new runs from Task 1.2 (or batch of runs). Single source of truth for run IDs and links.
 
@@ -55,7 +55,7 @@
 - Add or update playbook/INIT text for "host weakens here" and what detection can and cannot do in Docker, DevContainers, and remote dev. Link to container.py and new helpers from Task 2.1.
 - Deliverable: Short section in playbook or [docs/](docs/) plus any INIT updates.
 
-### [ ] Task 2.3 — One lab or evasion scenario in container/remote-dev
+### [x] Task 2.3 — One lab or evasion scenario in container/remote-dev
 
 - At least one lab run or evasion scenario that runs a tool (or detector) in a container or remote-dev context; document results and any confidence/visibility impact.
 - Deliverable: Protocol + RESULTS or evasion scenario doc in `lab-runs/` or evasion suite.
@@ -89,12 +89,12 @@
 - Deliverable: New test module (e.g. `api/tests/test_benchmarks.py` or `tests/benchmarks/`) and/or script; align with INIT-30/32 where applicable.
 - Reference: [api/main.py](api/main.py), gateway, [init-issues/INIT-30-metrics-pipeline.md](init-issues/INIT-30-metrics-pipeline.md), [init-issues/INIT-32-benchmark-report-generator.md](init-issues/INIT-32-benchmark-report-generator.md).
 
-### [ ] Task 4.2 — Dashboard performance benchmarks
+### [x] Task 4.2 — Dashboard performance benchmarks
 
 - Add benchmarks or measurable criteria for dashboard: e.g. load time, list view with many endpoints, detail view. Can be Lighthouse, pytest-playwright, or script; results documentable.
 - Deliverable: Script or test suite plus short doc of baseline numbers.
 
-### [ ] Task 4.3 — Large-fleet scenario (many agents)
+### [x] Task 4.3 — Large-fleet scenario (many agents)
 
 - Define and implement a large-fleet scenario: many simulated agents heartbeating and emitting events; measure API/gateway behavior and document limits or recommendations.
 - Deliverable: Script or test + doc (e.g. in [docs/](docs/) or SECURITY-TECHNICAL-REPORT).
@@ -147,7 +147,7 @@
 - Instrument or benchmark scan latency (e.g. per `run_scan` or daemon cycle). Add test or script that records and asserts on timing; document baseline.
 - Deliverable: Benchmark or test in collector (e.g. in [collector/tests/](collector/tests/)) and short doc (e.g. in [docs/SECURITY-TECHNICAL-REPORT.md](docs/SECURITY-TECHNICAL-REPORT.md) or [docs/](docs/)).
 
-### [ ] Task 7.2 — CPU and memory footprint measurement
+### [x] Task 7.2 — CPU and memory footprint measurement
 
 - Add measurement or benchmark for CPU impact and memory usage of the endpoint agent (e.g. during steady-state scan loop). Produce repeatable numbers and document.
 - Deliverable: Script or test plus doc section (e.g. endpoint footprint in SECURITY-TECHNICAL-REPORT or [docs/](docs/)).

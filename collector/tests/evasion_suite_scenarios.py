@@ -62,4 +62,21 @@ EVASION_SCENARIOS: list[EvasionScenario] = [
             "evidence_assertion": "Minimum evidence set preserved",
         },
     ),
+    EvasionScenario(
+        evasion_scenario_id="E2-container",
+        matrix_cell_id=None,
+        tool_id="Claude Code",
+        tool_class="C",
+        evasion_category="E2",
+        attack_technique_description="Tool runs inside Docker or DevContainer; host telemetry has partial visibility",
+        preconditions=["Tool installed", "Docker or DevContainer environment"],
+        action_sequence=["Run tool inside container; agent on host or in same container observes process/file gap"],
+        expected_degradation_profile="R1",
+        expected_policy_behavior="Process/file layers may weaken; network/behavior and container context still apply.",
+        required_evidence_outputs=["detection_assertion", "evidence_assertion"],
+        pass_fail_criteria={
+            "detection_assertion": "System still detects or classifies uncertainty",
+            "evidence_assertion": "Minimum evidence set preserved; container context reported when available",
+        },
+    ),
 ]

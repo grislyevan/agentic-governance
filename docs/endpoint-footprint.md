@@ -22,6 +22,12 @@
 - **Scan latency:** [collector/tests/test_scan_latency_benchmark.py](../collector/tests/test_scan_latency_benchmark.py) — times a single `run_scan()` (dry-run) and asserts under a ceiling (e.g. 60s) so regressions are caught.
 - **Provider integration:** `test_alert_triggered_scan_latency` in provider integration tests.
 
+## Measurement script
+
+- **Script:** [scripts/measure_endpoint_footprint.py](../scripts/measure_endpoint_footprint.py) runs 3 dry-run scan cycles (configurable with `--cycles`), samples the current process with psutil for RSS and CPU after each cycle, and prints mean/max RSS (MB) and CPU (%).
+- **Usage (from repo root):** `python scripts/measure_endpoint_footprint.py` or `python scripts/measure_endpoint_footprint.py --cycles 5`. Optional `--output <path>` writes the summary to a file.
+- **Baseline:** Run the script on a representative machine (e.g. macOS ARM64 or Linux) and record the output here or in SECURITY-TECHNICAL-REPORT. Example placeholder: "Typical (3 cycles, dry-run, polling): RSS mean 85 MB, max 92 MB; CPU mean 12%, max 45%." Replace with actual numbers from a run.
+
 ## Reporting
 
 - Add a short "Endpoint footprint" subsection to [docs/SECURITY-TECHNICAL-REPORT.md](SECURITY-TECHNICAL-REPORT.md) or keep this doc as the canonical place. INIT-32 benchmark report generator can consume these numbers when implemented.

@@ -55,6 +55,8 @@ Protocols reference their results (e.g. "Full results: LAB-RUN-014-RESULTS.md").
 
 **Calibrated vs synthetic:** Tools with a calibration fixture in `collector/tests/fixtures/lab_runs/*.json` and (optionally) a completed RESULTS file are considered **calibrated**; confidence scores are empirically validated. Tools with only synthetic scanner tests and no fixture (LAB-RUN-008 through 012) are **synthetic only**; PM and sales should phrase confidence accordingly until live lab runs are completed.
 
+**Next runs (20–30 tool goal):** See [project-tasks/detec-validation-expansion-lab-priority.md](../project-tasks/detec-validation-expansion-lab-priority.md) for prioritised order (template tools first, then gap scenarios, then net-new tools). When new runs are completed, add them to the tables above and to playbook Section 12.5.
+
 ---
 
 ## 4. Capture scripts
