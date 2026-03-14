@@ -40,6 +40,7 @@ from engine.confidence import classify_confidence, compute_confidence
 from providers import get_best_provider
 from telemetry.event_store import EventStore
 from engine.container import is_containerized as check_containerized
+from engine.correlation import compute_correlation
 from engine.policy import NetworkContext, PolicyDecision, evaluate_policy
 from enforcement.enforcer import Enforcer, EnforcementResult
 from enforcement.posture import PostureManager
@@ -180,6 +181,7 @@ def build_event(
     parent_event_id: str | None = None,
     policy: PolicyDecision | None = None,
     enforcement: EnforcementResult | None = None,
+    correlation_context: list[str] | None = None,
 ) -> dict[str, Any]:
     """Construct a canonical event dict conforming to the JSON Schema."""
     now = datetime.now(timezone.utc).isoformat()
@@ -260,6 +262,12 @@ def build_event(
 
     severity_level = _compute_severity(confidence, scan.action_risk, sensitivity, policy)
     event["severity"] = {"level": severity_level}
+
+    if correlation_context:
+        event["correlation_context"] = {
+            "multi_agent": True,
+            "related_tool_names": correlation_context,
+        }
 
     # MITRE ATT&CK mapping
     techniques = map_scan_result(scan)
@@ -349,6 +357,7 @@ def _process_detection(
     state_differ: StateDiffer | None,
     network_allowlist: set[str] | None = None,
     verbose: bool,
+    correlation_context: list[str] | None = None,
 ) -> int:
     """Score, evaluate policy, enforce, and emit events for one detection.
 
@@ -408,6 +417,7 @@ def _process_detection(
         scan=scan,
         confidence=confidence,
         sensitivity=sensitivity,
+        correlation_context=correlation_context,
     )
 
     if verbose:
@@ -438,6 +448,7 @@ def _process_detection(
         sensitivity=sensitivity,
         parent_event_id=detection_event["event_id"],
         policy=policy_decision,
+        correlation_context=correlation_context,
     )
 
     if verbose:
@@ -730,9 +741,13 @@ def run_scan(
             exc_info=True,
         )
 
+    # Stage 1f: cross-agent correlation (same process tree)
+    correlation_map = compute_correlation(detected_scans, event_store, _extract_pids)
+
     # Stage 2: process each detection
     total_events = 0
     for scan in detected_scans:
+        related = correlation_map.get(scan.tool_name or "", [])
         total_events += _process_detection(
             scan,
             sensitivity=sensitivity,
@@ -745,6 +760,7 @@ def run_scan(
             state_differ=state_differ,
             network_allowlist=network_allowlist or None,
             verbose=args.verbose,
+            correlation_context=related if related else None,
         )
 
     # Stage 3: cleared events

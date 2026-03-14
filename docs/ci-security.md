@@ -39,4 +39,7 @@ cd api && DATABASE_URL=... JWT_SECRET=... SEED_ADMIN_PASSWORD=... python -m pyte
 
 # Collector security tests
 pip install -e ".[dev]" && python -m pytest collector/tests/test_agent_security.py -v
+
+# Evasion suite (INIT-31; optional or nightly)
+python -m pytest collector/tests/test_evasion_suite.py -v -m evasion
 ```

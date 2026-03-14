@@ -110,3 +110,44 @@ def _check_macos_docker(pid: int | None) -> bool:
         logger.debug("Docker ancestry check via ps failed: %s", exc)
 
     return os.path.exists("/var/run/docker.sock")
+
+
+def is_devcontainer(pid: int | None = None) -> bool:
+    """Check if the process is running in a Dev Container (VS Code / devcontainer) context.
+
+    Detection methods:
+    - Environment variable DEVCONTAINER (set by VS Code when attached to a container)
+    - Environment variable DEVCONTAINER_ID (devcontainer CLI)
+    - Linux: /.devcontainer or /run/.devcontainer marker when present in container
+    If *pid* is not None, only the current process env is checked (no cross-process env read).
+    """
+    if pid is not None and pid != os.getpid():
+        return False
+    if os.environ.get("DEVCONTAINER") not in (None, "", "0"):
+        return True
+    if os.environ.get("DEVCONTAINER_ID"):
+        return True
+    if platform.system() == "Linux" and (
+        os.path.exists("/.devcontainer") or os.path.exists("/run/.devcontainer")
+    ):
+        return True
+    return False
+
+
+def is_remote_dev_context() -> bool:
+    """Check if the current process appears to be in a remote development context.
+
+    Detection methods:
+    - VS Code remote: VSCODE_IPC_HOOK_CLI, REMOTE_CONTAINERS_* env vars
+    - SSH remote / Codespaces: CODESPACES, SSH_CONNECTION
+    Used for reporting and documentation; host telemetry may be partial in these contexts.
+    """
+    if os.environ.get("VSCODE_IPC_HOOK_CLI"):
+        return True
+    if os.environ.get("REMOTE_CONTAINERS") == "true":
+        return True
+    if os.environ.get("CODESPACES") == "true":
+        return True
+    if os.environ.get("SSH_CONNECTION") and os.environ.get("VSCODE_IPC_HOOK_CLI"):
+        return True
+    return False

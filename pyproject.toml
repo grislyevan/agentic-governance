@@ -53,5 +53,6 @@ testpaths = ["collector/tests"]
 pythonpath = ["collector"]
 markers = [
     "benchmark: latency and throughput benchmarks (skip in CI)",
+    "evasion: evasion suite scenarios (INIT-31); run on demand or in nightly CI",
     "slow: slow tests (skip in CI)",
 ]
