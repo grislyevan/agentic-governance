@@ -140,11 +140,11 @@ pytest collector/tests/test_agent_security.py -v
 
 ## Quality Requirements
 
-- [ ] All file paths in the threat model resolve to existing files (relative to repo root).
-- [ ] STRIDE mitigations and mitigation table match current code and tests.
-- [ ] Security test commands run in zsh on macOS without modification (except `cd` to workspace if needed).
-- [ ] No background processes in any command (no `&`).
-- [ ] No server startup in task steps; assume API/collector are run separately when needed for manual checks.
+- [x] All file paths in the threat model resolve to existing files (relative to repo root).
+- [x] STRIDE mitigations and mitigation table match current code and tests.
+- [x] Security test commands run in zsh on macOS without modification (except `cd` to workspace if needed).
+- [x] No background processes in any command (no `&`).
+- [x] No server startup in task steps; assume API/collector are run separately when needed for manual checks.
 
 ---
 
