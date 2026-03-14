@@ -1,5 +1,5 @@
 ---
-title: "Detec: Endpoint Governance for Agentic AI Tools"
+title: "Detec: Discover and Control Autonomous AI Tools on Developer Endpoints"
 subtitle: Capability Brief
 version: "1.0"
 date: 2026-03-12
@@ -7,9 +7,11 @@ date: 2026-03-12
 
 # See what AI agents do. Govern what they're allowed to.
 
-AI coding tools run code, access networks, and modify files on developer endpoints with minimal visibility. Claude Code executes shell commands autonomously. Cursor spawns agent processes. Ollama runs large language models locally with no cloud telemetry. Application blocklists fail when tools rename, wrap, or run as local processes.
+Detec discovers and controls autonomous AI tools on developer endpoints. These tools run code, access networks, and modify files with minimal visibility. Claude Code executes shell commands autonomously. Cursor spawns agent processes. Ollama runs large language models locally with no cloud telemetry. Application blocklists fail when tools rename, wrap, or run as local processes.
 
-**Detec** is an endpoint agent that detects agentic AI tools by capability class, scores attribution confidence across five evidence layers, and enforces graduated policy with auditable decisions.
+**Detec** is an endpoint agent that detects autonomous AI tools by capability class, scores attribution confidence across five evidence layers, and enforces graduated policy with auditable decisions.
+
+**Primary use case:** Repo-destructive coding agents. Class C tools (Claude Code, Aider, Open Interpreter, Cursor agent mode) execute shell, write files, and mutate repos. Detec detects them, scores confidence, and enforces policy so high-risk actions on sensitive assets can be blocked while lower-risk use stays visible.
 
 ## What We Detect
 

@@ -2,19 +2,21 @@
 
 **See what AI agents do. Govern what they're allowed to.**
 
-Detec is endpoint governance for agentic AI tools. We give security teams honest, evidence-based visibility into which agentic tools run on their endpoints so they can govern proportionally instead of guessing or blocking blindly.
+Detec discovers and controls autonomous AI tools on developer endpoints. We give security teams honest, evidence-based visibility into which tools run on their endpoints so they can govern proportionally instead of guessing or blocking blindly.
+
+**The scenario we own first:** Repo-destructive coding agents. Autonomous tools (Claude Code, Aider, Open Interpreter, Cursor in agent mode) run shell commands, write files, and mutate repos. One bad command or overbroad edit can wipe branches or cross trust boundaries. Detec detects them by capability, scores confidence, and enforces policy so you can block the worst actions while keeping visibility on the rest.
 
 ---
 
 ## Why we exist
 
-Agentic AI tools are already on developer machines. They run code, touch the network, and change files. Security teams have not had a consistent way to see what is running, how confident the detection is, or whether it fits policy. Detec exists so that governance can keep pace with capability. We want a world where these tools are adopted confidently because the controls are visible, explainable, and tuned to risk.
+Autonomous AI tools are already on developer machines. They run code, touch the network, and change files. Security teams have not had a consistent way to see what is running, how confident the detection is, or whether it fits policy. Detec exists so that governance can keep pace with capability. We want a world where these tools are adopted confidently because the controls are visible, explainable, and tuned to risk.
 
 ---
 
 ## What we do
 
-We detect agentic AI tools by what they do, not what they're called. We score every detection with explainable confidence and enforce policy on a ladder you control: visibility, warning, approval required, or block. We publish our known limits and test for evasion, because transparency about what we can't do builds more trust than perfection claims.
+We discover and control autonomous AI tools by what they do, not what they're called. We score every detection with explainable confidence and enforce policy on a ladder you control: visibility, warning, approval required, or block. We publish our known limits and test for evasion, because transparency about what we can't do builds more trust than perfection claims.
 
 ---
 

@@ -1,4 +1,4 @@
-# Endpoint Governance for Agentic AI Tools
+# Discover and Control Autonomous AI Tools on Developer Endpoints
 
 **Detec: See what AI agents do. Govern what they're allowed to.**
 
@@ -6,17 +6,19 @@
 
 ## Executive Summary
 
-Agentic AI tools have moved beyond autocomplete. They execute shell commands, write files, open network connections, and run local inference, all on developer endpoints, often without security team visibility. Existing controls were not designed for this category of tool. CASB and SWG miss tools that operate locally. EDR captures processes but does not attribute them to agentic AI activity. Application inventories see installs but not runtime behavior.
+Autonomous AI tools have moved beyond autocomplete. They execute shell commands, write files, open network connections, and run local inference, all on developer endpoints, often without security team visibility. Existing controls were not designed for this category of tool. CASB and SWG miss tools that operate locally. EDR captures processes but does not attribute them to agentic AI activity. Application inventories see installs but not runtime behavior.
 
-Detec is an endpoint agent that detects agentic AI tools by capability, not product name. It classifies each tool into one of four governance classes based on what the tool can do, not what it is called, and applies confidence-scored, policy-driven enforcement that scales from visibility-only detection to hard blocking.
+Detec discovers and controls these tools. It is an endpoint agent that detects autonomous AI tools by capability, not product name. It classifies each tool into one of four governance classes based on what the tool can do, not what it is called, and applies confidence-scored, policy-driven enforcement that scales from visibility-only detection to hard blocking.
+
+**The scenario we own first:** Repo-destructive coding agents. Autonomous executors (Class C) run shell commands, write files, and mutate repositories. Without detection and policy, one overbroad edit or privileged command can cross trust boundaries or destroy work. Detec focuses on discovering and controlling these tools so that high-risk actions on sensitive or crown-jewel assets can be blocked with an explainable audit trail.
 
 The detection model scores five signal dimensions per tool, applies per-tool calibrated weights, and produces an explainable confidence score. The policy engine evaluates that score against deterministic, versioned rules that map tool class, asset sensitivity, and action risk to one of four enforcement states: Detect, Warn, Approval Required, or Block. Every decision carries a stable rule ID, contributing signal evidence, and a full audit trail.
 
-This whitepaper explains the governance gap that agentic AI tools create, how Detec's detection model works at a technical level, how confidence scoring and policy evaluation produce defensible decisions, and how the system deploys into existing endpoint infrastructure.
+This whitepaper explains the governance gap that autonomous AI tools on developer endpoints create, how Detec's detection model works at a technical level, how confidence scoring and policy evaluation produce defensible decisions, and how the system deploys into existing endpoint infrastructure.
 
 ---
 
-## 1. The Agentic AI Governance Gap
+## 1. The Governance Gap on Developer Endpoints
 
 Security teams have governed developer tools for years. Package managers, IDE extensions, cloud services: all fit into existing frameworks of application inventories, network policies, and access controls. Agentic AI tools break these frameworks in ways that are not incremental.
 

@@ -1,0 +1,163 @@
+[
+  {
+    "event_id": "demo-detect-001",
+    "event_type": "detection.observed",
+    "event_version": "0.4.0",
+    "observed_at": "2026-03-14T12:00:00.000Z",
+    "ingested_at": "2026-03-14T12:00:01.000Z",
+    "session_id": "demo-sess-block-001",
+    "trace_id": "demo-trace-block-001",
+    "parent_event_id": null,
+    "actor": {
+      "id": "jchen@acme.com",
+      "type": "human",
+      "trust_tier": "T2",
+      "identity_confidence": 0.95,
+      "org_context": "org"
+    },
+    "endpoint": {
+      "id": "demo-mbp-eng01",
+      "os": "macOS 15.4 Darwin 24.4.0 ARM64",
+      "posture": "managed"
+    },
+    "tool": {
+      "name": "Claude Code",
+      "class": "C",
+      "version": "2.1.59",
+      "attribution_confidence": 0.88,
+      "attribution_sources": ["process", "file", "network"]
+    },
+    "action": {
+      "type": "privileged",
+      "risk_class": "R4",
+      "summary": "Claude Code attempted privileged operation and repo mutation on crown-jewel asset",
+      "raw_ref": "evidence://demo-seed/demo-sess-block-001/detection.observed"
+    },
+    "target": {
+      "type": "host",
+      "id": "demo-mbp-eng01",
+      "scope": "local endpoint",
+      "sensitivity_tier": "Tier3"
+    },
+    "severity": {
+      "level": "S4"
+    }
+  },
+  {
+    "event_id": "demo-policy-001",
+    "event_type": "policy.evaluated",
+    "event_version": "0.4.0",
+    "observed_at": "2026-03-14T12:00:02.000Z",
+    "ingested_at": "2026-03-14T12:00:03.000Z",
+    "session_id": "demo-sess-block-001",
+    "trace_id": "demo-trace-block-001",
+    "parent_event_id": "demo-detect-001",
+    "actor": {
+      "id": "jchen@acme.com",
+      "type": "human",
+      "trust_tier": "T2",
+      "identity_confidence": 0.95,
+      "org_context": "org"
+    },
+    "endpoint": {
+      "id": "demo-mbp-eng01",
+      "os": "macOS 15.4 Darwin 24.4.0 ARM64",
+      "posture": "managed"
+    },
+    "tool": {
+      "name": "Claude Code",
+      "class": "C",
+      "version": "2.1.59",
+      "attribution_confidence": 0.88,
+      "attribution_sources": ["process", "file", "network"]
+    },
+    "action": {
+      "type": "privileged",
+      "risk_class": "R4",
+      "summary": "Claude Code attempted privileged operation and repo mutation on crown-jewel asset",
+      "raw_ref": "evidence://demo-seed/demo-sess-block-001/policy.evaluated"
+    },
+    "target": {
+      "type": "host",
+      "id": "demo-mbp-eng01",
+      "scope": "local endpoint",
+      "sensitivity_tier": "Tier3"
+    },
+    "policy": {
+      "decision_state": "block",
+      "rule_id": "ENFORCE-005",
+      "rule_version": "0.4.0",
+      "reason_codes": ["demo_block_enforce-005"],
+      "decision_confidence": 0.88
+    },
+    "severity": {
+      "level": "S4"
+    }
+  },
+  {
+    "event_id": "demo-enforce-001",
+    "event_type": "enforcement.applied",
+    "event_version": "0.4.0",
+    "observed_at": "2026-03-14T12:00:04.000Z",
+    "ingested_at": "2026-03-14T12:00:05.000Z",
+    "session_id": "demo-sess-block-001",
+    "trace_id": "demo-trace-block-001",
+    "parent_event_id": "demo-policy-001",
+    "actor": {
+      "id": "jchen@acme.com",
+      "type": "human",
+      "trust_tier": "T2",
+      "identity_confidence": 0.95,
+      "org_context": "org"
+    },
+    "endpoint": {
+      "id": "demo-mbp-eng01",
+      "os": "macOS 15.4 Darwin 24.4.0 ARM64",
+      "posture": "managed"
+    },
+    "tool": {
+      "name": "Claude Code",
+      "class": "C",
+      "version": "2.1.59",
+      "attribution_confidence": 0.88,
+      "attribution_sources": ["process", "file", "network"]
+    },
+    "action": {
+      "type": "privileged",
+      "risk_class": "R4",
+      "summary": "Claude Code attempted privileged operation and repo mutation on crown-jewel asset",
+      "raw_ref": "evidence://demo-seed/demo-sess-block-001/enforcement.applied"
+    },
+    "target": {
+      "type": "host",
+      "id": "demo-mbp-eng01",
+      "scope": "local endpoint",
+      "sensitivity_tier": "Tier3"
+    },
+    "policy": {
+      "decision_state": "block",
+      "rule_id": "ENFORCE-005",
+      "rule_version": "0.4.0",
+      "reason_codes": ["demo_block_enforce-005"],
+      "decision_confidence": 0.88
+    },
+    "enforcement": {
+      "tactic": "process_kill",
+      "success": true,
+      "detail": "Killed PID [3901] for claude process performing git write in protected repo",
+      "simulated": false,
+      "allow_listed": false,
+      "pids_killed": [3901],
+      "process_name": "claude",
+      "provider": "local"
+    },
+    "outcome": {
+      "enforcement_result": "denied",
+      "incident_flag": false,
+      "incident_id": null
+    },
+    "severity": {
+      "level": "S4"
+    }
+  }
+]

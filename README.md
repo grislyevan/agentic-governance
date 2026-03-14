@@ -1,27 +1,43 @@
-# Agentic-governance
+# Detec (agentic-governance)
 
-Endpoint telemetry and policy for agentic AI tool detection. This repo defines detection profiles, schemas, and a collector that scans endpoints for tools (Claude Code, Ollama, Cursor, Copilot, Open Interpreter), computes confidence, evaluates policy, and emits NDJSON events.
+**Discover and control autonomous AI tools on developer endpoints.**
 
-**Main reference:** the [playbook](playbook/PLAYBOOK-v0.4-agentic-ai-endpoint-detection-governance.md) (detection profiles, policy, and lab methodology). **For AI agents / new contributors:** read [AGENTS.md](AGENTS.md) first for a short project brief and where to look.
+Detec gives security teams evidence-based visibility and control: discover what runs, how confident each detection is, and whether it fits your policy. See what AI agents do; govern what they're allowed to.
+
+- **Discover:** We detect agentic AI tools (Claude Code, Cursor, Ollama, Copilot, Open Interpreter, Aider, Cline, and more) by what they do, not what they're called. Twelve scanners feed a single evidence pipeline; the [playbook](playbook/PLAYBOOK-v0.4-agentic-ai-endpoint-detection-governance.md) documents our methodology.
+- **Score:** Every detection gets an explainable confidence score (five dimensions, playbook-aligned weights). You see why we said "high" or "medium" and can tune sensitivity.
+- **Enforce:** Policy runs on a ladder you control: visibility only, warning, approval required, or block. Rules are configurable per tenant; the API and dashboard apply them consistently.
+- **For whom:** Security teams, SOC operators, and compliance leads who need to govern agentic tools without blocking blindly. The dashboard is the operator console; the agent and API are built for deployment at scale.
+
+Detec is a production-ready stack: endpoint agent, multi-tenant API, and SOC dashboard. The playbook and lab runs document our methodology and evidence. **For AI agents and new contributors:** read [AGENTS.md](AGENTS.md) first for a short project brief and where to look.
+
+---
 
 ## Repo layout
 
-- **playbook/** — Governance playbook and detection profiles
-- **collector/** — Endpoint telemetry collector (5-dimension confidence model, 12 scanners, HTTP + TCP emitters)
+**Core:** collector, api, dashboard, protocol, schemas  
+**Reference and ops:** playbook, lab-runs, deploy, packaging, docs
+
+- **collector/** — Endpoint agent (12 scanners, 5-dimension confidence, HTTP + TCP emitters)
 - **api/** — Multi-tenant FastAPI backend (auth, invite/reset, endpoints, events, policies, webhooks) + binary protocol gateway
-- **protocol/** — Shared binary wire protocol (msgpack framing, message types, connection base class)
-- **dashboard/** — Web UI for viewing detection results
-- **schemas/** — Event and config schemas
+- **dashboard/** — Web UI for viewing detection results and managing policy
+- **protocol/** — Shared binary wire protocol (msgpack framing, message types)
+- **schemas/** — Event and config JSON Schema
+- **playbook/** — Governance playbook and detection profiles
 - **lab-runs/** — Lab run outputs and findings
-- **init-issues/** — Initial issue write-ups and references
-- **deploy/** — Platform templates for agent auto-start (LaunchAgent, systemd, Windows Task)
+- **deploy/** — Agent auto-start templates (LaunchAgent, systemd, Windows Task)
 - **packaging/** — Installer builds (macOS .app/.pkg, Windows agent/server)
-- **docs/** — Deployment guides (MDM, macOS permissions)
+- **docs/** — Deployment guides (MDM, macOS permissions), [current status and roadmap](PROGRESS.md)
+- **init-issues/** — Backlog and issue references
 - **diagrams/** — Architecture diagrams
 - **branding/** — Brand assets and guidelines
-- **install/** — Legacy; prefer `deploy/` and `packaging/` for new use
+- **install/** — Legacy; prefer deploy/ and packaging/ for new use
 
-## Install (Detec Agent)
+---
+
+## Get started
+
+### Install (Detec Agent)
 
 From the repo root, install the package so the agent is available as a single command:
 
@@ -29,29 +45,17 @@ From the repo root, install the package so the agent is available as a single co
 pip install -e .
 ```
 
-This installs the **detec-agent** console script (Detec endpoint agent). Use it for daemon mode or one-shot scans; see [DEPLOY.md](DEPLOY.md) for auto-start and deployment.
+This installs the **detec-agent** console script. Use it for daemon mode or one-shot scans; see [DEPLOY.md](DEPLOY.md) for auto-start and deployment.
 
-## Running the collector
+### Run the collector (one-shot)
 
 ```bash
 detec-agent --dry-run --verbose
 ```
 
-Or without installing (from repo root):
+Or from repo root without installing: `python -m collector.main --dry-run --verbose`. Without `--dry-run`, the collector writes NDJSON to `collector/scan-results.ndjson`. Prefer `python -m collector.main` from repo root or `detec-agent` after install; see [collector/README.md](collector/README.md).
 
-```bash
-cd collector && python main.py --dry-run --verbose
-```
-
-Or:
-
-```bash
-python -m collector.main --dry-run --verbose
-```
-
-Without `--dry-run`, the collector writes NDJSON to `collector/scan-results.ndjson`. For running tests, see [collector/README.md](collector/README.md).
-
-## Quick start (full stack)
+### Quick start (full stack)
 
 ```bash
 cd dashboard && npm install && npm run build   # build the dashboard
@@ -61,9 +65,32 @@ export SEED_ADMIN_PASSWORD="pick-a-strong-password"
 uvicorn main:app --reload
 ```
 
-Open http://localhost:8000. The FastAPI server serves both the API (under `/api/`) and the dashboard UI at the root. Log in with the seed admin credentials (see [SERVER.md](SERVER.md#first-api-key)) or register a new account.
+Open http://localhost:8000. The FastAPI server serves both the API (under `/api/`) and the dashboard at the root. Log in with the seed admin credentials (see [SERVER.md](SERVER.md#first-api-key)) or register a new account.
 
-For dashboard development with hot reload, use `cd dashboard && npm run dev` (Vite proxies `/api` to the FastAPI backend at port 8000).
+For dashboard development with hot reload: `cd dashboard && npm run dev` (Vite proxies `/api` to FastAPI on port 8000).
+
+### Five-minute demo
+
+Discover and control autonomous AI tools on developer endpoints: run the stack with demo data in about five minutes.
+
+```bash
+./scripts/demo-five-min.sh
+```
+
+Then open http://localhost:8000 and log in (e.g. `admin@example.com` / `change-me`). See [docs/demo.md](docs/demo.md) for full instructions, what you see, and how to reset demo data. The demo includes:
+
+- **Sample event set:** [docs/demo/sample-events.json](docs/demo/sample-events.json) — a minimal detection → policy (block) → enforcement chain in canonical form.
+- **Screenshots:** [docs/demo/screenshots/](docs/demo/screenshots/) — required shots and how to capture them (dashboard, events, policies).
+- **One block decision and why:** [docs/demo/block-decision-example.md](docs/demo/block-decision-example.md) — one concrete block (ENFORCE-005, Claude Code, crown-jewel) with rule, rationale, and evidence chain.
+
+---
+
+## Telemetry and detection
+
+**Today:** Psutil-based polling (process, file, and network signals) powers detection. The collector runs on macOS, Windows, and Linux with a single code path.  
+**Roadmap:** Native telemetry (macOS ESF, Windows ETW, Linux eBPF) for lower latency and stronger guarantees. See [docs/esf-entitlement.md](docs/esf-entitlement.md) for ESF status.
+
+---
 
 ## Running the API
 
@@ -71,34 +98,38 @@ For dashboard development with hot reload, use `cd dashboard && npm run dev` (Vi
 cd api && pip install -r requirements.txt && uvicorn main:app --reload
 ```
 
-The API defaults to a local **SQLite** database (zero setup, stored at a platform-appropriate location). For production or higher scale, set `DATABASE_URL` to a PostgreSQL connection string. Set `JWT_SECRET` and `SEED_ADMIN_PASSWORD` via environment variables or `.env` file. Auth endpoints are rate-limited (5 req/min). `GET /health` verifies DB connectivity (returns 503 when degraded). For production deployment, security hardening, and environment variable reference, see [SERVER.md](SERVER.md).
+The API defaults to a local **SQLite** database (zero setup). For production, set `DATABASE_URL` to a PostgreSQL connection string and set `JWT_SECRET` and `SEED_ADMIN_PASSWORD` via environment or `.env`. Auth endpoints are rate-limited (5 req/min). `GET /health` verifies DB connectivity. See [SERVER.md](SERVER.md) for production deployment and security hardening.
+
+---
 
 ## Running tests
 
 ```bash
-python -m pytest collector/tests/ -v                           # ~200 collector tests (includes 108 scanner consistency tests)
+python -m pytest collector/tests/ -v                           # collector tests (includes scanner consistency)
 python -m pytest collector/tests/test_scanner_consistency.py -v # 108 scanner consistency tests
-python -m pytest api/tests/ -v                                 # ~54 API tests
-python -m pytest protocol/tests/ -v                            # ~45 protocol tests
+python -m pytest api/tests/ -v                                 # API tests
+python -m pytest protocol/tests/ -v                            # protocol tests
 ```
 
-The scanner consistency tests verify that all 12 scanners populate `action_type`, `action_risk`, `action_summary`, `tool_class`, and `tool_name` correctly. They run actual scans so take ~2 minutes.
+Run collector and API tests separately to avoid package name conflicts. Scanner consistency tests run actual scans and take about two minutes.
 
-Note: Run collector and API tests separately (not in a single pytest invocation) to avoid `tests` package name conflicts.
+---
 
 ## Dashboard
 
-SOC operator console for monitoring detected AI tools, confidence scoring, and policy enforcement. The dashboard requires authentication (JWT login or API key).
+SOC operator console for monitoring detected AI tools, confidence scoring, and policy enforcement. Requires authentication (JWT or API key).
 
-- **Login/Register**: email + password, JWT with auto-refresh. User profile (first/last name, role) shown in the top bar.
-- **API key fallback**: configure in Settings when JWT is unavailable (headless access).
-- **Live pages**: Endpoints dashboard (filterable by endpoint, time range, searchable), Policies (create, edit, toggle active), Audit log (paginated).
-- **User management**: Admin page for creating, editing, and deactivating users. Four roles: owner, admin, analyst, viewer. Gated to owner/admin.
+- **Login/Register:** email + password, JWT with auto-refresh. User profile in the top bar.
+- **API key fallback:** configure in Settings for headless access.
+- **Live pages:** Endpoints (filterable, searchable), Policies (create, edit, toggle active), Audit log (paginated).
+- **User management:** Admin page for users; roles: owner, admin, analyst, viewer. Gated to owner/admin.
 
-The dashboard is served directly by FastAPI from `dashboard/dist/`. Build it with `cd dashboard && npm run build`. For development with hot reload: `cd dashboard && npm run dev` (Vite dev server on port 5173 proxies API calls to FastAPI on port 8000). See [dashboard/README.md](dashboard/README.md).
+Served by FastAPI from `dashboard/dist/`. Build: `cd dashboard && npm run build`. See [dashboard/README.md](dashboard/README.md) for architecture and [docs/dashboard-roadmap.md](docs/dashboard-roadmap.md) for roadmap.
+
+---
 
 ## License
 
 This project is licensed under the [Business Source License 1.1](LICENSE). You may copy, modify, create derivative works, and use the software in production, provided you do not offer it as a competing hosted or managed service. On the Change Date (March 9, 2030), the software becomes available under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
-See [LICENSE](LICENSE) for the full license text, [legal/LICENSE-AGREEMENT.md](legal/LICENSE-AGREEMENT.md) for the Software License Agreement, and [legal/TERMS-OF-SERVICE.md](legal/TERMS-OF-SERVICE.md) for the Terms of Service.
+See [LICENSE](LICENSE), [legal/LICENSE-AGREEMENT.md](legal/LICENSE-AGREEMENT.md), and [legal/TERMS-OF-SERVICE.md](legal/TERMS-OF-SERVICE.md).

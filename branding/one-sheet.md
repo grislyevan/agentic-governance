@@ -2,21 +2,23 @@
 
 **See what AI agents do. Govern what they're allowed to.**
 
-Endpoint governance for agentic AI tools
+Discover and control autonomous AI tools on developer endpoints.
 
 ---
 
 ## The Problem
 
-AI coding tools run code, access networks, and modify files on developer endpoints. Claude Code executes shell commands autonomously. Cursor spawns agent processes that write to the filesystem. Ollama runs large language models locally with no cloud visibility.
+Autonomous AI tools run code, access networks, and modify files on developer endpoints. Claude Code executes shell commands autonomously. Cursor spawns agent processes that write to the filesystem. Ollama runs large language models locally with no cloud visibility.
 
-Security teams have no consistent way to detect which agentic tools are active, what they're doing, or whether they comply with policy. App-name blocklists don't work when tools rename, wrap, or run locally.
+Security teams have no consistent way to discover which tools are active, what they're doing, or whether they comply with policy. App-name blocklists don't work when tools rename, wrap, or run locally.
+
+**We focus first on repo-destructive coding agents.** Autonomous executors that run shell, write files, and mutate repos can cause real damage: mass file changes, privileged commands, boundary crossing. Detec discovers and controls them by what they do, not what they're called.
 
 ---
 
 ## What Detec Finds
 
-Detec scans endpoints for agentic AI tools using a class-based detection model. Detection targets capability and risk, not product names — so new tools map to existing policy automatically.
+Detec scans developer endpoints for autonomous AI tools using a class-based detection model. Detection targets capability and risk, not product names — so new tools map to existing policy automatically.
 
 | Class | Category | Examples |
 |---|---|---|

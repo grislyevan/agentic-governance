@@ -6,15 +6,15 @@ The single reference document for what Detec is, who it's for, and why it exists
 
 ## Purpose
 
-Give security teams honest, evidence-based visibility into agentic AI tools running on their endpoints — so they can govern proportionally instead of guessing or blocking blindly.
+Detec discovers and controls autonomous AI tools on developer endpoints. We give security teams honest, evidence-based visibility into what is running so they can govern proportionally instead of guessing or blocking blindly.
 
 ## Vision
 
-A world where agentic AI tools are adopted confidently because governance keeps pace with capability. Security teams trust their tooling because it shows its work.
+A world where autonomous AI tools on developer endpoints are adopted confidently because governance keeps pace with capability. Security teams trust their tooling because it shows its work.
 
 ## Mission
 
-Detect agentic AI tools by what they do, not what they're called. Score every detection with explainable confidence. Enforce policy proportionally. Publish known limits.
+Discover and control autonomous AI tools by what they do, not what they're called. Score every detection with explainable confidence. Enforce policy proportionally. Publish known limits.
 
 ## Values
 
@@ -60,7 +60,7 @@ The SOC analyst using Detec every day is the most important user. Every UI decis
 
 ### Positioning statement
 
-For security teams who need to govern agentic AI tools on developer endpoints, Detec is an endpoint agent that detects tools by capability class and enforces policy with confidence-scored, auditable decisions. Unlike application blocklists or manual inventory, Detec uses multi-signal detection across five evidence layers so that new tools map to existing policy automatically and every enforcement decision is explainable.
+Detec discovers and controls autonomous AI tools on developer endpoints. For security teams who need to govern them, Detec is an endpoint agent that detects tools by capability class and enforces policy with confidence-scored, auditable decisions. Unlike application blocklists or manual inventory, Detec uses multi-signal detection across five evidence layers so that new tools map to existing policy automatically and every enforcement decision is explainable.
 
 ### Competitive differentiation
 

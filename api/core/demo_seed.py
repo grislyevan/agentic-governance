@@ -155,11 +155,11 @@ _SCENARIOS: list[dict] = [
         "action_type": "privileged",
         "risk_class": "R4",
         "sensitivity": "Tier3",
-        "summary": "Claude Code attempted privileged operation on crown-jewel asset",
+        "summary": "Claude Code attempted privileged operation and repo mutation on crown-jewel asset",
         "enforcement": {
             "tactic": "process_kill",
             "success": True,
-            "detail": "Killed PID [3901] for claude process accessing /etc/ssh/",
+            "detail": "Killed PID [3901] for claude process performing git write in protected repo",
             "simulated": False,
             "allow_listed": False,
             "pids_killed": [3901],

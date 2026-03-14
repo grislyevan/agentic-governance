@@ -1,6 +1,6 @@
 # Agent brief — read this first
 
-**What this repo is:** Detec (agentic-governance) — endpoint security for agentic AI tools. An endpoint agent (collector) scans machines for tools (Claude Code, Cursor, Ollama, Copilot, etc.), scores confidence, evaluates policy, and sends events to a central API. A React dashboard and FastAPI backend complete the stack.
+**What this repo is:** Detec (agentic-governance) — discover and control autonomous AI tools on developer endpoints. An endpoint agent (collector) scans machines for tools (Claude Code, Cursor, Ollama, Copilot, etc.), scores confidence, evaluates policy, and sends events to a central API. A React dashboard and FastAPI backend complete the stack.
 
 **Architecture:** Endpoint agent → `POST /api/events`, `POST /api/endpoints/heartbeat` (HTTP) or persistent binary/msgpack connection on port 8001 (TCP) → FastAPI (API + serves dashboard) + DetecGateway → SQLite or PostgreSQL.
 
