@@ -24,6 +24,7 @@ from core.event_validator import validate_event_payload
 from models.allow_list import AllowListEntry
 from models.endpoint import Endpoint, ENDPOINT_STATUS_ACTIVE
 from models.event import Event
+from models.tenant import Tenant
 from models.user import User, verify_api_key, API_KEY_PREFIX_LEN
 from core.audit_logger import record as _audit_record
 from webhooks.dispatcher import dispatch_event as _dispatch_webhooks
@@ -168,7 +169,11 @@ class AgentSession(BaseConnection):
     # -- Authentication ------------------------------------------------------
 
     async def _handle_auth(self, msg: dict[str, Any]) -> None:
-        payload = msg.get("p", {})
+        payload = msg.get("p")
+        if not isinstance(payload, dict):
+            await self.send(auth_fail_msg("Invalid auth payload"))
+            await self.close()
+            return
         api_key = payload.get("api_key", "")
         hostname = payload.get("hostname", "")
         agent_version = payload.get("agent_version", "")
@@ -219,16 +224,20 @@ class AgentSession(BaseConnection):
 
     @staticmethod
     def _verify_api_key(api_key: str, db) -> str | None:
-        """Verify an API key and return the tenant_id, or None."""
-        prefix = api_key[:API_KEY_PREFIX_LEN]
-        candidates = (
-            db.query(User)
-            .filter(User.api_key_prefix == prefix, User.is_active.is_(True))
-            .all()
-        )
-        for user in candidates:
-            if user.api_key_hash and verify_api_key(api_key, user.api_key_hash):
-                return user.tenant_id
+        """Verify an API key (user prefix+hash or tenant agent key) and return the tenant_id, or None."""
+        if len(api_key) >= API_KEY_PREFIX_LEN:
+            prefix = api_key[:API_KEY_PREFIX_LEN]
+            candidates = (
+                db.query(User)
+                .filter(User.api_key_prefix == prefix, User.is_active.is_(True))
+                .all()
+            )
+            for user in candidates:
+                if user.api_key_hash and verify_api_key(api_key, user.api_key_hash):
+                    return user.tenant_id
+        tenant = db.query(Tenant).filter(Tenant.agent_key == api_key).first()
+        if tenant:
+            return tenant.id
         return None
 
     @staticmethod
