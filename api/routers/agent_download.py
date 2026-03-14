@@ -29,6 +29,7 @@ from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from core.config import settings
+from core.server_config import get_effective_gateway_config
 from core.database import get_db
 from core.tenant import resolve_auth, require_role
 from models.auth_token import AuthToken, hash_token
@@ -274,7 +275,7 @@ def _derive_api_url(request: Request) -> str:
 
 def _embed_config_in_exe(exe_bytes: bytes, api_url: str, api_key: str,
                          interval: int, protocol: str,
-                         gateway_host: str | None) -> bytes:
+                         gateway_host: str | None, gateway_port: int) -> bytes:
     """Append a config payload to an installer EXE.
 
     Layout appended after the original PE data::
@@ -293,22 +294,23 @@ def _embed_config_in_exe(exe_bytes: bytes, api_url: str, api_key: str,
     if protocol == "tcp":
         if gateway_host:
             cfg["gateway_host"] = gateway_host
-        cfg["gateway_port"] = settings.gateway_port
+        cfg["gateway_port"] = gateway_port
     json_bytes = json.dumps(cfg, indent=2).encode("utf-8")
     payload = _CFG_MAGIC + json_bytes + struct.pack("<I", len(json_bytes)) + _CFG_MAGIC
     return exe_bytes + payload
 
 
 def _build_zip(pkg_path: Path, api_url: str, api_key: str, interval: int,
-               protocol: str, gateway_host: str | None, platform: str) -> io.BytesIO:
+               protocol: str, gateway_host: str | None, gateway_port: int,
+               platform: str) -> io.BytesIO:
     """Build the agent zip bundle with config files baked in."""
     env_content = _build_agent_env(
         api_url=api_url, api_key=api_key, interval=interval, protocol=protocol,
-        gateway_host=gateway_host, gateway_port=settings.gateway_port,
+        gateway_host=gateway_host, gateway_port=gateway_port,
     )
     json_content = _build_collector_json(
         api_url=api_url, api_key=api_key, interval=interval, protocol=protocol,
-        gateway_host=gateway_host, gateway_port=settings.gateway_port,
+        gateway_host=gateway_host, gateway_port=gateway_port,
     )
     readme = _README_TEMPLATE.get(platform, "")
 
@@ -331,7 +333,7 @@ def _build_zip(pkg_path: Path, api_url: str, api_key: str, interval: int,
 
 def _build_download_response(
     pkg_path: Path, api_url: str, api_key: str, interval: int,
-    protocol: str, gateway_host: str | None, platform: str,
+    protocol: str, gateway_host: str | None, gateway_port: int, platform: str,
 ) -> Response:
     """Build the appropriate download response for the given package.
 
@@ -340,7 +342,7 @@ def _build_download_response(
     reads config from the same directory as the EXE, so no EXE modification
     is needed (enables code signing and avoids AV false positives).
     """
-    buf = _build_zip(pkg_path, api_url, api_key, interval, protocol, gateway_host, platform)
+    buf = _build_zip(pkg_path, api_url, api_key, interval, protocol, gateway_host, gateway_port, platform)
     content = buf.getvalue()
     filename = f"detec-agent-{platform}.zip"
     return Response(
@@ -390,9 +392,10 @@ def download_agent(
 
     api_url = _derive_api_url(request)
     gateway_host = request.base_url.hostname if protocol == "tcp" else None
+    gw_cfg = get_effective_gateway_config(db)
 
     return _build_download_response(
-        pkg_path, api_url, agent_key, interval, protocol, gateway_host, platform.value,
+        pkg_path, api_url, agent_key, interval, protocol, gateway_host, gw_cfg.port, platform.value,
     )
 
 
@@ -443,11 +446,12 @@ def download_agent_by_token(
 
     api_url = _derive_api_url(request)
     gateway_host = request.base_url.hostname if protocol == "tcp" else None
+    gw_cfg = get_effective_gateway_config(db)
 
     db.commit()
 
     return _build_download_response(
-        pkg_path, api_url, agent_key, interval, protocol, gateway_host, platform.value,
+        pkg_path, api_url, agent_key, interval, protocol, gateway_host, gw_cfg.port, platform.value,
     )
 
 

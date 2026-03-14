@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Detec Whitepaper — Endpoint Governance for Agentic AI Tools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary:#6366f1; --primary-50:#eef2ff; --teal:#14b8a6; --amber:#f59e0b;
+      --slate-50:#f8fafc; --slate-100:#f1f5f9; --slate-200:#e2e8f0; --slate-300:#cbd5e1; --slate-600:#475569; --slate-700:#334155; --slate-900:#0f172a;
+      --white:#fff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--slate-50);color:var(--slate-900);font-family:"IBM Plex Sans",system-ui,sans-serif;line-height:1.62}
+    .container{max-width:1060px;margin:0 auto;padding:48px 24px 80px}
+    .mast{background:linear-gradient(120deg,var(--primary),#4338ca);color:#fff;padding:40px 34px;border-radius:18px}
+    .eyebrow{text-transform:uppercase;letter-spacing:.08em;font-size:.82rem;opacity:.9;margin:0 0 8px}
+    h1{margin:0 0 10px;font-size:2.1rem;line-height:1.15;font-weight:700;letter-spacing:-0.01em}
+    .lead{margin:0;font-size:1.1rem;font-weight:500;opacity:.97}
+    .panel{margin-top:18px;background:#fff;border:1px solid var(--slate-300);border-radius:14px;padding:22px}
+    h2{font-size:1.35rem;margin:34px 0 12px;font-weight:600;letter-spacing:-0.01em}
+    h3{font-size:1.05rem;margin:18px 0 8px;font-weight:600}
+    p{margin:0 0 11px;color:var(--slate-900)}
+    .muted{color:var(--slate-700)}
+    ul{margin:0;padding-left:19px}
+    li{margin:5px 0}
+    .mono{font-family:"IBM Plex Mono",monospace}
+    table{width:100%;border-collapse:collapse;margin:10px 0 4px;background:#fff;border:1px solid var(--slate-300);border-radius:12px;overflow:hidden}
+    th,td{padding:10px 12px;border-bottom:1px solid var(--slate-200);vertical-align:top;text-align:left}
+    th{font-weight:600;background:var(--primary-50)}
+    tr:last-child td{border-bottom:none}
+    .codeblock{background:#0f172a;color:#e2e8f0;padding:14px 16px;border-radius:10px;font-family:"IBM Plex Mono",monospace;font-size:.88rem;white-space:pre-wrap}
+    .foot{margin-top:30px;padding:16px;border-left:4px solid var(--teal);background:#ecfeff;border-radius:8px}
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="mast">
+      <p class="eyebrow">Detec Whitepaper</p>
+      <h1>Endpoint Governance for Agentic AI Tools</h1>
+      <p class="lead">See what AI agents do. Govern what they are allowed to.</p>
+    </section>
+
+    <section class="panel">
+      <h2 style="margin-top:0">Executive Summary</h2>
+      <p>Agentic AI tools now execute shell commands, write files, open network connections, and run local inference directly on developer endpoints. Existing control stacks were not designed for this category. Cloud controls miss localhost-only operation, endpoint controls capture processes but struggle with attribution, and application inventories show installs without runtime behavior.</p>
+      <p>Detec is an endpoint agent that detects tools by capability rather than product name. It classifies behavior into four governance classes and applies confidence-scored, policy-driven enforcement from visibility to blocking.</p>
+      <p>Detec uses five signal dimensions with per-tool calibrated weights, computes an explainable confidence score, and evaluates deterministic policy rules that account for tool class, asset sensitivity, and action risk. Every decision includes rule ID, evidence contributors, and audit trail context.</p>
+    </section>
+
+    <h2>1) The Governance Gap</h2>
+    <p>Agentic tools are different because they can act autonomously, can run locally with little or no cloud visibility, can change risk profile at runtime, and can blend into legitimate developer infrastructure.</p>
+    <h3>Why existing controls miss this category</h3>
+    <table>
+      <thead><tr><th>Control</th><th>What it sees</th><th>What it misses</th></tr></thead>
+      <tbody>
+        <tr><td>CASB / SWG</td><td>Cloud API traffic</td><td>Localhost tools and offline local runtime behavior</td></tr>
+        <tr><td>EDR</td><td>Process and file telemetry</td><td>Reliable attribution to specific agentic AI tool behavior</td></tr>
+        <tr><td>App inventory</td><td>Installed binaries</td><td>Runtime behavior and dynamic class escalation</td></tr>
+        <tr><td>Firewall</td><td>Outbound network traffic</td><td>Local listeners and post-setup offline operation</td></tr>
+        <tr><td>DLP</td><td>Data egress</td><td>Local data processing by on-device models</td></tr>
+      </tbody>
+    </table>
+
+    <h2>2) Detection Model</h2>
+    <p>Detec scores five signal dimensions: Process, File, Network, Identity, and Behavior.</p>
+    <ul>
+      <li><strong>Process:</strong> binary identity, parent-child lineage, execution shape.</li>
+      <li><strong>File:</strong> config footprints, caches, model storage, tracking databases.</li>
+      <li><strong>Network:</strong> endpoints, listener ports, burst cadence, process-socket attribution.</li>
+      <li><strong>Identity:</strong> account mapping, signatures, credential context, OAuth metadata.</li>
+      <li><strong>Behavior:</strong> temporal execution patterns, prompt-edit-commit loops, fan-out writes, inference bursts.</li>
+    </ul>
+    <p>A future sixth signal, binary hash verification (SHA-256), is planned for M3.</p>
+
+    <h3>Tool classes</h3>
+    <table>
+      <thead><tr><th>Class</th><th>Category</th><th>Capability focus</th><th>Examples</th></tr></thead>
+      <tbody>
+        <tr><td>A</td><td>SaaS Copilots</td><td>Assistive suggestions and chat</td><td>Cursor assistive mode, GitHub Copilot, Continue, Cline</td></tr>
+        <tr><td>B</td><td>Local Runtimes</td><td>Model hosting and local API serving</td><td>Ollama, LM Studio</td></tr>
+        <tr><td>C</td><td>Autonomous Executors</td><td>Autonomous shell, file, and git activity</td><td>Claude Code, Claude Cowork, Open Interpreter, Aider, GPT-Pilot, Cursor agent mode</td></tr>
+        <tr><td>D</td><td>Persistent Agents</td><td>Continuous autonomous operation</td><td>OpenClaw reference implementation</td></tr>
+      </tbody>
+    </table>
+
+    <p>Classification is dynamic and based on evidence. When signals indicate multiple classes, the highest-risk applicable class is assigned with reason codes.</p>
+
+    <h2>3) Confidence Scoring</h2>
+    <p>Confidence is deterministic, auditable, and explainable.</p>
+    <div class="codeblock">base_score     = sum(layer_weight * layer_signal_strength)
+penalty_total  = sum(applicable penalties)
+evasion_boost  = sum(evasion indicators)
+final          = clamp(base_score - penalty_total + evasion_boost, 0.0, 1.0)</div>
+    <p>Per-tool weight vectors are calibrated to lab evidence. Penalties are applied for evidence gaps such as missing process lineage, unresolved process-network linkage, stale artifact-only conditions, or weak identity correlation.</p>
+    <p>If suppression behavior is detected (for example explicit attribution marker disablement), the model applies evasion boosts because suppression itself is governance-relevant evidence.</p>
+    <table>
+      <thead><tr><th>Band</th><th>Range</th><th>Implication</th></tr></thead>
+      <tbody>
+        <tr><td>Low</td><td>&lt; 0.45</td><td>Detection-only, monitoring with no user disruption</td></tr>
+        <tr><td>Medium</td><td>0.45–0.74</td><td>Warning and approval thresholds active</td></tr>
+        <tr><td>High</td><td>≥ 0.75</td><td>Full enforcement ladder, including block on violations</td></tr>
+      </tbody>
+    </table>
+
+    <h2>4) Policy Engine and Enforcement Ladder</h2>
+    <p>The policy engine is deterministic and versioned. Inputs are confidence band, tool class, asset sensitivity tier (Tier 0–3), and action risk level (R1–R4). Rules produce one state: Detect, Warn, Approval Required, or Block.</p>
+    <table>
+      <thead><tr><th>Rule</th><th>Condition</th><th>Decision</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">ENFORCE-001</td><td>Low confidence + Tier 0–1 + R1</td><td>Detect</td></tr>
+        <tr><td class="mono">ENFORCE-002</td><td>Medium confidence + Tier 1–2 + R2</td><td>Warn</td></tr>
+        <tr><td class="mono">ENFORCE-003</td><td>Medium confidence + Tier 2–3 + R3</td><td>Approval Required</td></tr>
+        <tr><td class="mono">ENFORCE-004</td><td>High confidence + disallowed R4</td><td>Block</td></tr>
+        <tr><td class="mono">ENFORCE-005</td><td>Any confidence + explicit deny + Tier 3</td><td>Block</td></tr>
+        <tr><td class="mono">ENFORCE-006</td><td>Class C + Medium/High + R3</td><td>Approval Required</td></tr>
+        <tr><td class="mono">ENFORCE-D01</td><td>Class D + any confidence + R3+</td><td>Block</td></tr>
+        <tr><td class="mono">ENFORCE-D02</td><td>Class D + Medium/High + R2</td><td>Approval Required</td></tr>
+        <tr><td class="mono">ENFORCE-D03</td><td>Class D + any confidence + R1</td><td>Warn floor</td></tr>
+      </tbody>
+    </table>
+    <p>Overlay rules for network correlation and isolation can escalate outcomes but do not downgrade them.</p>
+
+    <h2>5) System Architecture</h2>
+    <p>Detec operates as three tiers: endpoint collector, central API, and dashboard.</p>
+    <ul>
+      <li><strong>Collector:</strong> periodic scans, confidence and policy evaluation, structured events, retry logic, local queue fallback, heartbeat telemetry.</li>
+      <li><strong>API:</strong> tenant-aware ingestion, JWT and API key auth, PostgreSQL storage, endpoint auto-registration.</li>
+      <li><strong>Dashboard:</strong> fleet-level visibility into detections, confidence, policy state, and evidence context.</li>
+    </ul>
+    <p>Event schema uses strict enums for decision-critical fields and is designed for direct SIEM ingestion.</p>
+
+    <h2>6) Validation Methodology</h2>
+    <p>Each detection profile is validated through repeatable lab runs on active tools. Indicators are marked confirmed, partial, or not observed, and weights are adjusted only when evidence warrants recalibration.</p>
+    <p>Evasion testing is a dedicated track. It documents suppression vectors, detection surfaces, and multi-signal counter-indicators. The objective is evidence-backed governance under realistic conditions, not perfection claims.</p>
+
+    <h2>7) Known Limits</h2>
+    <ul>
+      <li>Containerized and remote development can reduce host-side telemetry quality.</li>
+      <li>Renamed binaries and custom forks depend more heavily on behavior correlation.</li>
+      <li>Short-lived network bursts can require EDR-grade attribution integration.</li>
+      <li>Evasion remains possible; multi-signal architecture raises cost but does not claim elimination.</li>
+      <li>Class D empirical validation is currently anchored to a single reference implementation.</li>
+    </ul>
+
+    <h2>8) Deployment and Integration</h2>
+    <p>Collector install supports Windows Service, macOS LaunchAgent, and Linux systemd workflows. Configuration is layered: defaults, JSON config, environment variables, then CLI flags. Reporting can run in changes-only mode (default) or report-all mode during rollout and troubleshooting.</p>
+    <p>No inbound port exposure is required. Agent traffic is outbound HTTPS to the central API.</p>
+
+    <h2>9) Conclusion</h2>
+    <p>Agentic AI governance requires capability-based detection, confidence-scored decisions, and proportional enforcement. Detec provides this with deterministic scoring, versioned policy logic, lab-backed validation, and explicit publication of known limits.</p>
+    <p>Deploy to a pilot endpoint group, compare findings with your current inventory, and validate decisions against your policy intent before broader rollout.</p>
+
+    <div class="foot">
+      <strong>Contact</strong><br>
+      For pilot planning and implementation discussion: info@detecadg.com
+    </div>
+  </main>
+</body>
+</html>

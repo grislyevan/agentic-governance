@@ -26,6 +26,7 @@ if _COLLECTOR_DIR not in sys.path:
 
 from config_loader import load_collector_config
 from output.http_emitter import HttpEmitter
+from output.tcp_emitter import TcpEmitter
 from agent.state import StateDiffer
 
 logger = logging.getLogger(__name__)
@@ -154,6 +155,9 @@ class DaemonBridge:
         api_key = config["api_key"]
         interval = config.get("interval", 300)
         hostname = config.get("endpoint_id", socket.gethostname())
+        protocol = config.get("protocol", "http")
+        gateway_host = config.get("gateway_host")
+        gateway_port = config.get("gateway_port", 8001)
 
         args = argparse.Namespace(
             output=config.get("output", "./scan-results.ndjson"),
@@ -170,7 +174,23 @@ class DaemonBridge:
         )
 
         try:
-            emitter = HttpEmitter(api_url=api_url, api_key=api_key)
+            if protocol == "tcp":
+                if not gateway_host:
+                    from urllib.parse import urlparse
+                    parsed = urlparse(api_url)
+                    gateway_host = parsed.hostname or "localhost"
+                tls_enabled = api_url.startswith("https://") if api_url else False
+                from main import EVENT_VERSION
+                emitter = TcpEmitter(
+                    gateway_host=gateway_host,
+                    gateway_port=gateway_port,
+                    api_key=api_key,
+                    hostname=hostname,
+                    agent_version=EVENT_VERSION,
+                    tls=tls_enabled,
+                )
+            else:
+                emitter = HttpEmitter(api_url=api_url, api_key=api_key)
             differ = StateDiffer(report_all=args.report_all)
         except Exception as exc:
             with self._lock:
@@ -189,8 +209,9 @@ class DaemonBridge:
         )
         hb_thread.start()
 
+        transport = f"tcp://{gateway_host}:{gateway_port}" if protocol == "tcp" else api_url
         logger.info(
-            "DaemonBridge: started (interval=%ds, api=%s)", interval, api_url
+            "DaemonBridge: started (interval=%ds, %s=%s)", interval, "transport" if protocol == "tcp" else "api", transport
         )
 
         try:
@@ -266,7 +287,7 @@ class DaemonBridge:
 
     @staticmethod
     def _heartbeat_loop(
-        emitter: HttpEmitter,
+        emitter: HttpEmitter | TcpEmitter,
         hostname: str,
         interval: int,
         stop_event: threading.Event,

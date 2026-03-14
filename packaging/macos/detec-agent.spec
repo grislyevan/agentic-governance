@@ -143,7 +143,9 @@ exe = EXE(
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
-    entitlements_file=os.path.join(SPECPATH, 'entitlements.plist'),
+    # Unsigned build: use entitlements without restricted capabilities (e.g. ESF).
+    # Includes disable-library-validation so bundled Python libs load when adhoc-signed.
+    entitlements_file=os.path.join(SPECPATH, 'entitlements-unsigned.plist'),
 )
 
 coll = COLLECT(

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Detec One-Sheet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary:#6366f1; --primary-700:#4338ca; --teal:#14b8a6; --amber:#f59e0b;
+      --slate-50:#f8fafc; --slate-100:#f1f5f9; --slate-300:#cbd5e1; --slate-500:#64748b; --slate-700:#334155; --slate-900:#0f172a;
+      --white:#fff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--slate-50);color:var(--slate-900);font-family:"IBM Plex Sans",system-ui,sans-serif;line-height:1.55}
+    .wrap{max-width:980px;margin:0 auto;padding:48px 24px 72px}
+    .hero{background:linear-gradient(135deg,var(--primary),var(--primary-700));color:#fff;border-radius:18px;padding:34px 30px;margin-bottom:26px}
+    h1{font-size:2rem;line-height:1.15;margin:0 0 12px;font-weight:700;letter-spacing:-0.01em}
+    .sub{font-size:1.1rem;font-weight:500;opacity:.96;margin:0}
+    .kicker{font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;opacity:.88;margin:0 0 10px}
+    h2{font-size:1.25rem;margin:28px 0 10px;font-weight:600;color:var(--slate-900);letter-spacing:-0.01em}
+    p{margin:0 0 12px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .card{background:var(--white);border:1px solid var(--slate-300);border-radius:14px;padding:18px}
+    .muted{color:var(--slate-700)}
+    table{width:100%;border-collapse:collapse;font-size:.95rem;background:#fff;border-radius:12px;overflow:hidden;border:1px solid var(--slate-300)}
+    th,td{padding:10px 12px;border-bottom:1px solid var(--slate-300);vertical-align:top;text-align:left}
+    th{font-weight:600;color:var(--slate-900);background:#eef2ff}
+    tr:last-child td{border-bottom:none}
+    ul{margin:0;padding-left:18px}
+    li{margin:5px 0}
+    .ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+    .step{border-radius:10px;padding:12px;color:#fff;font-size:.9rem}
+    .s1{background:var(--primary)} .s2{background:var(--amber)} .s3{background:#f97316} .s4{background:#ef4444}
+    .mono{font-family:"IBM Plex Mono",monospace}
+    .cta{margin-top:28px;padding:18px;border-radius:12px;background:#ecfeff;border:1px solid #99f6e4}
+    .contact{font-weight:600;color:#0f766e}
+    @media (max-width:820px){.grid,.ladder{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <p class="kicker">Detec</p>
+      <h1>See what AI agents do. Govern what they're allowed to.</h1>
+      <p class="sub">Endpoint governance for agentic AI tools.</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>The Problem</h2>
+        <p class="muted">AI coding tools now execute commands, access networks, and modify files on developer endpoints. Security teams often lack consistent visibility into which tools are active, what they are doing, and whether use aligns with policy.</p>
+        <p class="muted">Name-based blocklists are brittle when tools can be renamed, wrapped, or run as local components.</p>
+      </article>
+      <article class="card">
+        <h2>What Detec Finds</h2>
+        <p class="muted">Detec detects by capability and behavior, not product naming, so new tools map to policy classes automatically.</p>
+        <p><strong>Current coverage:</strong> 11 tools across 4 governance classes.</p>
+      </article>
+    </section>
+
+    <section>
+      <h2>Tool Classes</h2>
+      <table>
+        <thead>
+          <tr><th>Class</th><th>Category</th><th>Examples</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>A</strong></td><td>SaaS Copilots</td><td>Cursor, GitHub Copilot, Continue</td></tr>
+          <tr><td><strong>B</strong></td><td>Local Runtimes</td><td>Ollama, LM Studio</td></tr>
+          <tr><td><strong>C</strong></td><td>Autonomous Executors</td><td>Claude Code, Open Interpreter, Aider, GPT-Pilot, Cline</td></tr>
+          <tr><td><strong>D</strong></td><td>Open Source / Reference</td><td>OpenClaw</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>How Detec Decides</h2>
+      <p>Every decision is based on five correlated signal layers: <span class="mono">Process</span>, <span class="mono">File</span>, <span class="mono">Network</span>, <span class="mono">Identity</span>, and <span class="mono">Behavior</span>.</p>
+      <p>Signals feed an attribution engine that produces an explainable confidence score from <span class="mono">0.00</span> to <span class="mono">1.00</span>, then applies policy state.</p>
+    </section>
+
+    <section>
+      <h2>Enforcement Ladder</h2>
+      <div class="ladder">
+        <div class="step s1"><strong>Detect</strong><br>Visibility only.</div>
+        <div class="step s2"><strong>Warn</strong><br>Operator notified.</div>
+        <div class="step s3"><strong>Approval Required</strong><br>Authorized sign-off required.</div>
+        <div class="step s4"><strong>Block</strong><br>Hard stop for policy violations.</div>
+      </div>
+      <ul>
+        <li>Low-risk tools can stay at visibility.</li>
+        <li>Medium-risk activity triggers warnings.</li>
+        <li>High-risk actions can require approval.</li>
+        <li>Disallowed behavior can be blocked with evidence.</li>
+      </ul>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Audit and Evidence</h2>
+        <ul>
+          <li>What was detected: tool, class, version.</li>
+          <li>How detection occurred: matching signal layers.</li>
+          <li>Confidence score with contributing weights.</li>
+          <li>Applied policy: enforcement state and rule ID.</li>
+          <li>Resulting action: detect, warn, approval required, or block.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h2>Known Limits</h2>
+        <ul>
+          <li>Remote/containerized development can reduce host telemetry.</li>
+          <li>Renamed binaries and custom forks require behavior correlation.</li>
+          <li>Short-lived network bursts may need EDR-grade process-to-socket attribution.</li>
+          <li>Evasion is possible; multi-signal correlation is designed to increase evasion cost.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="cta">
+      <h2 style="margin-top:0">Start a Pilot</h2>
+      <p>Deploy Detec on a small endpoint group, compare detections with your inventory, and validate confidence and policy outcomes against your expectations.</p>
+      <p class="contact">Contact: info@detecadg.com</p>
+    </section>
+  </main>
+</body>
+</html>

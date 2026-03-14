@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getApiConfig, setApiConfig, fetchSsoStatus, fetchWebhooks, fetchWebhookTemplates, createWebhook, createWebhookFromTemplate, updateWebhook, deleteWebhook, testWebhook, downloadAgent, enrollAgentByEmail, fetchAllowList, addAllowListEntry, deleteAllowListEntry, updateTenantPosture, fetchPostureSummary, fetchDisabledServices, restoreServices } from '../lib/api';
+import { getApiConfig, setApiConfig, fetchSsoStatus, fetchWebhooks, fetchWebhookTemplates, createWebhook, createWebhookFromTemplate, updateWebhook, deleteWebhook, testWebhook, fetchServerSettings, updateServerSettings, downloadAgent, enrollAgentByEmail, fetchAllowList, addAllowListEntry, deleteAllowListEntry, updateTenantPosture, fetchPostureSummary, fetchDisabledServices, restoreServices } from '../lib/api';
 import useAuth from '../hooks/useAuth';
 
 const EVENT_TYPES = [
@@ -90,6 +90,8 @@ export default function SettingsPage() {
 
         {user?.role === 'owner' && <SsoConfigSection />}
 
+        {canManageWebhooks && <ServerGatewaySection />}
+
         {canManageWebhooks && <AgentDownloadSection />}
 
         {canManageWebhooks && <WebhooksSection />}
@@ -141,6 +143,142 @@ function SsoConfigSection() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function ServerGatewaySection() {
+  const { user } = useAuth();
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [saved, setSaved] = useState(false);
+  const savedTimer = useRef(null);
+
+  const [gatewayEnabled, setGatewayEnabled] = useState(true);
+  const [gatewayHost, setGatewayHost] = useState('0.0.0.0');
+  const [gatewayPort, setGatewayPort] = useState('8001');
+
+  useEffect(() => {
+    fetchServerSettings()
+      .then((data) => {
+        setSettings(data);
+        setGatewayEnabled(data.gateway_enabled);
+        setGatewayHost(data.gateway_host);
+        setGatewayPort(String(data.gateway_port));
+      })
+      .catch(() => setSettings({}))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    return () => { if (savedTimer.current) clearTimeout(savedTimer.current); };
+  }, []);
+
+  const handleSave = async () => {
+    setError(null);
+    setSaving(true);
+    try {
+      const updated = await updateServerSettings({
+        gateway_enabled: gatewayEnabled,
+        gateway_host: gatewayHost.trim() || undefined,
+        gateway_port: gatewayPort.trim() ? parseInt(gatewayPort, 10) : undefined,
+      });
+      setSettings(updated);
+      setGatewayEnabled(updated.gateway_enabled);
+      setGatewayHost(updated.gateway_host);
+      setGatewayPort(String(updated.gateway_port));
+      setSaved(true);
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-detec-slate-700/50 bg-detec-slate-800/50 p-5">
+        <p className="text-xs text-detec-slate-500">Loading server settings...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-detec-slate-700/50 bg-detec-slate-800/50 p-5 space-y-4">
+      <h2 className="text-sm font-semibold text-detec-slate-300 uppercase tracking-wider">
+        TCP Gateway
+      </h2>
+      <p className="text-xs text-detec-slate-500">
+        Agents can connect via HTTP (default) or a persistent TCP connection. Configure the gateway host and port here; agent downloads use these values when TCP is selected.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+        <label className="flex items-center gap-2 sm:col-span-3">
+          <input
+            type="checkbox"
+            checked={gatewayEnabled}
+            onChange={(e) => setGatewayEnabled(e.target.checked)}
+            className="rounded border-detec-slate-600 bg-detec-slate-800 text-detec-primary-500 focus:ring-detec-primary-500"
+          />
+          <span className="text-sm text-detec-slate-300">Gateway enabled</span>
+        </label>
+        <label className="block space-y-1.5">
+          <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">
+            Host
+          </span>
+          <input
+            type="text"
+            value={gatewayHost}
+            onChange={(e) => setGatewayHost(e.target.value)}
+            placeholder="0.0.0.0"
+            className="w-full bg-detec-slate-900 border border-detec-slate-700 rounded-lg px-3 py-2 text-sm text-detec-slate-200 font-mono placeholder:text-detec-slate-600 focus:outline-none focus:border-detec-primary-500/50 transition-colors"
+          />
+        </label>
+        <label className="block space-y-1.5">
+          <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">
+            Port
+          </span>
+          <input
+            type="number"
+            min="1"
+            max="65535"
+            value={gatewayPort}
+            onChange={(e) => setGatewayPort(e.target.value)}
+            className="w-full bg-detec-slate-900 border border-detec-slate-700 rounded-lg px-3 py-2 text-sm text-detec-slate-200 font-mono placeholder:text-detec-slate-600 focus:outline-none focus:border-detec-primary-500/50 transition-colors"
+          />
+        </label>
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
+      )}
+
+      {user?.role === 'owner' && (
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 bg-detec-primary-500 hover:bg-detec-primary-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          {saved && (
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-detec-teal-500 detec-toast-enter">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12" className="detec-checkmark" />
+              </svg>
+              Saved. Gateway restarted if enabled.
+            </span>
+          )}
+        </div>
+      )}
+      {user?.role === 'admin' && (
+        <p className="text-xs text-detec-slate-500">Only owners can change gateway settings.</p>
+      )}
     </div>
   );
 }

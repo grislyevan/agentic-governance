@@ -314,6 +314,16 @@ async function apiMutatePublic(method, path, body) {
   return res.json();
 }
 
+// Server settings (TCP gateway; admin can view, owner can update)
+
+export async function fetchServerSettings() {
+  return apiFetch('/server/settings');
+}
+
+export async function updateServerSettings(body) {
+  return apiMutate('PUT', '/server/settings', body);
+}
+
 // Agent download (uses JWT auth; server embeds tenant agent key automatically)
 
 export async function downloadAgent({ platform, interval, protocol }) {

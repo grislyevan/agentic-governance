@@ -1,0 +1,69 @@
+DETEC
+See what AI agents do. Govern what they're allowed to.
+Endpoint governance for agentic AI tools
+
+THE PROBLEM
+AI coding tools run code, access networks, and modify files on developer endpoints. Claude Code executes shell commands autonomously. Cursor can spawn agent processes that write to the filesystem. Ollama runs large language models locally with no cloud visibility.
+
+Security teams often lack a consistent way to detect which agentic tools are active, what they are doing, or whether use complies with policy. App-name blocklists are brittle when tools rename, wrap, or run locally.
+
+WHAT DETEC FINDS
+Detec scans endpoints for agentic AI tools using a class-based model. Detection targets capability and risk, not product names, so new tools can map to existing policy automatically.
+
+Class A: SaaS Copilots
+Examples: Cursor, GitHub Copilot, Continue
+
+Class B: Local Runtimes
+Examples: Ollama, LM Studio
+
+Class C: Autonomous Executors
+Examples: Claude Code, Open Interpreter, Aider, GPT-Pilot, Cline
+
+Class D: Open Source / Reference
+Examples: OpenClaw
+
+Current coverage: 11 tools. Class-based detection allows new tools to map to policy.
+
+HOW DETEC DECIDES
+Each detection is built from five signal layers. No single signal drives enforcement alone.
+Signal layers: Process, File, Network, Identity, Behavior.
+
+Signals are correlated by an attribution engine to produce an explainable confidence score from 0.00 to 1.00. Policy then determines the enforcement state.
+
+WHAT YOU CONTROL
+Detec uses a progressive enforcement ladder:
+- Detect: visibility only
+- Warn: operator notified
+- Approval Required: authorized approval needed
+- Block: hard stop
+
+Typical policy intent:
+- Low-risk tools get visibility.
+- Medium-risk tools trigger warnings.
+- High-risk tools require approval.
+- Policy violations are blocked.
+
+Your policy defines where tools land. Detec enforces the decision.
+
+AUDIT AND EVIDENCE
+Every detection event records:
+- What was detected (tool, class, version)
+- How it was detected (matched signal layers)
+- Confidence (0.00 to 1.00 with contributing weights)
+- Applied policy (enforcement state and rule ID)
+- Action taken (detect, warn, approval required, or block)
+
+Events follow a canonical JSON schema designed for SIEM integration, compliance reporting, and forensic review.
+
+KNOWN LIMITS
+- Containerized and remote development environments can reduce host-level telemetry.
+- Custom forks and renamed binaries require behavior-layer correlation.
+- Short-lived network bursts may require EDR or endpoint security framework integration for reliable process-to-socket attribution.
+- Evasion is possible. Detec documents evasion vectors, tests them in lab runs, and uses multi-signal correlation to raise evasion cost.
+
+START A PILOT
+Deploy the Detec collector to a small endpoint group. Review detections against your inventory. Validate confidence scores and policy decisions against your expectations.
+
+No permanent agent sprawl. No network reconfiguration. Results in minutes.
+
+Contact: info@detecadg.com

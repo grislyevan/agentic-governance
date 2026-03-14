@@ -54,7 +54,7 @@ from models.audit import AuditLog
 from models.endpoint import Endpoint
 from models.event import Event
 from models.policy import Policy
-from routers import agent_download, audit, auth, billing, data_flow, demo, endpoint_profiles, endpoints, enforcement, events, policies, reports, response_playbooks, retention, tenants, users, webhooks
+from routers import agent_download, audit, auth, billing, data_flow, demo, endpoint_profiles, endpoints, enforcement, events, policies, reports, response_playbooks, retention, server_settings, tenants, users, webhooks
 
 logger = logging.getLogger("agentic_governance")
 
@@ -140,7 +140,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     gateway = None
     gateway_task = None
-    if settings.gateway_enabled:
+    db = SessionLocal()
+    try:
+        from core.server_config import get_effective_gateway_config
+        gw_cfg = get_effective_gateway_config(db)
+    finally:
+        db.close()
+    if gw_cfg.enabled:
         from gateway import DetecGateway
         from protocol.connection import BaseConnection
 
@@ -152,12 +158,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             )
 
         gateway = DetecGateway(
-            host=settings.gateway_host,
-            port=settings.gateway_port,
+            host=gw_cfg.host,
+            port=gw_cfg.port,
             ssl_context=ssl_ctx,
         )
         gateway_task = asyncio.create_task(gateway.serve())
         app.state.gateway = gateway
+        app.state.gateway_task = gateway_task
 
     yield
 
@@ -430,6 +437,7 @@ app.include_router(enforcement.router, prefix=API_PREFIX)
 app.include_router(billing.router, prefix=API_PREFIX)
 app.include_router(reports.router, prefix=API_PREFIX)
 app.include_router(response_playbooks.router, prefix=API_PREFIX)
+app.include_router(server_settings.router, prefix=API_PREFIX)
 app.include_router(data_flow.router, prefix=API_PREFIX)
 app.include_router(tenants.router, prefix=API_PREFIX)
 app.include_router(demo.router, prefix=API_PREFIX)
@@ -454,13 +462,11 @@ def _health_check_db() -> tuple[bool, str]:
 
 
 def _health_check_gateway(request: Request) -> tuple[bool, str]:
-    if not settings.gateway_enabled:
-        return True, "disabled"
     gateway = getattr(request.app.state, "gateway", None)
     if not gateway:
-        return False, "not_started"
+        return True, "disabled"
     if gateway._server is None:
-        return False, "stopped"
+        return False, "not_started"
     if gateway._server.is_serving():
         return True, "running"
     return False, "stopped"
@@ -506,7 +512,7 @@ async def health(request: Request) -> JSONResponse:
 
     gw_ok, gw_status = _health_check_gateway(request)
     components["gateway"] = gw_status
-    if not gw_ok and settings.gateway_enabled:
+    if not gw_ok and getattr(request.app.state, "gateway", None) is not None:
         degraded = True
 
     try:
