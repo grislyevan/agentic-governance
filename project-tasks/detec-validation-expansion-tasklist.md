@@ -34,6 +34,10 @@
 - Acceptance: One new LAB-RUN-XXX with protocol, RESULTS, and fixture; calibration test passes.
 - Note: Reaching 20–30 tools requires many such runs; this task is one concrete instance. Repeat for other tools as separate tasks.
 
+**Blocked (as of 2026-03-14):** Requires a lab machine with the tool under test installed (e.g. Aider). Execution is human-driven. No code or doc edits until a run is executed.
+
+**When lab is available:** Spawn Backend Architect or engineering-senior-developer with: (1) Task: Complete one live lab run for one Priority 1 tool (e.g. Aider, LAB-RUN-008). (2) Inputs: [lab-runs/LAB-RUN-008-TEMPLATE-aider.md](lab-runs/LAB-RUN-008-TEMPLATE-aider.md) (or chosen template), [docs/architecture-calibration-pipeline.md](docs/architecture-calibration-pipeline.md), [docs/lab-runs-and-results.md](docs/lab-runs-and-results.md). (3) Deliverables: Convert template to full protocol if needed, execute run, produce `LAB-RUN-XXX-RESULTS.md`, add calibration fixture under `collector/tests/fixtures/lab_runs/` (schema matches existing fixtures, e.g. LAB-RUN-014.json), run `pytest collector/tests/test_calibration.py -v` and ensure it passes. Then spawn EvidenceQA to validate RESULTS file present, fixture present, calibration test passes. Then run Task 1.3 (index + playbook Section 12.5 update).
+
 ### [x] Task 1.3 — Update lab index and playbook lab log
 
 - Ensure [docs/lab-runs-and-results.md](docs/lab-runs-and-results.md) and playbook Section 12.5 reflect any new runs from Task 1.2 (or batch of runs). Single source of truth for run IDs and links.
