@@ -29,6 +29,7 @@ class EventIngest(BaseModel):
     posture: dict[str, Any] | None = None
     mitre_attack: dict[str, Any] | None = None
     session_timeline: list[dict[str, Any]] | None = None
+    timeline_summary: dict[str, int] | None = None
 
     # Payload signing (Feature 4)
     signature: str | None = Field(default=None, alias="_signature")

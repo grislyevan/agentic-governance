@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from engine.session_timeline import timeline_summary_from_entries
+
 if TYPE_CHECKING:
     from telemetry.event_store import EventStore
     from scanner.base import ScanResult
@@ -240,10 +242,29 @@ def format_session_report_for_cli(report: SessionReportData) -> str:
         for chain in report.top_behavior_chains:
             lines.append(f"- {chain}")
     if report.timeline:
+        summary = timeline_summary_from_entries(report.timeline)
+        if summary:
+            lines.append("")
+            lines.append("summary:")
+            parts = [f"{k}: {v}" for k, v in sorted(summary.items())]
+            lines.append("  " + ", ".join(parts))
         lines.append("")
         lines.append("timeline:")
         for entry in report.timeline:
             at = entry.get("at", "")
             label = entry.get("label", "")
             lines.append(f"  {at} {label}")
+            pid = entry.get("pid")
+            parent_name = entry.get("parent_process_name")
+            process_name = entry.get("process_name")
+            if pid is not None or parent_name is not None or process_name is not None:
+                parts = []
+                if pid is not None:
+                    parts.append(f"pid={pid}")
+                if parent_name is not None:
+                    parts.append(f"parent={parent_name}")
+                if process_name is not None:
+                    parts.append(f"process={process_name}")
+                if parts:
+                    lines.append("           " + " ".join(parts))
     return "\n".join(lines)

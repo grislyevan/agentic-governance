@@ -172,9 +172,16 @@ def aggregate_events_into_sessions(
 
         all_signals: set[str] = set()
         session_timeline: list[SessionTimelineEntry] | None = None
+        timeline_summary: dict[str, int] | None = None
         for _t, _tn, _e, payload in group:
             for s in risk_signals_from_payload(payload):
                 all_signals.add(s)
+            if isinstance(payload, dict):
+                raw_summary = payload.get("timeline_summary")
+                if isinstance(raw_summary, dict) and all(
+                    isinstance(k, str) and isinstance(v, int) for k, v in raw_summary.items()
+                ):
+                    timeline_summary = raw_summary
             raw_timeline = payload.get("session_timeline") if isinstance(payload, dict) else None
             if isinstance(raw_timeline, list) and raw_timeline:
                 try:
@@ -183,6 +190,10 @@ def aggregate_events_into_sessions(
                             at=e.get("at", ""),
                             label=e.get("label", ""),
                             type=e.get("type", ""),
+                            process_name=e.get("process_name"),
+                            pid=e.get("pid"),
+                            parent_pid=e.get("parent_pid"),
+                            parent_process_name=e.get("parent_process_name"),
                         )
                         for e in raw_timeline
                         if isinstance(e, dict)
@@ -203,6 +214,7 @@ def aggregate_events_into_sessions(
                 actions_note="N/A: aggregated from detection events only",
                 risk_signals=sorted(all_signals),
                 session_timeline=session_timeline,
+                timeline_summary=timeline_summary,
             )
         )
 

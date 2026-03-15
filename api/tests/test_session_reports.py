@@ -121,3 +121,41 @@ def test_session_report_includes_timeline_when_in_payload(client):
     assert timeline[0]["at"] == "13:04:02" and timeline[0]["label"] == "LLM request"
     assert timeline[1]["label"] == "bash npm install"
     assert timeline[2]["label"] == "write package.json"
+
+
+def test_session_report_timeline_process_attribution_and_summary(client):
+    """Session report includes process_name, pid, parent_pid and timeline_summary when in payload."""
+    headers = _auth(client)
+    base = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    body = {
+        "event_id": "timeline-enrich-ev-1",
+        "event_type": "detection.observed",
+        "event_version": "1.0",
+        "observed_at": base,
+        "tool": {"name": "TimelineEnrichTool", "class": "C", "version": "0.1"},
+        "action": {"type": "exec", "risk_class": "R2", "summary": "Tool detected"},
+        "endpoint": {"id": "ep-enrich", "hostname": "host", "os": "Darwin"},
+        "session_timeline": [
+            {"at": "13:04:05", "label": "bash npm install", "type": "shell_exec", "pid": 4423, "parent_pid": 100, "parent_process_name": "cursor", "process_name": "bash"},
+            {"at": "13:04:14", "label": "git commit", "type": "git"},
+        ],
+        "timeline_summary": {"llm": 0, "shell_exec": 1, "file_write": 0, "git": 1},
+    }
+    r = client.post(f"{API}/events", json=body, headers=headers)
+    assert r.status_code in (200, 201)
+
+    resp = client.get(f"{API}/session-reports", headers=headers)
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    report = next(
+        (s for s in items if s["tool"] == "TimelineEnrichTool" and s.get("session_timeline")),
+        None,
+    )
+    assert report is not None
+    assert report.get("timeline_summary") == {"llm": 0, "shell_exec": 1, "file_write": 0, "git": 1}
+    timeline = report["session_timeline"]
+    assert len(timeline) == 2
+    assert timeline[0].get("pid") == 4423
+    assert timeline[0].get("parent_pid") == 100
+    assert timeline[0].get("parent_process_name") == "cursor"
+    assert timeline[0].get("process_name") == "bash"

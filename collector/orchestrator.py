@@ -20,7 +20,7 @@ from probe.models import TriggerContext
 
 from engine.attack_mapping import map_scan_result
 from engine.confidence import classify_confidence, compute_confidence
-from engine.session_timeline import build_session_timeline
+from engine.session_timeline import build_session_timeline, timeline_summary_from_entries
 from providers import get_best_provider
 from telemetry.event_store import EventStore
 from engine.container import is_containerized as check_containerized
@@ -183,7 +183,8 @@ def build_event(
     enforcement: EnforcementResult | None = None,
     correlation_context: list[str] | None = None,
     trigger_context: TriggerContext | None = None,
-    session_timeline: list[dict[str, str]] | None = None,
+    session_timeline: list[dict[str, Any]] | None = None,
+    timeline_summary: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     """Construct a canonical event dict conforming to the JSON Schema."""
     now = datetime.now(timezone.utc).isoformat()
@@ -302,6 +303,8 @@ def build_event(
 
     if session_timeline:
         event["session_timeline"] = session_timeline
+    if timeline_summary:
+        event["timeline_summary"] = timeline_summary
 
     return event
 
@@ -457,7 +460,7 @@ def _process_detection(
     correlation_context: list[str] | None = None,
     scan_summary: dict[str, list[dict[str, Any]]] | None = None,
     trigger_context: TriggerContext | None = None,
-    session_timeline: list[dict[str, str]] | None = None,
+    session_timeline: list[dict[str, Any]] | None = None,
 ) -> int:
     """Score, evaluate policy, enforce, and emit events for one detection."""
     events_emitted = 0
@@ -524,6 +527,9 @@ def _process_detection(
         if scan.evasion_boost > 0:
             print(f"  Evasion boost: +{scan.evasion_boost:.2f}")
 
+    timeline_summary = (
+        timeline_summary_from_entries(session_timeline) if session_timeline else None
+    )
     detection_event = build_event(
         event_type="detection.observed",
         endpoint_id=endpoint_id,
@@ -536,6 +542,7 @@ def _process_detection(
         correlation_context=correlation_context,
         trigger_context=trigger_context,
         session_timeline=session_timeline,
+        timeline_summary=timeline_summary,
     )
 
     if verbose:

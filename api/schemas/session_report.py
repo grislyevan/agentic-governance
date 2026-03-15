@@ -22,7 +22,13 @@ class SessionTimelineEntry(BaseModel):
 
     at: str = Field(description="Time (e.g. HH:MM:SS)")
     label: str = Field(description="Short human-readable action label")
-    type: str = Field(description="Entry type: llm, shell_exec, file_write, file_delete, network, etc.")
+    type: str = Field(
+        description="Entry type: llm, shell_exec, file_write, file_delete, network, git, sequence_start, sequence_end, etc."
+    )
+    process_name: str | None = Field(default=None, description="Process name (basename) when available")
+    pid: int | None = Field(default=None, description="Process ID when available")
+    parent_pid: int | None = Field(default=None, description="Parent process ID when available")
+    parent_process_name: str | None = Field(default=None, description="Parent process name for display")
 
 
 class SessionReport(BaseModel):
@@ -47,6 +53,10 @@ class SessionReport(BaseModel):
     session_timeline: list[SessionTimelineEntry] | None = Field(
         default=None,
         description="Ordered timeline of actions (at, label, type) when available from collector",
+    )
+    timeline_summary: dict[str, int] | None = Field(
+        default=None,
+        description="Counts by entry type (e.g. llm, shell_exec, file_write, git) when available",
     )
 
 
@@ -98,9 +108,24 @@ def session_report_to_display(report: SessionReport) -> str:
         lines.append("top behavior chains:")
         for chain in report.top_behavior_chains:
             lines.append(f"- {chain}")
+    if report.timeline_summary:
+        lines.append("")
+        lines.append("summary:")
+        parts = [f"{k}: {v}" for k, v in sorted(report.timeline_summary.items())]
+        lines.append("  " + ", ".join(parts))
     if report.session_timeline:
         lines.append("")
         lines.append("timeline:")
         for entry in report.session_timeline:
             lines.append(f"  {entry.at} {entry.label}")
+            if entry.pid is not None or entry.parent_process_name is not None or entry.process_name is not None:
+                parts = []
+                if entry.pid is not None:
+                    parts.append(f"pid={entry.pid}")
+                if entry.parent_process_name is not None:
+                    parts.append(f"parent={entry.parent_process_name}")
+                if entry.process_name is not None:
+                    parts.append(f"process={entry.process_name}")
+                if parts:
+                    lines.append("           " + " ".join(parts))
     return "\n".join(lines)

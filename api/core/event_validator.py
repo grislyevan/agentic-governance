@@ -32,7 +32,7 @@ _ALLOWED_TOP_LEVEL_KEYS = frozenset({
     "policy", "approval", "exception", "evidence",
     "enforcement", "outcome", "severity", "posture",
     "mitre_attack", "correlation_context", "telemetry_providers",
-    "session_timeline",
+    "session_timeline", "timeline_summary",
     "_signature", "_key_fingerprint",
     "signature", "key_fingerprint",
 })
@@ -94,6 +94,18 @@ def validate_event_payload(data: dict[str, Any]) -> list[str]:
             errors.append("session_timeline must be an array")
         elif len(session_timeline) > 200:
             errors.append("session_timeline exceeds max length of 200")
+
+    timeline_summary = data.get("timeline_summary")
+    if timeline_summary is not None:
+        if not isinstance(timeline_summary, dict):
+            errors.append("timeline_summary must be an object")
+        elif len(timeline_summary) > 50:
+            errors.append("timeline_summary exceeds max keys of 50")
+        else:
+            for k, v in timeline_summary.items():
+                if not isinstance(k, str) or not isinstance(v, int) or v < 0:
+                    errors.append("timeline_summary must be object of string keys to non-negative integers")
+                    break
 
     enforcement = data.get("enforcement")
     if isinstance(enforcement, dict):
