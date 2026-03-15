@@ -31,6 +31,11 @@ class SessionReport(BaseModel):
         description="e.g. 'N/A: aggregated from detection events only'",
     )
     risk_signals: list[str] = Field(default_factory=list, description="Human-readable risk labels")
+    first_trigger_type: str | None = Field(default=None, description="Trigger that initiated scan when alert-triggered")
+    trigger_source: str | None = Field(default=None, description="Telemetry source for trigger (polling, native, mixed)")
+    alert_triggered_scans: int | None = Field(default=None, description="Number of alert-triggered scans in session")
+    suppressed_triggers: int | None = Field(default=None, description="Suppressed duplicate triggers in window")
+    top_behavior_chains: list[str] | None = Field(default=None, description="Derived behavior chains e.g. llm_call -> shell_exec")
 
 
 class SessionReportListResponse(BaseModel):
@@ -67,4 +72,18 @@ def session_report_to_display(report: SessionReport) -> str:
             lines.append(f"- {sig}")
     else:
         lines.append("- (none)")
+    if report.first_trigger_type or report.trigger_source:
+        lines.append("")
+        lines.append("trigger:")
+        if report.first_trigger_type:
+            lines.append(f"- type: {report.first_trigger_type}")
+        if report.trigger_source:
+            lines.append(f"- source: {report.trigger_source}")
+        if report.suppressed_triggers is not None:
+            lines.append(f"- suppressed: {report.suppressed_triggers}")
+    if report.top_behavior_chains:
+        lines.append("")
+        lines.append("top behavior chains:")
+        for chain in report.top_behavior_chains:
+            lines.append(f"- {chain}")
     return "\n".join(lines)

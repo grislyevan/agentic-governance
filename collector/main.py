@@ -23,7 +23,12 @@ from pathlib import Path
 from typing import Any
 
 # Path bootstrap: collector/__init__.py (runs when package is loaded via python -m collector.main or detec-agent)
-from config_loader import argparse_defaults, save_server_interval
+from config_loader import (
+    SENTINEL_DEFAULTS,
+    argparse_defaults,
+    load_collector_config,
+    save_server_interval,
+)
 from enforcement.cleanup import cleanup_orphaned_rules
 from enforcement.posture import PostureManager
 from enforcement.enforcer import Enforcer
@@ -413,10 +418,21 @@ def main() -> None:
         default="auto",
         help="Telemetry provider preference (default: auto)",
     )
+    parser.add_argument(
+        "--sentinel",
+        action="store_true",
+        dest="sentinel_enabled",
+        help="Enable adaptive sentinel (probe) mode",
+    )
 
     parser.set_defaults(**argparse_defaults())
 
     args = parser.parse_args()
+
+    full_cfg = load_collector_config()
+    args.sentinel = full_cfg.get("sentinel", SENTINEL_DEFAULTS)
+    if getattr(args, "sentinel_enabled", False):
+        args.sentinel = {**args.sentinel, "enabled": True}
 
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.WARNING,

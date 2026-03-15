@@ -80,6 +80,7 @@
     "severity": { "$ref": "#/$defs/severity" },
     "mitre_attack": { "$ref": "#/$defs/mitre_attack" },
     "correlation_context": { "$ref": "#/$defs/correlation_context" },
+    "trigger_context": { "$ref": "#/$defs/trigger_context" },
     "telemetry_providers": {
       "type": "array",
       "items": {
@@ -775,6 +776,24 @@
         }
       },
       "required": ["multi_agent", "related_tool_names"],
+      "additionalProperties": false
+    },
+
+    "trigger_context": {
+      "type": "object",
+      "description": "Optional context for why a scan was requested (scheduled, alert, manual) and probe/sentinel metadata.",
+      "properties": {
+        "scan_reason": { "type": "string", "enum": ["scheduled", "alert", "manual"] },
+        "trigger_type": { "type": "string" },
+        "trigger_source": { "type": "string", "enum": ["polling", "native", "mixed"] },
+        "trigger_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "trigger_signals": { "type": "array", "items": { "type": "string" } },
+        "trigger_time": { "type": "string", "format": "date-time" },
+        "probe_window_seconds": { "type": "integer", "minimum": 0 },
+        "cooldown_applied": { "type": "boolean" },
+        "suppressed_duplicates": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["scan_reason", "trigger_type", "trigger_source", "trigger_confidence", "trigger_signals", "trigger_time", "probe_window_seconds", "cooldown_applied"],
       "additionalProperties": false
     }
   }

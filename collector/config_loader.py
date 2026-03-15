@@ -68,6 +68,34 @@ ENV_MAP: dict[str, str] = {
     "auto_enforce_threshold": f"{ENV_PREFIX}AUTO_ENFORCE_THRESHOLD",
 }
 
+SENTINEL_DEFAULTS: dict[str, Any] = {
+    "enabled": False,
+    "probe_interval_ms": 1000,
+    "lookback_seconds": 30,
+    "observation_window_seconds": 120,
+    "trigger_cooldown_seconds": 10,
+    "max_alert_scans_per_minute": 4,
+    "max_elevations_per_5_minutes": 10,
+    "require_corroboration": True,
+    "weak_trigger_min_signals": 1,
+    "moderate_trigger_min_signals": 2,
+    "strong_trigger_min_signals": 3,
+}
+
+SENTINEL_ENV_MAP: dict[str, str] = {
+    "enabled": f"{ENV_PREFIX}SENTINEL_ENABLED",
+    "probe_interval_ms": f"{ENV_PREFIX}SENTINEL_PROBE_INTERVAL_MS",
+    "lookback_seconds": f"{ENV_PREFIX}SENTINEL_LOOKBACK_SECONDS",
+    "observation_window_seconds": f"{ENV_PREFIX}SENTINEL_OBSERVATION_WINDOW_SECONDS",
+    "trigger_cooldown_seconds": f"{ENV_PREFIX}SENTINEL_TRIGGER_COOLDOWN_SECONDS",
+    "max_alert_scans_per_minute": f"{ENV_PREFIX}SENTINEL_MAX_ALERT_SCANS_PER_MINUTE",
+    "max_elevations_per_5_minutes": f"{ENV_PREFIX}SENTINEL_MAX_ELEVATIONS_PER_5_MINUTES",
+    "require_corroboration": f"{ENV_PREFIX}SENTINEL_REQUIRE_CORROBORATION",
+    "weak_trigger_min_signals": f"{ENV_PREFIX}SENTINEL_WEAK_TRIGGER_MIN_SIGNALS",
+    "moderate_trigger_min_signals": f"{ENV_PREFIX}SENTINEL_MODERATE_TRIGGER_MIN_SIGNALS",
+    "strong_trigger_min_signals": f"{ENV_PREFIX}SENTINEL_STRONG_TRIGGER_MIN_SIGNALS",
+}
+
 CODE_DEFAULTS: dict[str, Any] = {
     "output": "./scan-results.ndjson",
     "endpoint_id": None,
@@ -86,6 +114,7 @@ CODE_DEFAULTS: dict[str, Any] = {
     "telemetry_provider": "auto",
     "enforcement_posture": "passive",
     "auto_enforce_threshold": 0.75,
+    "sentinel": dict(SENTINEL_DEFAULTS),
 }
 
 
@@ -275,6 +304,28 @@ def load_collector_config(config_path: Path | None = None) -> dict[str, Any]:
     for k, v in file_cfg.items():
         if k in merged and v is not None:
             merged[k] = v
+        if k == "sentinel" and isinstance(v, dict):
+            merged["sentinel"] = {**merged.get("sentinel", SENTINEL_DEFAULTS), **v}
+
+    # Sentinel env overrides
+    sentinel = dict(merged.get("sentinel", SENTINEL_DEFAULTS))
+    for key, env_var in SENTINEL_ENV_MAP.items():
+        raw = os.environ.get(env_var)
+        if raw is None:
+            continue
+        if key == "enabled":
+            sentinel[key] = _parse_bool(raw)
+        elif key in ("probe_interval_ms", "lookback_seconds", "observation_window_seconds",
+                     "trigger_cooldown_seconds", "max_alert_scans_per_minute",
+                     "max_elevations_per_5_minutes", "weak_trigger_min_signals",
+                     "moderate_trigger_min_signals", "strong_trigger_min_signals"):
+            try:
+                sentinel[key] = int(raw)
+            except ValueError:
+                logger.warning("Ignoring non-integer value for %s: %s", env_var, repr(raw))
+        elif key == "require_corroboration":
+            sentinel[key] = _parse_bool(raw)
+    merged["sentinel"] = sentinel
 
     # Server-pushed interval (persisted from last heartbeat) overrides file default.
     state = load_server_interval_state()

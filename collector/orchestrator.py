@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Union
 
+from probe.models import TriggerContext
+
 from engine.attack_mapping import map_scan_result
 from engine.confidence import classify_confidence, compute_confidence
 from providers import get_best_provider
@@ -151,6 +153,21 @@ def _build_network_context(
     )
 
 
+def _trigger_context_to_dict(ctx: TriggerContext) -> dict[str, Any]:
+    """Serialize TriggerContext for event payload."""
+    return {
+        "scan_reason": ctx.scan_reason,
+        "trigger_type": ctx.trigger_type,
+        "trigger_source": ctx.trigger_source,
+        "trigger_confidence": ctx.trigger_confidence,
+        "trigger_signals": list(ctx.trigger_signals),
+        "trigger_time": ctx.trigger_time.isoformat(),
+        "probe_window_seconds": ctx.probe_window_seconds,
+        "cooldown_applied": ctx.cooldown_applied,
+        "suppressed_duplicates": ctx.suppressed_duplicates,
+    }
+
+
 def build_event(
     event_type: str,
     endpoint_id: str,
@@ -164,6 +181,7 @@ def build_event(
     policy: PolicyDecision | None = None,
     enforcement: EnforcementResult | None = None,
     correlation_context: list[str] | None = None,
+    trigger_context: TriggerContext | None = None,
 ) -> dict[str, Any]:
     """Construct a canonical event dict conforming to the JSON Schema."""
     now = datetime.now(timezone.utc).isoformat()
@@ -272,6 +290,9 @@ def build_event(
             "multi_agent": True,
             "related_tool_names": correlation_context,
         }
+
+    if trigger_context is not None:
+        event["trigger_context"] = _trigger_context_to_dict(trigger_context)
 
     techniques = map_scan_result(scan)
     if techniques:
@@ -430,6 +451,7 @@ def _process_detection(
     verbose: bool,
     correlation_context: list[str] | None = None,
     scan_summary: dict[str, list[dict[str, Any]]] | None = None,
+    trigger_context: TriggerContext | None = None,
 ) -> int:
     """Score, evaluate policy, enforce, and emit events for one detection."""
     events_emitted = 0
@@ -506,6 +528,7 @@ def _process_detection(
         confidence=confidence,
         sensitivity=sensitivity,
         correlation_context=correlation_context,
+        trigger_context=trigger_context,
     )
 
     if verbose:
@@ -537,6 +560,7 @@ def _process_detection(
         parent_event_id=detection_event["event_id"],
         policy=policy_decision,
         correlation_context=correlation_context,
+        trigger_context=trigger_context,
     )
 
     if verbose:
@@ -581,6 +605,7 @@ def _process_detection(
             parent_event_id=policy_event["event_id"],
             policy=policy_decision,
             enforcement=enf_result,
+            trigger_context=trigger_context,
         )
         if verbose:
             print(f"  Emitting {event_type} event...")
@@ -602,6 +627,7 @@ def _emit_cleared_events(
     sensitivity: str,
     emitter: AnyEmitter,
     verbose: bool,
+    trigger_context: TriggerContext | None = None,
 ) -> int:
     """Emit detection.cleared for tools that vanished since the last cycle."""
     events_emitted = 0
@@ -626,6 +652,7 @@ def _emit_cleared_events(
             scan=cleared_scan,
             confidence=0.0,
             sensitivity=sensitivity,
+            trigger_context=trigger_context,
         )
         if emitter.emit(cleared_event):
             events_emitted += 1
@@ -688,9 +715,36 @@ def run_scan(
     on_alert = getattr(args, "_on_alert", None)
     event_store = EventStore(on_alert=on_alert)
     provider = get_best_provider(getattr(args, "telemetry_provider", "auto"))
-    telemetry_fidelity: str | None = None  # "degraded (polling fallback)" when we fell back
+    sentinel = getattr(args, "sentinel", None) or {}
+    trigger_context: TriggerContext | None = getattr(args, "_pending_trigger_context", None)
+    if hasattr(args, "_pending_trigger_context"):
+        setattr(args, "_pending_trigger_context", None)
+
+    telemetry_fidelity: str | None = None
     try:
-        provider.start(event_store)
+        if sentinel.get("enabled") and provider.name == "polling":
+            from probe.engine import ProbeEngine
+            probe_engine = ProbeEngine(
+                endpoint_id=endpoint_id,
+                probe_window_seconds=sentinel.get("observation_window_seconds", 120),
+                cooldown_seconds=sentinel.get("trigger_cooldown_seconds", 10),
+                max_alert_scans_per_minute=sentinel.get("max_alert_scans_per_minute", 4),
+                max_elevations_per_5_minutes=sentinel.get("max_elevations_per_5_minutes", 10),
+                on_request_scan=lambda ctx: (
+                    setattr(args, "_pending_trigger_context", ctx),
+                    (on_alert(ctx) if on_alert else None),
+                )[1],
+            )
+            try:
+                provider.start(
+                    event_store,
+                    sink=probe_engine,
+                    probe_interval_ms=sentinel.get("probe_interval_ms", 1000),
+                )
+            except TypeError:
+                provider.start(event_store)
+        else:
+            provider.start(event_store)
     except Exception as e:
         if provider.name != "polling":
             logger.debug(
@@ -854,6 +908,7 @@ def run_scan(
             verbose=args.verbose,
             correlation_context=related if related else None,
             scan_summary=scan_summary,
+            trigger_context=trigger_context,
         )
 
     if state_differ is not None:
@@ -868,6 +923,7 @@ def run_scan(
             sensitivity=sensitivity,
             emitter=emitter,
             verbose=args.verbose,
+            trigger_context=trigger_context,
         )
 
     provider.stop()

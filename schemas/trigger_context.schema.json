@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agentic-governance.internal/trigger-context/v0.1.0",
+  "title": "Trigger Context",
+  "description": "Context for why a scan was requested (scheduled, alert, manual) and probe/sentinel metadata.",
+  "type": "object",
+  "properties": {
+    "scan_reason": {
+      "type": "string",
+      "enum": ["scheduled", "alert", "manual"],
+      "description": "Why the scan was started."
+    },
+    "trigger_type": {
+      "type": "string",
+      "description": "Identifier of the trigger that fired (e.g. outbound_llm_endpoint, ai_tool_process_start)."
+    },
+    "trigger_source": {
+      "type": "string",
+      "enum": ["polling", "native", "mixed"],
+      "description": "Telemetry source that produced the trigger."
+    },
+    "trigger_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confidence of the trigger signal."
+    },
+    "trigger_signals": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of signal identifiers (e.g. network.llm_endpoint, process.agentic_tool)."
+    },
+    "trigger_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the trigger fired."
+    },
+    "probe_window_seconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Observation window length in seconds."
+    },
+    "cooldown_applied": {
+      "type": "boolean",
+      "description": "Whether cooldown was applied for this trigger."
+    },
+    "suppressed_duplicates": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "Number of duplicate triggers suppressed."
+    }
+  },
+  "required": [
+    "scan_reason",
+    "trigger_type",
+    "trigger_source",
+    "trigger_confidence",
+    "trigger_signals",
+    "trigger_time",
+    "probe_window_seconds",
+    "cooldown_applied"
+  ],
+  "additionalProperties": false
+}

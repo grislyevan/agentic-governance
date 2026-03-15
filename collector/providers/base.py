@@ -10,7 +10,13 @@ if TYPE_CHECKING:
 
 
 class TelemetryProvider(ABC):
-    """Interface for agent-side telemetry providers."""
+    """Interface for agent-side telemetry providers.
+
+    When sentinel mode is enabled, probe-enabled providers (e.g. PollingProvider)
+    may accept an optional sink and probe_interval_ms via start() keyword arguments
+    to run a lightweight background probe loop that emits only deltas to the sink.
+    The store is still used for full-scan cycles via poll().
+    """
 
     @property
     @abstractmethod
