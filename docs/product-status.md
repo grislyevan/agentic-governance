@@ -4,7 +4,7 @@ Maturity of capabilities. This table is the source of truth for what is availabl
 
 | Capability | Status |
 |------------|--------|
-| Core behavioral detections (DETEC-BEH-CORE-01, 02, 03) | Available |
+| Core behavioral detections (DETEC-BEH-CORE-01, 02, 03, 04) | Available |
 | Confidence scoring and calibration | Available |
 | Deterministic policy engine | Available |
 | Endpoint enforcement | Available |

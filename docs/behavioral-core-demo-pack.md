@@ -1,6 +1,6 @@
 # Detec Core Behavioral Detection Demo Pack
 
-This doc provides a single demo flow for the three core behavioral detections (DETEC-BEH-CORE-01, 02, 03). Run from repo root. Total time: under 5 minutes.
+This doc provides a single demo flow for the four core behavioral detections (DETEC-BEH-CORE-01, 02, 03, 04). Run from repo root. Total time: under 5 minutes.
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ This doc provides a single demo flow for the three core behavioral detections (D
 detec-agent --dry-run --verbose
 ```
 
-When behavioral patterns fire, the CLI shows the canonical detection name (DETEC-BEH-CORE-01, 02, or 03) in evidence and summary:
+When behavioral patterns fire, the CLI shows the canonical detection name (DETEC-BEH-CORE-01, 02, 03, or 04) in evidence and summary:
 
 - `DETECTED: Unknown Agent` and confidence
 - `action_summary` with the analyst sentence (e.g. "Autonomous shell execution pattern detected: N shell children spawned from a model-linked parent process over W seconds.")
@@ -26,6 +26,7 @@ One line per detection in security-outcome language:
 - **DETEC-BEH-CORE-01 (Autonomous shell fan-out):** Detects autonomous command execution that looks like an agent operating beyond normal interactive developer behavior.
 - **DETEC-BEH-CORE-02 (Agentic read-modify-write loop):** Detects AI-assisted code modification loops, not just AI tool presence.
 - **DETEC-BEH-CORE-03 (Sensitive access + outbound):** Detects high-risk sequences where sensitive material is accessed and followed by outbound model or network activity.
+- **DETEC-BEH-CORE-04 (Agent execution chain):** Detects the full agent loop: model call, then shell/command execution, then file or git activity, in order within a time window.
 
 ## 3. What each detection demonstrates
 
@@ -43,6 +44,11 @@ One line per detection in security-outcome language:
 
 - **What to show:** Many shell children spawned from a parent process that also has LLM activity (model-linked).
 - **Why EDR misses it:** EDR sees generic shell execution. Detec counts shells in a time window and ties the tree to LLM activity so "agent session" is explicit.
+
+### DETEC-BEH-CORE-04: Agent execution chain
+
+- **What to show:** LLM API call, then shell or interpreter execution, then file write or git add/commit, in that order within a configurable window (same process tree).
+- **Why EDR misses it:** EDR does not correlate network, process, and file by strict temporal order across layers. Detec requires t_llm <= t_shell <= t_file and uses one process tree so the "model then command then artifact" chain is explicit.
 
 ## 4. Canonical event examples
 
@@ -123,22 +129,54 @@ One minimal example per detection. Security people trust examples.
 }
 ```
 
+### DETEC-BEH-CORE-04 (agent execution chain)
+
+```json
+{
+  "event_type": "detection.observed",
+  "event_version": "0.4.0",
+  "tool": {
+    "name": "Unknown Agent",
+    "attribution_confidence": 0.52,
+    "attribution_sources": ["network", "process", "file", "behavior"]
+  },
+  "action": {
+    "type": "exec",
+    "risk_class": "R2",
+    "summary": "AI-driven command execution chain detected: LLM API call: api.anthropic.com:443; shell execution: bash; file write detected in 10.0 seconds.",
+    "raw_ref": "evidence://collector-scan/Unknown%20Agent/sess-04"
+  },
+  "policy": {
+    "decision_state": "warn",
+    "rule_id": "ENFORCE-002",
+    "reason_codes": ["medium_confidence", "class_c_tool"]
+  }
+}
+```
+
 Full event schema and optional fields (e.g. `evidence.detection_codes` when evidence is inlined): [schemas/canonical-event-schema.json](../schemas/canonical-event-schema.json). Policy mapping: [behavioral-core-policy-mapping.md](behavioral-core-policy-mapping.md).
 
 ## 5. Replay tests as demo evidence
 
-To prove the three detections fire on known scenarios:
+To prove the core detections fire on known scenarios:
 
 ```bash
 pytest collector/tests/test_behavioral_core_detections.py -v
 ```
 
-This runs event-level fixtures for positive, false-positive, and ambiguous cases per detection. Use this in demos to show "we assert detection and evidence shape for each core behavior." All behavioral, calibration, enforcement e2e, and confidence tests pass; that proves the detections are tested, the confidence model is calibrated, the policy layer is connected, and the system is not ad hoc heuristics.
+This runs event-level fixtures for DETEC-BEH-CORE-01, 02, and 03 (positive, false-positive, ambiguous). DETEC-BEH-CORE-04 is covered by `test_behavioral_scanner.py` (TestBEH009AgentExecutionChain and the full-scanner detection_code test):
+
+```bash
+pytest collector/tests/test_behavioral_scanner.py::TestBEH009AgentExecutionChain -v
+pytest collector/tests/test_behavioral_scanner.py -k "beh009 or detection_code" -v
+```
+
+Use these in demos to show "we assert detection and evidence shape for each core behavior." All behavioral, calibration, enforcement e2e, and confidence tests pass; that proves the detections are tested, the confidence model is calibrated, the policy layer is connected, and the system is not ad hoc heuristics.
 
 ## 6. Specs and config
 
 - Detection specs: [project-specs/detec-beh-core-01-spec.md](../project-specs/detec-beh-core-01-spec.md), [detec-beh-core-02-spec.md](../project-specs/detec-beh-core-02-spec.md), [detec-beh-core-03-spec.md](../project-specs/detec-beh-core-03-spec.md).
-- Thresholds: [collector/config/behavioral.json](../collector/config/behavioral.json) (pattern config for DETEC-BEH-CORE-01/02/03).
+- Thresholds: [collector/config/behavioral.json](../collector/config/behavioral.json) (pattern config for DETEC-BEH-CORE-01/02/03/04).
 
 ## 7. Polished demo artifacts (60 seconds each)
 
@@ -149,3 +187,4 @@ One demo per core detection with command, detection output, evidence summary, an
 | DETEC-BEH-CORE-01 | [docs/demo-proof/DETEC-BEH-CORE-01-demo.md](demo-proof/DETEC-BEH-CORE-01-demo.md) |
 | DETEC-BEH-CORE-02 | [docs/demo-proof/DETEC-BEH-CORE-02-demo.md](demo-proof/DETEC-BEH-CORE-02-demo.md) |
 | DETEC-BEH-CORE-03 | [docs/demo-proof/DETEC-BEH-CORE-03-demo.md](demo-proof/DETEC-BEH-CORE-03-demo.md) |
+| DETEC-BEH-CORE-04 | [docs/demo-proof/DETEC-BEH-CORE-04-demo.md](demo-proof/DETEC-BEH-CORE-04-demo.md) |

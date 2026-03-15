@@ -1,4 +1,4 @@
-"""Event-level fixtures for DETEC-BEH-CORE-01/02/03 replay tests.
+"""Event-level fixtures for DETEC-BEH-CORE-01/02/03/04 replay tests.
 
 Each helper returns an EventStore seeded with process/network/file events
 for a specific scenario (positive, false_positive, ambiguous, renamed).
@@ -397,4 +397,32 @@ def seed_credential_outbound_unknown_dest() -> EventStore:
             timestamp=base + timedelta(seconds=70 + i * 2), path=f"/home/u/d{i % 3}/z{i}.py",
             action="modified", pid=12000, process_name="python3", source="polling",
         ))
+    return store
+
+
+# ---------------------------------------------------------------------------
+# DETEC-BEH-CORE-04: Agent Execution Chain (BEH-009)
+# ---------------------------------------------------------------------------
+
+def seed_execution_chain_positive() -> EventStore:
+    """Clean positive: LLM call then shell then file write within window (BEH-009)."""
+    store = _store()
+    base = _base_time()
+    store.push_process(ProcessExecEvent(
+        timestamp=base, pid=6000, ppid=0,
+        name="python3", cmdline="python3 agent.py", source="polling",
+    ))
+    store.push_process(ProcessExecEvent(
+        timestamp=base + timedelta(seconds=5), pid=6001, ppid=6000,
+        name="bash", cmdline="bash", source="polling",
+    ))
+    store.push_network(NetworkConnectEvent(
+        timestamp=base, pid=6000, process_name="python3",
+        remote_addr="api.anthropic.com", remote_port=443, local_port=5000,
+        protocol="tcp", sni="api.anthropic.com", source="polling",
+    ))
+    store.push_file(FileChangeEvent(
+        timestamp=base + timedelta(seconds=10), path="/tmp/out.txt",
+        action="modified", pid=6000, process_name="python3", source="polling",
+    ))
     return store

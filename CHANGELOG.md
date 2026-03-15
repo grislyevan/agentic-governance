@@ -15,8 +15,9 @@ Sprint 01: Trust and repo clarity. Introduces canonical behavioral detections an
 - **DETEC-BEH-CORE-01** — Autonomous shell fan-out from AI agents.
 - **DETEC-BEH-CORE-02** — Agentic read-modify-write coding loops.
 - **DETEC-BEH-CORE-03** — Sensitive credential/config access followed by outbound activity.
+- **DETEC-BEH-CORE-04** — Agent execution chain (LLM then shell then file/git within a window).
 
-Demo artifacts: [Behavioral demo pack](docs/behavioral-core-demo-pack.md), [Demo proof index](docs/demo-proof/README.md) (DETEC-BEH-CORE-01/02/03 demos).
+Demo artifacts: [Behavioral demo pack](docs/behavioral-core-demo-pack.md), [Demo proof index](docs/demo-proof/README.md) (DETEC-BEH-CORE-01/02/03/04 demos).
 
 ### Sprint 01 deliverables
 

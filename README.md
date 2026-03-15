@@ -7,6 +7,7 @@ It identifies behavioral patterns that traditional EDR and simple AI-tool invent
 - autonomous shell execution
 - AI-assisted read-modify-write coding loops
 - sensitive credential/config access followed by outbound activity
+- agent execution chain (LLM then shell then file/git within a window)
 
 See the behavioral demo pack:
 
@@ -25,11 +26,15 @@ Detects AI-assisted code modification loops, not just the presence of AI coding 
 ### DETEC-BEH-CORE-03 — Sensitive Access Followed by Outbound Activity
 Detects sequences where sensitive configuration or credential files are accessed and followed by outbound model or network activity.
 
+### DETEC-BEH-CORE-04 — Agent Execution Chain
+Detects the canonical agent loop: LLM API call, then shell/interpreter execution, then file write or git activity, within a time window.
+
 Demo artifacts:
 
 - [DETEC-BEH-CORE-01 demo](docs/demo-proof/DETEC-BEH-CORE-01-demo.md)
 - [DETEC-BEH-CORE-02 demo](docs/demo-proof/DETEC-BEH-CORE-02-demo.md)
 - [DETEC-BEH-CORE-03 demo](docs/demo-proof/DETEC-BEH-CORE-03-demo.md)
+- [DETEC-BEH-CORE-04 demo](docs/demo-proof/DETEC-BEH-CORE-04-demo.md)
 
 ---
 

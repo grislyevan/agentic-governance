@@ -26,7 +26,7 @@ flowchart LR
 ```
 
 1. **Endpoint agent** collects telemetry (process, file, network) and runs named scanners plus behavioral detection.
-2. **Detection engine** produces tool attribution and confidence; behavioral patterns (DETEC-BEH-CORE-01/02/03) run over the same telemetry.
+2. **Detection engine** produces tool attribution and confidence; behavioral patterns (DETEC-BEH-CORE-01 through 04) run over the same telemetry.
 3. **Policy engine** evaluates rules and produces a deterministic decision (detect, warn, approval_required, block).
 4. **Enforcement** applies the decision (local or delegated to EDR/MDM when configured).
 5. **API** ingests events and heartbeats, stores policy and config, and serves the dashboard.
