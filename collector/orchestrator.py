@@ -329,6 +329,32 @@ def _collect_scan_results(
     return detected, detected_names, failures
 
 
+# Minimum confidence below which we suppress emission (signal credibility).
+# Rationale: extremely low confidence is typically identity-only or artifact-only;
+# emitting full detection/policy events for these reduces trust. See
+# project-docs/detec-signal-credibility-architecture.md.
+EMISSION_MIN_CONFIDENCE = 0.20
+
+# Maximum confidence at which we still suppress when summary says "no signals."
+# Avoids emitting the confusing case: "No X signals detected" with medium confidence.
+EMISSION_NO_SIGNALS_MAX_CONFIDENCE = 0.45
+
+
+def _no_signals_summary(scan: ScanResult) -> bool:
+    """True when action_summary indicates no real signals (e.g. 'No X signals detected')."""
+    summary = (scan.action_summary or "").strip().lower()
+    return "no " in summary and " signals detected" in summary
+
+
+def _should_suppress_emission(scan: ScanResult, confidence: float) -> bool:
+    """True when this scan should not emit detection/policy events (credibility gating)."""
+    if confidence < EMISSION_MIN_CONFIDENCE:
+        return True
+    if _no_signals_summary(scan) and confidence < EMISSION_NO_SIGNALS_MAX_CONFIDENCE:
+        return True
+    return False
+
+
 def _process_detection(
     scan: ScanResult,
     *,
@@ -349,6 +375,11 @@ def _process_detection(
 
     confidence = compute_confidence(scan)
     conf_class = classify_confidence(confidence)
+
+    if _should_suppress_emission(scan, confidence):
+        if verbose:
+            print(f"  {scan.tool_name}: suppressed (credibility gate: confidence={confidence:.4f})")
+        return 0
 
     pids = _extract_pids(scan)
     containerized = check_containerized(next(iter(pids))) if pids else None

@@ -227,6 +227,89 @@ class TestProcessDetection(unittest.TestCase):
         self.assertEqual(events[0]["event_type"], "detection.observed")
         self.assertEqual(events[1]["event_type"], "policy.evaluated")
 
+    def test_weak_scan_suppressed_by_credibility_gate(self) -> None:
+        """Very low confidence (e.g. identity-only) is suppressed; no events emitted."""
+        weak_scan = ScanResult(
+            detected=True,
+            tool_name="WeakTool",
+            tool_class="A",
+            signals=LayerSignals(
+                process=0.0, file=0.0, network=0.0, identity=0.4, behavior=0.0
+            ),
+            action_summary="No WeakTool signals detected",
+            action_type="observe",
+            action_risk="R1",
+        )
+        emitter = MagicMock()
+        emitter.emit.return_value = True
+        count = _process_detection(
+            weak_scan,
+            sensitivity="Tier0",
+            endpoint_id="EP-01",
+            actor_id="user@test",
+            session_id="sess",
+            trace_id="trace",
+            emitter=emitter,
+            enforcer=None,
+            state_differ=None,
+            verbose=False,
+        )
+        self.assertEqual(count, 0)
+        emitter.emit.assert_not_called()
+
+    def test_no_signals_summary_with_low_confidence_suppressed(self) -> None:
+        """Summary 'No X signals detected' with confidence below gate is suppressed."""
+        scan = ScanResult(
+            detected=True,
+            tool_name="NoiseTool",
+            tool_class="B",
+            signals=LayerSignals(
+                process=0.0, file=0.1, network=0.0, identity=0.3, behavior=0.0
+            ),
+            action_summary="No NoiseTool signals detected",
+            action_type="observe",
+            action_risk="R1",
+        )
+        emitter = MagicMock()
+        emitter.emit.return_value = True
+        count = _process_detection(
+            scan,
+            sensitivity="Tier0",
+            endpoint_id="EP-01",
+            actor_id="user@test",
+            session_id="sess",
+            trace_id="trace",
+            emitter=emitter,
+            enforcer=None,
+            state_differ=None,
+            verbose=False,
+        )
+        self.assertEqual(count, 0)
+        emitter.emit.assert_not_called()
+
+    def test_strong_scan_still_emits_despite_credibility_gate(self) -> None:
+        """High confidence and real summary still produce detection and policy events."""
+        strong_scan = _make_scan("StrongTool", process=0.9, file=0.7)
+        strong_scan.action_summary = "StrongTool CLI process and config detected"
+        emitter = MagicMock()
+        emitter.emit.return_value = True
+        count = _process_detection(
+            strong_scan,
+            sensitivity="Tier0",
+            endpoint_id="EP-01",
+            actor_id="user@test",
+            session_id="sess",
+            trace_id="trace",
+            emitter=emitter,
+            enforcer=None,
+            state_differ=None,
+            verbose=False,
+        )
+        self.assertGreaterEqual(count, 2)
+        events = self._collect_emitted(emitter)
+        self.assertEqual(events[0]["event_type"], "detection.observed")
+        self.assertEqual(events[1]["event_type"], "policy.evaluated")
+
     def test_parent_event_id_chain(self) -> None:
         """policy.evaluated must reference the detection event's ID as parent."""
         emitter = MagicMock()

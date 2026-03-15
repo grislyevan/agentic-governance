@@ -480,6 +480,72 @@ class TestRunScanMultipleDetections:
         assert tool_names == {"Claude Code", "Ollama"}
 
 
+class TestCredibilityGating:
+    """Weak (low-confidence or no-signals) detections are suppressed; strong ones still emit."""
+
+    def test_weak_and_strong_only_strong_emits(self):
+        """One weak scan (low confidence) and one strong: only strong produces events."""
+        emitter = MockEmitter()
+        args = _make_args()
+
+        weak_scan = _make_scan_result(
+            "WeakTool", "A", True,
+            process=0.0, file=0.0, network=0.0, identity=0.4, behavior=0.0,
+        )
+        weak_scan.action_summary = "No WeakTool signals detected"
+
+        strong_scan = _make_scan_result(
+            "Claude Code", "B", True,
+            process=0.80, file=0.60, network=0.40, identity=0.30,
+        )
+
+        not_detected = ScanResult(detected=False, tool_name="x")
+        mock_provider = _mock_polling_provider()
+
+        with (
+            patch("orchestrator.get_best_provider", return_value=mock_provider),
+            patch("orchestrator.ClaudeCodeScanner") as m1,
+            patch("orchestrator.ClaudeCoworkScanner") as m_cowork,
+            patch("orchestrator.OllamaScanner") as m2,
+            patch("orchestrator.CursorScanner") as m3,
+            patch("orchestrator.CopilotScanner") as m4,
+            patch("orchestrator.OpenInterpreterScanner") as m5,
+            patch("orchestrator.OpenClawScanner") as m6,
+            patch("orchestrator.AiderScanner") as m7,
+            patch("orchestrator.LMStudioScanner") as m8,
+            patch("orchestrator.ContinueScanner") as m9,
+            patch("orchestrator.GPTPilotScanner") as m10,
+            patch("orchestrator.ClineScanner") as m11,
+            patch("orchestrator.AIExtensionScanner") as m12,
+            patch("orchestrator.BehavioralScanner") as m_beh,
+            patch("orchestrator.EvasionScanner") as m_ev,
+            patch("orchestrator.MCPScanner") as m_mcp,
+            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}),
+        ):
+            m1.return_value.tool_name = "Claude Code"
+            m1.return_value.scan.return_value = strong_scan
+            m2.return_value.tool_name = "WeakTool"
+            m2.return_value.scan.return_value = weak_scan
+            for m in [m_cowork, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
+                inst = m.return_value
+                inst.tool_name = "stub"
+                inst.scan.return_value = not_detected
+
+            m_beh.return_value.scan.return_value = not_detected
+            m_ev.return_value.scan.return_value = not_detected
+            m_mcp.return_value.scan.return_value = not_detected
+
+            rc = run_scan(args, emitter=emitter)
+
+        assert rc == 0
+        # Only strong tool (Claude Code) should emit; weak suppressed
+        assert len(emitter.events) == 2
+        detection = emitter.events[0]
+        assert detection["event_type"] == "detection.observed"
+        assert detection["tool"]["name"] == "Claude Code"
+        assert detection["tool"]["attribution_confidence"] >= 0.20
+
+
 class TestBehavioralScannerPidDedup:
     """BehavioralScanner receives PIDs from named scanners as exclude_pids."""
 

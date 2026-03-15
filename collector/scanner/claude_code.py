@@ -410,4 +410,11 @@ class ClaudeCodeScanner(BaseScanner):
         if result.evidence_details.get("oauth_profile"):
             summaries.append("OAuth identity profile found")
 
-        result.action_summary = "; ".join(summaries) if summaries else "No Claude Code signals detected"
+        if summaries:
+            result.action_summary = "; ".join(summaries)
+        elif result.signals.identity > 0:
+            result.action_summary = (
+                "Environment or artifact hint only; no running Claude Code process or strong artifact."
+            )
+        else:
+            result.action_summary = "No Claude Code signals detected"
