@@ -87,3 +87,37 @@ def test_risk_signals_from_payload(client):
     assert report is not None
     assert "repo modification" in report["risk_signals"]
     assert "credential access" in report["risk_signals"]
+
+
+def test_session_report_includes_timeline_when_in_payload(client):
+    """When detection event has session_timeline, GET session-reports returns it on the report."""
+    headers = _auth(client)
+    base = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    body = {
+        "event_id": "timeline-ev-1",
+        "event_type": "detection.observed",
+        "event_version": "1.0",
+        "observed_at": base,
+        "tool": {"name": "Cursor", "class": "C", "version": "0.1"},
+        "action": {"type": "exec", "risk_class": "R2", "summary": "Tool detected"},
+        "endpoint": {"id": "ep-timeline", "hostname": "host", "os": "Darwin"},
+        "session_timeline": [
+            {"at": "13:04:02", "label": "LLM request", "type": "llm"},
+            {"at": "13:04:05", "label": "bash npm install", "type": "shell_exec"},
+            {"at": "13:04:11", "label": "write package.json", "type": "file_write"},
+        ],
+    }
+    r = client.post(f"{API}/events", json=body, headers=headers)
+    assert r.status_code in (200, 201)
+
+    resp = client.get(f"{API}/session-reports", headers=headers)
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    report = next((s for s in items if s["tool"] == "Cursor" and s.get("session_timeline")), None)
+    assert report is not None
+    assert "session_timeline" in report
+    timeline = report["session_timeline"]
+    assert len(timeline) == 3
+    assert timeline[0]["at"] == "13:04:02" and timeline[0]["label"] == "LLM request"
+    assert timeline[1]["label"] == "bash npm install"
+    assert timeline[2]["label"] == "write package.json"

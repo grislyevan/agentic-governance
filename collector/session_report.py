@@ -61,7 +61,7 @@ def _risk_signals_from_scan(scan: "ScanResult") -> list[str]:
 
 @dataclass
 class SessionReportData:
-    """One session report: tool, duration, action counts, risk signals, optional trigger/chain data."""
+    """One session report: tool, duration, action counts, risk signals, optional trigger/chain/timeline data."""
 
     tool: str
     duration_seconds: int
@@ -78,6 +78,7 @@ class SessionReportData:
     alert_triggered_scans: int | None = None
     suppressed_triggers: int | None = None
     top_behavior_chains: list[str] | None = None
+    timeline: list[dict[str, str]] | None = None  # [{ "at", "label", "type" }, ...]
 
 
 def build_session_reports(
@@ -85,6 +86,7 @@ def build_session_reports(
     detected_scans: list["ScanResult"],
     trigger_context: Any = None,
     sequence_chains: list[str] | None = None,
+    tool_timelines: list[list[dict[str, str]]] | None = None,
 ) -> list[SessionReportData]:
     """Build one session report per detected tool from event store and scan results.
 
@@ -141,10 +143,12 @@ def build_session_reports(
         trigger_source = getattr(trigger_context, "trigger_source", None)
         suppressed_triggers = getattr(trigger_context, "suppressed_duplicates", None)
     top_chains = sequence_chains
+    timelines = tool_timelines if tool_timelines and len(tool_timelines) == len(detected_scans) else None
 
-    for scan in detected_scans:
+    for i, scan in enumerate(detected_scans):
         tool_name = scan.tool_name or "Unknown Agent"
         risk_signals = _risk_signals_from_scan(scan)
+        timeline = timelines[i] if timelines else None
         reports.append(
             SessionReportData(
                 tool=tool_name,
@@ -162,6 +166,7 @@ def build_session_reports(
                 alert_triggered_scans=None,
                 suppressed_triggers=suppressed_triggers,
                 top_behavior_chains=top_chains,
+                timeline=timeline,
             )
         )
 
@@ -183,6 +188,7 @@ def build_session_reports(
                 alert_triggered_scans=None,
                 suppressed_triggers=suppressed_triggers,
                 top_behavior_chains=top_chains,
+                timeline=None,
             )
         )
 
@@ -233,4 +239,11 @@ def format_session_report_for_cli(report: SessionReportData) -> str:
         lines.append("top behavior chains:")
         for chain in report.top_behavior_chains:
             lines.append(f"- {chain}")
+    if report.timeline:
+        lines.append("")
+        lines.append("timeline:")
+        for entry in report.timeline:
+            at = entry.get("at", "")
+            label = entry.get("label", "")
+            lines.append(f"  {at} {label}")
     return "\n".join(lines)

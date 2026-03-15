@@ -17,6 +17,14 @@ class SessionReportActions(BaseModel):
     model_calls: int | None = None
 
 
+class SessionTimelineEntry(BaseModel):
+    """One entry in a session timeline narrative."""
+
+    at: str = Field(description="Time (e.g. HH:MM:SS)")
+    label: str = Field(description="Short human-readable action label")
+    type: str = Field(description="Entry type: llm, shell_exec, file_write, file_delete, network, etc.")
+
+
 class SessionReport(BaseModel):
     """Canonical agent session report: tool, duration, action counts, risk signals."""
 
@@ -36,6 +44,10 @@ class SessionReport(BaseModel):
     alert_triggered_scans: int | None = Field(default=None, description="Number of alert-triggered scans in session")
     suppressed_triggers: int | None = Field(default=None, description="Suppressed duplicate triggers in window")
     top_behavior_chains: list[str] | None = Field(default=None, description="Derived behavior chains e.g. llm_call -> shell_exec")
+    session_timeline: list[SessionTimelineEntry] | None = Field(
+        default=None,
+        description="Ordered timeline of actions (at, label, type) when available from collector",
+    )
 
 
 class SessionReportListResponse(BaseModel):
@@ -86,4 +98,9 @@ def session_report_to_display(report: SessionReport) -> str:
         lines.append("top behavior chains:")
         for chain in report.top_behavior_chains:
             lines.append(f"- {chain}")
+    if report.session_timeline:
+        lines.append("")
+        lines.append("timeline:")
+        for entry in report.session_timeline:
+            lines.append(f"  {entry.at} {entry.label}")
     return "\n".join(lines)

@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
-from schemas.session_report import SessionReport, SessionReportActions
+from schemas.session_report import SessionReport, SessionReportActions, SessionTimelineEntry
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -171,9 +171,26 @@ def aggregate_events_into_sessions(
         ep_id = endpoint_id or group[0][2]
 
         all_signals: set[str] = set()
+        session_timeline: list[SessionTimelineEntry] | None = None
         for _t, _tn, _e, payload in group:
             for s in risk_signals_from_payload(payload):
                 all_signals.add(s)
+            raw_timeline = payload.get("session_timeline") if isinstance(payload, dict) else None
+            if isinstance(raw_timeline, list) and raw_timeline:
+                try:
+                    session_timeline = [
+                        SessionTimelineEntry(
+                            at=e.get("at", ""),
+                            label=e.get("label", ""),
+                            type=e.get("type", ""),
+                        )
+                        for e in raw_timeline
+                        if isinstance(e, dict)
+                    ]
+                    if not session_timeline:
+                        session_timeline = None
+                except Exception:
+                    session_timeline = session_timeline  # keep previous if parse fails
 
         reports.append(
             SessionReport(
@@ -185,6 +202,7 @@ def aggregate_events_into_sessions(
                 actions=SessionReportActions(),
                 actions_note="N/A: aggregated from detection events only",
                 risk_signals=sorted(all_signals),
+                session_timeline=session_timeline,
             )
         )
 

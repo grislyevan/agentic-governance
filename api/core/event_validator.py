@@ -32,6 +32,7 @@ _ALLOWED_TOP_LEVEL_KEYS = frozenset({
     "policy", "approval", "exception", "evidence",
     "enforcement", "outcome", "severity", "posture",
     "mitre_attack", "correlation_context", "telemetry_providers",
+    "session_timeline",
     "_signature", "_key_fingerprint",
     "signature", "key_fingerprint",
 })
@@ -86,6 +87,13 @@ def validate_event_payload(data: dict[str, Any]) -> list[str]:
                     errors.append("tool.attribution_confidence must be between 0 and 1")
             except (TypeError, ValueError):
                 errors.append("tool.attribution_confidence must be a number")
+
+    session_timeline = data.get("session_timeline")
+    if session_timeline is not None:
+        if not isinstance(session_timeline, list):
+            errors.append("session_timeline must be an array")
+        elif len(session_timeline) > 200:
+            errors.append("session_timeline exceeds max length of 200")
 
     enforcement = data.get("enforcement")
     if isinstance(enforcement, dict):

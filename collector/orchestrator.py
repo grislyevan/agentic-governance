@@ -20,6 +20,7 @@ from probe.models import TriggerContext
 
 from engine.attack_mapping import map_scan_result
 from engine.confidence import classify_confidence, compute_confidence
+from engine.session_timeline import build_session_timeline
 from providers import get_best_provider
 from telemetry.event_store import EventStore
 from engine.container import is_containerized as check_containerized
@@ -182,6 +183,7 @@ def build_event(
     enforcement: EnforcementResult | None = None,
     correlation_context: list[str] | None = None,
     trigger_context: TriggerContext | None = None,
+    session_timeline: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     """Construct a canonical event dict conforming to the JSON Schema."""
     now = datetime.now(timezone.utc).isoformat()
@@ -297,6 +299,9 @@ def build_event(
     techniques = map_scan_result(scan)
     if techniques:
         event["mitre_attack"] = {"techniques": techniques}
+
+    if session_timeline:
+        event["session_timeline"] = session_timeline
 
     return event
 
@@ -452,6 +457,7 @@ def _process_detection(
     correlation_context: list[str] | None = None,
     scan_summary: dict[str, list[dict[str, Any]]] | None = None,
     trigger_context: TriggerContext | None = None,
+    session_timeline: list[dict[str, str]] | None = None,
 ) -> int:
     """Score, evaluate policy, enforce, and emit events for one detection."""
     events_emitted = 0
@@ -529,6 +535,7 @@ def _process_detection(
         sensitivity=sensitivity,
         correlation_context=correlation_context,
         trigger_context=trigger_context,
+        session_timeline=session_timeline,
     )
 
     if verbose:
@@ -561,6 +568,7 @@ def _process_detection(
         policy=policy_decision,
         correlation_context=correlation_context,
         trigger_context=trigger_context,
+        session_timeline=session_timeline,
     )
 
     if verbose:
@@ -606,6 +614,7 @@ def _process_detection(
             policy=policy_decision,
             enforcement=enf_result,
             trigger_context=trigger_context,
+            session_timeline=session_timeline,
         )
         if verbose:
             print(f"  Emitting {event_type} event...")
@@ -843,12 +852,6 @@ def run_scan(
             exc_info=True,
         )
 
-    if getattr(args, "session_report", False):
-        from session_report import build_session_reports, format_session_report_for_cli
-        for report in build_session_reports(event_store, detected_scans):
-            print(format_session_report_for_cli(report))
-            print("")
-
     try:
         scheduler_by_tool = get_scheduler_evidence_by_tool()
         for scan in detected_scans:
@@ -885,6 +888,22 @@ def run_scan(
 
     correlation_map = compute_correlation(detected_scans, event_store, _extract_pids)
 
+    scan_timelines: list[list[dict[str, str]]] = []
+    for scan in detected_scans:
+        pids = _extract_pids(scan)
+        timeline = build_session_timeline(
+            event_store, scan.tool_name or "", pids, expand_tree=True
+        )
+        scan_timelines.append(timeline)
+
+    if getattr(args, "session_report", False):
+        from session_report import build_session_reports, format_session_report_for_cli
+        for report in build_session_reports(
+            event_store, detected_scans, tool_timelines=scan_timelines
+        ):
+            print(format_session_report_for_cli(report))
+            print("")
+
     scan_summary: dict[str, list[dict[str, Any]]] = {
         "high": [],
         "medium": [],
@@ -892,8 +911,9 @@ def run_scan(
         "suppressed": [],
     }
     total_events = 0
-    for scan in detected_scans:
+    for i, scan in enumerate(detected_scans):
         related = correlation_map.get(scan.tool_name or "", [])
+        session_timeline = scan_timelines[i] if i < len(scan_timelines) else None
         total_events += _process_detection(
             scan,
             sensitivity=sensitivity,
@@ -909,6 +929,7 @@ def run_scan(
             correlation_context=related if related else None,
             scan_summary=scan_summary,
             trigger_context=trigger_context,
+            session_timeline=session_timeline,
         )
 
     if state_differ is not None:
