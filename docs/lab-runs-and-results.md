@@ -90,6 +90,12 @@ Usage: Set `LAB_DIR` to override default (Cowork: `~/cowork-lab/LAB-RUN-014`; Cl
 - **Test:** `pytest collector/tests/test_calibration.py -v` replays fixtures through the confidence engine; run before changing weights (see [architecture-calibration-pipeline.md](architecture-calibration-pipeline.md)).
 - **Doc:** [architecture-calibration-pipeline.md](architecture-calibration-pipeline.md) describes lab replay harness, fixture format, and calibration discipline.
 
+### Behavioral core detections (DETEC-BEH-CORE-01/02/03)
+
+- **Event-level fixtures:** [collector/tests/fixtures/behavioral_core_fixtures.py](../collector/tests/fixtures/behavioral_core_fixtures.py) — seed functions for shell fan-out, read-modify-write loop, and sensitive access + outbound (positive, false-positive, ambiguous, renamed).
+- **Test:** `pytest collector/tests/test_behavioral_core_detections.py -v` replays event stores through BehavioralScanner and asserts pattern presence and evidence. Uses a lowered detection threshold (0.28) so fixtures that trigger the core patterns pass aggregate.
+- **Specs:** [project-specs/detec-beh-core-01-spec.md](../project-specs/detec-beh-core-01-spec.md), [detec-beh-core-02-spec.md](../project-specs/detec-beh-core-02-spec.md), [detec-beh-core-03-spec.md](../project-specs/detec-beh-core-03-spec.md).
+
 ### Init issues (backlog)
 
 - **Location:** [init-issues/](../init-issues/)
