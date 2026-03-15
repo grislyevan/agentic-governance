@@ -124,6 +124,7 @@ _SENSITIVE_PATH_FRAGMENTS: tuple[str, ...] = (
     os.sep + ".aws" + os.sep,
     os.sep + ".config" + os.sep + "gcloud",
     os.sep + ".azure" + os.sep,
+    os.sep + ".kube" + os.sep,
     "credentials",
     "secrets",
     ".netrc",
@@ -156,6 +157,12 @@ def detect_shell_fanout(
     tree: ProcessNode,
     thresholds: dict[str, Any] | None = None,
 ) -> PatternMatch:
+    """DETEC-BEH-CORE-01: Autonomous shell fan-out from a process tree.
+
+    Tree is 'model-linked' when it has LLM network activity (same tree);
+    score is boosted slightly when model-linked to favor agent sessions over
+    plain heavy terminal use.
+    """
     t = thresholds or {}
     window = t.get("shell_fanout_window_seconds", 60)
     min_children = t.get("shell_fanout_min_children", 5)
@@ -183,6 +190,18 @@ def detect_shell_fanout(
 
     score = _scale(max_in_window, min_children, 8, 12, 0.5, 0.8, 1.0)
 
+    # Model-linked: tree has LLM network activity (agent session)
+    net_events = _collect_network_events(tree)
+    model_linked = any(_is_llm_host(e) for e in net_events)
+    if model_linked:
+        score = min(1.0, score + 0.05)
+
+    sample_commands = [s.cmdline for s in shells[:10] if s.cmdline]
+    shell_timestamps = [
+        s.start_time.isoformat() for s in shells[:10]
+        if s.start_time is not None
+    ]
+
     return PatternMatch(
         pattern_id="BEH-001",
         pattern_name="Shell fan-out",
@@ -191,6 +210,9 @@ def detect_shell_fanout(
             "shell_children_in_window": max_in_window,
             "window_seconds": window,
             "shell_names": [s.name for s in shells[:10]],
+            "sample_commands": sample_commands[:10],
+            "shell_timestamps": shell_timestamps,
+            "model_linked": model_linked,
         },
         layers=["process", "behavior"],
     )
@@ -318,19 +340,24 @@ def detect_rmw_loop(
     tree: ProcessNode,
     thresholds: dict[str, Any] | None = None,
 ) -> PatternMatch:
-    """Approximate read-modify-write detection: interleaved file + network events."""
+    """DETEC-BEH-CORE-02: Interleaved file + model-related network in short cycles.
+
+    Only network events to LLM hosts or local inference count as "net" in
+    file->net->file cycles, so the loop is tied to model use.
+    """
     t = thresholds or {}
     cycle_window = t.get("rmw_loop_window_seconds", 10)
     min_cycles = t.get("rmw_loop_min_cycles", 2)
 
     file_events = _collect_file_events(tree)
-    net_events = _collect_network_events(tree)
+    all_net = _collect_network_events(tree)
+    net_events = [e for e in all_net if _is_llm_host(e)]
 
     if not file_events or not net_events:
         return PatternMatch("BEH-004", "Read-modify-write loop", 0.0,
                             layers=["file", "network", "behavior"])
 
-    # Build a timeline of (timestamp, type) tuples
+    # Build a timeline of (timestamp, type) tuples; only model-related net
     timeline: list[tuple[datetime, str]] = []
     for e in file_events:
         timeline.append((e.timestamp, "file"))
@@ -371,11 +398,26 @@ def detect_rmw_loop(
 
     score = _scale(cycles, min_cycles, 4, 6, 0.5, 0.8, 1.0)
 
+    # Evidence: affected dirs/files from file_events, model endpoint from net_events
+    affected_dirs = sorted({os.path.dirname(e.path) for e in file_events})[:15]
+    affected_files = [e.path for e in file_events[:10]]
+    model_endpoint = None
+    for e in net_events:
+        addr = e.remote_addr.split(":")[0] if ":" in e.remote_addr else e.remote_addr
+        model_endpoint = e.sni or f"{addr}:{e.remote_port}"
+        break
+
     return PatternMatch(
         pattern_id="BEH-004",
         pattern_name="Read-modify-write loop",
         score=round(score, 2),
-        evidence={"cycles_detected": cycles, "cycle_window_seconds": cycle_window},
+        evidence={
+            "cycles_detected": cycles,
+            "cycle_window_seconds": cycle_window,
+            "affected_directories": affected_dirs,
+            "affected_files": affected_files,
+            "model_endpoint": model_endpoint,
+        },
         layers=["file", "network", "behavior"],
     )
 
@@ -450,13 +492,47 @@ def _is_sensitive_path(path: str) -> bool:
     return False
 
 
+def _classify_network_destinations(
+    net_events: list[NetworkConnectEvent],
+) -> tuple[list[str], str]:
+    """Return (outbound_destinations, model_vs_unknown)."""
+    destinations: list[str] = []
+    has_model = False
+    has_unknown = False
+    seen: set[str] = set()
+    for e in net_events:
+        addr = e.remote_addr.split(":")[0] if ":" in e.remote_addr else e.remote_addr
+        dest = e.sni or f"{addr}:{e.remote_port}"
+        if dest not in seen:
+            seen.add(dest)
+            destinations.append(dest)
+        if _is_llm_host(e):
+            has_model = True
+        else:
+            has_unknown = True
+    if has_model and has_unknown:
+        classification = "both"
+    elif has_model:
+        classification = "model"
+    else:
+        classification = "unknown"
+    return (destinations, classification)
+
+
 def detect_credential_access(
     tree: ProcessNode,
     thresholds: dict[str, Any] | None = None,
 ) -> PatternMatch:
+    """DETEC-BEH-CORE-03: Sensitive path access followed by outbound activity.
+
+    Requires outbound network to occur after first sensitive file access
+    within credential_network_max_seconds_after_access (temporal ordering).
+    Classifies destinations as model vs unknown; score can increase for unknown.
+    """
     t = thresholds or {}
     min_files = t.get("credential_access_min_files", 1)
     require_network = t.get("credential_require_network", True)
+    max_seconds_after = t.get("credential_network_max_seconds_after_access", 300)
 
     file_events = _collect_file_events(tree)
     sensitive = [e for e in file_events if _is_sensitive_path(e.path)]
@@ -465,30 +541,63 @@ def detect_credential_access(
         return PatternMatch("BEH-006", "Config/credential access", 0.0,
                             layers=["file", "network", "identity"])
 
-    has_network = len(_collect_network_events(tree)) > 0
+    sensitive.sort(key=lambda e: e.timestamp)
+    first_access_time = sensitive[0].timestamp
 
+    net_events = _collect_network_events(tree)
+    # Temporal ordering: only network events after first access within window
+    qualifying_net = [
+        e for e in net_events
+        if e.timestamp >= first_access_time
+        and (e.timestamp - first_access_time).total_seconds() <= max_seconds_after
+    ]
+
+    has_network = len(qualifying_net) > 0
     if require_network and not has_network:
         return PatternMatch("BEH-006", "Config/credential access", 0.0,
                             layers=["file", "network", "identity"])
 
     n_sensitive = len(sensitive)
     if n_sensitive >= 5 and has_network:
-        score = 1.0
+        base_score = 1.0
     elif n_sensitive >= 3:
-        score = 0.7
+        base_score = 0.7
     elif n_sensitive >= 1:
-        score = 0.4 if not has_network else 0.6
+        base_score = 0.4 if not has_network else 0.6
     else:
-        score = 0.0
+        base_score = 0.0
+
+    outbound_destinations, model_vs_unknown = _classify_network_destinations(
+        qualifying_net
+    )
+    confidence_reasons: list[str] = ["sensitive_access_then_outbound"]
+    if model_vs_unknown == "unknown":
+        base_score = min(1.0, base_score + 0.15)
+        confidence_reasons.append("sensitive_access_then_unknown_outbound")
+    elif model_vs_unknown == "both":
+        base_score = min(1.0, base_score + 0.1)
+        confidence_reasons.append("sensitive_access_then_model_and_unknown")
+
+    first_network_time = min(e.timestamp for e in qualifying_net) if qualifying_net else None
+    interval_seconds = (
+        round((first_network_time - first_access_time).total_seconds(), 1)
+        if first_network_time else None
+    )
 
     return PatternMatch(
         pattern_id="BEH-006",
         pattern_name="Config/credential access",
-        score=round(score, 2),
+        score=round(base_score, 2),
         evidence={
             "sensitive_files_accessed": n_sensitive,
             "paths": [e.path for e in sensitive[:10]],
             "has_network": has_network,
+            "first_access_time": first_access_time.isoformat() if first_access_time else None,
+            "first_network_time": first_network_time.isoformat() if first_network_time else None,
+            "interval_seconds": interval_seconds,
+            "outbound_destinations": outbound_destinations[:20],
+            "model_vs_unknown": model_vs_unknown,
+            "confidence_reasons": confidence_reasons,
         },
         layers=["file", "network", "identity"],
     )

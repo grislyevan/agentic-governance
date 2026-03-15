@@ -29,7 +29,8 @@
     },
     "BEH-006": {
         "credential_access_min_files": 1,
-        "credential_require_network": true
+        "credential_require_network": true,
+        "credential_network_max_seconds_after_access": 300
     },
     "BEH-007": {
         "git_automation_min_sequences": 1,

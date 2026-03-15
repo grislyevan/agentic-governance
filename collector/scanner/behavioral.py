@@ -59,6 +59,53 @@ def _flatten_thresholds(config: dict[str, Any]) -> dict[str, Any]:
     return flat
 
 
+def _build_analyst_summary(
+    matches: list[PatternMatch], tree: ProcessNode | None,
+) -> str | None:
+    """One-sentence analyst summary for DETEC-BEH-CORE-01/02/03 when present."""
+    if not tree:
+        return None
+    root_name = tree.name or "process"
+    by_id = {m.pattern_id: m for m in matches}
+    parts: list[str] = []
+    if "BEH-001" in by_id:
+        m = by_id["BEH-001"]
+        ev = m.evidence
+        n = ev.get("shell_children_in_window", 0)
+        w = ev.get("window_seconds", 0)
+        linked = "model-linked " if ev.get("model_linked") else ""
+        parts.append(
+            f"Autonomous shell execution pattern detected: {n} shell children spawned from a {linked}parent process over {w} seconds."
+        )
+    if "BEH-004" in by_id:
+        m = by_id["BEH-004"]
+        ev = m.evidence
+        cycles = ev.get("cycles_detected", 0)
+        w = ev.get("cycle_window_seconds", 0)
+        endpoint = ev.get("model_endpoint") or "model endpoint"
+        dirs = ev.get("affected_directories", [])
+        d = ", ".join(dirs[:3]) if dirs else "project"
+        parts.append(
+            f"Agentic read-modify-write loop detected: {cycles} file-model cycles in {w} seconds affecting {d}, tied to process {root_name} ({endpoint})."
+        )
+    if "BEH-006" in by_id:
+        m = by_id["BEH-006"]
+        ev = m.evidence
+        paths = ev.get("paths", [])
+        path = paths[0] if paths else "sensitive path"
+        interval = ev.get("interval_seconds")
+        dests = ev.get("outbound_destinations", [])
+        dest_str = ", ".join(dests[:3]) if dests else "outbound"
+        kind = ev.get("model_vs_unknown", "outbound")
+        interval_str = f" within {interval} seconds" if interval is not None else ""
+        parts.append(
+            f"Sensitive access followed by outbound activity: {path} accessed; outbound connections to {dest_str}{interval_str}; destination type {kind}."
+        )
+    if not parts:
+        return None
+    return " ".join(parts)
+
+
 class BehavioralScanner(BaseScanner):
     """Detect agentic entities by behavioral pattern, not tool name."""
 
@@ -157,7 +204,7 @@ class BehavioralScanner(BaseScanner):
 
         result.action_type = "exec"
         result.action_risk = self._determine_risk(best_matches)
-        result.action_summary = self._build_summary(best_matches)
+        result.action_summary = self._build_summary(best_matches, best_tree)
 
         self._apply_penalties(result, best_matches)
 
@@ -224,6 +271,14 @@ class BehavioralScanner(BaseScanner):
     def _build_evidence(
         self, matches: list[PatternMatch], tree: ProcessNode,
     ) -> dict[str, Any]:
+        pattern_ids = {m.pattern_id for m in matches}
+        detection_codes: list[str] = []
+        if "BEH-001" in pattern_ids:
+            detection_codes.append("DETEC-BEH-CORE-01")
+        if "BEH-004" in pattern_ids:
+            detection_codes.append("DETEC-BEH-CORE-02")
+        if "BEH-006" in pattern_ids:
+            detection_codes.append("DETEC-BEH-CORE-03")
         return {
             "behavioral_patterns": [
                 {
@@ -234,6 +289,7 @@ class BehavioralScanner(BaseScanner):
                 }
                 for m in matches
             ],
+            "detection_codes": detection_codes,
             "root_process": {
                 "pid": tree.pid,
                 "name": tree.name,
@@ -255,7 +311,11 @@ class BehavioralScanner(BaseScanner):
             return "R3"
         return "R2"
 
-    def _build_summary(self, matches: list[PatternMatch]) -> str:
+    def _build_summary(self, matches: list[PatternMatch], tree: ProcessNode | None = None) -> str:
+        """Build action_summary; use analyst sentence for core patterns when possible."""
+        analyst = _build_analyst_summary(matches, tree)
+        if analyst:
+            return analyst
         names = [m.pattern_name for m in matches]
         return f"Behavioral detection: {', '.join(names)}"
 
