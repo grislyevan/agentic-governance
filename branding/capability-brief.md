@@ -79,7 +79,7 @@ We publish these so buyers can assess fit honestly:
 
 - **Containerized/remote dev** reduces host-level telemetry. Detection relies on the endpoint where the tool runs.
 - **Custom forks** of known tools require behavioral correlation; named-process matching alone is insufficient.
-- **Short-lived network connections** need EDR enrichment for reliable attribution (Detec integrates with CrowdStrike Falcon for server-side enrichment).
+- **Short-lived network connections** need EDR enrichment for reliable attribution (Detec integrates with CrowdStrike Falcon for server-side enrichment; status: EXPERIMENTAL).
 - **Identity signal evasion** is possible: LAB-RUN-EVASION-001 proved git trailer suppression succeeds 6/6 vectors. Identity is treated as a one-way signal (high confidence when present, zero when absent).
 - **5 scanners** (Aider, GPT-Pilot, Cline, LM Studio, Continue) have synthetic test coverage but await live lab validation.
 

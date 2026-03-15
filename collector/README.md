@@ -1,11 +1,11 @@
-# Agentic-governance collector
+# Detec collector
 
-Endpoint telemetry collector for agentic AI tool detection (Detec Agent). Scans for tools (Claude Code, Ollama, Cursor, Copilot, Open Interpreter, and others), computes confidence, evaluates policy, and emits NDJSON events.
+Endpoint telemetry collector for Detec (agentic-governance). Detec Agent scans for AI tools on developer endpoints. Scans for tools (Claude Code, Ollama, Cursor, Copilot, Open Interpreter, and others), computes confidence, evaluates policy, and emits NDJSON events.
 
 ## Telemetry and detection
 
 **Current:** Only the **polling provider** (psutil-based process, file, and network signals) is implemented. It works on macOS, Windows, and Linux.  
-**Roadmap:** Native telemetry (macOS ESF, Windows ETW, Linux eBPF) is in development for lower latency and stronger guarantees. See [docs/esf-entitlement.md](../docs/esf-entitlement.md) for ESF status.
+**Roadmap:** Native telemetry (macOS ESF, Windows ETW, Linux eBPF) is on the roadmap for lower latency and stronger guarantees (status: ROADMAP). See [docs/esf-entitlement.md](../docs/esf-entitlement.md) for ESF status.
 
 ## Install
 
@@ -67,7 +67,7 @@ Every config key can be overridden with an `AGENTIC_GOV_`-prefixed variable:
 
 `protocol` selects the transport: `http` (default, uses HttpEmitter) or `tcp` (uses TcpEmitter with binary wire protocol on port 8001). When `protocol=tcp`, `gateway_host` defaults to the hostname from `api_url` and `gateway_port` defaults to `8001`.
 
-`telemetry_provider` controls how the agent collects telemetry: `auto` (default, probe for native OS frameworks then fall back to polling), `native` (require native OS framework, fail if unavailable), or `polling` (force psutil polling only). Currently only the polling provider is implemented; native providers (ESF, ETW, eBPF) will be added in future releases.
+`telemetry_provider` controls how the agent collects telemetry: `auto` (default, probe for native OS frameworks then fall back to polling), `native` (require native OS framework, fail if unavailable), or `polling` (force psutil polling only). Currently only the polling provider is implemented; native providers (ESF, ETW, eBPF) are on the roadmap (ROADMAP).
 
 Booleans accept `1`, `true`, `yes`, or `on` (case-insensitive) as truthy.
 

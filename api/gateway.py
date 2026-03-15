@@ -514,6 +514,10 @@ class DetecGateway:
     def registry(self) -> SessionRegistry:
         return self._registry
 
+    def is_running(self) -> bool:
+        """Return True if the gateway server is up and serving."""
+        return self._server is not None and self._server.is_serving()
+
     async def _track_connect(self, ip: str) -> bool:
         """Register a connection. Returns False if limits are exceeded."""
         async with self._conn_lock:

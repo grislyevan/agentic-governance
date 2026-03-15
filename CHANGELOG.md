@@ -6,6 +6,26 @@ All notable changes to the Detec (agentic-governance) project are documented her
 
 (Next release will appear here.)
 
+## [0.2.0-detection-core] — 2026-03-14
+
+Sprint 01: Trust and repo clarity. Introduces canonical behavioral detections and makes the repo credible to security engineers and design partners.
+
+### Canonical behavioral detections
+
+- **DETEC-BEH-CORE-01** — Autonomous shell fan-out from AI agents.
+- **DETEC-BEH-CORE-02** — Agentic read-modify-write coding loops.
+- **DETEC-BEH-CORE-03** — Sensitive credential/config access followed by outbound activity.
+
+Demo artifacts: [Behavioral demo pack](docs/behavioral-core-demo-pack.md), [Demo proof index](docs/demo-proof/README.md) (DETEC-BEH-CORE-01/02/03 demos).
+
+### Sprint 01 deliverables
+
+- README reordered around product wedge (hero, core detections, verify in 5 minutes, example output, product status).
+- Explicit maturity labels (AVAILABLE / EXPERIMENTAL / ROADMAP) for CrowdStrike and native telemetry.
+- Security: seed credentials printed once to stdout only; no plaintext file on disk.
+- API bootstrap refactor: `api/startup/` (app_factory, bootstrap, background_tasks); `main.py` under 200 lines; gateway health via `gateway.is_running()`.
+- [Architecture overview](docs/architecture-overview.md) and [product status](docs/product-status.md) docs.
+
 ## [0.4.0] — 2026-03-14
 
 First tagged release. Aligns with Playbook v0.4 and canonical event schema v0.4.0.
@@ -43,5 +63,6 @@ First tagged release. Aligns with Playbook v0.4 and canonical event schema v0.4.
 - Agent: `pip install -e .` then `detec-agent --dry-run --verbose` (see [README](README.md) and [DEPLOY.md](DEPLOY.md)).
 - Full stack: build dashboard, start API, open http://localhost:8000 (see [README quick start](README.md#quick-start-full-stack)).
 
-[Unreleased]: https://github.com/your-org/agentic-governance/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/your-org/agentic-governance/compare/v0.2.0-detection-core...HEAD
+[0.2.0-detection-core]: https://github.com/your-org/agentic-governance/releases/tag/v0.2.0-detection-core
 [0.4.0]: https://github.com/your-org/agentic-governance/releases/tag/v0.4.0

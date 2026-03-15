@@ -12,9 +12,9 @@
 |------|--------|
 | `collector/` | Python agent: scanners, confidence engine, policy, HTTP + TCP emitters, telemetry providers. Entry: `main.py`; daemon: `--interval` + `--api-url` + `--api-key` + `--protocol tcp\|http` + `--telemetry-provider auto\|native\|polling`. Config: `config_loader.py` + `config/collector.json` + `AGENTIC_GOV_*` env. |
 | `collector/telemetry/` | Event store (thread-safe ring buffer) and typed event classes (`ProcessExecEvent`, `NetworkConnectEvent`, `FileChangeEvent`). Decouples telemetry collection from scanner consumption. |
-| `collector/providers/` | Telemetry provider interface and implementations. `PollingProvider` (psutil-based, always available), provider registry (`get_best_provider()`). Native OS providers (ESF, ETW, eBPF) will be added here. |
+| `collector/providers/` | Telemetry provider interface and implementations. `PollingProvider` (psutil-based, always available), provider registry (`get_best_provider()`). Native OS providers (ESF, ETW, eBPF) are on the roadmap (ROADMAP). |
 | `api/` | FastAPI backend: auth (JWT + API key, invite tokens, password reset), events, endpoints, policies, users, webhooks, billing, EDR enrichment. Binary protocol gateway (`gateway.py`, port 8001). Stripe billing (`core/billing.py`, `core/tier_limits.py`, `routers/billing.py`). Baseline policies seeded per tenant (`core/baseline_policies.py`). Config: `core/config.py` + `.env` (see root `.env.example`). |
-| `api/integrations/` | Server-side EDR enrichment: `EDRProvider` interface, CrowdStrike Falcon stub, enrichment pipeline for rescoring confidence with EDR telemetry. |
+| `api/integrations/` | Server-side EDR enrichment: `EDRProvider` interface, CrowdStrike Falcon stub (EXPERIMENTAL), enrichment pipeline for rescoring confidence with EDR telemetry. |
 | `protocol/` | Shared binary wire protocol package (msgpack framing, message types, connection base class). Imported by both `api/` and `collector/`. |
 | `dashboard/` | React/Vite SOC UI. Build: `npm run build`; dev: `npm run dev` (proxies API). Served by FastAPI at root when built. |
 | `playbook/` | Governance playbook (versioned Markdown). Detection profiles, policy rules, lab methodology. |

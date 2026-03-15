@@ -1,136 +1,205 @@
-# Detec (agentic-governance)
+# Detec
 
-**Discover what AI tools run on developer machines; then control and govern them with evidence-based policy.**
+Detec (formerly Agentic Governance) detects and governs **AI-agent behavior on developer endpoints**.
 
-## One-minute demo
+It identifies behavioral patterns that traditional EDR and simple AI-tool inventory miss, including:
 
-Detec discovers which AI tools run on developer machines (Cursor, Claude Code, Ollama, Copilot, and more), scores each with explainable confidence, and can enforce policy. Install and run a one-shot scan to see detections in under a minute.
+- autonomous shell execution
+- AI-assisted read-modify-write coding loops
+- sensitive credential/config access followed by outbound activity
 
-**Install** (from repo):
+See the behavioral demo pack:
+
+→ [docs/behavioral-core-demo-pack.md](docs/behavioral-core-demo-pack.md)
+
+---
+
+## Core Behavioral Detections
+
+### DETEC-BEH-CORE-01 — Autonomous Shell Fan-Out
+Detects autonomous command execution patterns consistent with AI agents rather than normal interactive developer shell usage.
+
+### DETEC-BEH-CORE-02 — Agentic Read-Modify-Write Loop
+Detects AI-assisted code modification loops, not just the presence of AI coding tools.
+
+### DETEC-BEH-CORE-03 — Sensitive Access Followed by Outbound Activity
+Detects sequences where sensitive configuration or credential files are accessed and followed by outbound model or network activity.
+
+Demo artifacts:
+
+- [DETEC-BEH-CORE-01 demo](docs/demo-proof/DETEC-BEH-CORE-01-demo.md)
+- [DETEC-BEH-CORE-02 demo](docs/demo-proof/DETEC-BEH-CORE-02-demo.md)
+- [DETEC-BEH-CORE-03 demo](docs/demo-proof/DETEC-BEH-CORE-03-demo.md)
+
+---
+
+## Why Detec Exists
+
+Security teams increasingly face AI coding tools, local LLM runtimes, and autonomous agents running on developer machines.
+
+Traditional endpoint tools can see processes, files, and network connections, but they cannot explain:
+
+- when an AI agent is acting autonomously
+- when an agent is modifying code in a model-driven loop
+- when sensitive material is accessed before outbound model or network activity
+
+Detec detects these behaviors and maps them to **deterministic policy outcomes**.
+
+---
+
+## Verify Detec in 5 Minutes
+
+Run the core behavioral detection tests:
 
 ```bash
 pip install -e .
+detec scan --verbose
+python -m pytest collector/tests/test_behavioral_core_detections.py -q
 ```
 
-**Run a one-shot scan:**
+Review the behavioral demo pack and demo proof index:
 
-```bash
-detec-agent scan --verbose
-```
+- [Behavioral demo pack](docs/behavioral-core-demo-pack.md)
+- [Demo proof index](docs/demo-proof/README.md)
 
-Or use the short CLI: `detec scan --verbose`.
+These demos show the canonical detections, event output, evidence summaries, and policy outcomes.
 
-Example output (detected tools, confidence, and scan summary):
+---
+
+## Example Detection Output
 
 ```text
-=== Scanning for Cursor ===
-  Cursor: change detected (initial)
-  Confidence: 0.7234 (High)
-  Signals - P:0.85 F:0.90 N:0.70 I:0.65 B:0.00
-  Emitting detection.observed event...
+[DETEC-BEH-CORE-03] Sensitive Access Followed by Outbound Activity
 
-=== Scanning for Ollama ===
-  Ollama: change detected (initial)
-  Confidence: 0.8100 (High)
-  Signals - P:0.95 F:0.80 N:0.90 I:0.00 B:0.00
-  Emitting detection.observed event...
+Sensitive path access detected:
+- ~/.aws/credentials
+- .env
 
-============================================================
-Scan complete. Events emitted: 2, validation failures: 0
+Related outbound activity:
+- api.anthropic.com
+- unknown external destination
+
+Policy:
+approval_required
+
+Summary:
+Sensitive configuration access was followed by outbound model/network activity within the configured correlation window.
 ```
 
-Stable demo evidence (transcript and description) is in [docs/demo-proof/](docs/demo-proof/).
+---
+
+## How It Works
+
+Detec combines endpoint telemetry, behavioral detection, confidence scoring, deterministic policy evaluation, and enforcement.
+
+High-level flow:
+
+```
+endpoint telemetry → detection engine → policy engine → enforcement → API / dashboard
+```
+
+Architecture overview:
+
+- [Architecture overview](docs/architecture-overview.md)
+- [Behavioral core demo pack](docs/behavioral-core-demo-pack.md)
 
 ---
 
-Detec gives security teams evidence-based visibility and control: discover what runs, how confident each detection is, and whether it fits your policy. See what AI agents do; govern what they're allowed to.
+## Product Status
 
-- **Discover:** We detect agentic AI tools (Claude Code, Cursor, Ollama, Copilot, Open Interpreter, Aider, Cline, and more) by what they do, not what they're called. Twelve scanners feed a single evidence pipeline; the [playbook](playbook/PLAYBOOK-v0.4-agentic-ai-endpoint-detection-governance.md) documents our methodology.
-- **Core behavioral detections:** We name and ship three security-relevant behaviors that EDR and signature-based tools miss: **DETEC-BEH-CORE-01** (autonomous shell fan-out), **DETEC-BEH-CORE-02** (agentic read-modify-write loop), **DETEC-BEH-CORE-03** (sensitive access followed by outbound activity). See [docs/behavioral-core-demo-pack.md](docs/behavioral-core-demo-pack.md) for demo flow and event examples.
-- **Score:** Every detection gets an explainable confidence score (five dimensions, playbook-aligned weights). You see why we said "high" or "medium" and can tune sensitivity.
-- **Enforce:** Policy runs on a ladder you control: visibility only, warning, approval required, or block. Rules are configurable per tenant; the API and dashboard apply them consistently.
-- **For whom:** Security teams, SOC operators, and compliance leads who need to govern agentic tools without blocking blindly. The dashboard is the operator console; the agent and API are built for deployment at scale.
+| Capability | Status |
+|------------|--------|
+| Core behavioral detections | Available |
+| Confidence scoring and calibration | Available |
+| Deterministic policy engine | Available |
+| Endpoint enforcement | Available |
+| Behavioral demo artifacts | Available |
+| CrowdStrike enrichment | Experimental |
+| Native ESF / ETW / eBPF telemetry | Experimental / roadmap |
+| Dashboard and management workflows | In progress |
 
-Detec is a production-ready stack: endpoint agent, multi-tenant API, and SOC dashboard. The playbook and lab runs document our methodology and evidence. **For AI agents and new contributors:** read [AGENTS.md](AGENTS.md) first for a short project brief and where to look.
+See [docs/product-status.md](docs/product-status.md) for details.
 
 ---
 
-## Repo layout
+## Repository Layout
 
-**Core:** collector, api, dashboard, protocol, schemas  
-**Reference and ops:** playbook, lab-runs, deploy, packaging, docs
-
-- **collector/** — Endpoint agent (12 scanners, 5-dimension confidence, HTTP + TCP emitters)
-- **api/** — Multi-tenant FastAPI backend (auth, invite/reset, endpoints, events, policies, webhooks) + binary protocol gateway
-- **dashboard/** — Web UI for viewing detection results and managing policy
-- **protocol/** — Shared binary wire protocol (msgpack framing, message types)
-- **schemas/** — Event and config JSON Schema
+- **collector/** — Endpoint agent, telemetry, scanners, confidence, policy, enforcement
+- **api/** — Backend API, ingest, policy/config management
+- **protocol/** — Wire protocol and gateway support
+- **dashboard/** — Management UI
+- **docs/** — Architecture, demo pack, policy mapping, deployment docs
+- **lab-runs/** — Validation protocols and results
 - **playbook/** — Governance playbook and detection profiles
-- **lab-runs/** — Lab run outputs and findings
 - **deploy/** — Agent auto-start templates (LaunchAgent, systemd, Windows Task)
 - **packaging/** — Installer builds (macOS .app/.pkg, Windows agent/server)
-- **docs/** — Deployment guides (MDM, macOS permissions), [current status and roadmap](PROGRESS.md)
-- **init-issues/** — Backlog and issue references
-- **diagrams/** — Architecture diagrams
-- **branding/** — Brand assets and guidelines
-- **install/** — Legacy; prefer deploy/ and packaging/ for new use
+- **schemas/** — Event and config JSON Schema
 
 ---
 
-## Get started
+## Quickstart
 
-### Install (Detec Agent)
-
-From the repo root, install the package so the agent is available as a single command:
+Install dependencies and run a local scan:
 
 ```bash
 pip install -e .
+detec scan --verbose
 ```
 
-This installs the **detec-agent** console script. Use it for daemon mode or one-shot scans; see [DEPLOY.md](DEPLOY.md) for auto-start and deployment.
-
-### Run the collector (one-shot)
+Run the core behavioral detection tests:
 
 ```bash
-detec-agent --dry-run --verbose
+python -m pytest collector/tests/test_behavioral_core_detections.py -q
 ```
 
-Or from repo root without installing: `python -m collector.main --dry-run --verbose`. Without `--dry-run`, the collector writes NDJSON to `collector/scan-results.ndjson`. Prefer `python -m collector.main` from repo root or `detec-agent` after install; see [collector/README.md](collector/README.md).
+For full setup and deployment guidance, see:
 
-### Quick start (full stack)
+- [SERVER.md](SERVER.md)
+- [docs/ci-security.md](docs/ci-security.md)
+
+### Full stack (API + dashboard)
 
 ```bash
-cd dashboard && npm install && npm run build   # build the dashboard
+cd dashboard && npm install && npm run build
 cd ../api && pip install -r requirements.txt
-export JWT_SECRET="$(openssl rand -hex 32)"
-export SEED_ADMIN_PASSWORD="pick-a-strong-password"
+export JWT_SECRET="$(openssl rand -hex 32)" SEED_ADMIN_PASSWORD="pick-a-strong-password"
 uvicorn main:app --reload
 ```
 
-Open http://localhost:8000. The FastAPI server serves both the API (under `/api/`) and the dashboard at the root. Log in with the seed admin credentials (see [SERVER.md](SERVER.md#first-api-key)) or register a new account.
-
-For dashboard development with hot reload: `cd dashboard && npm run dev` (Vite proxies `/api` to FastAPI on port 8000).
-
-### Five-minute demo
-
-Discover and control autonomous AI tools on developer endpoints: run the stack with demo data in about five minutes.
-
-```bash
-./scripts/demo-five-min.sh
-```
-
-Then open http://localhost:8000 and log in (e.g. `admin@example.com` / `change-me`). See [docs/demo.md](docs/demo.md) for full instructions, what you see, and how to reset demo data. The demo includes:
-
-- **Sample event set:** [docs/demo/sample-events.json](docs/demo/sample-events.json) — a minimal detection → policy (block) → enforcement chain in canonical form.
-- **Screenshots:** [docs/demo/screenshots/](docs/demo/screenshots/) — required shots and how to capture them (dashboard, events, policies).
-- **One block decision and why:** [docs/demo/block-decision-example.md](docs/demo/block-decision-example.md) — one concrete block (ENFORCE-005, Claude Code, crown-jewel) with rule, rationale, and evidence chain.
+Open http://localhost:8000. Log in with the seed admin credentials (printed once at first startup; see [SERVER.md](SERVER.md#first-api-key)) or register a new account.
 
 ---
 
-## Telemetry and detection
+## Technical Validation
 
-**Today:** Psutil-based polling (process, file, and network signals) powers detection. The collector runs on macOS, Windows, and Linux with a single code path.  
-**Roadmap:** Native telemetry (macOS ESF, Windows ETW, Linux eBPF) for lower latency and stronger guarantees. See [docs/esf-entitlement.md](docs/esf-entitlement.md) for ESF status.
+Detec includes:
+
+- Behavioral detection replay tests
+- Confidence calibration regression
+- Enforcement end-to-end tests
+- Security workflow checks (Semgrep, Trivy, dependency audit, secrets scanning)
+
+See:
+
+- [Behavioral demo pack](docs/behavioral-core-demo-pack.md)
+- [CI and security docs](docs/ci-security.md)
+- [Demo proof](docs/demo-proof/README.md)
+
+---
+
+## What Detec Is Not
+
+Detec is not just AI tool inventory, browser filtering, or prompt logging.
+
+Its primary focus is behavioral detection and governance for AI agents and AI coding workflows on endpoints.
+
+---
+
+## Telemetry and Detection
+
+**Today:** Psutil-based polling (process, file, and network signals) powers detection. The collector runs on macOS, Windows, and Linux with a single code path.
+
+**Roadmap:** Native telemetry (macOS ESF, Windows ETW, Linux eBPF) is on the roadmap for lower latency and stronger guarantees (status: ROADMAP). See [docs/esf-entitlement.md](docs/esf-entitlement.md) for ESF status.
 
 ---
 
@@ -144,29 +213,28 @@ The API defaults to a local **SQLite** database (zero setup). For production, se
 
 ---
 
-## Running tests
+## Running Tests
 
 ```bash
 python -m pytest collector/tests/ -v                           # collector tests (includes scanner consistency)
-python -m pytest collector/tests/test_scanner_consistency.py -v # 108 scanner consistency tests
+python -m pytest collector/tests/test_scanner_consistency.py -v # scanner consistency tests
 python -m pytest api/tests/ -v                                 # API tests
 python -m pytest protocol/tests/ -v                            # protocol tests
 ```
 
-Run collector and API tests separately to avoid package name conflicts. Scanner consistency tests run actual scans and take about two minutes.
+Run collector and API tests separately to avoid package name conflicts.
 
 ---
 
 ## Dashboard
 
-SOC operator console for monitoring detected AI tools, confidence scoring, and policy enforcement. Requires authentication (JWT or API key).
+SOC operator console for monitoring detected AI tools, confidence scoring, and policy enforcement. Requires authentication (JWT or API key). Served by FastAPI from `dashboard/dist/`. Build: `cd dashboard && npm run build`. See [dashboard/README.md](dashboard/README.md) and [docs/dashboard-roadmap.md](docs/dashboard-roadmap.md).
 
-- **Login/Register:** email + password, JWT with auto-refresh. User profile in the top bar.
-- **API key fallback:** configure in Settings for headless access.
-- **Live pages:** Endpoints (filterable, searchable), Policies (create, edit, toggle active), Audit log (paginated).
-- **User management:** Admin page for users; roles: owner, admin, analyst, viewer. Gated to owner/admin.
+---
 
-Served by FastAPI from `dashboard/dist/`. Build: `cd dashboard && npm run build`. See [dashboard/README.md](dashboard/README.md) for architecture and [docs/dashboard-roadmap.md](docs/dashboard-roadmap.md) for roadmap.
+## For Contributors
+
+**For AI agents and new contributors:** read [AGENTS.md](AGENTS.md) first for a short project brief and where to look.
 
 ---
 

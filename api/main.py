@@ -1,130 +1,49 @@
-"""Agentic Governance — FastAPI backend.
+"""Detec API entry point.
 
-Startup sequence:
-  1. Create all tables (Alembic migrations in production)
-  2. Seed default admin + tenant if DB is empty
-  3. Launch staleness monitor
-  4. Mount routers
-
-Run dev server:
-  cd api && uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-OpenAPI docs: http://localhost:8000/docs
+Startup sequence: bootstrap (migrations, seed), background tasks, gateway.
+Run: cd api && uvicorn main:app --reload --host 0.0.0.0 --port 8000
+OpenAPI: http://localhost:8000/docs
 """
 
 from __future__ import annotations
 
 import asyncio
-import logging
-import os
-import sys
 import time
-import uuid
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any
 
-# PyInstaller bundles data files under sys._MEIPASS; in development,
-# paths are relative to this file's location.
-_BUNDLE_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+from fastapi import FastAPI
 
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response
-from fastapi.staticfiles import StaticFiles
-from slowapi.errors import RateLimitExceeded
-
-from core.logging_config import configure_logging, request_id_var
-from core.metrics import (
-    get_metrics,
-    http_request_duration_seconds,
-    http_requests_total,
-)
-from core.rate_limit import limiter
-from sqlalchemy import text as sa_text
-
-from core.auth import hash_password
+from core.logging_config import configure_logging
 from core.config import settings
-from core.database import SessionLocal, engine
-from models import Tenant, User
-from models.user import API_KEY_PREFIX_LEN, generate_api_key, hash_api_key
-from models.audit import AuditLog
-from models.endpoint import Endpoint
-from models.event import Event
-from models.policy import Policy
-from routers import agent_download, audit, auth, billing, data_flow, demo, endpoint_profiles, endpoints, enforcement, events, policies, reports, response_playbooks, retention, server_settings, tenants, users, webhooks
+from core.database import SessionLocal
 
-logger = logging.getLogger("agentic_governance")
-
-STALENESS_CHECK_INTERVAL = 60
-PURGE_INTERVAL_SECONDS = 6 * 60 * 60
-HEALTH_CHECK_TIMEOUT = 2.0
-
-_app_start_time: float | None = None
-
-
-async def _retention_purge_loop() -> None:
-    await asyncio.sleep(60)
-    while True:
-        db = SessionLocal()
-        try:
-            from core.retention import purge_expired_events
-            purge_expired_events(db)
-        except Exception:
-            logger.warning("Retention purge cycle failed", exc_info=True)
-        finally:
-            db.close()
-        await asyncio.sleep(PURGE_INTERVAL_SECONDS)
-
-
-async def _staleness_monitor() -> None:
-    """Periodic task that updates endpoint status based on heartbeat timing.
-
-    Runs every STALENESS_CHECK_INTERVAL seconds.  When an endpoint
-    transitions from active to stale/ungoverned, the status column is
-    persisted so the dashboard and status API reflect the change.
-    """
-    while True:
-        await asyncio.sleep(STALENESS_CHECK_INTERVAL)
-        db = SessionLocal()
-        try:
-            all_endpoints = db.query(Endpoint).all()
-            for ep in all_endpoints:
-                new_status = ep.compute_status()
-                if new_status != ep.status:
-                    old = ep.status
-                    ep.status = new_status
-                    logger.info(
-                        "Endpoint %s (%s) status %s -> %s",
-                        ep.hostname, ep.id, old, new_status,
-                    )
-            db.commit()
-        except Exception:
-            db.rollback()
-            logger.warning("Staleness monitor cycle failed", exc_info=True)
-        finally:
-            db.close()
+from core.rate_limit import limiter  # re-export for tests
+from startup.app_factory import create_app
+from startup import bootstrap
+from startup import background_tasks
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    global _app_start_time
-    _app_start_time = time.monotonic()
+    app.state.app_start_time = time.monotonic()
     configure_logging()
-    _apply_migrations()
-    _seed()
+    bootstrap.apply_migrations()
+    bootstrap.seed()
     db = SessionLocal()
     try:
         from core.retention import purge_expired_events
         purge_expired_events(db)
     except Exception:
-        logger.warning("Startup retention purge failed", exc_info=True)
+        import logging
+        logging.getLogger("agentic_governance").warning(
+            "Startup retention purge failed", exc_info=True
+        )
     finally:
         db.close()
-    monitor_task = asyncio.create_task(_staleness_monitor())
-    purge_task = asyncio.create_task(_retention_purge_loop())
+
+    monitor_task = asyncio.create_task(background_tasks.staleness_monitor())
+    purge_task = asyncio.create_task(background_tasks.retention_purge_loop())
 
     if settings.edr_enforcement_configured:
         from integrations.crowdstrike import CrowdStrikeProvider
@@ -189,388 +108,4 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         pass
 
 
-def _apply_migrations() -> None:
-    """Run Alembic migrations on startup, falling back to create_all.
-
-    For on-prem/single-binary deployments, this ensures the database
-    schema is always up-to-date without requiring operators to run a
-    separate ``alembic upgrade head`` command.
-    """
-    try:
-        from alembic.config import Config as AlembicConfig
-        from alembic import command as alembic_command
-
-        ini_path = _BUNDLE_DIR / "alembic.ini"
-        if ini_path.exists():
-            cfg = AlembicConfig(str(ini_path))
-            cfg.set_main_option("sqlalchemy.url", settings.database_url)
-            alembic_command.upgrade(cfg, "head")
-            logger.info("Alembic migrations applied successfully")
-            return
-    except Exception:
-        logger.warning(
-            "Alembic migration failed; falling back to create_all",
-            exc_info=True,
-        )
-
-    from core.database import Base
-    import models  # noqa: F401
-    Base.metadata.create_all(bind=engine)
-
-
-def _seed() -> None:
-    """Seed a default admin user and tenant on first startup."""
-    db = SessionLocal()
-    try:
-        existing = db.query(User).filter(User.email == settings.seed_admin_email).first()
-        if existing:
-            return
-
-        from models.tenant import generate_agent_key
-
-        slug = settings.seed_tenant_name.lower().replace(" ", "-")[:64]
-        agent_key = settings.seed_agent_key or generate_agent_key()
-        tenant = Tenant(
-            id=str(uuid.uuid4()),
-            name=settings.seed_tenant_name,
-            slug=slug,
-            agent_key=agent_key,
-        )
-        db.add(tenant)
-        db.flush()
-
-        if settings.seed_api_key:
-            raw_key = settings.seed_api_key
-            prefix = raw_key[:API_KEY_PREFIX_LEN]
-            key_hash = hash_api_key(raw_key)
-        else:
-            raw_key, prefix, key_hash = generate_api_key()
-        admin = User(
-            id=str(uuid.uuid4()),
-            tenant_id=tenant.id,
-            email=settings.seed_admin_email,
-            hashed_password=hash_password(settings.seed_admin_password),
-            first_name="Admin",
-            role="owner",
-            api_key_prefix=prefix,
-            api_key_hash=key_hash,
-        )
-        db.add(admin)
-        db.flush()
-
-        from core.baseline_policies import seed_baseline_policies
-
-        n_policies = seed_baseline_policies(db, tenant.id)
-
-        n_endpoints = 0
-        n_events = 0
-        if settings.demo_mode:
-            from core.demo_seed import seed_demo_data
-            n_endpoints, n_events = seed_demo_data(db, tenant.id)
-
-        db.commit()
-        logger.info(
-            "Seed: created tenant '%s', admin '%s', and %d baseline policies",
-            tenant.name, admin.email, n_policies,
-        )
-        if settings.demo_mode:
-            logger.info(
-                "Demo mode: seeded %d endpoints and %d events",
-                n_endpoints, n_events,
-            )
-        env = os.getenv("ENV", "development").lower()
-        if env in ("production", "staging"):
-            logger.info(
-                "[seed] Admin API key prefix (full key written to seed-credentials.txt): %s...",
-                raw_key[:8],
-            )
-            logger.info(
-                "[seed] Tenant agent key prefix: %s...",
-                agent_key[:8],
-            )
-            cred_path = Path("seed-credentials.txt")
-            cred_path.write_text(
-                f"admin_api_key={raw_key}\nagent_key={agent_key}\n",
-                encoding="utf-8",
-            )
-            cred_path.chmod(0o600)
-        else:
-            logger.info(
-                "[seed] Admin API key (save this, it will not be shown again): %s",
-                raw_key,
-            )
-            logger.info(
-                "[seed] Tenant agent key (used in agent packages): %s",
-                agent_key,
-            )
-    except Exception:
-        db.rollback()
-        logger.warning("Seed skipped (set DEBUG=true for details)")
-        logger.debug("Seed error details", exc_info=True)
-    finally:
-        db.close()
-
-
-_docs_kwargs: dict[str, Any] = {}
-if not settings.debug:
-    _docs_kwargs = {"docs_url": None, "redoc_url": None, "openapi_url": None}
-
-app = FastAPI(
-    title="Agentic Governance API",
-    description="Endpoint telemetry and policy engine for agentic AI tool governance",
-    version="0.2.0",
-    lifespan=lifespan,
-    **_docs_kwargs,
-)
-
-app.state.limiter = limiter
-
-
-async def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
-    r = JSONResponse(
-        status_code=429,
-        content={"detail": "Too many requests. Please try again later."},
-    )
-    _apply_security_headers(r)
-    return r
-
-
-app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
-
-
-@app.exception_handler(Exception)
-async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
-    r = JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error"},
-    )
-    _apply_security_headers(r)
-    return r
-
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Api-Key"],
-)
-
-
-SKIP_LOG_PATHS = {"/health", "/api/health", "/metrics"}
-
-
-def _apply_security_headers(response: Response) -> None:
-    """Apply security headers to any response (including from exception handlers).
-
-    Exception handler responses do not pass through middleware, so they must
-    receive the same headers here to avoid missing CSP/HSTS on error pages.
-    """
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    env = os.getenv("ENV", "development").lower()
-    if env in ("production", "staging"):
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; "
-            "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-        )
-
-
-@app.middleware("http")
-async def request_logging_and_metrics(request: Request, call_next):
-    request_id = str(uuid.uuid4())
-    token = request_id_var.set(request_id)
-    path = request.url.path
-    method = request.method
-    client_ip = request.client.host if request.client else "unknown"
-    start = time.perf_counter()
-
-    try:
-        response = await call_next(request)
-        status = response.status_code
-    except Exception:
-        status = 500
-        raise
-    finally:
-        duration_ms = (time.perf_counter() - start) * 1000
-        http_requests_total.labels(method=method, path=path, status=str(status)).inc()
-        http_request_duration_seconds.labels(method=method, path=path).observe(
-            duration_ms / 1000.0
-        )
-        if path not in SKIP_LOG_PATHS:
-            logger.info(
-                "%s %s %s %d %.2fms",
-                method, path, client_ip, status, duration_ms,
-                extra={"request_id": request_id},
-            )
-        request_id_var.reset(token)
-
-    return response
-
-
-@app.middleware("http")
-async def security_headers(request: Request, call_next):
-    response = await call_next(request)
-    _apply_security_headers(response)
-    return response
-
-
-API_PREFIX = "/api"
-
-app.include_router(agent_download.router, prefix=API_PREFIX)
-app.include_router(auth.router, prefix=API_PREFIX)
-app.include_router(audit.router, prefix=API_PREFIX)
-app.include_router(events.router, prefix=API_PREFIX)
-app.include_router(retention.router, prefix=API_PREFIX)
-app.include_router(endpoints.router, prefix=API_PREFIX)
-app.include_router(endpoint_profiles.router, prefix=API_PREFIX)
-app.include_router(policies.router, prefix=API_PREFIX)
-app.include_router(users.router, prefix=API_PREFIX)
-app.include_router(webhooks.router, prefix=API_PREFIX)
-app.include_router(enforcement.router, prefix=API_PREFIX)
-app.include_router(billing.router, prefix=API_PREFIX)
-app.include_router(reports.router, prefix=API_PREFIX)
-app.include_router(response_playbooks.router, prefix=API_PREFIX)
-app.include_router(server_settings.router, prefix=API_PREFIX)
-app.include_router(data_flow.router, prefix=API_PREFIX)
-app.include_router(tenants.router, prefix=API_PREFIX)
-app.include_router(demo.router, prefix=API_PREFIX)
-
-
-@app.get("/metrics", tags=["meta"], include_in_schema=False)
-def metrics() -> Response:
-    return Response(
-        content=get_metrics(),
-        media_type="text/plain; charset=utf-8",
-    )
-
-
-def _health_check_db() -> tuple[bool, str]:
-    try:
-        db = SessionLocal()
-        db.execute(sa_text("SELECT 1"))
-        db.close()
-        return True, "ok"
-    except Exception:
-        return False, "unreachable"
-
-
-def _health_check_gateway(request: Request) -> tuple[bool, str]:
-    gateway = getattr(request.app.state, "gateway", None)
-    if not gateway:
-        return True, "disabled"
-    if gateway._server is None:
-        return False, "not_started"
-    if gateway._server.is_serving():
-        return True, "running"
-    return False, "stopped"
-
-
-def _health_last_event_at() -> str | None:
-    try:
-        from sqlalchemy import desc
-        db = SessionLocal()
-        try:
-            row = (
-                db.query(Event.observed_at)
-                .order_by(desc(Event.observed_at))
-                .limit(1)
-                .first()
-            )
-            if row:
-                return row[0].isoformat() if hasattr(row[0], "isoformat") else str(row[0])
-        finally:
-            db.close()
-    except Exception:
-        pass
-    return None
-
-
-@app.get("/health", tags=["meta"])
-@app.get(f"{API_PREFIX}/health", tags=["meta"], include_in_schema=False)
-async def health(request: Request) -> JSONResponse:
-    components: dict[str, Any] = {}
-    critical_fail = False
-    degraded = False
-
-    try:
-        db_ok, db_status = await asyncio.wait_for(
-            asyncio.to_thread(_health_check_db),
-            timeout=HEALTH_CHECK_TIMEOUT,
-        )
-    except asyncio.TimeoutError:
-        db_ok, db_status = False, "timeout"
-    components["database"] = db_status
-    if not db_ok:
-        critical_fail = True
-
-    gw_ok, gw_status = _health_check_gateway(request)
-    components["gateway"] = gw_status
-    if not gw_ok and getattr(request.app.state, "gateway", None) is not None:
-        degraded = True
-
-    try:
-        last_event = await asyncio.wait_for(
-            asyncio.to_thread(_health_last_event_at),
-            timeout=HEALTH_CHECK_TIMEOUT,
-        )
-    except asyncio.TimeoutError:
-        last_event = None
-    components["last_event_at"] = last_event
-
-    uptime = (
-        int(time.monotonic() - _app_start_time)
-        if _app_start_time is not None
-        else 0
-    )
-    components["uptime_seconds"] = uptime
-
-    if critical_fail:
-        overall = "unhealthy"
-        status_code = 503
-    elif degraded:
-        overall = "degraded"
-        status_code = 503
-    else:
-        overall = "healthy"
-        status_code = 200
-
-    return JSONResponse(
-        {
-            "status": overall,
-            "version": app.version,
-            "components": components,
-        },
-        status_code=status_code,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Static dashboard serving
-# ---------------------------------------------------------------------------
-# When dashboard/dist/ exists (built React app), serve it at the root.
-# API routes take priority because they are registered first.
-# ---------------------------------------------------------------------------
-
-# In a PyInstaller bundle, dashboard is at _MEIPASS/dashboard/dist.
-# In development, it's at <repo>/dashboard/dist (two levels up from api/).
-_dashboard_dist = _BUNDLE_DIR / "dashboard" / "dist"
-if not _dashboard_dist.is_dir():
-    _dashboard_dist = Path(__file__).resolve().parent.parent / "dashboard" / "dist"
-
-if _dashboard_dist.is_dir():
-    app.mount("/assets", StaticFiles(directory=_dashboard_dist / "assets"), name="dashboard-assets")
-
-    @app.get("/{full_path:path}", include_in_schema=False)
-    async def _serve_spa(full_path: str) -> FileResponse:
-        """Serve the React SPA. Non-asset paths return index.html for client-side routing."""
-        file_path = _dashboard_dist / full_path
-        if full_path and file_path.is_file():
-            return FileResponse(file_path)
-        return FileResponse(_dashboard_dist / "index.html")
+app = create_app(lifespan)

@@ -37,7 +37,7 @@ Use this checklist to verify and maintain security hardening of the Detec API an
 |------|--------|-----------|
 | No API key, JWT, or webhook secret in API response bodies | Auth returns tokens only on login/register; keys not echoed | `api/routers/auth.py`, `api/schemas/auth.py` |
 | No secrets in application logs | Collector redacts `api_key` in config warnings; auth does not log raw reset token | `collector/config_loader.py`: `_SENSITIVE_KEYS`, redaction in `load_env_overrides()`; `api/routers/auth.py`: password reset log |
-| Seed credentials only in seed-credentials.txt or (dev) logs with prefix only | Production/staging write file and log prefix only; dev may log full key once | `api/main.py`: `_seed()` |
+| No plaintext seed credentials on disk | Seed credentials are printed once to stdout on first startup; never written to cwd or a file | `api/main.py`: `_seed()` |
 | Dashboard token storage | Tokens in memory or secure storage; not in URLs or logs | Dashboard auth flow (no server-side session storage of full token in logs) |
 
 ## Validation

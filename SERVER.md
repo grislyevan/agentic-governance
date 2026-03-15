@@ -560,6 +560,10 @@ All settings are defined in `api/core/config.py` (pydantic-settings). Field name
 | `JWT_SECRET` | Secret key for signing JWTs. Generate with `openssl rand -hex 32`. Must not be a default value when `ENV` is `production` or `staging`. |
 | `SEED_ADMIN_PASSWORD` | Password for the seed admin user created on first startup. Must not be `change-me` when `ENV` is `production` or `staging`. |
 
+### First startup (seed credentials) {#first-api-key}
+
+On first run the API creates a seed admin user and tenant. It prints the admin email, admin API key, and tenant agent key **once to stdout**. Store them securely; they are not shown again. No credentials are written to disk.
+
 ### Database
 
 | Variable | Default | Description |
