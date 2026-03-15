@@ -61,6 +61,11 @@ BEHAVIORAL_MAPPINGS: dict[str, list[AttackMapping]] = {
         AttackMapping("T1543", "Create or Modify System Process", "Persistence"),
         AttackMapping("T1547", "Boot or Logon Autostart Execution", "Persistence"),
     ],
+    "BEH-009": [  # Agent execution chain
+        AttackMapping("T1059", "Command and Scripting Interpreter", "Execution"),
+        AttackMapping("T1071", "Application Layer Protocol", "Command and Control", "T1071.001"),
+        AttackMapping("T1119", "Automated Collection", "Collection"),
+    ],
 }
 
 # Tool class -> ATT&CK mappings

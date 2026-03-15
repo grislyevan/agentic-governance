@@ -1,4 +1,4 @@
-"""Behavioral pattern detectors for agentic AI anomaly detection (BEH-001 through BEH-008).
+"""Behavioral pattern detectors for agentic AI anomaly detection (BEH-001 through BEH-009).
 
 Each detector examines a ProcessNode tree and returns a PatternMatch with a
 score (0.0 to 1.0) indicating how strongly the tree matches the pattern.
@@ -111,6 +111,11 @@ def _normalize_process_name(name: str) -> str:
 _SHELL_NAMES: frozenset[str] = frozenset({
     "bash", "sh", "zsh", "fish", "csh", "tcsh", "dash",
     "cmd", "powershell", "pwsh",
+})
+
+# Shell or interpreter for BEH-009 execution chain (spec: bash, zsh, python, node, sh)
+_SHELL_OR_INTERPRETER_NAMES: frozenset[str] = frozenset({
+    "bash", "zsh", "sh", "python", "node",
 })
 
 _EDITOR_NAMES: frozenset[str] = frozenset({
@@ -740,6 +745,137 @@ def detect_resurrection(
 
 
 # ---------------------------------------------------------------------------
+# BEH-009: Agent execution chain (DETEC-BEH-CORE-04)
+# ---------------------------------------------------------------------------
+
+def _llm_host_from_event(event: NetworkConnectEvent) -> str:
+    """Return display host for an LLM network event (SNI or addr:port)."""
+    addr = event.remote_addr.split(":")[0] if ":" in event.remote_addr else event.remote_addr
+    if event.sni:
+        return event.sni
+    return f"{addr}:{event.remote_port}"
+
+
+def _collect_git_add_commit_times(tree: ProcessNode) -> list[tuple[datetime, str]]:
+    """Return (start_time, subcmd) for git add/commit child processes."""
+    result: list[tuple[datetime, str]] = []
+    for node in _all_nodes(tree):
+        if _normalize_process_name(node.name) != "git" or node.start_time is None:
+            continue
+        parts = node.cmdline.split()
+        for i, part in enumerate(parts):
+            if _normalize_process_name(part) == "git" and i + 1 < len(parts):
+                subcmd = parts[i + 1].lower()
+                if subcmd in ("add", "commit"):
+                    result.append((node.start_time, subcmd))
+                break
+    return result
+
+
+def detect_agent_execution_chain(
+    tree: ProcessNode,
+    thresholds: dict[str, Any] | None = None,
+) -> PatternMatch:
+    """DETEC-BEH-CORE-04: Detect LLM call then shell/interpreter then file/git mod within window.
+
+    Requires temporal order: t_llm <= t_shell <= t_file, all within execution_chain_window_seconds.
+    """
+    t = thresholds or {}
+    window = t.get("execution_chain_window_seconds", 120)
+
+    net_events = _collect_network_events(tree)
+    llm_events = [(e.timestamp, _llm_host_from_event(e)) for e in net_events if _is_llm_host(e)]
+    if not llm_events:
+        return PatternMatch(
+            "BEH-009", "Agent Execution Chain", 0.0,
+            layers=["network", "process", "file"],
+        )
+
+    all_nodes_list = _all_nodes(tree)
+    shell_times: list[tuple[datetime, str]] = []
+    for n in all_nodes_list:
+        if n.start_time is None:
+            continue
+        name = _normalize_process_name(n.name)
+        if name in _SHELL_OR_INTERPRETER_NAMES:
+            shell_times.append((n.start_time, n.name if n.name else name))
+
+    file_events = _collect_file_events(tree)
+    writes = [(e.timestamp, "file write") for e in file_events if e.action in ("created", "modified")]
+    git_times = _collect_git_add_commit_times(tree)
+    file_or_git: list[tuple[datetime, str]] = writes + [(ts, f"git {sc}") for ts, sc in git_times]
+    file_or_git.sort(key=lambda x: x[0])
+
+    if not shell_times or not file_or_git:
+        return PatternMatch(
+            "BEH-009", "Agent Execution Chain", 0.0,
+            layers=["network", "process", "file"],
+        )
+
+    llm_events.sort(key=lambda x: x[0])
+    shell_times.sort(key=lambda x: x[0])
+
+    t_llm, llm_host = llm_events[0]
+    window_end = t_llm + timedelta(seconds=window)
+
+    t_shell_cand: tuple[datetime, str] | None = None
+    for st, sname in shell_times:
+        if t_llm <= st <= window_end:
+            t_shell_cand = (st, sname)
+            break
+    if t_shell_cand is None:
+        return PatternMatch(
+            "BEH-009", "Agent Execution Chain", 0.0,
+            layers=["network", "process", "file"],
+        )
+
+    t_shell, shell_name = t_shell_cand
+    t_file_cand: tuple[datetime, str] | None = None
+    for ft, kind in file_or_git:
+        if t_shell <= ft <= window_end:
+            t_file_cand = (ft, kind)
+            break
+    if t_file_cand is None:
+        return PatternMatch(
+            "BEH-009", "Agent Execution Chain", 0.0,
+            layers=["network", "process", "file"],
+        )
+
+    t_file, file_kind = t_file_cand
+    window_seconds = round((t_file - t_llm).total_seconds(), 1)
+
+    if file_kind == "file write":
+        seq_file = "file write detected"
+    elif file_kind.startswith("git "):
+        seq_file = f"git {file_kind.split()[1]} detected"
+    else:
+        seq_file = file_kind
+
+    sequence = [
+        f"LLM API call: {llm_host}",
+        f"shell execution: {os.path.basename(shell_name).lower() if shell_name else 'shell'}",
+        seq_file,
+    ]
+
+    score = 0.8  # spec: all three layers present
+
+    return PatternMatch(
+        pattern_id="BEH-009",
+        pattern_name="Agent Execution Chain",
+        score=score,
+        evidence={
+            "summary": "AI-driven command execution chain detected",
+            "sequence": sequence,
+            "window_seconds": window_seconds,
+            "llm_host": llm_host,
+            "shell_name": shell_name,
+            "file_kind": file_kind,
+        },
+        layers=["network", "process", "file"],
+    )
+
+
+# ---------------------------------------------------------------------------
 # Aggregate
 # ---------------------------------------------------------------------------
 
@@ -752,6 +888,7 @@ _ALL_DETECTORS = [
     detect_credential_access,
     detect_git_automation,
     detect_resurrection,
+    detect_agent_execution_chain,
 ]
 
 
@@ -759,7 +896,7 @@ def detect_all_patterns(
     tree: ProcessNode,
     thresholds: dict[str, Any] | None = None,
 ) -> list[PatternMatch]:
-    """Run all BEH-001 through BEH-008 pattern detectors.
+    """Run all BEH-001 through BEH-009 pattern detectors.
 
     Returns only patterns with score > 0.0.
     """

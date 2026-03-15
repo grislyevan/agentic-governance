@@ -187,7 +187,7 @@ class TestMappingConstants(unittest.TestCase):
     """Test that mapping constants are well-formed."""
 
     def test_all_beh_patterns_have_mappings(self):
-        expected = ["BEH-001", "BEH-002", "BEH-003", "BEH-004", "BEH-005", "BEH-006", "BEH-007", "BEH-008"]
+        expected = ["BEH-001", "BEH-002", "BEH-003", "BEH-004", "BEH-005", "BEH-006", "BEH-007", "BEH-008", "BEH-009"]
         for pid in expected:
             self.assertIn(pid, BEHAVIORAL_MAPPINGS)
             mappings = BEHAVIORAL_MAPPINGS[pid]

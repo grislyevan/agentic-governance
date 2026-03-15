@@ -101,6 +101,16 @@ def _build_analyst_summary(
         parts.append(
             f"Sensitive access followed by outbound activity: {path} accessed; outbound connections to {dest_str}{interval_str}; destination type {kind}."
         )
+    if "BEH-009" in by_id:
+        m = by_id["BEH-009"]
+        ev = m.evidence
+        seq = ev.get("sequence", [])
+        w = ev.get("window_seconds")
+        seq_str = "; ".join(seq) if seq else "LLM then shell then file/git"
+        w_str = f" in {w} seconds" if w is not None else ""
+        parts.append(
+            f"AI-driven command execution chain detected: {seq_str}{w_str}."
+        )
     if not parts:
         return None
     return " ".join(parts)
@@ -236,6 +246,7 @@ class BehavioralScanner(BaseScanner):
             "BEH-006": 0.9,
             "BEH-007": 0.8,
             "BEH-008": 1.0,
+            "BEH-009": 1.0,
         }
 
         weighted_sum = sum(
@@ -279,6 +290,8 @@ class BehavioralScanner(BaseScanner):
             detection_codes.append("DETEC-BEH-CORE-02")
         if "BEH-006" in pattern_ids:
             detection_codes.append("DETEC-BEH-CORE-03")
+        if "BEH-009" in pattern_ids:
+            detection_codes.append("DETEC-BEH-CORE-04")
         return {
             "behavioral_patterns": [
                 {

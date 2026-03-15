@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import os
 import unittest
+import unittest.mock
 from datetime import datetime, timedelta, timezone
 
 from engine.confidence import BEHAVIORAL_WEIGHTS, TOOL_WEIGHTS, get_weights
 from scanner.behavioral import BehavioralScanner
 from scanner.behavioral_patterns import (
+    detect_agent_execution_chain,
     detect_all_patterns,
     detect_burst_write,
     detect_credential_access,
@@ -615,6 +617,272 @@ class TestBEH008Resurrection(unittest.TestCase):
         ]
         root = _make_tree(pid=100, ppid=0, children=children, start_time=_BASE)
         self.assertGreater(detect_resurrection(root).score, 0.0)
+
+
+class TestBEH009AgentExecutionChain(unittest.TestCase):
+    """Tests for BEH-009 (DETEC-BEH-CORE-04): LLM then shell then file/git within window."""
+
+    def test_no_llm_scores_zero(self) -> None:
+        """Missing LLM network activity: no match."""
+        shell_child = _make_tree(
+            pid=101, ppid=100, name="bash", start_time=_BASE + timedelta(seconds=5),
+        )
+        files = [
+            FileChangeEvent(
+                timestamp=_BASE + timedelta(seconds=10),
+                path="/tmp/x.txt",
+                action="modified",
+                pid=100,
+            ),
+        ]
+        root = _make_tree(
+            pid=100, ppid=0, children=[shell_child], file_events=files, start_time=_BASE,
+        )
+        self.assertEqual(detect_agent_execution_chain(root).score, 0.0)
+
+    def test_no_shell_scores_zero(self) -> None:
+        """Missing shell/interpreter execution: no match."""
+        net = [
+            NetworkConnectEvent(
+                timestamp=_BASE,
+                pid=100,
+                process_name="python3",
+                remote_addr="api.anthropic.com",
+                remote_port=443,
+                local_port=5000,
+            ),
+        ]
+        files = [
+            FileChangeEvent(
+                timestamp=_BASE + timedelta(seconds=10),
+                path="/tmp/x.txt",
+                action="modified",
+                pid=100,
+            ),
+        ]
+        root = _make_tree(
+            pid=100, ppid=0, network_events=net, file_events=files, start_time=_BASE,
+        )
+        self.assertEqual(detect_agent_execution_chain(root).score, 0.0)
+
+    def test_no_file_or_git_scores_zero(self) -> None:
+        """Missing file write or git add/commit: no match."""
+        net = [
+            NetworkConnectEvent(
+                timestamp=_BASE,
+                pid=100,
+                process_name="python3",
+                remote_addr="api.openai.com",
+                remote_port=443,
+                local_port=5000,
+            ),
+        ]
+        shell_child = _make_tree(
+            pid=101, ppid=100, name="bash", start_time=_BASE + timedelta(seconds=5),
+        )
+        root = _make_tree(
+            pid=100, ppid=0, children=[shell_child], network_events=net, start_time=_BASE,
+        )
+        self.assertEqual(detect_agent_execution_chain(root).score, 0.0)
+
+    def test_wrong_order_scores_zero(self) -> None:
+        """File write before shell: no match (requires LLM then shell then file)."""
+        net = [
+            NetworkConnectEvent(
+                timestamp=_BASE + timedelta(seconds=20),
+                pid=100,
+                process_name="python3",
+                remote_addr="api.openai.com",
+                remote_port=443,
+                local_port=5000,
+            ),
+        ]
+        shell_child = _make_tree(
+            pid=101, ppid=100, name="zsh", start_time=_BASE + timedelta(seconds=25),
+        )
+        files = [
+            FileChangeEvent(
+                timestamp=_BASE + timedelta(seconds=5),
+                path="/tmp/x.txt",
+                action="modified",
+                pid=100,
+            ),
+        ]
+        root = _make_tree(
+            pid=100,
+            ppid=0,
+            children=[shell_child],
+            network_events=net,
+            file_events=files,
+            start_time=_BASE,
+        )
+        self.assertEqual(detect_agent_execution_chain(root).score, 0.0)
+
+    def test_outside_window_scores_zero(self) -> None:
+        """Shell and file outside default 120s window: no match."""
+        net = [
+            NetworkConnectEvent(
+                timestamp=_BASE,
+                pid=100,
+                process_name="python3",
+                remote_addr="api.openai.com",
+                remote_port=443,
+                local_port=5000,
+            ),
+        ]
+        shell_child = _make_tree(
+            pid=101, ppid=100, name="bash", start_time=_BASE + timedelta(seconds=130),
+        )
+        files = [
+            FileChangeEvent(
+                timestamp=_BASE + timedelta(seconds=140),
+                path="/tmp/x.txt",
+                action="modified",
+                pid=100,
+            ),
+        ]
+        root = _make_tree(
+            pid=100,
+            ppid=0,
+            children=[shell_child],
+            network_events=net,
+            file_events=files,
+            start_time=_BASE,
+        )
+        self.assertEqual(detect_agent_execution_chain(root).score, 0.0)
+
+    def test_llm_then_shell_then_file_matches(self) -> None:
+        """LLM at t=0, shell at t=5, file at t=10 within 120s: match."""
+        net = [
+            NetworkConnectEvent(
+                timestamp=_BASE,
+                pid=100,
+                process_name="python3",
+                remote_addr="api.anthropic.com",
+                remote_port=443,
+                local_port=5000,
+            ),
+        ]
+        shell_child = _make_tree(
+            pid=101, ppid=100, name="bash", start_time=_BASE + timedelta(seconds=5),
+        )
+        files = [
+            FileChangeEvent(
+                timestamp=_BASE + timedelta(seconds=10),
+                path="/tmp/main.py",
+                action="modified",
+                pid=100,
+            ),
+        ]
+        root = _make_tree(
+            pid=100,
+            ppid=0,
+            children=[shell_child],
+            network_events=net,
+            file_events=files,
+            start_time=_BASE,
+        )
+        match = detect_agent_execution_chain(root)
+        self.assertGreater(match.score, 0.0)
+        self.assertEqual(match.pattern_id, "BEH-009")
+        self.assertEqual(match.pattern_name, "Agent Execution Chain")
+        ev = match.evidence
+        self.assertIn("sequence", ev)
+        self.assertEqual(len(ev["sequence"]), 3)
+        self.assertIn("LLM API call:", ev["sequence"][0])
+        self.assertIn("shell execution:", ev["sequence"][1])
+        self.assertIn("file write detected", ev["sequence"][2])
+        self.assertEqual(ev["window_seconds"], 10.0)
+        self.assertEqual(ev["summary"], "AI-driven command execution chain detected")
+
+    def test_llm_then_shell_then_git_commit_matches(self) -> None:
+        """LLM then shell then git commit: match."""
+        net = [
+            NetworkConnectEvent(
+                timestamp=_BASE,
+                pid=100,
+                process_name="python3",
+                remote_addr="api.openai.com",
+                remote_port=443,
+                local_port=5000,
+            ),
+        ]
+        shell_child = _make_tree(
+            pid=101, ppid=100, name="bash", start_time=_BASE + timedelta(seconds=5),
+        )
+        git_commit = _make_tree(
+            pid=102,
+            ppid=100,
+            name="git",
+            cmdline="git commit -m fix",
+            start_time=_BASE + timedelta(seconds=15),
+        )
+        root = _make_tree(
+            pid=100,
+            ppid=0,
+            children=[shell_child, git_commit],
+            network_events=net,
+            start_time=_BASE,
+        )
+        match = detect_agent_execution_chain(root)
+        self.assertGreater(match.score, 0.0)
+        ev = match.evidence
+        self.assertIn("git commit detected", ev["sequence"][2])
+
+    def test_scanner_includes_detection_code_when_beh009_fires(self) -> None:
+        """Full scanner run: detection_codes includes DETEC-BEH-CORE-04 when BEH-009 matches."""
+        store = EventStore(max_events=1000, retention_seconds=86400 * 365)
+        store.push_process(
+            ProcessExecEvent(
+                timestamp=_BASE,
+                pid=100,
+                ppid=0,
+                name="python3",
+                cmdline="python3 agent.py",
+            )
+        )
+        store.push_process(
+            ProcessExecEvent(
+                timestamp=_BASE + timedelta(seconds=5),
+                pid=101,
+                ppid=100,
+                name="bash",
+                cmdline="bash",
+            )
+        )
+        store.push_network(
+            NetworkConnectEvent(
+                timestamp=_BASE,
+                pid=100,
+                process_name="python3",
+                remote_addr="api.anthropic.com",
+                remote_port=443,
+                local_port=5000,
+            )
+        )
+        store.push_file(
+            FileChangeEvent(
+                timestamp=_BASE + timedelta(seconds=10),
+                path="/tmp/out.txt",
+                action="modified",
+                pid=100,
+            )
+        )
+        # Lower threshold so BEH-009 alone (aggregate ~0.09) still triggers detection
+        with unittest.mock.patch(
+            "scanner.behavioral._load_behavioral_config",
+            return_value={"enabled": True, "detection_threshold": 0.05},
+        ):
+            scanner = BehavioralScanner(event_store=store)
+            result = scanner.scan()
+        self.assertTrue(result.detected)
+        codes = result.evidence_details.get("detection_codes", [])
+        self.assertIn("DETEC-BEH-CORE-04", codes)
+        patterns = result.evidence_details.get("behavioral_patterns", [])
+        beh009 = next((p for p in patterns if p.get("pattern_id") == "BEH-009"), None)
+        self.assertIsNotNone(beh009)
+        self.assertIn("sequence", beh009.get("evidence", {}))
+        self.assertIn("window_seconds", beh009.get("evidence", {}))
 
 
 class TestBehavioralWeights(unittest.TestCase):

@@ -1,5 +1,5 @@
 {
-    "_comment": "Behavioral anomaly scanner (Phase 2). Pattern thresholds for BEH-001 through BEH-008. Overridable by admin push from server. Keys starting with _ and config_version are stripped by config_loader.",
+    "_comment": "Behavioral anomaly scanner (Phase 2). Pattern thresholds for BEH-001 through BEH-009. Overridable by admin push from server. Keys starting with _ and config_version are stripped by config_loader.",
     "config_version": "1.0.0",
 
     "detection_threshold": 0.45,
@@ -39,5 +39,8 @@
     "BEH-008": {
         "resurrection_window_seconds": 30,
         "resurrection_min_restarts": 2
+    },
+    "BEH-009": {
+        "execution_chain_window_seconds": 120
     }
 }
