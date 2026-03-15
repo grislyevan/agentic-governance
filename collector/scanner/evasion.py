@@ -42,6 +42,34 @@ KNOWN_AI_BINARIES = {
     "copilot", "openclaw",
 }
 
+# E4: Subprocess names that are normal children of AI tools (do not treat as renamed binary).
+NORMAL_SUBPROCESS_NAMES = {
+    "node",
+    "electron",
+    "shipit",
+    "zsh",
+    "bash",
+    "sh",
+}
+
+# E4: Parent process names that indicate an AI tool; only flag renamed binaries when parent is in this set.
+AI_TOOL_PROCESS_NAMES = {
+    "cursor",
+    "electron",
+    "code",
+    "claude",
+    "aider",
+    "ollama",
+    "interpreter",
+    "gpt-pilot",
+    "cline",
+    "continue",
+    "lm-studio",
+    "lmstudio",
+    "copilot",
+    "openclaw",
+}
+
 CURSOR_SETTINGS_PATHS = [
     Path.home() / ".cursor" / "settings.json",
     Path.home() / ".config" / "Cursor" / "User" / "settings.json",
@@ -228,8 +256,28 @@ class EvasionScanner(BaseScanner):
         return findings
 
     def _check_renamed_binaries(self, verbose: bool) -> list[EvasionFinding]:
-        """E4: Look for AI tool processes running under non-standard names."""
+        """E4: Look for AI tool processes running under non-standard names.
+
+        Only flags when the process is a direct child of an AI tool (parent in
+        AI_TOOL_PROCESS_NAMES) and the executable name is not a known normal
+        subprocess (e.g. node, electron).
+        """
         findings = []
+        # Build pid -> (ppid, comm) for parent check. macOS: -eo; Linux: -eo.
+        ps_table = self._run_cmd(["ps", "-eo", "pid=,ppid=,comm="])
+        pid_to_ppid_comm: dict[int, tuple[int, str]] = {}
+        if ps_table and ps_table.returncode == 0:
+            for line in ps_table.stdout.splitlines():
+                parts = line.strip().split(None, 2)
+                if len(parts) >= 3:
+                    try:
+                        pid = int(parts[0])
+                        ppid = int(parts[1])
+                        comm = (parts[2] if len(parts) > 2 else "").strip().lower()
+                        pid_to_ppid_comm[pid] = (ppid, comm)
+                    except ValueError:
+                        continue
+
         ps_result = self._run_cmd(["ps", "aux"])
         if not ps_result or ps_result.returncode != 0:
             return findings
@@ -238,19 +286,33 @@ class EvasionScanner(BaseScanner):
             parts = line.split(None, 10)
             if len(parts) < 11:
                 continue
+            try:
+                pid = int(parts[1])
+            except ValueError:
+                continue
             cmd = parts[10].lower()
+            exe_name = Path(parts[10].split()[0]).stem.lower()
+            if exe_name in NORMAL_SUBPROCESS_NAMES:
+                continue
+            # Require parent to be an AI tool process (only flag children of AI tools).
+            if pid in pid_to_ppid_comm:
+                ppid, _ = pid_to_ppid_comm[pid]
+                parent_comm = pid_to_ppid_comm.get(ppid, (0, ""))[1].strip().lower()
+                if parent_comm not in AI_TOOL_PROCESS_NAMES:
+                    continue
+            else:
+                continue
+
             for binary in KNOWN_AI_BINARIES:
-                if binary in cmd:
-                    exe_name = Path(parts[10].split()[0]).stem.lower()
-                    if binary not in exe_name and exe_name not in KNOWN_AI_BINARIES:
-                        findings.append(EvasionFinding(
-                            vector="E4-renamed-binary",
-                            description=f"AI tool '{binary}' running under different name '{exe_name}'",
-                            path=parts[10].split()[0],
-                            boost=0.15,
-                        ))
-                        self._log(f"  E4: Renamed binary: {exe_name} (contains {binary})", verbose)
-                        break
+                if binary in cmd and binary not in exe_name and exe_name not in KNOWN_AI_BINARIES:
+                    findings.append(EvasionFinding(
+                        vector="E4-renamed-binary",
+                        description=f"AI tool '{binary}' running under different name '{exe_name}'",
+                        path=parts[10].split()[0],
+                        boost=0.08,
+                    ))
+                    self._log(f"  E4: Renamed binary: {exe_name} (contains {binary})", verbose)
+                    break
 
         return findings
 

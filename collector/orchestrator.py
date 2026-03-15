@@ -56,6 +56,21 @@ AnyEmitter = Union[EventEmitter, HttpEmitter, TcpEmitter]
 EVENT_VERSION = "0.4.0"
 
 
+def explain_native_failure(provider_name: str, error: BaseException) -> str:
+    """Return a short, readable explanation for native telemetry provider startup failure."""
+    msg = str(error).strip() or type(error).__name__
+    # Common patterns from ESF/ETW/eBPF helpers
+    if "es_new_client" in msg or "esf_helper" in msg.lower() or "endpoint security" in msg.lower():
+        return "Endpoint Security client initialization failed."
+    if "entitlement" in msg.lower() or "permission" in msg.lower():
+        return "Entitlement or permissions (e.g. Full Disk Access) required."
+    if "not found" in msg.lower() or "no such file" in msg.lower():
+        return "Helper binary or dependency not found."
+    if msg:
+        return msg[:200] if len(msg) > 200 else msg
+    return f"{type(error).__name__} during startup"
+
+
 def _normalize_pid(value: object) -> int | None:
     """Coerce a PID from int or numeric string, returning None if invalid."""
     if isinstance(value, int):
@@ -355,6 +370,51 @@ def _should_suppress_emission(scan: ScanResult, confidence: float) -> bool:
     return False
 
 
+def _suppressed_reason(scan: ScanResult, confidence: float) -> str:
+    """Return a short reason for suppression for the analyst summary."""
+    if _no_signals_summary(scan):
+        return "no runtime evidence"
+    if confidence < EMISSION_MIN_CONFIDENCE:
+        return "artifact evidence only"
+    return "credibility gate"
+
+
+def print_scan_summary(
+    scan_summary: dict[str, list[dict[str, Any]]],
+    telemetry_fidelity: str | None = None,
+) -> None:
+    """Print the Detec findings summary block (HIGH / MEDIUM / LOW / SUPPRESSED)."""
+    has_any = any(scan_summary.get(k) for k in ("high", "medium", "low", "suppressed"))
+    if not has_any:
+        return
+    print("\n================= Detec Findings =================")
+    for level in ("high", "medium", "low"):
+        entries = scan_summary.get(level, [])
+        if not entries:
+            continue
+        label = level.upper()
+        print(f"\n{label}")
+        for e in entries:
+            tool = e.get("tool") or "Unknown"
+            tool_class = e.get("tool_class") or "A"
+            policy = e.get("policy") or "observe"
+            reason = e.get("reason") or ""
+            print(f"  {tool} (Class {tool_class})")
+            print(f"  Policy: {policy}")
+            if reason:
+                print(f"  Reason: {reason}")
+    suppressed = scan_summary.get("suppressed", [])
+    if suppressed:
+        print("\nSUPPRESSED")
+        for e in suppressed:
+            tool = e.get("tool") or "Unknown"
+            reason = e.get("reason") or "credibility gate"
+            print(f"  {tool} – {reason}")
+    if telemetry_fidelity:
+        print(f"\nTelemetry fidelity: {telemetry_fidelity}")
+    print("==================================================")
+
+
 def _process_detection(
     scan: ScanResult,
     *,
@@ -369,6 +429,7 @@ def _process_detection(
     network_allowlist: set[str] | None = None,
     verbose: bool,
     correlation_context: list[str] | None = None,
+    scan_summary: dict[str, list[dict[str, Any]]] | None = None,
 ) -> int:
     """Score, evaluate policy, enforce, and emit events for one detection."""
     events_emitted = 0
@@ -377,6 +438,11 @@ def _process_detection(
     conf_class = classify_confidence(confidence)
 
     if _should_suppress_emission(scan, confidence):
+        if scan_summary is not None:
+            scan_summary.setdefault("suppressed", []).append({
+                "tool": scan.tool_name,
+                "reason": _suppressed_reason(scan, confidence),
+            })
         if verbose:
             print(f"  {scan.tool_name}: suppressed (credibility gate: confidence={confidence:.4f})")
         return 0
@@ -395,6 +461,15 @@ def _process_detection(
         is_containerized=containerized,
         net_ctx=net_ctx,
     )
+
+    if scan_summary is not None:
+        bucket = conf_class.lower()
+        scan_summary.setdefault(bucket, []).append({
+            "tool": scan.tool_name,
+            "tool_class": scan.tool_class or "A",
+            "policy": policy_decision.decision_state,
+            "reason": (scan.action_summary or "").strip() or policy_decision.rule_id or "detected",
+        })
 
     if state_differ is not None:
         changed, reasons = state_differ.is_changed(
@@ -610,30 +685,45 @@ def run_scan(
         getattr(args, "network_allowlist_path", None)
     )
 
-    if args.verbose:
-        print(f"Collector session: {session_id}")
-        print(f"Endpoint: {endpoint_id}  Actor: {actor_id}  Sensitivity: {sensitivity}")
-        if network_allowlist:
-            print(f"Network allowlist: {len(network_allowlist)} entries")
-        print("-" * 60)
-
     on_alert = getattr(args, "_on_alert", None)
     event_store = EventStore(on_alert=on_alert)
     provider = get_best_provider(getattr(args, "telemetry_provider", "auto"))
+    telemetry_fidelity: str | None = None  # "degraded (polling fallback)" when we fell back
     try:
         provider.start(event_store)
-    except Exception:
+    except Exception as e:
         if provider.name != "polling":
-            logger.warning(
-                "Native provider %s failed to start; falling back to polling",
+            logger.debug(
+                "Native provider %s failed to start; falling back to polling: %s",
                 provider.name,
+                e,
                 exc_info=True,
             )
+            reason = explain_native_failure(provider.name.upper(), e)
+            print("Native telemetry provider (%s) failed to start." % provider.name.upper())
+            print("Reason:")
+            print("  %s" % reason)
+            print("Falling back to polling provider.")
+            print("Telemetry fidelity: DEGRADED")
+            print("Polling mode may miss:")
+            print("  - short-lived processes")
+            print("  - file system events")
+            print("  - fine-grained network correlation")
             from providers.polling import PollingProvider
             provider = PollingProvider()
             provider.start(event_store)
+            telemetry_fidelity = "degraded (polling fallback)"
         else:
             raise
+
+    if args.verbose:
+        print(f"Collector session: {session_id}")
+        print(f"Endpoint: {endpoint_id}  Actor: {actor_id}  Sensitivity: {sensitivity}")
+        if telemetry_fidelity:
+            print(f"Telemetry fidelity: {telemetry_fidelity}")
+        if network_allowlist:
+            print(f"Network allowlist: {len(network_allowlist)} entries")
+        print("-" * 60)
 
     scanners = [
         ClaudeCodeScanner(event_store=event_store),
@@ -735,6 +825,12 @@ def run_scan(
 
     correlation_map = compute_correlation(detected_scans, event_store, _extract_pids)
 
+    scan_summary: dict[str, list[dict[str, Any]]] = {
+        "high": [],
+        "medium": [],
+        "low": [],
+        "suppressed": [],
+    }
     total_events = 0
     for scan in detected_scans:
         related = correlation_map.get(scan.tool_name or "", [])
@@ -751,6 +847,7 @@ def run_scan(
             network_allowlist=network_allowlist or None,
             verbose=args.verbose,
             correlation_context=related if related else None,
+            scan_summary=scan_summary,
         )
 
     if state_differ is not None:
@@ -768,6 +865,8 @@ def run_scan(
         )
 
     provider.stop()
+
+    print_scan_summary(scan_summary, telemetry_fidelity)
 
     stats = emitter.stats
     if args.verbose:

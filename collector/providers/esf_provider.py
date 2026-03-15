@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import platform
 import shutil
 import socket
@@ -30,6 +31,28 @@ from telemetry.event_store import (
 logger = logging.getLogger(__name__)
 
 ESF_SOURCE = "esf"
+
+# es_new_client_result_t numeric codes (macOS Endpoint Security)
+ES_NEW_CLIENT_ERROR_CODES = {
+    1: "internal error (Endpoint Security subsystem)",
+    2: "invalid argument",
+    3: "not entitled (missing com.apple.developer.endpoint-security.client entitlement)",
+    4: "not permitted (TCC / Full Disk Access or approval required)",
+    5: "not privileged (Endpoint Security requires root or SIP exception)",
+    6: "too many clients (limit reached)",
+}
+
+
+def _parse_es_new_client_error(stderr_bytes: bytes) -> str | None:
+    """Parse esf_helper stderr for 'es_new_client failed: N'; return human-readable message or None."""
+    text = stderr_bytes.decode("utf-8", errors="replace")
+    m = re.search(r"es_new_client failed:\s*(\d+)", text)
+    if not m:
+        return None
+    code = int(m.group(1))
+    if code in ES_NEW_CLIENT_ERROR_CODES:
+        return f"macOS Endpoint Security: {ES_NEW_CLIENT_ERROR_CODES[code]}"
+    return f"macOS Endpoint Security initialization failed (error code {code})"
 
 
 def _find_esf_helper() -> str | None:
@@ -140,7 +163,12 @@ class ESFProvider(TelemetryProvider):
             self._proc.poll()
             if self._proc.returncode is not None:
                 _, err = self._proc.communicate()
-                raise RuntimeError(f"esf_helper exited {self._proc.returncode}: {err.decode(errors='replace')}")
+                explanation = _parse_es_new_client_error(err) if err else None
+                if explanation:
+                    raise RuntimeError(explanation)
+                raise RuntimeError(
+                    f"esf_helper exited {self._proc.returncode}: {err.decode(errors='replace')}"
+                )
             threading.Event().wait(0.05)
         else:
             self._proc.terminate()

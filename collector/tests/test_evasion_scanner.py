@@ -174,31 +174,65 @@ class TestForcePushDetection:
 
 class TestRenamedBinaryDetection:
     def test_renamed_binary_detected(self, scanner):
-        ps_output = textwrap.dedent("""\
+        # Process 123 (myapp) is child of 456 (cursor); cmd mentions claude -> E4.
+        ps_table = "456 1 cursor\n123 456 myapp\n"
+        ps_aux = textwrap.dedent("""\
             USER  PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
             user  123  1.0  0.5 100 50 ? S 10:00 0:01 /usr/local/bin/myapp --flag claude-code-agent
         """)
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_result.stdout = ps_output
+        mock_table = MagicMock()
+        mock_table.returncode = 0
+        mock_table.stdout = ps_table
+        mock_aux = MagicMock()
+        mock_aux.returncode = 0
+        mock_aux.stdout = ps_aux
 
-        with patch.object(scanner, "_run_cmd", return_value=mock_result):
+        with patch.object(scanner, "_run_cmd", side_effect=[mock_table, mock_aux]):
             findings = scanner._check_renamed_binaries(verbose=False)
 
         assert len(findings) == 1
         assert findings[0].vector == "E4-renamed-binary"
-        assert findings[0].boost == 0.15
+        assert findings[0].boost == 0.08
 
     def test_normal_binary_not_flagged(self, scanner):
-        ps_output = textwrap.dedent("""\
+        ps_table = "123 1 cursor\n"
+        ps_aux = textwrap.dedent("""\
             USER  PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
             user  123  1.0  0.5 100 50 ? S 10:00 0:01 /usr/local/bin/cursor --flag
         """)
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_result.stdout = ps_output
+        mock_table = MagicMock()
+        mock_table.returncode = 0
+        mock_table.stdout = ps_table
+        mock_aux = MagicMock()
+        mock_aux.returncode = 0
+        mock_aux.stdout = ps_aux
 
-        with patch.object(scanner, "_run_cmd", return_value=mock_result):
+        with patch.object(scanner, "_run_cmd", side_effect=[mock_table, mock_aux]):
+            findings = scanner._check_renamed_binaries(verbose=False)
+
+        assert len(findings) == 0
+
+    def test_evasion_e4_false_positive_cursor_process_tree(self, scanner):
+        # Cursor -> Electron -> node with "cursor" in args: normal subprocesses, no E4.
+        ps_table = textwrap.dedent("""\
+            100 1 cursor
+            101 100 electron
+            102 101 node
+        """)
+        ps_aux = textwrap.dedent("""\
+            USER  PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
+            user  100  0.5  1.0 100 50 ? S 10:00 0:00 /Applications/Cursor.app/Contents/MacOS/Cursor
+            user  101  0.3  0.8 100 50 ? S 10:01 0:00 /Applications/Cursor.app/Contents/Frameworks/Electron
+            user  102  0.2  0.5 100 50 ? S 10:02 0:00 node /path/to/cursor/helper.js
+        """)
+        mock_table = MagicMock()
+        mock_table.returncode = 0
+        mock_table.stdout = ps_table
+        mock_aux = MagicMock()
+        mock_aux.returncode = 0
+        mock_aux.stdout = ps_aux
+
+        with patch.object(scanner, "_run_cmd", side_effect=[mock_table, mock_aux]):
             findings = scanner._check_renamed_binaries(verbose=False)
 
         assert len(findings) == 0
