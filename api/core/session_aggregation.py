@@ -48,6 +48,98 @@ _ACTION_TYPE_TO_LABEL: dict[str, str] = {
 # Default session gap: events within this many minutes belong to same session
 DEFAULT_SESSION_GAP_MINUTES = 15
 
+# action.risk_class -> numeric session risk (0-1)
+_RISK_CLASS_TO_SCORE: dict[str, float] = {
+    "R1": 0.25,
+    "R2": 0.50,
+    "R3": 0.75,
+    "R4": 1.0,
+}
+
+# Timeline entry type -> chain step name (skip sequence boundaries)
+_TIMELINE_TYPE_TO_STEP: dict[str, str] = {
+    "llm": "llm_call",
+    "shell_exec": "shell_exec",
+    "exec": "shell_exec",
+    "file_write": "file_write",
+    "file_modified": "file_write",
+    "file_delete": "file_write",
+    "network": "outbound_activity",
+    "git": "git_modification",
+}
+_SKIP_TIMELINE_TYPES = frozenset({"sequence_start", "sequence_end"})
+
+
+def _session_confidence_from_events(
+    group: list[tuple[datetime, str, str | None, dict[str, Any]]],
+) -> float | None:
+    """Max tool.attribution_confidence across events in the session. None if none present."""
+    values: list[float] = []
+    for _t, _tn, _e, payload in group:
+        if not isinstance(payload, dict):
+            continue
+        conf = (payload.get("tool") or {}).get("attribution_confidence")
+        if conf is not None and isinstance(conf, (int, float)):
+            v = float(conf)
+            if 0 <= v <= 1:
+                values.append(v)
+    return max(values) if values else None
+
+
+def _session_risk_from_events(
+    group: list[tuple[datetime, str, str | None, dict[str, Any]]],
+) -> float | None:
+    """Max risk_class score in session (R1=0.25 .. R4=1.0). None if no risk_class present."""
+    scores: list[float] = []
+    for _t, _tn, _e, payload in group:
+        if not isinstance(payload, dict):
+            continue
+        rc = (payload.get("action") or {}).get("risk_class")
+        if rc and rc in _RISK_CLASS_TO_SCORE:
+            scores.append(_RISK_CLASS_TO_SCORE[rc])
+    return max(scores) if scores else None
+
+
+def _top_risk_signals_from_events(
+    group: list[tuple[datetime, str, str | None, dict[str, Any]]],
+    risk_signals_fn: Any,
+    top_n: int = 10,
+) -> list[str]:
+    """Ordered list of risk signal labels by count across events (top N)."""
+    counts: dict[str, int] = {}
+    for _t, _tn, _e, payload in group:
+        for label in risk_signals_fn(payload):
+            counts[label] = counts.get(label, 0) + 1
+    sorted_labels = sorted(counts.keys(), key=lambda k: (-counts[k], k))
+    return sorted_labels[:top_n] if sorted_labels else []
+
+
+def _top_behavior_chains_from_timeline(
+    session_timeline: list[SessionTimelineEntry],
+    max_chains: int = 5,
+) -> list[str]:
+    """Derive behavior chain strings (from_step -> to_step) from consecutive timeline entry types."""
+    if not session_timeline or len(session_timeline) < 2:
+        return []
+    steps: list[str] = []
+    for e in session_timeline:
+        t = (e.type or "").strip()
+        if t in _SKIP_TIMELINE_TYPES:
+            continue
+        step = _TIMELINE_TYPE_TO_STEP.get(t)
+        if step is None:
+            step = "observe"
+        steps.append(step)
+    edge_counts: dict[tuple[str, str], int] = {}
+    for i in range(len(steps) - 1):
+        a, b = steps[i], steps[i + 1]
+        if a == "observe" or b == "observe":
+            continue
+        key = (a, b)
+        edge_counts[key] = edge_counts.get(key, 0) + 1
+    chains = [f"{a} -> {b}" for (a, b), _ in sorted(edge_counts.items(), key=lambda x: (-x[1], x[0]))]
+    return chains[:max_chains] if chains else []
+
 
 def fetch_events_for_sessions(
     db: "Session",
@@ -203,6 +295,13 @@ def aggregate_events_into_sessions(
                 except Exception:
                     session_timeline = session_timeline  # keep previous if parse fails
 
+        session_confidence = _session_confidence_from_events(group)
+        session_risk = _session_risk_from_events(group)
+        top_risk_signals_list = _top_risk_signals_from_events(group, risk_signals_from_payload, top_n=10)
+        top_behavior_chains_list: list[str] | None = None
+        if session_timeline:
+            top_behavior_chains_list = _top_behavior_chains_from_timeline(session_timeline, max_chains=5)
+
         reports.append(
             SessionReport(
                 tool=tool_name,
@@ -213,6 +312,10 @@ def aggregate_events_into_sessions(
                 actions=SessionReportActions(),
                 actions_note="N/A: aggregated from detection events only",
                 risk_signals=sorted(all_signals),
+                session_risk=session_risk,
+                session_confidence=session_confidence,
+                top_risk_signals=top_risk_signals_list if top_risk_signals_list else None,
+                top_behavior_chains=top_behavior_chains_list,
                 session_timeline=session_timeline,
                 timeline_summary=timeline_summary,
             )

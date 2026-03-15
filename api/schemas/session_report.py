@@ -45,6 +45,18 @@ class SessionReport(BaseModel):
         description="e.g. 'N/A: aggregated from detection events only'",
     )
     risk_signals: list[str] = Field(default_factory=list, description="Human-readable risk labels")
+    session_risk: float | None = Field(
+        default=None,
+        description="Session risk 0-1 from max action.risk_class in session (R1=0.25, R2=0.5, R3=0.75, R4=1.0)",
+    )
+    session_confidence: float | None = Field(
+        default=None,
+        description="Max tool.attribution_confidence across events in the session (0-1)",
+    )
+    top_risk_signals: list[str] | None = Field(
+        default=None,
+        description="Risk signal labels ordered by frequency in session (top N)",
+    )
     first_trigger_type: str | None = Field(default=None, description="Trigger that initiated scan when alert-triggered")
     trigger_source: str | None = Field(default=None, description="Telemetry source for trigger (polling, native, mixed)")
     alert_triggered_scans: int | None = Field(default=None, description="Number of alert-triggered scans in session")
@@ -94,6 +106,18 @@ def session_report_to_display(report: SessionReport) -> str:
             lines.append(f"- {sig}")
     else:
         lines.append("- (none)")
+    if report.session_risk is not None or report.session_confidence is not None:
+        lines.append("")
+        lines.append("session scoring:")
+        if report.session_risk is not None:
+            lines.append(f"- session_risk: {report.session_risk:.2f}")
+        if report.session_confidence is not None:
+            lines.append(f"- session_confidence: {report.session_confidence:.2f}")
+    if report.top_risk_signals:
+        lines.append("")
+        lines.append("top risk signals:")
+        for sig in report.top_risk_signals:
+            lines.append(f"- {sig}")
     if report.first_trigger_type or report.trigger_source:
         lines.append("")
         lines.append("trigger:")
