@@ -789,6 +789,12 @@ def run_scan(
             exc_info=True,
         )
 
+    if getattr(args, "session_report", False):
+        from session_report import build_session_reports, format_session_report_for_cli
+        for report in build_session_reports(event_store, detected_scans):
+            print(format_session_report_for_cli(report))
+            print("")
+
     try:
         scheduler_by_tool = get_scheduler_evidence_by_tool()
         for scan in detected_scans:

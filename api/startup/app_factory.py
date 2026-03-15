@@ -44,6 +44,7 @@ from routers import (
     response_playbooks,
     retention,
     server_settings,
+    session_reports,
     tenants,
     users,
     webhooks,
@@ -221,6 +222,7 @@ def create_app(lifespan_context_manager):
     app.include_router(enforcement.router, prefix=API_PREFIX)
     app.include_router(billing.router, prefix=API_PREFIX)
     app.include_router(reports.router, prefix=API_PREFIX)
+    app.include_router(session_reports.router, prefix=API_PREFIX)
     app.include_router(response_playbooks.router, prefix=API_PREFIX)
     app.include_router(server_settings.router, prefix=API_PREFIX)
     app.include_router(data_flow.router, prefix=API_PREFIX)

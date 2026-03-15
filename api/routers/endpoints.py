@@ -32,6 +32,7 @@ from schemas.endpoints import (
     EndpointStatusResponse,
     EndpointUpdate,
 )
+from schemas.session_report import SessionReportListResponse
 
 logger = logging.getLogger(__name__)
 
@@ -247,6 +248,43 @@ def heartbeat(
         allow_list_updated_at=allow_list_updated_at,
         restore_services=restore_services,
     )
+
+
+@router.get("/{endpoint_id}/session-reports", response_model=SessionReportListResponse, tags=["session-reports"])
+def get_endpoint_session_reports(
+    endpoint_id: str,
+    since: datetime | None = Query(default=None),
+    before: datetime | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=500),
+    db: Session = Depends(get_db),
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+) -> SessionReportListResponse:
+    """Return session reports for a single endpoint."""
+    from core.session_aggregation import (
+        DEFAULT_SESSION_GAP_MINUTES,
+        aggregate_events_into_sessions,
+        fetch_events_for_sessions,
+    )
+    from models.event import Event
+
+    auth = resolve_auth(authorization, x_api_key, db)
+    endpoint = db.query(Endpoint).filter(
+        Endpoint.id == endpoint_id, get_tenant_filter(auth, Endpoint)
+    ).first()
+    if not endpoint:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+
+    tenant_filter = get_tenant_filter(auth, Event)
+    events = fetch_events_for_sessions(
+        db, tenant_filter, endpoint_id=endpoint_id, observed_after=since, observed_before=before, limit=limit
+    )
+    reports = aggregate_events_into_sessions(
+        events,
+        session_gap_minutes=DEFAULT_SESSION_GAP_MINUTES,
+        endpoint_id=endpoint_id,
+    )
+    return SessionReportListResponse(items=reports)
 
 
 @router.get("/{endpoint_id}", response_model=EndpointResponse)

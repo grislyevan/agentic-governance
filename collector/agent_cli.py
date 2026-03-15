@@ -99,6 +99,23 @@ def cmd_scan(args: argparse.Namespace) -> None:
     cfg["interval"] = 0
     cfg["report_all"] = True
     cfg["enforce"] = False
+    cfg["session_report"] = getattr(args, "session_report", False)
+
+    sys.exit(run_scan(argparse.Namespace(**cfg)))
+
+
+def cmd_session_report(args: argparse.Namespace) -> None:
+    """Run a scan and print agent session report(s) for detected tools."""
+    from config_loader import load_collector_config
+    from main import run_scan
+
+    cfg = load_collector_config()
+    cfg["dry_run"] = True
+    cfg["verbose"] = args.verbose
+    cfg["interval"] = 0
+    cfg["report_all"] = True
+    cfg["enforce"] = False
+    cfg["session_report"] = True
 
     sys.exit(run_scan(argparse.Namespace(**cfg)))
 
@@ -341,7 +358,13 @@ def main() -> None:
     # --- scan ---
     p_scan = sub.add_parser("scan", help="Run a one-shot scan and print results")
     p_scan.add_argument("--verbose", action="store_true", help="Show detailed scan output")
+    p_scan.add_argument("--session-report", action="store_true", dest="session_report", help="Also print agent session report(s)")
     p_scan.set_defaults(func=cmd_scan)
+
+    # --- session-report ---
+    p_session_report = sub.add_parser("session-report", help="Run scan and print agent session report (tool, duration, actions, risk signals)")
+    p_session_report.add_argument("--verbose", action="store_true", help="Show detailed scan output")
+    p_session_report.set_defaults(func=cmd_session_report)
 
     # --- run ---
     p_run = sub.add_parser("run", help="Run the agent daemon in the foreground")
