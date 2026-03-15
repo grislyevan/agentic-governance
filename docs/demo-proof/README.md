@@ -23,6 +23,7 @@ No API or dashboard is required for this flow; the agent runs locally and prints
 | [DETEC-BEH-CORE-01-demo.md](DETEC-BEH-CORE-01-demo.md) | Polished demo for **DETEC-BEH-CORE-01** (autonomous shell fan-out): command, detection output, evidence summary, policy result. Showable in 60 seconds. |
 | [DETEC-BEH-CORE-02-demo.md](DETEC-BEH-CORE-02-demo.md) | Polished demo for **DETEC-BEH-CORE-02** (agentic read-modify-write loop): command, detection output, evidence summary, policy result. Showable in 60 seconds. |
 | [DETEC-BEH-CORE-03-demo.md](DETEC-BEH-CORE-03-demo.md) | Polished demo for **DETEC-BEH-CORE-03** (sensitive access + outbound): command, detection output, evidence summary, policy result. Showable in 60 seconds. |
+| [session-report-demo.md](session-report-demo.md) | **Agent session report:** `detec-agent session-report`, example output, why it matters, and the difference between API-aggregated sessions and collector telemetry sessions. |
 | Screenshot | Optional. We do not capture an in-repo screenshot automatically (no terminal screenshot step in the pipeline). For live demos or README screenshots, run the commands above and capture the terminal manually. The transcript is the primary checked-in evidence. |
 
 ## Alignment with README

@@ -62,7 +62,7 @@ Review the behavioral demo pack and demo proof index:
 - [Behavioral demo pack](docs/behavioral-core-demo-pack.md)
 - [Demo proof index](docs/demo-proof/README.md)
 
-These demos show the canonical detections, event output, evidence summaries, and policy outcomes.
+These demos show the canonical detections, event output, evidence summaries, and policy outcomes. Detec can also summarize detections into **agent session reports** (tool, duration, action counts, risk signals) via API and CLI; see [Session report demo](docs/demo-proof/session-report-demo.md).
 
 ---
 
