@@ -39,6 +39,8 @@ Example output (detected tools, confidence, and scan summary):
 Scan complete. Events emitted: 2, validation failures: 0
 ```
 
+Stable demo evidence (transcript and description) is in [docs/demo-proof/](docs/demo-proof/).
+
 ---
 
 Detec gives security teams evidence-based visibility and control: discover what runs, how confident each detection is, and whether it fits your policy. See what AI agents do; govern what they're allowed to.
