@@ -18,7 +18,8 @@ import pytest
 
 import core.database as _db_mod
 from core.database import Base
-from models.tenant import Tenant, generate_agent_key
+from models.tenant import Tenant
+from core.tenant import generate_agent_key
 from models.event import Event
 import models  # noqa: F401
 

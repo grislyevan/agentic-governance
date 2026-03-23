@@ -51,7 +51,7 @@ def seed() -> None:
         if existing:
             return
 
-        from models.tenant import generate_agent_key
+        from core.tenant import generate_agent_key
 
         slug = settings.seed_tenant_name.lower().replace(" ", "-")[:64]
         agent_key = settings.seed_agent_key or generate_agent_key()
