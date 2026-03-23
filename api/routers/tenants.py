@@ -16,7 +16,8 @@ from core.database import get_db
 from core.auth_cookies import get_authorization
 from core.tenant import resolve_auth, require_role, AuthContext
 from models.endpoint import Endpoint
-from models.tenant import Tenant, generate_agent_key
+from models.tenant import Tenant
+from core.tenant import generate_agent_key
 from models.tenant_membership import TenantMembership
 from models.user import User
 from schemas.tenants import (

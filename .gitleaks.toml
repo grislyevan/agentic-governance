@@ -1,0 +1,11 @@
+[allowlist]
+description = "Allowlist placeholder tokens used in documentation examples"
+regexes = [
+    # Uppercase placeholder tokens in curl examples (e.g. YOUR_JWT_TOKEN, YOUR_ADMIN_API_KEY)
+    '''YOUR_[A-Z_]+''',
+]
+paths = [
+    "DEPLOY.md",
+    "README.md",
+    "docs/",
+]

@@ -145,7 +145,7 @@ class TestForcePushDetection:
         reflog.write_text(textwrap.dedent("""\
             abc123 def456 User <u@e.com> 1710000000 +0000\tcommit: initial
             def456 ghi789 User <u@e.com> 1710001000 +0000\tcommit (amend): fix typo
-            ghi789 jkl012 User <u@e.com> 1710002000 +0000\tpush: updating refs
+            ghi789 jkl012 User <u@e.com> 1710002000 +0000\tpush --force: updating refs
         """))
 
         with patch.object(scanner, "_find_git_repos", return_value=[tmp_git_repo]):
