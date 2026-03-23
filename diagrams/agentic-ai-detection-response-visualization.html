@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic AI Endpoint Detection &amp; Governance — Response Flow</title>
+<style>
+  :root {
+    --bg: #0b1120;
+    --surface: #131b2e;
+    --surface2: #1a2540;
+    --border: #243050;
+    --accent: #3b82f6;
+    --accent-glow: rgba(59,130,246,.25);
+    --green: #10b981;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --purple: #a855f7;
+    --cyan: #06b6d4;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --dim: #475569;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ---------- header ---------- */
+  header {
+    text-align: center;
+    padding: 48px 24px 12px;
+  }
+  header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    background: linear-gradient(135deg, var(--accent), var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  header p {
+    color: var(--muted);
+    margin-top: 8px;
+    font-size: .95rem;
+    max-width: 680px;
+    margin-inline: auto;
+  }
+
+  /* ---------- legend ---------- */
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding: 12px 24px 0;
+    font-size: .78rem;
+    color: var(--muted);
+  }
+  .legend span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* ---------- canvas area ---------- */
+  .canvas {
+    position: relative;
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 32px 24px 60px;
+  }
+
+  /* ---------- svg wiring ---------- */
+  svg.wires {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  svg.wires path, svg.wires line {
+    fill: none;
+    stroke: var(--border);
+    stroke-width: 1.5;
+  }
+  svg.wires .flow-active {
+    stroke: var(--accent);
+    stroke-width: 2;
+    filter: drop-shadow(0 0 4px var(--accent-glow));
+  }
+  svg.wires .flow-dot {
+    fill: var(--accent);
+  }
+
+  /* ---------- section labels ---------- */
+  .section-label {
+    font-size: .7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--dim);
+    position: absolute;
+    z-index: 1;
+  }
+
+  /* ---------- cards ---------- */
+  .card {
+    position: absolute;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    z-index: 2;
+    transition: transform .2s, box-shadow .2s, border-color .25s;
+    cursor: default;
+  }
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(0,0,0,.35);
+    border-color: var(--accent);
+  }
+  .card h3 {
+    font-size: .85rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h3 .icon {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .75rem;
+    flex-shrink: 0;
+  }
+  .card p, .card ul {
+    font-size: .77rem;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  .card ul {
+    padding-left: 16px;
+    margin-top: 4px;
+  }
+  .card .tag {
+    display: inline-block;
+    font-size: .65rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-top: 8px;
+    letter-spacing: .03em;
+  }
+
+  /* color accents per module */
+  .card.sig   { --card-accent: var(--cyan); }
+  .card.net   { --card-accent: var(--accent); }
+  .card.behav { --card-accent: var(--purple); }
+  .card.block   { --card-accent: var(--red); }
+  .card.alert   { --card-accent: var(--amber); }
+  .card.monitor { --card-accent: var(--green); }
+  .card.redirect { --card-accent: var(--purple); }
+  .card.console { --card-accent: var(--cyan); }
+
+  .card h3 .icon { background: color-mix(in srgb, var(--card-accent) 18%, transparent); color: var(--card-accent); }
+  .card .tag { background: color-mix(in srgb, var(--card-accent) 14%, transparent); color: var(--card-accent); }
+  .card:hover { border-color: var(--card-accent); }
+
+  /* ---------- central hub ---------- */
+  .hub {
+    position: absolute;
+    z-index: 3;
+    width: 170px;
+    text-align: center;
+    padding: 20px 14px;
+    border-radius: 16px;
+    background: linear-gradient(145deg, var(--surface2), var(--surface));
+    border: 1.5px solid var(--accent);
+    box-shadow: 0 0 40px var(--accent-glow);
+  }
+  .hub h3 {
+    font-size: .82rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .hub p {
+    font-size: .7rem;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+
+  /* ---------- animated pulse ring ---------- */
+  @keyframes pulse-ring {
+    0%   { transform: scale(.92); opacity: .7; }
+    50%  { transform: scale(1.06); opacity: .3; }
+    100% { transform: scale(.92); opacity: .7; }
+  }
+  .hub::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 20px;
+    border: 1.5px solid var(--accent);
+    opacity: .3;
+    animation: pulse-ring 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  /* ---------- data-flow animation ---------- */
+  @keyframes dash-flow {
+    to { stroke-dashoffset: -20; }
+  }
+  .wire-animated {
+    stroke-dasharray: 8 12;
+    animation: dash-flow .8s linear infinite;
+  }
+
+  /* ---------- responsive grid layout ---------- */
+  /* We'll position cards manually via JS for precision, but define sizes here */
+  .card { width: 265px; }
+  .card.wide { width: 300px; }
+
+  /* ---------- tooltip ---------- */
+  .tooltip-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0,0,0,.45);
+    backdrop-filter: blur(4px);
+    justify-content: center;
+    align-items: center;
+  }
+  .tooltip-overlay.visible {
+    display: flex;
+  }
+  .tooltip-box {
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    border-radius: 16px;
+    padding: 28px 32px;
+    max-width: 500px;
+    width: 90vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    position: relative;
+  }
+  .tooltip-box h2 {
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+    color: var(--accent);
+  }
+  .tooltip-box p, .tooltip-box ul {
+    font-size: .85rem;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .tooltip-box ul { padding-left: 18px; margin-top: 8px; }
+  .tooltip-box .close-btn {
+    position: absolute;
+    top: 14px; right: 16px;
+    background: none;
+    border: none;
+    color: var(--dim);
+    font-size: 1.2rem;
+    cursor: pointer;
+  }
+  .tooltip-box .close-btn:hover { color: var(--text); }
+
+  /* ---------- footer ---------- */
+  footer {
+    text-align: center;
+    padding: 20px;
+    font-size: .72rem;
+    color: var(--dim);
+  }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 900px) {
+    .canvas { min-height: auto !important; }
+    .card, .hub { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; margin-bottom: 14px; }
+    svg.wires { display: none; }
+    .section-label { position: relative !important; left: auto !important; top: auto !important; margin: 20px 0 8px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Agentic AI Endpoint Detection &amp; Governance</h1>
+  <p>Detection engine modules feed into a centralized policy evaluation hub, which dispatches tiered enforcement responses and reports to the management console.</p>
+</header>
+
+<div class="legend">
+  <span><span class="dot" style="background:var(--cyan)"></span> Signature Scanner</span>
+  <span><span class="dot" style="background:var(--accent)"></span> Network Monitor</span>
+  <span><span class="dot" style="background:var(--purple)"></span> Behavioral Monitor</span>
+  <span><span class="dot" style="background:var(--red)"></span> Block</span>
+  <span><span class="dot" style="background:var(--amber)"></span> Alert</span>
+  <span><span class="dot" style="background:var(--green)"></span> Monitor</span>
+  <span><span class="dot" style="background:var(--purple)"></span> Redirect</span>
+</div>
+
+<div class="canvas" id="canvas">
+  <svg class="wires" id="wires"></svg>
+
+  <!-- Section Labels -->
+  <div class="section-label" id="lbl-detect" style="left:40px; top:12px;">&#9664; Detection Engine — Endpoint</div>
+  <div class="section-label" id="lbl-policy" style="left:530px; top:12px;">Policy Evaluation</div>
+  <div class="section-label" id="lbl-enforce" style="left:830px; top:12px;">Enforcement Tier &#9654;</div>
+  <div class="section-label" id="lbl-console" style="left:830px; top:440px;">Management Console &#9660;</div>
+
+  <!-- Detection Cards -->
+  <div class="card sig" id="card-sig" style="left:30px; top:50px;" data-detail="sig">
+    <h3><span class="icon">&#128270;</span> Signature Scanner</h3>
+    <p>Periodic scan of known binary paths, config directories, and package manager installs.</p>
+    <ul>
+      <li>Cloud-updated catalog (antivirus-style)</li>
+      <li>Catches known tools &amp; trivial installs</li>
+    </ul>
+    <span class="tag">PERIODIC</span>
+  </div>
+
+  <div class="card net" id="card-net" style="left:30px; top:235px;" data-detail="net">
+    <h3><span class="icon">&#127760;</span> Network Monitor</h3>
+    <p>Real-time DNS &amp; TLS SNI inspection for known LLM API domains.</p>
+    <ul>
+      <li>api.anthropic.com, api.openai.com, etc.</li>
+      <li>Local inference server port detection</li>
+      <li>Catches browser-based AI usage</li>
+    </ul>
+    <span class="tag">REAL-TIME</span>
+  </div>
+
+  <div class="card behav" id="card-behav" style="left:30px; top:440px;" data-detail="behav">
+    <h3><span class="icon">&#129504;</span> Behavioral Monitor</h3>
+    <p>Process-level heuristics: broad file reads + outbound LLM calls + child shell execution.</p>
+    <ul>
+      <li>Catches novel/unknown tools</li>
+      <li>Custom scripts, renamed binaries</li>
+      <li>The differentiator no one else detects</li>
+    </ul>
+    <span class="tag">HEURISTIC</span>
+  </div>
+
+  <!-- Central Hub -->
+  <div class="hub" id="hub" style="left:410px; top:235px;">
+    <h3>&#9878;&#65039; Policy Engine</h3>
+    <p>Evaluates detections against the who / what / how policy matrix bound to IDP groups (Okta, Entra&nbsp;ID).</p>
+  </div>
+
+  <!-- Enforcement Cards -->
+  <div class="card block" id="card-block" style="left:680px; top:38px;" data-detail="block">
+    <h3><span class="icon">&#9940;</span> Block</h3>
+    <p>Kill process, drop connection, prevent binary launch.</p>
+    <ul>
+      <li>macOS Endpoint Security framework</li>
+      <li>Windows Defender App Control (WDAC)</li>
+    </ul>
+    <span class="tag">IMMEDIATE</span>
+  </div>
+
+  <div class="card alert" id="card-alert" style="left:680px; top:195px;" data-detail="alert">
+    <h3><span class="icon">&#128276;</span> Alert</h3>
+    <p>Allow execution; notify security team &amp; user's manager in real time.</p>
+    <span class="tag">REAL-TIME NOTIFY</span>
+  </div>
+
+  <div class="card monitor" id="card-mon" style="left:680px; top:320px;" data-detail="mon">
+    <h3><span class="icon">&#128065;</span> Monitor</h3>
+    <p>Log silently for audit &amp; compliance. Ideal during pilot phase to map usage before enforcing.</p>
+    <span class="tag">SILENT LOG</span>
+  </div>
+
+  <div class="card redirect" id="card-redir" style="left:680px; top:440px;" data-detail="redir">
+    <h3><span class="icon">&#128260;</span> Redirect</h3>
+    <p>Block unsanctioned tool, surface a message: <em>"Use [approved alternative] or request access."</em></p>
+    <ul>
+      <li>Channels demand into sanctioned path</li>
+    </ul>
+    <span class="tag">FUTURE STATE</span>
+  </div>
+
+  <!-- Console Cards -->
+  <div class="card console wide" id="card-dash" style="left:30px; top:650px;" data-detail="dash">
+    <h3><span class="icon">&#128202;</span> Dashboard</h3>
+    <p>Fleet-wide view: tools detected, blocked, trends over time. Single pane of glass for leadership.</p>
+  </div>
+
+  <div class="card console" id="card-policy" style="left:350px; top:650px;" data-detail="policy">
+    <h3><span class="icon">&#128221;</span> Policy Editor</h3>
+    <p>Who / what / how matrix tied to IDP groups. Granular rules per team, role, or device.</p>
+  </div>
+
+  <div class="card console" id="card-inv" style="left:640px; top:650px;" data-detail="inv">
+    <h3><span class="icon">&#128451;</span> Inventory &amp; Reports</h3>
+    <p>Every AI tool detected on every endpoint — when installed, by whom, current status. Exportable compliance reports.</p>
+  </div>
+
+  <div class="card console" id="card-alerts" style="left:930px; top:650px;" data-detail="alerts">
+    <h3><span class="icon">&#128680;</span> Alerts Feed</h3>
+    <p>Real-time stream of policy violations. Filterable, actionable, integrated with SIEM/SOAR.</p>
+  </div>
+</div>
+
+<!-- Detail Overlay -->
+<div class="tooltip-overlay" id="overlay">
+  <div class="tooltip-box">
+    <button class="close-btn" id="overlay-close">&times;</button>
+    <h2 id="overlay-title"></h2>
+    <div id="overlay-body"></div>
+  </div>
+</div>
+
+<footer>Click any card for details &nbsp;|&nbsp; Agentic AI Endpoint Detection &amp; Governance — Architecture v0.1</footer>
+
+<script>
+const details = {
+  sig: {
+    title: 'Signature Scanner — Deep Dive',
+    body: `<p>A lightweight, periodically-scheduled scanner that checks for the presence of known agentic AI tools on the endpoint.</p>
+    <ul>
+      <li><strong>Binary paths:</strong> Scans known install locations — <code>/usr/local/bin/cursor</code>, <code>~/.continue/</code>, <code>%APPDATA%\\Cline</code>, etc.</li>
+      <li><strong>Config directories:</strong> Detects <code>.copilot/</code>, <code>.tabnine/</code>, <code>.codeium/</code>, and similar config artifacts even if the binary is renamed.</li>
+      <li><strong>Package manager installs:</strong> Monitors <code>pip</code>, <code>npm</code>, <code>brew</code>, <code>winget</code> for known AI packages (e.g., <code>langchain</code>, <code>openai</code>, <code>anthropic</code>).</li>
+      <li><strong>Cloud-updated catalog:</strong> Signature database is pushed from the management console, similar to AV definition updates. New tools are added within hours of discovery.</li>
+    </ul>
+    <p style="margin-top:10px"><strong>Catches:</strong> Known, commercially-distributed AI tools and trivially-installed packages. The baseline layer.</p>`
+  },
+  net: {
+    title: 'Network Monitor — Deep Dive',
+    body: `<p>An always-on, real-time network telemetry module that watches for AI-related traffic regardless of which process originates it.</p>
+    <ul>
+      <li><strong>DNS queries:</strong> Intercepts resolution requests for known LLM domains — <code>api.openai.com</code>, <code>api.anthropic.com</code>, <code>generativelanguage.googleapis.com</code>, <code>*.openai.azure.com</code>, etc.</li>
+      <li><strong>TLS SNI inspection:</strong> Even if DNS is encrypted (DoH/DoT), the SNI field in the TLS ClientHello is visible before encryption. Catches HTTPS traffic to LLM APIs.</li>
+      <li><strong>Local inference:</strong> Watches for processes binding to common local inference ports (Ollama on 11434, LM Studio on 1234, vLLM, etc.).</li>
+      <li><strong>Domain list management:</strong> Maintained centrally and pushed to agents. Community and proprietary intelligence feeds.</li>
+    </ul>
+    <p style="margin-top:10px"><strong>Catches:</strong> Any AI usage that touches the network — including browser-based tools like ChatGPT, API calls from scripts, and VS Code extensions phoning home.</p>`
+  },
+  behav: {
+    title: 'Behavioral Monitor — Deep Dive',
+    body: `<p>The most advanced detection layer. Monitors process behavior in real-time to identify agentic AI patterns even when no signature or known domain is involved.</p>
+    <ul>
+      <li><strong>Tri-signal heuristic:</strong> Flags processes exhibiting all three behaviors: (1) broad filesystem reads, (2) outbound API calls to LLM endpoints, (3) child shell/process execution.</li>
+      <li><strong>Agentic loop detection:</strong> Recognizes the read → reason → act → observe loop that characterizes AI coding agents.</li>
+      <li><strong>Renamed binary detection:</strong> A tool renamed from <code>cursor</code> to <code>editor</code> still exhibits the same behavioral fingerprint.</li>
+      <li><strong>Custom script detection:</strong> A developer's Python script that imports <code>openai</code> and iterates on code files is caught even though it has no known signature.</li>
+    </ul>
+    <p style="margin-top:10px"><strong>Catches:</strong> Novel tools, custom agents, obfuscated installs, and anything designed to evade signature-based detection. <em>This is the differentiator.</em></p>`
+  },
+  block: {
+    title: 'Block — Enforcement Action',
+    body: `<p>The most aggressive response tier. Immediately terminates the violating activity.</p>
+    <ul>
+      <li><strong>Process termination:</strong> Sends SIGKILL / TerminateProcess to the offending PID.</li>
+      <li><strong>Network drop:</strong> Firewall rule injected to block the destination IP/domain for the session.</li>
+      <li><strong>Launch prevention:</strong> Integrates with macOS Endpoint Security framework (<code>es_new_client</code>) and Windows Defender Application Control (WDAC) to prevent the binary from executing again.</li>
+      <li><strong>Audit trail:</strong> Full event context logged — process tree, user, file access history, network destinations.</li>
+    </ul>
+    <p style="margin-top:10px"><strong>Use when:</strong> The tool is explicitly prohibited (e.g., unapproved code-gen tool in a regulated environment).</p>`
+  },
+  alert: {
+    title: 'Alert — Enforcement Action',
+    body: `<p>Allows the tool to continue running but generates immediate notifications to stakeholders.</p>
+    <ul>
+      <li><strong>Security team notification:</strong> Real-time alert via SIEM integration (Splunk, Sentinel, etc.) or direct webhook (Slack, Teams, PagerDuty).</li>
+      <li><strong>Manager notification:</strong> The user's reporting manager receives an email or IM with context about what was detected.</li>
+      <li><strong>User notification:</strong> Optional — the user can be shown a toast/notification that their usage has been logged.</li>
+      <li><strong>Rich context:</strong> Alert includes tool name, detection module, user identity, device, timestamp, and risk score.</li>
+    </ul>
+    <p style="margin-top:10px"><strong>Use when:</strong> You want visibility without disrupting productivity — gray-area tools, new hires, or teams in transition.</p>`
+  },
+  mon: {
+    title: 'Monitor — Enforcement Action',
+    body: `<p>Pure observation mode. No user-visible action is taken; all telemetry is logged silently.</p>
+    <ul>
+      <li><strong>Silent logging:</strong> Events written to the central data lake for analysis. No alerts, no blocks.</li>
+      <li><strong>Compliance audit:</strong> Creates a defensible record of AI tool usage across the organization.</li>
+      <li><strong>Pilot phase:</strong> Ideal for the first 30-60 days of deployment — understand the landscape before setting policy.</li>
+      <li><strong>Baselining:</strong> Establishes what "normal" AI usage looks like per team, role, and device type.</li>
+    </ul>
+    <p style="margin-top:10px"><strong>Use when:</strong> You're deploying for the first time, assessing shadow AI, or building the case for governance policy.</p>`
+  },
+  redir: {
+    title: 'Redirect — Enforcement Action (Future State)',
+    body: `<p>The most sophisticated response. Blocks the unsanctioned tool but actively guides the user to an approved alternative.</p>
+    <ul>
+      <li><strong>Contextual interception:</strong> When the blocked tool launches, a system dialog or browser redirect explains why.</li>
+      <li><strong>Access request flow:</strong> "This tool isn't approved. <a href='#'>Click here to request access</a>" — triggers an approval workflow in ServiceNow, Jira, or a custom portal.</li>
+      <li><strong>Alternative suggestion:</strong> "Try <strong>[Approved Tool]</strong> instead — it's already provisioned for your team." Deep link to the sanctioned tool.</li>
+      <li><strong>Demand channeling:</strong> Instead of just saying "no," you're converting shadow AI into governed AI. Reduces friction and frustration.</li>
+    </ul>
+    <p style="margin-top:10px"><strong>Use when:</strong> You want to move beyond enforcement into enablement. The power move for mature programs.</p>`
+  },
+  dash: {
+    title: 'Management Console — Dashboard',
+    body: `<p>The single-pane-of-glass view for security leadership and IT operations.</p>
+    <ul>
+      <li><strong>Fleet summary:</strong> Total endpoints, active agents, last check-in times.</li>
+      <li><strong>Detection metrics:</strong> AI tools detected today / this week / this month, broken down by detection module.</li>
+      <li><strong>Enforcement metrics:</strong> Actions taken — blocks, alerts, redirects — with trend sparklines.</li>
+      <li><strong>Risk heatmap:</strong> Which teams or departments have the highest unsanctioned AI usage.</li>
+      <li><strong>Executive report:</strong> One-click PDF/slide export for board-level reporting.</li>
+    </ul>`
+  },
+  policy: {
+    title: 'Management Console — Policy Editor',
+    body: `<p>The rule engine that translates organizational intent into endpoint enforcement.</p>
+    <ul>
+      <li><strong>Who:</strong> Scoped by IDP group — Okta, Entra ID, Google Workspace. "Engineering team can use Copilot; Finance cannot."</li>
+      <li><strong>What:</strong> Specific tools, categories (code-gen, chat, image-gen), or behavioral patterns.</li>
+      <li><strong>How:</strong> Which enforcement tier applies — Block, Alert, Monitor, or Redirect.</li>
+      <li><strong>Conditions:</strong> Time-based rules, device posture checks, network location (on-prem vs. remote).</li>
+      <li><strong>Version control:</strong> Policy changes are audited with who-changed-what-when history.</li>
+    </ul>`
+  },
+  inv: {
+    title: 'Management Console — Inventory & Reports',
+    body: `<p>Complete visibility into every AI tool across the fleet.</p>
+    <ul>
+      <li><strong>Tool inventory:</strong> Every detected AI tool — name, version, install path, install date, installing user.</li>
+      <li><strong>Status tracking:</strong> Current enforcement status per tool per endpoint: Allowed, Blocked, Monitoring.</li>
+      <li><strong>Usage analytics:</strong> Frequency, duration, data volume estimates for each tool.</li>
+      <li><strong>Compliance reports:</strong> Pre-built templates for SOC 2, ISO 27001, NIST AI RMF, and custom frameworks.</li>
+      <li><strong>Export:</strong> CSV, PDF, API access for integration with GRC platforms.</li>
+    </ul>`
+  },
+  alerts: {
+    title: 'Management Console — Alerts Feed',
+    body: `<p>Real-time stream of policy violations and notable events.</p>
+    <ul>
+      <li><strong>Live feed:</strong> Chronological stream with severity indicators and auto-refresh.</li>
+      <li><strong>Filters:</strong> By detection module, enforcement action, user group, device, time range.</li>
+      <li><strong>Investigation:</strong> Click any alert to see full process tree, file access log, network connections, and user context.</li>
+      <li><strong>SIEM/SOAR integration:</strong> Bi-directional sync with Splunk, Sentinel, Chronicle, Cortex XSOAR.</li>
+      <li><strong>Escalation workflows:</strong> Auto-escalate repeated violations or high-risk detections.</li>
+    </ul>`
+  }
+};
+
+// Overlay logic
+const overlay = document.getElementById('overlay');
+const overlayTitle = document.getElementById('overlay-title');
+const overlayBody = document.getElementById('overlay-body');
+document.getElementById('overlay-close').onclick = () => overlay.classList.remove('visible');
+overlay.onclick = e => { if (e.target === overlay) overlay.classList.remove('visible'); };
+
+document.querySelectorAll('.card').forEach(card => {
+  card.style.cursor = 'pointer';
+  card.addEventListener('click', () => {
+    const key = card.dataset.detail;
+    if (details[key]) {
+      overlayTitle.textContent = details[key].title;
+      overlayBody.innerHTML = details[key].body;
+      overlay.classList.add('visible');
+    }
+  });
+});
+
+// Draw wires
+function drawWires() {
+  const svg = document.getElementById('wires');
+  const canvas = document.getElementById('canvas');
+  const cr = canvas.getBoundingClientRect();
+  svg.setAttribute('viewBox', `0 0 ${cr.width} ${cr.height}`);
+  svg.innerHTML = '';
+
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+
+  const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+  marker.setAttribute('id', 'arrowhead');
+  marker.setAttribute('markerWidth', '8');
+  marker.setAttribute('markerHeight', '6');
+  marker.setAttribute('refX', '8');
+  marker.setAttribute('refY', '3');
+  marker.setAttribute('orient', 'auto');
+  const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  poly.setAttribute('points', '0 0, 8 3, 0 6');
+  poly.setAttribute('fill', 'var(--accent)');
+  marker.appendChild(poly);
+  defs.appendChild(marker);
+
+  const markerDim = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+  markerDim.setAttribute('id', 'arrowhead-dim');
+  markerDim.setAttribute('markerWidth', '8');
+  markerDim.setAttribute('markerHeight', '6');
+  markerDim.setAttribute('refX', '8');
+  markerDim.setAttribute('refY', '3');
+  markerDim.setAttribute('orient', 'auto');
+  const polyDim = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  polyDim.setAttribute('points', '0 0, 8 3, 0 6');
+  polyDim.setAttribute('fill', 'var(--dim)');
+  markerDim.appendChild(polyDim);
+  defs.appendChild(markerDim);
+
+  svg.appendChild(defs);
+
+  function getCenter(el) {
+    const r = el.getBoundingClientRect();
+    return { x: r.left - cr.left + r.width / 2, y: r.top - cr.top + r.height / 2 };
+  }
+  function getRight(el) {
+    const r = el.getBoundingClientRect();
+    return { x: r.right - cr.left, y: r.top - cr.top + r.height / 2 };
+  }
+  function getLeft(el) {
+    const r = el.getBoundingClientRect();
+    return { x: r.left - cr.left, y: r.top - cr.top + r.height / 2 };
+  }
+  function getBottom(el) {
+    const r = el.getBoundingClientRect();
+    return { x: r.left - cr.left + r.width / 2, y: r.bottom - cr.top };
+  }
+  function getTop(el) {
+    const r = el.getBoundingClientRect();
+    return { x: r.left - cr.left + r.width / 2, y: r.top - cr.top };
+  }
+
+  function bezier(from, to, active, cls) {
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const dx = (to.x - from.x) * 0.5;
+    const d = `M${from.x},${from.y} C${from.x + dx},${from.y} ${to.x - dx},${to.y} ${to.x},${to.y}`;
+    path.setAttribute('d', d);
+    if (active) {
+      path.classList.add('flow-active', 'wire-animated');
+      path.setAttribute('marker-end', 'url(#arrowhead)');
+    } else {
+      path.setAttribute('marker-end', 'url(#arrowhead-dim)');
+    }
+    if (cls) path.classList.add(cls);
+    svg.appendChild(path);
+  }
+
+  function straightLine(from, to, active) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', from.x); line.setAttribute('y1', from.y);
+    line.setAttribute('x2', to.x); line.setAttribute('y2', to.y);
+    if (active) {
+      line.classList.add('flow-active', 'wire-animated');
+      line.setAttribute('marker-end', 'url(#arrowhead)');
+    } else {
+      line.setAttribute('marker-end', 'url(#arrowhead-dim)');
+    }
+    svg.appendChild(line);
+  }
+
+  const hub = document.getElementById('hub');
+  const sig = document.getElementById('card-sig');
+  const net = document.getElementById('card-net');
+  const behav = document.getElementById('card-behav');
+  const block = document.getElementById('card-block');
+  const alert_ = document.getElementById('card-alert');
+  const mon = document.getElementById('card-mon');
+  const redir = document.getElementById('card-redir');
+  const dash = document.getElementById('card-dash');
+  const policy = document.getElementById('card-policy');
+  const inv = document.getElementById('card-inv');
+  const alerts = document.getElementById('card-alerts');
+
+  // Detection → Hub
+  bezier(getRight(sig), getLeft(hub), true);
+  bezier(getRight(net), getLeft(hub), true);
+  bezier(getRight(behav), getLeft(hub), true);
+
+  // Hub → Enforcement
+  bezier(getRight(hub), getLeft(block), true);
+  bezier(getRight(hub), getLeft(alert_), true);
+  bezier(getRight(hub), getLeft(mon), true);
+  bezier(getRight(hub), getLeft(redir), true);
+
+  // Hub → Console (downward)
+  bezier(getBottom(hub), getTop(dash), false);
+  bezier(getBottom(hub), getTop(policy), false);
+  bezier(getBottom(hub), getTop(inv), false);
+  bezier(getBottom(hub), getTop(alerts), false);
+
+  // Policy editor → Hub (feedback loop)
+  const pTop = getTop(policy);
+  const hBot = getBottom(hub);
+  const feedbackPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  const d = `M${pTop.x},${pTop.y} C${pTop.x},${pTop.y - 50} ${hBot.x + 50},${hBot.y + 50} ${hBot.x + 50},${hBot.y}`;
+  feedbackPath.setAttribute('d', d);
+  feedbackPath.setAttribute('stroke', 'var(--cyan)');
+  feedbackPath.setAttribute('stroke-dasharray', '4 6');
+  feedbackPath.setAttribute('stroke-width', '1.2');
+  feedbackPath.setAttribute('marker-end', 'url(#arrowhead)');
+  feedbackPath.classList.add('wire-animated');
+  svg.appendChild(feedbackPath);
+}
+
+drawWires();
+window.addEventListener('resize', drawWires);
+
+// Keyboard: Escape closes overlay
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') overlay.classList.remove('visible');
+});
+</script>
+</body>
+</html>

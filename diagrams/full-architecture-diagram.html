@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic AI Governance — Full Architecture Diagram</title>
+<style>
+  :root {
+    --bg: #0b1120;
+    --surface: #131b2e;
+    --surface2: #1a2540;
+    --border: #243050;
+    --accent: #3b82f6;
+    --accent-glow: rgba(59,130,246,.25);
+    --green: #10b981;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --purple: #a855f7;
+    --cyan: #06b6d4;
+    --teal: #14b8a6;
+    --pink: #ec4899;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --dim: #475569;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: auto;
+    padding: 2rem;
+  }
+  h1 { text-align: center; font-size: 1.6rem; font-weight: 700; margin-bottom: .3rem; }
+  .subtitle { text-align: center; color: var(--muted); font-size: .85rem; margin-bottom: 2rem; }
+
+  .diagram-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  /* ---- LAYER ROWS ---- */
+  .layer {
+    display: flex;
+    align-items: stretch;
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+    position: relative;
+  }
+  .layer-label {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: .5rem .3rem;
+    min-width: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 2px solid var(--border);
+  }
+  .layer-content {
+    flex: 1;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  /* ---- BOXES ---- */
+  .box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .box:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+  .box-title {
+    font-size: .85rem;
+    font-weight: 700;
+    margin-bottom: .5rem;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+  }
+  .box-title .icon { font-size: 1rem; }
+  .box ul {
+    list-style: none;
+    padding: 0;
+  }
+  .box li {
+    font-size: .75rem;
+    color: var(--muted);
+    padding: .15rem 0;
+    padding-left: .8rem;
+    position: relative;
+  }
+  .box li::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    color: var(--dim);
+  }
+  .box .tag {
+    display: inline-block;
+    font-size: .6rem;
+    font-weight: 600;
+    padding: .1rem .4rem;
+    border-radius: 4px;
+    margin-left: .3rem;
+    vertical-align: middle;
+  }
+
+  /* color accents */
+  .b-blue   { border-top: 3px solid var(--accent); }
+  .b-green  { border-top: 3px solid var(--green); }
+  .b-amber  { border-top: 3px solid var(--amber); }
+  .b-purple { border-top: 3px solid var(--purple); }
+  .b-cyan   { border-top: 3px solid var(--cyan); }
+  .b-red    { border-top: 3px solid var(--red); }
+  .b-teal   { border-top: 3px solid var(--teal); }
+  .b-pink   { border-top: 3px solid var(--pink); }
+
+  .t-blue   { color: var(--accent); }
+  .t-green  { color: var(--green); }
+  .t-amber  { color: var(--amber); }
+  .t-purple { color: var(--purple); }
+  .t-cyan   { color: var(--cyan); }
+  .t-red    { color: var(--red); }
+  .t-teal   { color: var(--teal); }
+  .t-pink   { color: var(--pink); }
+
+  .bg-blue   { background: rgba(59,130,246,.15); color: var(--accent); }
+  .bg-green  { background: rgba(16,185,129,.15); color: var(--green); }
+  .bg-amber  { background: rgba(245,158,11,.15); color: var(--amber); }
+  .bg-purple { background: rgba(168,85,247,.15); color: var(--purple); }
+  .bg-red    { background: rgba(239,68,68,.15);  color: var(--red); }
+  .bg-cyan   { background: rgba(6,182,212,.15);  color: var(--cyan); }
+  .bg-teal   { background: rgba(20,184,166,.15); color: var(--teal); }
+
+  /* ---- ARROWS (SVG overlay) ---- */
+  .arrows-svg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* ---- SECTION DIVIDERS ---- */
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    margin: 1.8rem 0 1rem;
+  }
+  .section-divider::before, .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .section-divider span {
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--dim);
+    white-space: nowrap;
+  }
+
+  /* ---- FLOW ARROW ---- */
+  .flow-arrow {
+    text-align: center;
+    color: var(--dim);
+    font-size: 1.2rem;
+    margin: .4rem 0;
+    letter-spacing: .3em;
+  }
+  .flow-arrow .label {
+    font-size: .65rem;
+    letter-spacing: .08em;
+    display: block;
+    margin-top: .1rem;
+    color: var(--muted);
+  }
+
+  /* ---- WIDE BOX ---- */
+  .wide-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    position: relative;
+    transition: border-color .2s;
+  }
+  .wide-box:hover { border-color: var(--accent); }
+
+  /* ---- GRID ---- */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: .8rem; }
+  .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: .8rem; }
+
+  /* ---- MINI CARD ---- */
+  .mini {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: .6rem .8rem;
+    font-size: .72rem;
+    text-align: center;
+  }
+  .mini .mini-title {
+    font-weight: 700;
+    font-size: .7rem;
+    margin-bottom: .2rem;
+  }
+  .mini .mini-sub {
+    color: var(--muted);
+    font-size: .62rem;
+  }
+
+  /* ---- LEGEND ---- */
+  .legend {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 1.2rem;
+    margin-top: 2rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--border);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    font-size: .7rem;
+    color: var(--muted);
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+  }
+
+  @media (max-width: 900px) {
+    .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr 1fr; }
+    .layer-content { flex-direction: column; }
+    .box { min-width: unset; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Agentic AI Endpoint Detection & Governance</h1>
+<p class="subtitle">Full System Architecture — v0.3.1</p>
+
+<div class="diagram-container">
+
+  <!-- ================================================================ -->
+  <!-- SECTION: ENDPOINT LAYER -->
+  <!-- ================================================================ -->
+  <div class="section-divider"><span>Endpoint Layer — Collector Agent</span></div>
+
+  <!-- Row 1: Scanners -->
+  <div class="layer">
+    <div class="layer-label t-cyan">Scanners</div>
+    <div class="layer-content">
+      <div class="box b-cyan" style="flex:2">
+        <div class="box-title"><span class="icon">🔍</span> Tool Scanners <span class="tag bg-cyan">11 tools</span></div>
+        <div class="grid-4" style="margin-top:.5rem;">
+          <div class="mini"><div class="mini-title t-purple">Claude Code</div><div class="mini-sub">Class A/C</div></div>
+          <div class="mini"><div class="mini-title t-amber">Cursor</div><div class="mini-sub">Class A/C</div></div>
+          <div class="mini"><div class="mini-title t-blue">Copilot</div><div class="mini-sub">Class A</div></div>
+          <div class="mini"><div class="mini-title t-green">Ollama</div><div class="mini-sub">Class B</div></div>
+          <div class="mini"><div class="mini-title t-red">Open Interpreter</div><div class="mini-sub">Class C</div></div>
+          <div class="mini"><div class="mini-title t-red">OpenClaw</div><div class="mini-sub">Class D</div></div>
+          <div class="mini"><div class="mini-title t-red">Aider</div><div class="mini-sub">Class C</div></div>
+          <div class="mini"><div class="mini-title t-green">LM Studio</div><div class="mini-sub">Class B</div></div>
+          <div class="mini"><div class="mini-title t-blue">Continue</div><div class="mini-sub">Class A</div></div>
+          <div class="mini"><div class="mini-title t-red">GPT-Pilot</div><div class="mini-sub">Class C</div></div>
+          <div class="mini"><div class="mini-title t-blue">Cline</div><div class="mini-sub">Class A</div></div>
+        </div>
+      </div>
+      <div class="box b-cyan">
+        <div class="box-title"><span class="icon">📡</span> Five Detection Layers</div>
+        <ul>
+          <li><strong class="t-cyan">Process</strong> — running binaries, CLI args</li>
+          <li><strong class="t-cyan">File</strong> — config dirs, dotfiles, logs</li>
+          <li><strong class="t-cyan">Network</strong> — API calls, local ports</li>
+          <li><strong class="t-cyan">Identity</strong> — auth tokens, API keys</li>
+          <li><strong class="t-cyan">Behavior</strong> — autonomy signals, shell exec</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-arrow">▼ ▼ ▼<span class="label">ScanResult (signals, penalties, evidence)</span></div>
+
+  <!-- Row 2: Engine -->
+  <div class="layer">
+    <div class="layer-label t-amber">Engine</div>
+    <div class="layer-content">
+      <div class="box b-amber">
+        <div class="box-title"><span class="icon">⚖️</span> Confidence Engine</div>
+        <ul>
+          <li><strong>compute_confidence()</strong> — weighted layer sum</li>
+          <li>Per-tool weight profiles</li>
+          <li>Penalty deductions (stale signals)</li>
+          <li>Evasion boost (renamed binaries)</li>
+          <li>Output: 0.0–1.0 score → High/Med/Low band</li>
+        </ul>
+      </div>
+      <div class="box b-amber">
+        <div class="box-title"><span class="icon">📋</span> Policy Engine</div>
+        <ul>
+          <li><strong>evaluate_policy()</strong> → PolicyDecision</li>
+          <li>Rules: ENFORCE-001 – ENFORCE-D03</li>
+          <li>Rules: NET-001 – NET-003</li>
+          <li>Rules: ISO-001</li>
+          <li>Output: detect / warn / approval_required / block</li>
+        </ul>
+      </div>
+      <div class="box b-red">
+        <div class="box-title"><span class="icon">🛡️</span> Enforcement</div>
+        <ul>
+          <li><strong>enforcer.py</strong> — dispatch</li>
+          <li>process_kill.py — terminate process</li>
+          <li>network_block.py — firewall rules</li>
+          <li>proxy_inject.py — intercept traffic</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-arrow">▼ ▼ ▼<span class="label">build_event() → OCSF-aligned canonical event</span></div>
+
+  <!-- Row 3: Output + Agent -->
+  <div class="layer">
+    <div class="layer-label t-green">Output</div>
+    <div class="layer-content">
+      <div class="box b-green">
+        <div class="box-title"><span class="icon">📤</span> Event Emitters</div>
+        <ul>
+          <li><strong>EventEmitter</strong> — NDJSON to file/stdout</li>
+          <li><strong>HttpEmitter</strong> — POST /events to API</li>
+          <li>Retry with exponential backoff</li>
+          <li>Falls back to LocalBuffer on failure</li>
+        </ul>
+      </div>
+      <div class="box b-green">
+        <div class="box-title"><span class="icon">🔐</span> Crypto Signer</div>
+        <ul>
+          <li>Ed25519 keypair generation</li>
+          <li>Event payload signing</li>
+          <li>_signature + _key_fingerprint fields</li>
+          <li>API verifies with enrolled public key</li>
+        </ul>
+      </div>
+      <div class="box b-teal">
+        <div class="box-title"><span class="icon">🤖</span> Agent Runtime</div>
+        <ul>
+          <li><strong>StateDiffer</strong> — change-only reporting</li>
+          <li><strong>LocalBuffer</strong> — offline event queue</li>
+          <li><strong>ConfigWatcher</strong> — live config reload</li>
+          <li>Modes: one-shot | daemon (--interval)</li>
+          <li>Heartbeat to API on each cycle</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- SECTION: NETWORK -->
+  <!-- ================================================================ -->
+  <div class="section-divider"><span>Network Transport</span></div>
+
+  <div class="layer">
+    <div class="layer-label t-blue">Transport</div>
+    <div class="layer-content">
+      <div class="box b-blue" style="text-align:center;">
+        <div class="box-title" style="justify-content:center;"><span class="icon">🌐</span> HTTPS / REST</div>
+        <div class="grid-3" style="margin-top:.5rem;">
+          <div class="mini">
+            <div class="mini-title t-green">POST /events</div>
+            <div class="mini-sub">Event ingestion<br>X-Api-Key auth</div>
+          </div>
+          <div class="mini">
+            <div class="mini-title t-blue">POST /endpoints/heartbeat</div>
+            <div class="mini-sub">Liveness signal<br>Updates last_seen_at</div>
+          </div>
+          <div class="mini">
+            <div class="mini-title t-purple">POST /endpoints/enroll</div>
+            <div class="mini-sub">Register endpoint<br>Send public key</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- SECTION: API LAYER -->
+  <!-- ================================================================ -->
+  <div class="section-divider"><span>Server Layer — FastAPI Backend</span></div>
+
+  <div class="layer">
+    <div class="layer-label t-purple">API</div>
+    <div class="layer-content">
+      <div class="box b-purple">
+        <div class="box-title"><span class="icon">🔑</span> Auth Router <span class="tag bg-purple">/auth</span></div>
+        <ul>
+          <li>POST /register — create user</li>
+          <li>POST /login — JWT access + refresh</li>
+          <li>POST /refresh — rotate tokens</li>
+          <li>GET /me — current user</li>
+        </ul>
+      </div>
+      <div class="box b-purple">
+        <div class="box-title"><span class="icon">📥</span> Events Router <span class="tag bg-purple">/events</span></div>
+        <ul>
+          <li>POST / — ingest event (validates sig)</li>
+          <li>GET / — list events (filtered)</li>
+          <li>Signature verification against endpoint key</li>
+          <li>Stores full payload as JSONB</li>
+        </ul>
+      </div>
+      <div class="box b-purple">
+        <div class="box-title"><span class="icon">💻</span> Endpoints Router <span class="tag bg-purple">/endpoints</span></div>
+        <ul>
+          <li>POST / — create endpoint</li>
+          <li>POST /enroll — register + public key</li>
+          <li>POST /heartbeat — update last_seen_at</li>
+          <li>GET /status — staleness summary</li>
+          <li>GET /{id} — single endpoint</li>
+        </ul>
+      </div>
+      <div class="box b-purple">
+        <div class="box-title"><span class="icon">📜</span> Policies Router <span class="tag bg-purple">/policies</span></div>
+        <ul>
+          <li>GET / — list policies</li>
+          <li>POST / — create policy rule</li>
+          <li>PATCH /{id} — update policy</li>
+          <li>Per-tenant rule isolation</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-arrow">▼ ▼ ▼<span class="label">SQLAlchemy ORM</span></div>
+
+  <!-- Row: Database -->
+  <div class="layer">
+    <div class="layer-label t-green">Data</div>
+    <div class="layer-content">
+      <div class="box b-green" style="flex:2;">
+        <div class="box-title"><span class="icon">🗄️</span> PostgreSQL 16 <span class="tag bg-green">docker-compose</span></div>
+        <div class="grid-3" style="margin-top:.5rem;">
+          <div class="mini">
+            <div class="mini-title t-cyan">tenants</div>
+            <div class="mini-sub">id, name, slug</div>
+          </div>
+          <div class="mini">
+            <div class="mini-title t-cyan">users</div>
+            <div class="mini-sub">email, role, api_key, tenant_id</div>
+          </div>
+          <div class="mini">
+            <div class="mini-title t-cyan">endpoints</div>
+            <div class="mini-sub">hostname, os, posture, status, signing_key</div>
+          </div>
+          <div class="mini">
+            <div class="mini-title t-cyan">events</div>
+            <div class="mini-sub">event_type, tool, confidence, decision, payload</div>
+          </div>
+          <div class="mini">
+            <div class="mini-title t-cyan">policies</div>
+            <div class="mini-sub">rule_id, version, params, is_active</div>
+          </div>
+          <div class="mini">
+            <div class="mini-title t-cyan">audit_log</div>
+            <div class="mini-sub">actor, action, resource, detail</div>
+          </div>
+        </div>
+      </div>
+      <div class="box b-green">
+        <div class="box-title"><span class="icon">📐</span> Canonical Schema</div>
+        <ul>
+          <li><strong>v0.2.0</strong> — JSON Schema</li>
+          <li>OCSF-aligned event structure</li>
+          <li>Types: detection.observed, policy.evaluated, enforcement.applied, heartbeat, shutdown, cleared</li>
+          <li>Blocks: actor, endpoint, tool, action, target, policy, severity</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- SECTION: DASHBOARD -->
+  <!-- ================================================================ -->
+  <div class="section-divider"><span>Presentation Layer — React Dashboard</span></div>
+
+  <div class="layer">
+    <div class="layer-label t-pink">UI</div>
+    <div class="layer-content">
+      <div class="box b-pink">
+        <div class="box-title"><span class="icon">📊</span> Dashboard (React + Vite)</div>
+        <ul>
+          <li><strong>EndpointHeader</strong> — ID, status, OS, posture, last scan</li>
+          <li><strong>SummaryBar</strong> — decision counts (block/warn/detect)</li>
+          <li><strong>ToolRow</strong> — tool detail, confidence, policy, expand</li>
+          <li><strong>useEvents()</strong> — fetch /api/events or load local file</li>
+        </ul>
+      </div>
+      <div class="box b-pink">
+        <div class="box-title"><span class="icon">🔄</span> Data Sources</div>
+        <ul>
+          <li><strong>Dev:</strong> Vite proxy → server.js (port 3001)</li>
+          <li>server.js reads collector NDJSON file</li>
+          <li><strong>Prod:</strong> serves dist/ + /api/events</li>
+          <li><strong>Local file:</strong> user drag-drop NDJSON</li>
+        </ul>
+      </div>
+      <div class="box b-pink">
+        <div class="box-title"><span class="icon">⚙️</span> NDJSON Parser</div>
+        <ul>
+          <li><strong>parseNdjson()</strong> — split & parse lines</li>
+          <li><strong>confidenceBand()</strong> — High/Med/Low</li>
+          <li><strong>policyLabel()</strong> — human label</li>
+          <li><strong>buildEndpointSummary()</strong> — merge 3 event types into per-tool view</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- SECTION: GOVERNANCE ARTIFACTS -->
+  <!-- ================================================================ -->
+  <div class="section-divider"><span>Governance Artifacts</span></div>
+
+  <div class="layer">
+    <div class="layer-label t-amber">Docs</div>
+    <div class="layer-content">
+      <div class="box b-amber">
+        <div class="box-title"><span class="icon">📕</span> Playbook v0.3.1</div>
+        <ul>
+          <li>Five-layer detection model</li>
+          <li>11 tool detection profiles + IOCs</li>
+          <li>Tool class policy (A/B/C/D)</li>
+          <li>Enforcement ladder (detect→block)</li>
+          <li>Severity taxonomy (S0–S4)</li>
+          <li>Risky action controls (R1–R4)</li>
+          <li>Exception workflow</li>
+          <li>Confidence scoring appendix</li>
+        </ul>
+      </div>
+      <div class="box b-amber">
+        <div class="box-title"><span class="icon">🧪</span> Lab Runs</div>
+        <ul>
+          <li><strong class="t-green">Done:</strong> LAB-RUN-001–007, 013 + EVASION-001</li>
+          <li>Claude Code, Ollama, Cursor, Copilot, Open Interpreter, OpenClaw (cloud + local LLM)</li>
+          <li><strong class="t-amber">Templates:</strong> 008–012</li>
+          <li>Aider, LM Studio, Continue, GPT-Pilot, Cline</li>
+        </ul>
+      </div>
+      <div class="box b-amber">
+        <div class="box-title"><span class="icon">📋</span> Init Issues</div>
+        <ul>
+          <li>INIT-13–22: Detection profiles</li>
+          <li>INIT-23–27: Policy & enforcement</li>
+          <li>INIT-28–32: Testing & evasion</li>
+          <li>INIT-33–37: Positioning & demo</li>
+          <li>INIT-38–43: Schema & signals</li>
+        </ul>
+      </div>
+      <div class="box b-amber">
+        <div class="box-title"><span class="icon">🚀</span> Deployment</div>
+        <ul>
+          <li><strong>docker-compose.yml</strong> — PG + API</li>
+          <li><strong>macOS:</strong> LaunchAgent plist</li>
+          <li><strong>Linux:</strong> systemd unit</li>
+          <li>API: Dockerfile (Python 3.12)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- SECTION: ALGO FLOW -->
+  <!-- ================================================================ -->
+  <div class="section-divider"><span>Detection Algorithm — Per-Scan Cycle</span></div>
+
+  <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+    <div class="wide-box b-cyan" style="flex:1; min-width:340px;">
+      <div class="box-title"><span class="icon">🔄</span> Scan Cycle Flow</div>
+      <div style="font-size:.75rem; color:var(--muted); line-height:1.8; font-family:'Courier New',monospace; padding:.5rem;">
+        <div>┌─────────────────────────────────────────────────────┐</div>
+        <div>│ <strong class="t-cyan">1. SCAN</strong>  for each tool in 11 scanners:              │</div>
+        <div>│    scanner.scan() → ScanResult                      │</div>
+        <div>│    { signals[], penalties[], evidence{} }            │</div>
+        <div>│                     │                                │</div>
+        <div>│                     ▼                                │</div>
+        <div>│ <strong class="t-amber">2. SCORE</strong>  compute_confidence(scan_result, tool)    │</div>
+        <div>│    Σ (layer_weight × signal_score) − penalties       │</div>
+        <div>│    + evasion_boost  →  <strong class="t-green">0.0 – 1.0</strong>                  │</div>
+        <div>│    classify: High ≥0.7 | Med ≥0.4 | Low &lt;0.4       │</div>
+        <div>│                     │                                │</div>
+        <div>│                     ▼                                │</div>
+        <div>│ <strong class="t-purple">3. POLICY</strong>  evaluate_policy(tool, confidence, class) │</div>
+        <div>│    Match rules (ENFORCE-*, NET-*, ISO-*)             │</div>
+        <div>│    → decision: detect|warn|approval_required|block   │</div>
+        <div>│    → matched_rules[], severity (S0–S4)               │</div>
+        <div>│                     │                                │</div>
+        <div>│                     ▼                                │</div>
+        <div>│ <strong class="t-red">4. ENFORCE</strong>  if decision ∈ {approval_required, block} │</div>
+        <div>│    enforcer.dispatch(tactic)                         │</div>
+        <div>│    → process_kill | network_block | proxy_inject     │</div>
+        <div>│                     │                                │</div>
+        <div>│                     ▼                                │</div>
+        <div>│ <strong class="t-green">5. EMIT</strong>  build three events:                       │</div>
+        <div>│    ① detection.observed                              │</div>
+        <div>│    ② policy.evaluated                                │</div>
+        <div>│    ③ enforcement.applied (if enforced)               │</div>
+        <div>│    sign → validate → emit (NDJSON | HTTP)            │</div>
+        <div>│                     │                                │</div>
+        <div>│                     ▼                                │</div>
+        <div>│ <strong class="t-teal">6. DIFF</strong>  StateDiffer compares to last scan          │</div>
+        <div>│    Only emit if state changed (new/removed/changed)  │</div>
+        <div>└─────────────────────────────────────────────────────┘</div>
+      </div>
+    </div>
+
+    <div class="wide-box b-purple" style="flex:1; min-width:340px;">
+      <div class="box-title"><span class="icon">📊</span> Tool Classification & Policy Matrix</div>
+      <table style="width:100%; font-size:.72rem; border-collapse:collapse; margin-top:.5rem;">
+        <thead>
+          <tr style="color:var(--muted); border-bottom:1px solid var(--border);">
+            <th style="text-align:left; padding:.4rem;">Class</th>
+            <th style="text-align:left; padding:.4rem;">Label</th>
+            <th style="text-align:left; padding:.4rem;">Default Policy</th>
+            <th style="text-align:left; padding:.4rem;">Tools</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.4rem;"><span class="tag bg-blue">A</span></td>
+            <td style="padding:.4rem;">Assistive</td>
+            <td style="padding:.4rem; color:var(--green);">Detect</td>
+            <td style="padding:.4rem; color:var(--muted);">Copilot, Continue, Cline</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.4rem;"><span class="tag bg-green">B</span></td>
+            <td style="padding:.4rem;">Local Runtime</td>
+            <td style="padding:.4rem; color:var(--amber);">Warn</td>
+            <td style="padding:.4rem; color:var(--muted);">Ollama, LM Studio</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.4rem;"><span class="tag bg-amber">C</span></td>
+            <td style="padding:.4rem;">Autonomous Exec</td>
+            <td style="padding:.4rem; color:var(--red);">Approval Required</td>
+            <td style="padding:.4rem; color:var(--muted);">Claude Code*, Cursor*, Open Interpreter, Aider, GPT-Pilot</td>
+          </tr>
+          <tr>
+            <td style="padding:.4rem;"><span class="tag bg-red">D</span></td>
+            <td style="padding:.4rem;">Persistent Agent</td>
+            <td style="padding:.4rem; color:var(--red);">Block</td>
+            <td style="padding:.4rem; color:var(--muted);">OpenClaw</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size:.62rem; color:var(--dim); margin-top:.5rem;">* Claude Code and Cursor escalate from A→C when shell/tool execution is active.</p>
+
+      <div class="box-title" style="margin-top:1rem;"><span class="icon">🪜</span> Enforcement Ladder</div>
+      <div style="display:flex; gap:.5rem; margin-top:.5rem;">
+        <div class="mini" style="flex:1; border-left:3px solid var(--green);">
+          <div class="mini-title t-green">Detect</div>
+          <div class="mini-sub">Log only</div>
+        </div>
+        <div class="mini" style="flex:1; border-left:3px solid var(--amber);">
+          <div class="mini-title t-amber">Warn</div>
+          <div class="mini-sub">Alert + log</div>
+        </div>
+        <div class="mini" style="flex:1; border-left:3px solid var(--purple);">
+          <div class="mini-title t-purple">Approval Req</div>
+          <div class="mini-sub">Needs sign-off</div>
+        </div>
+        <div class="mini" style="flex:1; border-left:3px solid var(--red);">
+          <div class="mini-title t-red">Block</div>
+          <div class="mini-sub">Kill / firewall</div>
+        </div>
+      </div>
+
+      <div class="box-title" style="margin-top:1rem;"><span class="icon">🎯</span> Severity Taxonomy</div>
+      <div style="display:flex; gap:.5rem; margin-top:.5rem;">
+        <div class="mini" style="flex:1;"><div class="mini-title" style="color:#666;">S0</div><div class="mini-sub">Info</div></div>
+        <div class="mini" style="flex:1;"><div class="mini-title t-green">S1</div><div class="mini-sub">Low</div></div>
+        <div class="mini" style="flex:1;"><div class="mini-title t-amber">S2</div><div class="mini-sub">Medium</div></div>
+        <div class="mini" style="flex:1;"><div class="mini-title t-red">S3</div><div class="mini-sub">High</div></div>
+        <div class="mini" style="flex:1;"><div class="mini-title t-red">S4</div><div class="mini-sub">Critical</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- SECTION: DATA FLOW SUMMARY -->
+  <!-- ================================================================ -->
+  <div class="section-divider"><span>End-to-End Data Flow</span></div>
+
+  <div class="wide-box b-blue">
+    <div style="font-size:.75rem; color:var(--muted); line-height:2; font-family:'Courier New',monospace; padding:.5rem; text-align:center;">
+      <div style="display:flex; align-items:center; justify-content:center; gap:.5rem; flex-wrap:wrap;">
+        <div class="mini" style="min-width:120px; border-top:3px solid var(--cyan);">
+          <div class="mini-title t-cyan">Endpoint</div>
+          <div class="mini-sub">Scan tools<br>Score confidence<br>Evaluate policy</div>
+        </div>
+        <div style="color:var(--accent); font-size:1.2rem;">→</div>
+        <div class="mini" style="min-width:120px; border-top:3px solid var(--green);">
+          <div class="mini-title t-green">Sign & Emit</div>
+          <div class="mini-sub">Ed25519 sign<br>NDJSON or HTTP<br>Retry + buffer</div>
+        </div>
+        <div style="color:var(--accent); font-size:1.2rem;">→</div>
+        <div class="mini" style="min-width:120px; border-top:3px solid var(--purple);">
+          <div class="mini-title t-purple">API</div>
+          <div class="mini-sub">Verify signature<br>Ingest event<br>Store JSONB</div>
+        </div>
+        <div style="color:var(--accent); font-size:1.2rem;">→</div>
+        <div class="mini" style="min-width:120px; border-top:3px solid var(--green);">
+          <div class="mini-title t-green">PostgreSQL</div>
+          <div class="mini-sub">events table<br>endpoints table<br>audit_log</div>
+        </div>
+        <div style="color:var(--accent); font-size:1.2rem;">→</div>
+        <div class="mini" style="min-width:120px; border-top:3px solid var(--pink);">
+          <div class="mini-title t-pink">Dashboard</div>
+          <div class="mini-sub">Fetch events<br>Build summary<br>Display tools</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- LEGEND -->
+  <!-- ================================================================ -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--cyan);"></div> Collector / Scanners</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--amber);"></div> Engines (Confidence + Policy)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--red);"></div> Enforcement</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green);"></div> Output / Data</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--purple);"></div> API</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--pink);"></div> Dashboard</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--amber);"></div> Governance Docs</div>
+  </div>
+
+</div>
+</body>
+</html>

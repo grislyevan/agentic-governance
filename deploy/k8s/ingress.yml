@@ -1,0 +1,25 @@
+# Requires cert-manager for TLS. Install: kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: detec-ingress
+  namespace: detec
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - detec.example.com
+      secretName: detec-tls
+  rules:
+    - host: detec.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: detec-api
+                port:
+                  number: 8000

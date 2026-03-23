@@ -1,0 +1,22 @@
+{
+  "lab_run": "LAB-RUN-008",
+  "tool_name": "Aider",
+  "tool_version": "0.86.2",
+  "tool_class": "C",
+  "platform": "macOS ARM64",
+  "date": "2026-03-16",
+  "signals": {
+    "process": 0.75,
+    "file": 0.75,
+    "network": 0.0,
+    "identity": 0.55,
+    "behavior": 0.75
+  },
+  "penalties": [
+    ["unresolved_process_network_linkage", 0.05]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Medium",
+  "expected_score_range": [0.55, 0.58],
+  "notes": "AI-POS-01 live run 2026-03-16. Repo in ~/Documents/aider-lab. Process + pip + .aider* in repo + ~/.aider/; recent artifacts; network 0 at scan time."
+}

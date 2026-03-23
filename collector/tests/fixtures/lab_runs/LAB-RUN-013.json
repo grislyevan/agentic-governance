@@ -1,0 +1,22 @@
+{
+  "lab_run": "LAB-RUN-013",
+  "tool_name": "OpenClaw",
+  "tool_version": "2026.3.1",
+  "tool_class": "D",
+  "platform": "macOS ARM64",
+  "date": "2026-03-05",
+  "signals": {
+    "process": 0.85,
+    "file": 0.95,
+    "network": 0.65,
+    "identity": 0.80,
+    "behavior": 0.40
+  },
+  "penalties": [
+    ["partial_proc_net_linkage", 0.05]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Medium",
+  "expected_score_range": [0.70, 0.76],
+  "notes": "Local LLM variant (Qwen 3.5 0.8B via Ollama). Infrastructure IOCs model-independent. Behavior dropped due to model incapability. Infrastructure floor applies (process >= 0.80, file >= 0.80)."
+}

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: detec-api-config
+  namespace: detec
+data:
+  ENV: "production"
+  GATEWAY_ENABLED: "true"
+  GATEWAY_HOST: "0.0.0.0"
+  GATEWAY_PORT: "8001"
+  DEFAULT_HEARTBEAT_INTERVAL: "300"
+  DEFAULT_RETENTION_DAYS: "90"
+  STALE_THRESHOLD_DAYS: "30"
+  WEBHOOK_DELIVERY_TIMEOUT: "10"
+  WEBHOOK_MAX_RETRIES: "3"

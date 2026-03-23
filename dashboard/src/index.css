@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    overflow-x: hidden;
+  }
+
+  body {
+    @apply m-0 font-sans bg-detec-ui-page text-detec-ui-text leading-relaxed antialiased;
+    overflow-x: hidden;
+  }
+
+  #root {
+    @apply min-h-screen;
+    min-width: 0;
+  }
+}
+
+/* Aperture spinner — slow rotation like a lens focusing */
+.detec-aperture-spin {
+  animation: detec-spin 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes detec-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Copy toast slide-in */
+.detec-toast-enter {
+  animation: detec-toast-in 0.25s ease-out forwards;
+}
+
+.detec-toast-exit {
+  animation: detec-toast-out 0.2s ease-in forwards;
+}
+
+@keyframes detec-toast-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes detec-toast-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-4px) scale(0.98); }
+}
+
+/* Settings save checkmark draw */
+.detec-checkmark {
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  animation: detec-check-draw 0.35s ease-out 0.1s forwards;
+}
+
+@keyframes detec-check-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Gentle pulse for status banner (Attention state) */
+.detec-status-pulse {
+  animation: detec-status-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes detec-status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+/* Respect reduced motion globally */
+@media (prefers-reduced-motion: reduce) {
+  .detec-aperture-spin {
+    animation: detec-pulse-gentle 2s ease-in-out infinite;
+  }
+
+  @keyframes detec-pulse-gentle {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  .detec-toast-enter,
+  .detec-toast-exit {
+    animation: none;
+  }
+
+  .detec-toast-enter { opacity: 1; }
+  .detec-toast-exit { opacity: 0; }
+
+  .detec-checkmark {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .detec-status-pulse {
+    animation: none;
+    opacity: 1;
+  }
+}

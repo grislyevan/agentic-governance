@@ -1,0 +1,77 @@
+flowchart LR
+    subgraph TelemetryLayer
+        polling[Polling Provider<br/>psutil]
+        native[Native Provider<br/>ESF / ETW / eBPF]
+        polling --> store[Event Store<br/>thread-safe ring buffer]
+        native -.->|"future"| store
+    end
+
+    store --> scanners
+
+    subgraph ScannerLayer
+        scanners{Scanner Registry}
+        claude[Claude Code]
+        cursor[Cursor]
+        copilot[GitHub Copilot]
+        ollama[Ollama]
+        aider[Aider]
+        lmstudio[LM Studio]
+        cline[Cline]
+        cont[Continue]
+        gptpilot[GPT-Pilot]
+        openint[Open Interpreter]
+        openclaw[OpenClaw]
+        aiext[AI Extensions]
+    end
+
+    scanners --> claude
+    scanners --> cursor
+    scanners --> copilot
+    scanners --> ollama
+    scanners --> aider
+    scanners --> lmstudio
+    scanners --> cline
+    scanners --> cont
+    scanners --> gptpilot
+    scanners --> openint
+    scanners --> openclaw
+    scanners --> aiext
+
+    claude --> engine
+    cursor --> engine
+    copilot --> engine
+    ollama --> engine
+    aider --> engine
+    lmstudio --> engine
+    cline --> engine
+    cont --> engine
+    gptpilot --> engine
+    openint --> engine
+    openclaw --> engine
+    aiext --> engine
+
+    subgraph ConfidenceAndPolicy
+        engine[Confidence Engine<br/>process + file + network<br/>+ identity + behavior]
+        policyEng[Policy Engine<br/>NET-001, NET-002, NET-003<br/>ISO-001, ENFORCE-D01..D03]
+        engine --> policyEng
+    end
+
+    subgraph EnforcementLayer
+        policyEng --> enforcer[Enforcer]
+        enforcer --> logAlert[Log and Alert]
+        enforcer --> procKill[Process Kill]
+        enforcer --> netBlock[Network Block]
+        enforcer --> proxyInject[Proxy Inject]
+        postMgr[Posture Manager<br/>passive / audit / active] --> enforcer
+    end
+
+    subgraph StateDiff
+        engine --> differ[State Differ<br/>emit only on change]
+    end
+
+    subgraph OutputLayer
+        differ --> httpOut[HTTP Emitter<br/>POST /api/events]
+        differ --> tcpOut[TCP Emitter<br/>binary msgpack]
+        httpOut --> buffer[Local Buffer<br/>offline queue]
+        buffer -.->|"retry"| httpOut
+    end

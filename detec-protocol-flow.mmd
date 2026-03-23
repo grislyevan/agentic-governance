@@ -1,0 +1,55 @@
+sequenceDiagram
+    participant Agent as Detec Agent
+    participant GW as DetecGateway<br/>TCP 8001
+    participant API as FastAPI<br/>HTTP 8000
+    participant DB as Database
+    participant EDR as CrowdStrike
+    participant WH as Webhooks
+
+    Note over Agent,API: TCP Binary Protocol Flow
+
+    Agent->>GW: AUTH (api_key, hostname, version)
+    GW->>DB: Validate API key, upsert endpoint
+    DB-->>GW: endpoint_id
+    GW-->>Agent: AUTH_OK (session_id, endpoint_id)
+
+    loop Every scan interval
+        Agent->>Agent: Run scanners, score confidence, evaluate policy
+        Agent->>GW: EVENT (tool, confidence, decision)
+        GW->>DB: Persist event
+        GW->>EDR: Enrich detection (if enabled)
+        EDR-->>GW: EDR telemetry
+        GW->>DB: Update rescored event
+        GW->>WH: Dispatch webhook (async)
+        GW-->>Agent: ACK
+    end
+
+    loop Heartbeat interval
+        Agent->>GW: HEARTBEAT (status, uptime)
+        GW->>DB: Update last_seen_at
+        GW-->>Agent: HEARTBEAT_ACK (posture)
+    end
+
+    Note over GW,Agent: Server-initiated push
+    GW->>Agent: POSTURE_PUSH (passive/audit/active)
+    Agent-->>GW: COMMAND_ACK
+    GW->>Agent: POLICY_PUSH (updated rules)
+
+    Note over Agent,API: HTTP REST Flow (alternate transport)
+
+    Agent->>API: POST /api/events (JSON, X-Api-Key)
+    API->>DB: Persist event
+    API->>EDR: Enrich detection
+    API->>WH: Dispatch webhook
+    API-->>Agent: 200 OK
+
+    Agent->>API: POST /api/endpoints/heartbeat
+    API->>DB: Update last_seen_at
+    API-->>Agent: 200 OK (posture in body)
+
+    Note over API,DB: Dashboard interaction
+    participant UI as React Dashboard
+    UI->>API: GET /api/endpoints (Bearer JWT)
+    API->>DB: Query
+    DB-->>API: Results
+    API-->>UI: JSON response

@@ -1,0 +1,21 @@
+# Trivy config for CI and local fs scans.
+# See https://trivy.dev/latest/docs/configuration/filesystem/
+vulnerability:
+  type: os
+  severity:
+    - CRITICAL
+    - HIGH
+
+# Skip paths that are not part of the product or cause noise
+skip-dirs:
+  - .claude
+  - .git
+  - .venv
+  - node_modules
+  - build
+  - dist
+  - __pycache__
+
+skip-files:
+  - "*.log"
+  - "*.ndjson"

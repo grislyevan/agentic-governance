@@ -1,0 +1,20 @@
+{
+  "lab_run": "LAB-RUN-001-root",
+  "tool_name": "Claude Code",
+  "tool_version": "2.1.59",
+  "tool_class": "C",
+  "platform": "macOS ARM64",
+  "date": "2026-03-16",
+  "signals": {
+    "process": 0.85,
+    "file": 0.95,
+    "network": 0.65,
+    "identity": 0.80,
+    "behavior": 0.75
+  },
+  "penalties": [],
+  "evasion_boost": 0.0,
+  "expected_band": "High",
+  "expected_score_range": [0.82, 0.83],
+  "notes": "CC-POS-01 with full visibility (root/tcpdump). Network attributable; no unresolved_proc_net_linkage. Protocol-expected outcomes (Path B); live run recommended to confirm."
+}

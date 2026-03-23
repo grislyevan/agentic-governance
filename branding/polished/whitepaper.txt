@@ -1,0 +1,184 @@
+DETEC WHITEPAPER
+Endpoint Governance for Agentic AI Tools
+Tagline: See what AI agents do. Govern what they're allowed to.
+
+EXECUTIVE SUMMARY
+Agentic AI tools now execute shell commands, write files, open network connections, and run local inference on developer endpoints. Existing controls were not built for this category. Cloud controls can miss localhost operation. Endpoint controls can capture processes without reliable attribution. Application inventories can show installs without runtime behavior.
+
+Detec is an endpoint agent that detects tools by capability, not product name. It classifies detected behavior into four governance classes and applies confidence-scored policy decisions, from visibility to hard blocking.
+
+The detection model scores five signal dimensions with per-tool calibrated weights and outputs an explainable confidence score. The policy engine evaluates deterministic, versioned rules based on tool class, asset sensitivity, and action risk, then issues Detect, Warn, Approval Required, or Block.
+
+1) THE AGENTIC AI GOVERNANCE GAP
+Agentic AI tools differ from traditional tooling in four important ways:
+1. Autonomous execution: tools can execute commands and file operations directly.
+2. Local visibility gaps: tools can run with minimal cloud telemetry.
+3. Dynamic risk shifts: a tool can move from assistive to autonomous behavior at runtime.
+4. Legitimate process overlap: activity can resemble normal developer workflows.
+
+Why existing controls miss this category:
+- CASB and SWG focus on cloud traffic and miss localhost-only operation.
+- EDR captures process execution but may not attribute activity to specific agentic tools.
+- App inventory tracks installed software but not runtime escalation.
+- Firewalls monitor outbound traffic but not local listeners.
+- DLP tracks egress, not local model processing.
+
+2) DETECTION MODEL: FIVE SIGNAL DIMENSIONS, FOUR CLASSES
+Signal dimensions:
+- Process: binary identity, parent-child lineage, and execution shape.
+- File: configuration paths, session caches, model storage, tracking artifacts.
+- Network: endpoints, listeners, cadence, process-socket linkage.
+- Identity: account mapping, signatures, credentials, OAuth profile context.
+- Behavior: action sequences, fan-out writes, command orchestration, inference bursts.
+
+Future signal dimension:
+- Binary hash verification (SHA-256), planned for M3.
+
+Tool classes:
+Class A: SaaS Copilots (assistive)
+Examples: Cursor assistive mode, GitHub Copilot, Continue, Cline
+
+Class B: Local Runtimes
+Examples: Ollama, LM Studio
+
+Class C: Autonomous Executors
+Examples: Claude Code, Claude Cowork, Open Interpreter, Aider, GPT-Pilot, Cursor agent mode
+
+Class D: Persistent Agents
+Example: OpenClaw reference implementation
+
+Classification is dynamic and evidence-driven. If multiple classes fit, Detec assigns the highest-risk applicable class and includes reason codes for traceability.
+
+3) CONFIDENCE SCORING
+Detec confidence scoring is deterministic and auditable.
+
+Formula:
+base_score = sum(layer_weight * layer_signal_strength)
+penalty_total = sum(applicable penalty values)
+evasion_boost = sum(evasion indicator boosts)
+final_score = clamp(base_score - penalty_total + evasion_boost, 0.0, 1.0)
+
+Per-tool weighting is calibrated from lab data.
+
+Penalty examples:
+- Missing parent-child process chain: -0.15
+- Unresolved process-network linkage: -0.10
+- Stale artifact only: -0.10
+- Weak identity correlation: -0.10
+
+Evasion-related suppression indicators can increase confidence when suppression itself is detected as governance-relevant behavior.
+
+Confidence bands:
+- Low: below 0.45 (detection-only)
+- Medium: 0.45 to 0.74 (warning and approval thresholds active)
+- High: 0.75 and above (full enforcement ladder available)
+
+4) POLICY ENGINE AND ENFORCEMENT LADDER
+Policy inputs:
+- Confidence band (Low, Medium, High)
+- Tool class (A, B, C, D)
+- Asset sensitivity tier (Tier 0 through Tier 3)
+- Action risk level (R1 through R4)
+
+Base states:
+- Detect
+- Warn
+- Approval Required
+- Block
+
+Representative deterministic rules:
+- ENFORCE-001: Low confidence + Tier 0-1 + R1 -> Detect
+- ENFORCE-002: Medium confidence + Tier 1-2 + R2 -> Warn
+- ENFORCE-003: Medium confidence + Tier 2-3 + R3 -> Approval Required
+- ENFORCE-004: High confidence + disallowed R4 -> Block
+- ENFORCE-005: Any confidence + explicit deny + Tier 3 -> Block
+- ENFORCE-006: Class C + Medium/High + R3 -> Approval Required
+- ENFORCE-D01: Class D + any confidence + R3+ -> Block
+- ENFORCE-D02: Class D + Medium/High + R2 -> Approval Required
+- ENFORCE-D03: Class D + any confidence + R1 -> Warn floor
+
+Overlay rules can escalate outcomes for network uncertainty or isolation violations and do not downgrade base decisions.
+
+5) ARCHITECTURE
+Detec is a three-tier system:
+1. Endpoint collector
+2. Central API
+3. Dashboard
+
+Collector behavior:
+- Runs periodic scans.
+- Computes confidence and policy outcome.
+- Transmits structured events over HTTPS.
+- Uses retries for transient failures.
+- Queues events locally when transmission fails.
+- Sends heartbeat telemetry for liveness.
+
+API behavior:
+- Ingests events with tenant-aware handling.
+- Supports dashboard JWT and collector API key authentication.
+- Stores detections, policy context, endpoint state, and audit log.
+
+Dashboard behavior:
+- Displays detected tools, class assignments, confidence bands, and enforcement state.
+- Exposes signal contributors, penalties, and rule references.
+
+Event schema:
+- Canonical JSON with strict enums for class, confidence band, enforcement state, action risk, and sensitivity tier.
+- Structured for SIEM ingestion workflows.
+
+6) VALIDATION METHODOLOGY
+Detec validates detection profiles through real lab runs per tool.
+
+Lab protocol:
+1. Install and launch tool.
+2. Exercise representative workflows.
+3. Scan with Detec.
+4. Compare expected indicators to observed evidence.
+5. Mark indicators as confirmed, partial, or not observed.
+6. Calibrate weights if evidence supports adjustment.
+7. Document findings and recommendations.
+
+Evasion testing:
+- Evaluates suppression and circumvention techniques.
+- Documents detection surface and counter-indicators.
+- Treats transparent evidence and known limits as core trust mechanisms.
+
+Synthetic tests validate scoring and policy logic for tools pending live lab validation.
+
+7) KNOWN LIMITS
+Detec publishes known limits explicitly:
+- Containerized and remote development can reduce host-level process and file visibility.
+- Renamed binaries and custom forks require stronger behavior-layer correlation.
+- Sub-second network bursts may need EDR or endpoint security framework integration for reliable process-to-socket attribution.
+- Evasion is possible; multi-signal correlation increases cost but does not claim elimination.
+- Class D empirical coverage is currently based on a single reference implementation.
+
+8) DEPLOYMENT AND INTEGRATION
+Supported deployment patterns:
+- Windows Service
+- macOS LaunchAgent
+- Linux systemd unit
+
+Configuration precedence:
+1. Code defaults
+2. JSON config
+3. Environment variables
+4. CLI flags
+
+Core deployment parameters:
+- Scan interval
+- Sensitivity tier
+- Reporting mode (changes-only default, or report-all)
+- API authentication key
+
+No inbound port exposure is required. Agent communication is outbound HTTPS.
+
+9) CONCLUSION
+Agentic AI tools are a governance category that requires capability-based detection, explainable confidence scoring, and proportional enforcement. Detec applies deterministic policy logic with auditable evidence chains, publishes known limits, and supports practical rollout through pilot deployment.
+
+Suggested rollout:
+- Start with a small endpoint group.
+- Compare detections with current inventory.
+- Validate confidence and policy outcomes against internal governance expectations.
+
+Contact: info@detecadg.com

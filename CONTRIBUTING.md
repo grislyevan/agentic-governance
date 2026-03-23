@@ -1,0 +1,152 @@
+# Contributing
+
+## First time here? (Evaluating Detec)
+
+If you're trying Detec for the first time or evaluating the product:
+
+1. **Try the agent** — From repo root: `pip install -e .` then `detec-agent --dry-run --verbose` to see a one-shot scan with no API.
+2. **Run the full stack** — Follow the [README quick start](README.md#quick-start-full-stack): build the dashboard, start the API, open http://localhost:8000.
+3. **See results in the dashboard** — Log in (seed admin or register), open Endpoints and Policies, and inspect detected tools and policy state.
+4. **Deploy** — For agent auto-start and MDM deployment, see [DEPLOY.md](DEPLOY.md).
+
+For a short project brief and where to look in the repo, read [AGENTS.md](AGENTS.md).
+
+---
+
+## Development Setup
+
+### Prerequisites
+- Python 3.11+
+- Node.js 20+
+- Docker + Docker Compose (for the API + database)
+
+### Collector (Python)
+
+From repo root, use the installed package or run as a module (avoid `python main.py` from inside `collector/`):
+
+```bash
+pip install -e .   # from repo root
+detec-agent --dry-run --verbose
+```
+
+Or with a venv and no install: `python -m collector.main --dry-run --verbose` from repo root. For a collector-only venv: `cd collector && python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt` then from repo root: `python -m collector.main --dry-run --verbose`.
+
+Run tests from repo root (path bootstrap in `collector/tests/conftest.py`):
+```bash
+python -m pytest collector/tests/ -v
+```
+Run from repo root with `python -m collector.main` or install and use `detec-agent`; avoid `python main.py` from inside `collector/`.
+
+### Dashboard (React/Vite)
+
+```bash
+cd dashboard
+npm install
+npm run dev          # starts Vite (port 5173)
+```
+
+The dashboard requires a running backend API for authentication and data. Log in with the seed admin credentials or register a new account. See [dashboard/README.md](dashboard/README.md) for architecture and auth details.
+
+### Backend API (FastAPI)
+
+```bash
+cd api
+cp .env.example .env    # edit as needed
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+Or with Docker Compose (API + PostgreSQL):
+```bash
+docker compose up db api
+```
+
+OpenAPI docs: http://localhost:8000/docs (available when `DEBUG=true`)
+
+---
+
+## Project Structure
+
+```
+agentic-governance/
+├── collector/          Python endpoint collector (scanners, engine, schema)
+├── dashboard/          React/Vite SOC dashboard (auth, live data, Tailwind)
+├── api/                FastAPI backend (SQLite/PostgreSQL, JWT, multi-tenancy)
+├── playbook/           Governance playbook (Markdown, versioned)
+├── schemas/            Canonical event JSON Schema
+├── lab-runs/           Lab run evidence and results
+├── init-issues/        Backlog issue tracking docs
+├── diagrams/           Architecture diagrams
+├── deploy/             Agent auto-start templates (LaunchAgent, systemd, Windows Task)
+├── installers/         Installer builds (macOS .app/.pkg, Windows agent/server)
+├── docs/               Deployment guides (MDM, macOS permissions)
+├── branding/           Brand assets and guidelines
+├── install/            Legacy; prefer deploy/ and installers/
+└── docker-compose.yml  Dev environment (API + DB)
+```
+
+---
+
+## Git Discipline
+
+- One logical change per commit
+- Commit message: explain *why*, not *what*
+- Run the collector test suite before committing collector changes
+- See `.cursor/rules/git-and-versioning.mdc` for playbook versioning rules
+
+---
+
+## Adding a New Scanner
+
+1. Create `collector/scanner/<tool_name>.py` following the `BaseScanner` interface
+2. Add per-tool confidence weights in `collector/engine/confidence.py`
+3. Register in `collector/scanner/__init__.py` and `collector/main.py`
+4. Write a lab run template in `lab-runs/LAB-RUN-XXX-TEMPLATE-<tool>.md`
+5. Add a unit test stub in `collector/tests/`
+6. Update the playbook detection profile section if findings differ from IOCs
+7. After lab validation, mark the lab run template as completed and update `PROGRESS.md`
+
+---
+
+## Schema Changes
+
+When changing `schemas/canonical-event-schema.json`:
+- Bump the `version` field (semver)
+- Update `schemas/example-events.json` with at least one example per new event type
+- Verify the collector's `output/emitter.py` validator still passes
+
+---
+
+## Playbook Versioning
+
+See `.cursor/rules/git-and-versioning.mdc` for the bump policy:
+- **Patch** (0.3 → 0.3.1): typos, clarifications
+- **Minor** (0.3 → 0.4): new sections, lab findings, detection profile changes
+- **Major** (0.4 → 1.0): structural overhaul, production-ready milestone
+
+---
+
+## Archiving session/handoff docs
+
+When a session, handoff, or sprint report has been superseded by a canonical doc, move it to `docs/archive/handoffs/` and prepend the required front-matter. See [docs/archive/README.md](docs/archive/README.md) for full criteria and the "how to link" guidance.
+
+**Required metadata fields (lint checklist):**
+
+- [ ] `status: archived` — must be the literal string `archived`
+- [ ] `superseded_by:` — path to the canonical replacement doc (e.g. `SERVER.md`, `DEPLOY.md`, `docs/product-status.md`); use `"N/A — historical record only"` only when no replacement exists
+- [ ] `last_reviewed:` — date you reviewed this doc before archiving (`YYYY-MM-DD`)
+- [ ] `archived_on:` — date the file was moved to the archive (`YYYY-MM-DD`)
+
+The front-matter block must appear at the very top of the file before any other content:
+
+```markdown
+---
+status: archived
+superseded_by: <path or "N/A — historical record only">
+last_reviewed: <YYYY-MM-DD>
+archived_on: <YYYY-MM-DD>
+---
+```
+
+Do **not** archive docs that are still actively referenced by operators (SERVER.md, DEPLOY.md, product-status.md, ci-security.md, etc.).

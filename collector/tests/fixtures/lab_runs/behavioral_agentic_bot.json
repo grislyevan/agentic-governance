@@ -1,0 +1,22 @@
+{
+  "lab_run": "LAB-RUN-BEH-001",
+  "tool_name": "Unknown Agent",
+  "tool_version": "unknown",
+  "tool_class": "C",
+  "platform": "macOS ARM64",
+  "date": "2026-03-11",
+  "signals": {
+    "process": 0.80,
+    "file": 0.80,
+    "network": 0.70,
+    "identity": 0.0,
+    "behavior": 0.90
+  },
+  "penalties": [
+    ["weak_identity_correlation", 0.10]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Medium",
+  "expected_score_range": [0.60, 0.68],
+  "notes": "Unknown agentic bot detected by behavioral patterns. Shell fan-out (BEH-001), LLM cadence (BEH-002), multi-file burst (BEH-003), session duration (BEH-005) triggered. File evidence present; weak_identity_correlation penalty applies (identity=0)."
+}

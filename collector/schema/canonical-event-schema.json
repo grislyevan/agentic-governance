@@ -1,0 +1,810 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agentic-governance.internal/canonical-event/v0.4.0",
+  "title": "Agentic AI Canonical Event Envelope",
+  "description": "Unified event schema for detection, policy, enforcement, and audit data across all agentic AI tools and environments. Defined in Playbook v0.4 Section 9.",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this event."
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "detection.observed",
+        "attribution.updated",
+        "policy.evaluated",
+        "enforcement.applied",
+        "enforcement.simulated",
+        "enforcement.allow_listed",
+        "enforcement.rate_limited",
+        "enforcement.escalated",
+        "enforcement.failed",
+        "approval.requested",
+        "approval.resolved",
+        "exception.lifecycle",
+        "evidence.linked",
+        "incident.flagged",
+        "heartbeat.received",
+        "heartbeat.missed",
+        "agent.shutdown",
+        "detection.cleared",
+        "posture.changed"
+      ],
+      "description": "Canonical event type driving downstream routing and conditional field requirements."
+    },
+    "event_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of the event schema used to produce this event."
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp when the underlying activity was observed at the endpoint."
+    },
+    "ingested_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp when the event was ingested into the audit pipeline."
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Correlation key for events within the same agentic session."
+    },
+    "trace_id": {
+      "type": "string",
+      "description": "Distributed trace identifier linking events across pipeline stages."
+    },
+    "parent_event_id": {
+      "oneOf": [
+        { "type": "string", "format": "uuid" },
+        { "type": "null" }
+      ],
+      "description": "UUID of the causally-preceding event, or null for root events."
+    },
+    "actor": { "$ref": "#/$defs/actor" },
+    "endpoint": { "$ref": "#/$defs/endpoint" },
+    "tool": { "$ref": "#/$defs/tool" },
+    "action": { "$ref": "#/$defs/action" },
+    "target": { "$ref": "#/$defs/target" },
+    "policy": { "$ref": "#/$defs/policy" },
+    "approval": { "$ref": "#/$defs/approval" },
+    "exception": { "$ref": "#/$defs/exception" },
+    "evidence": { "$ref": "#/$defs/evidence" },
+    "enforcement": { "$ref": "#/$defs/enforcement" },
+    "outcome": { "$ref": "#/$defs/outcome" },
+    "posture": { "$ref": "#/$defs/posture" },
+    "severity": { "$ref": "#/$defs/severity" },
+    "mitre_attack": { "$ref": "#/$defs/mitre_attack" },
+    "correlation_context": { "$ref": "#/$defs/correlation_context" },
+    "trigger_context": { "$ref": "#/$defs/trigger_context" },
+    "telemetry_providers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Provider identifier (e.g., 'detec-agent', 'crowdstrike')."
+          },
+          "type": {
+            "type": "string",
+            "enum": ["polling", "edr", "native"],
+            "description": "Provider category."
+          },
+          "layers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["process", "file", "network", "identity", "behavior"]
+            },
+            "description": "Telemetry layers this provider contributed to."
+          },
+          "query_window": {
+            "type": "string",
+            "description": "ISO 8601 interval of the EDR query window, if applicable."
+          }
+        },
+        "required": ["name", "type", "layers"],
+        "additionalProperties": false
+      },
+      "description": "Telemetry providers that contributed to this detection."
+    },
+    "agent_status": {
+      "type": "object",
+      "description": "Agent diagnostics and tamper/evasion indicators (INIT-31 E3). When present, may include uptime_seconds, capability_drift, tamper_vectors.",
+      "additionalProperties": true
+    },
+    "evidence_details": {
+      "type": "object",
+      "description": "Scanner-specific evidence payload (process entries, behavioral patterns, detection codes, etc.).",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "event_id",
+    "event_type",
+    "event_version",
+    "observed_at",
+    "ingested_at",
+    "session_id",
+    "trace_id",
+    "actor",
+    "endpoint"
+  ],
+  "additionalProperties": false,
+
+  "examples": [
+    {
+      "event_id": "e7f8a9b0-c1d2-4e3f-a4b5-c6d7e8f9a0b1",
+      "event_type": "enforcement.applied",
+      "event_version": "0.4.0",
+      "observed_at": "2026-03-12T14:30:00.000Z",
+      "ingested_at": "2026-03-12T14:30:01.000Z",
+      "session_id": "sess-enf-001",
+      "trace_id": "trace-enf-001",
+      "parent_event_id": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+      "actor": {
+        "id": "user@example.com",
+        "type": "human",
+        "trust_tier": "T1",
+        "identity_confidence": 0.85,
+        "org_context": "org"
+      },
+      "endpoint": {
+        "id": "WORKSTATION-001",
+        "os": "macOS 26.3 Darwin 25.3.0 ARM64",
+        "posture": "managed"
+      },
+      "tool": {
+        "name": "Claude Code",
+        "class": "C",
+        "version": "2.1.59",
+        "attribution_confidence": 0.77,
+        "attribution_sources": ["process", "file"]
+      },
+      "action": {
+        "type": "exec",
+        "risk_class": "R3",
+        "summary": "Agentic session: process tree detected with shell execution",
+        "raw_ref": "evidence://collector-scan/claude-code/sess-enf-001"
+      },
+      "target": {
+        "type": "host",
+        "id": "WORKSTATION-001",
+        "scope": "local endpoint",
+        "sensitivity_tier": "Tier1"
+      },
+      "policy": {
+        "decision_state": "block",
+        "rule_id": "ENFORCE-001",
+        "rule_version": "0.4.0",
+        "reason_codes": ["class_c_autonomous_executor", "high_confidence_attribution"],
+        "decision_confidence": 0.77
+      },
+      "enforcement": {
+        "tactic": "process_kill",
+        "success": true,
+        "detail": "Killed PIDs [12345, 12346] for Claude Code",
+        "simulated": false,
+        "allow_listed": false,
+        "pids_killed": [12345, 12346],
+        "process_name": "claude",
+        "provider": "local"
+      },
+      "outcome": {
+        "enforcement_result": "denied",
+        "incident_flag": false,
+        "incident_id": null
+      },
+      "severity": {
+        "level": "S3"
+      }
+    }
+  ],
+
+  "allOf": [
+    {
+      "if": {
+        "properties": { "event_type": { "const": "detection.observed" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "action", "target"],
+        "properties": {
+          "tool": {
+            "required": ["class", "attribution_confidence"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "attribution.updated" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "policy.evaluated" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "action", "target", "policy"],
+        "properties": {
+          "policy": {
+            "required": ["decision_state", "rule_id", "rule_version"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "enforcement.applied" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "action", "target", "policy", "enforcement", "outcome"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "enforcement.simulated" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "action", "target", "policy", "enforcement", "outcome"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "enforcement.allow_listed" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "action", "target", "policy", "enforcement", "outcome"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "enforcement.rate_limited" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "enforcement", "outcome"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "enforcement.escalated" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "action", "target", "policy", "enforcement", "outcome"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "enforcement.failed" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["tool", "policy", "enforcement", "outcome"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "posture.changed" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["posture"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "approval.requested" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["approval"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "approval.resolved" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["approval"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "exception.lifecycle" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["exception"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "evidence.linked" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["evidence"],
+        "properties": {
+          "evidence": {
+            "properties": {
+              "ids": { "minItems": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "event_type": { "const": "incident.flagged" } },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["outcome", "severity"],
+        "properties": {
+          "outcome": {
+            "properties": {
+              "incident_flag": { "const": true }
+            },
+            "required": ["incident_flag", "incident_id"]
+          }
+        }
+      }
+    }
+  ],
+
+  "$defs": {
+    "actor": {
+      "type": "object",
+      "description": "The human, service, or automation identity associated with the observed activity.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique actor identifier (user principal, service account, automation ID)."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["human", "service", "automation"]
+        },
+        "trust_tier": {
+          "type": "string",
+          "enum": ["T0", "T1", "T2", "T3"],
+          "description": "T0 = unknown, T1 = basic, T2 = org-verified, T3 = privileged/admin."
+        },
+        "identity_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Confidence that the actor attribution is correct."
+        },
+        "org_context": {
+          "type": "string",
+          "enum": ["org", "personal", "unknown"],
+          "description": "Whether the actor is operating in an organizational, personal, or unknown context."
+        }
+      },
+      "required": ["id", "type", "trust_tier", "identity_confidence", "org_context"],
+      "additionalProperties": false
+    },
+
+    "endpoint": {
+      "type": "object",
+      "description": "The device where the activity was observed.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique endpoint identifier (asset tag, MDM device ID)."
+        },
+        "os": {
+          "type": "string",
+          "description": "Operating system descriptor (e.g. macOS 26.3, Windows 11, Ubuntu 24.04)."
+        },
+        "posture": {
+          "type": "string",
+          "enum": ["managed", "unmanaged"],
+          "description": "Whether the endpoint is under organizational management."
+        }
+      },
+      "required": ["id", "os", "posture"],
+      "additionalProperties": false
+    },
+
+    "tool": {
+      "type": "object",
+      "description": "The agentic AI tool detected or evaluated.",
+      "properties": {
+        "name": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "Tool product name, or null if not yet identified."
+        },
+        "class": {
+          "type": "string",
+          "enum": ["A", "B", "C", "D"],
+          "description": "A = SaaS Copilot/Assistive, B = Local Model Runtime, C = Autonomous Executor, D = Persistent Autonomous Agent."
+        },
+        "version": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "Detected tool version, or null if unknown."
+        },
+        "attribution_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Confidence score for the tool attribution."
+        },
+        "attribution_sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["process", "file", "network", "identity", "behavior"]
+          },
+          "description": "Telemetry layers that contributed to the tool attribution."
+        }
+      },
+      "required": ["class", "attribution_confidence", "attribution_sources"],
+      "additionalProperties": false
+    },
+
+    "action": {
+      "type": "object",
+      "description": "The specific action observed or evaluated.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["read", "write", "exec", "network", "repo", "privileged", "removal", "observe"],
+          "description": "Action category."
+        },
+        "risk_class": {
+          "type": "string",
+          "enum": ["R1", "R2", "R3", "R4"],
+          "description": "R1 = low-impact read, R2 = scoped write, R3 = broad/boundary-crossing, R4 = privileged/destructive."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Human-readable summary of the action."
+        },
+        "raw_ref": {
+          "type": "string",
+          "description": "Pointer to the raw telemetry record (URI or evidence ID). Not the payload itself."
+        }
+      },
+      "required": ["type", "risk_class", "summary", "raw_ref"],
+      "additionalProperties": false
+    },
+
+    "target": {
+      "type": "object",
+      "description": "The asset or resource targeted by the action.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["path", "repo", "host", "destination", "resource"],
+          "description": "Target category."
+        },
+        "id": {
+          "type": "string",
+          "description": "Unique target identifier (file path, repo slug, hostname, URI)."
+        },
+        "scope": {
+          "type": "string",
+          "description": "Scope descriptor (project name, directory tree, network zone)."
+        },
+        "sensitivity_tier": {
+          "type": "string",
+          "enum": ["Tier0", "Tier1", "Tier2", "Tier3"],
+          "description": "Tier0 = non-sensitive, Tier3 = crown-jewel/regulated."
+        }
+      },
+      "required": ["type", "id", "scope", "sensitivity_tier"],
+      "additionalProperties": false
+    },
+
+    "policy": {
+      "type": "object",
+      "description": "Policy evaluation result for this event.",
+      "properties": {
+        "decision_state": {
+          "type": "string",
+          "enum": ["detect", "warn", "approval_required", "block"],
+          "description": "Enforcement ladder decision."
+        },
+        "rule_id": {
+          "type": "string",
+          "description": "Stable identifier for the policy rule that produced this decision."
+        },
+        "rule_version": {
+          "type": "string",
+          "description": "Version of the policy rule at evaluation time."
+        },
+        "reason_codes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Machine-readable codes explaining the decision rationale."
+        },
+        "decision_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Confidence in the policy decision itself."
+        }
+      },
+      "required": ["decision_state", "rule_id", "rule_version", "reason_codes", "decision_confidence"],
+      "additionalProperties": false
+    },
+
+    "approval": {
+      "type": "object",
+      "description": "Approval request or resolution metadata.",
+      "properties": {
+        "id": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "Approval ticket identifier."
+        },
+        "scope_id": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "Scoping identifier for the approval (tool + action + target composite key)."
+        }
+      },
+      "required": ["id", "scope_id"],
+      "additionalProperties": false
+    },
+
+    "exception": {
+      "type": "object",
+      "description": "Exception state reference for this event.",
+      "properties": {
+        "id": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "Exception identifier."
+        },
+        "status": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["pending", "active", "expired", "revoked", "rejected"]
+            },
+            { "type": "null" }
+          ],
+          "description": "Current exception lifecycle state."
+        }
+      },
+      "required": ["id", "status"],
+      "additionalProperties": false
+    },
+
+    "evidence": {
+      "type": "object",
+      "description": "Linked evidence references. Evidence objects are stored externally; only IDs and integrity hashes appear here.",
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Array of evidence object IDs linked to this event."
+        },
+        "integrity_status": {
+          "type": "string",
+          "enum": ["valid", "failed", "pending"],
+          "description": "Aggregate integrity verification status of linked evidence."
+        },
+        "hash_refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "SHA-256 hashes of linked evidence objects for integrity verification."
+        }
+      },
+      "required": ["ids", "integrity_status", "hash_refs"],
+      "additionalProperties": false
+    },
+
+    "enforcement": {
+      "type": "object",
+      "description": "Details of the enforcement action that was applied.",
+      "properties": {
+        "tactic": {
+          "type": "string",
+          "description": "Enforcement tactic used (e.g. process_kill, network_null_route, hold_pending_approval, log_and_alert)."
+        },
+        "success": {
+          "type": "boolean",
+          "description": "Whether the enforcement action completed successfully."
+        },
+        "detail": {
+          "type": "string",
+          "description": "Human-readable description of the enforcement action and its result."
+        },
+        "simulated": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the agent is in audit posture; action was computed but not executed."
+        },
+        "allow_listed": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when enforcement was skipped because the tool matched an allow-list entry."
+        },
+        "pids_killed": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "description": "List of process IDs terminated by the enforcement action."
+        },
+        "process_name": {
+          "type": "string",
+          "description": "Primary process name of the enforcement target."
+        },
+        "cmdline_snippet": {
+          "type": "string",
+          "description": "Truncated command line of the target process for audit context."
+        },
+        "rate_limited": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when enforcement was suppressed by the rate limiter."
+        },
+        "escalated": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the same tool was killed 3+ times within 5 minutes (resurrection detected)."
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["local", "crowdstrike", "sentinelone", "webhook"],
+          "description": "Which enforcement provider executed the action."
+        }
+      },
+      "required": ["tactic", "success", "detail"],
+      "additionalProperties": false
+    },
+
+    "posture": {
+      "type": "object",
+      "description": "Enforcement posture metadata for posture change events.",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["passive", "audit", "active"],
+          "description": "Current enforcement posture mode."
+        },
+        "auto_enforce_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum confidence score for autonomous enforcement."
+        },
+        "source": {
+          "type": "string",
+          "enum": ["server_push", "cli_override", "config_file"],
+          "description": "How the posture was applied."
+        }
+      },
+      "required": ["mode", "auto_enforce_threshold", "source"],
+      "additionalProperties": false
+    },
+
+    "outcome": {
+      "type": "object",
+      "description": "Enforcement outcome and incident routing metadata.",
+      "properties": {
+        "enforcement_result": {
+          "type": "string",
+          "enum": ["allowed", "held", "denied", "simulated"],
+          "description": "Result of enforcement: allowed (proceed), held (pending approval), denied (blocked), simulated (audit posture; action computed but not executed)."
+        },
+        "incident_flag": {
+          "type": "boolean",
+          "description": "Whether this event has been flagged for incident handling."
+        },
+        "incident_id": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "Incident ticket identifier, or null if no incident was created."
+        }
+      },
+      "required": ["enforcement_result", "incident_flag", "incident_id"],
+      "additionalProperties": false
+    },
+
+    "severity": {
+      "type": "object",
+      "description": "Severity classification for operational urgency and SLA routing.",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["S0", "S1", "S2", "S3", "S4"],
+          "description": "S0 = Info, S1 = Low, S2 = Medium, S3 = High, S4 = Critical."
+        }
+      },
+      "required": ["level"],
+      "additionalProperties": false
+    },
+
+    "mitre_attack": {
+      "type": "object",
+      "description": "MITRE ATT&CK technique mapping for this detection.",
+      "properties": {
+        "techniques": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "technique_id": { "type": "string", "pattern": "^T[0-9]{4}(\\.[0-9]{3})?$" },
+              "technique_name": { "type": "string" },
+              "tactic": { "type": "string" },
+              "subtechnique": { "type": "string" }
+            },
+            "required": ["technique_id", "technique_name", "tactic"]
+          }
+        }
+      },
+      "required": ["techniques"]
+    },
+
+    "correlation_context": {
+      "type": "object",
+      "description": "Optional correlation metadata when multiple tools or agents are related (e.g. same process tree).",
+      "properties": {
+        "multi_agent": {
+          "type": "boolean",
+          "description": "True when this event is correlated with other agentic tools in the same context."
+        },
+        "related_tool_names": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Names of other tools detected in the same correlation set."
+        }
+      },
+      "required": ["multi_agent", "related_tool_names"],
+      "additionalProperties": false
+    },
+
+    "trigger_context": {
+      "type": "object",
+      "description": "Optional context for why a scan was requested (scheduled, alert, manual) and probe/sentinel metadata.",
+      "properties": {
+        "scan_reason": { "type": "string", "enum": ["scheduled", "alert", "manual"] },
+        "trigger_type": { "type": "string" },
+        "trigger_source": { "type": "string", "enum": ["polling", "native", "mixed"] },
+        "trigger_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "trigger_signals": { "type": "array", "items": { "type": "string" } },
+        "trigger_time": { "type": "string", "format": "date-time" },
+        "probe_window_seconds": { "type": "integer", "minimum": 0 },
+        "cooldown_applied": { "type": "boolean" },
+        "suppressed_duplicates": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["scan_reason", "trigger_type", "trigger_source", "trigger_confidence", "trigger_signals", "trigger_time", "probe_window_seconds", "cooldown_applied"],
+      "additionalProperties": false
+    }
+  }
+}

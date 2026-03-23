@@ -1,0 +1,37 @@
+{
+  "description": "BEH-001 only (shell fan-out), no file_write/git.",
+  "events": [
+    {
+      "observed_at": "2026-03-15T12:00:00Z",
+      "tool_name": "Unknown Agent",
+      "endpoint_id": "ep-stability-3",
+      "payload": {
+        "event_id": "stability-fanout-1",
+        "event_type": "detection.observed",
+        "event_version": "1.0",
+        "tool": {"name": "Unknown Agent", "class": "C", "version": "0.1", "attribution_confidence": 0.6},
+        "action": {"type": "exec", "risk_class": "R2", "summary": "Shell fan-out"},
+        "endpoint": {"id": "ep-stability-3", "hostname": "host", "os": "Darwin"},
+        "evidence_details": {
+          "detection_codes": ["DETEC-BEH-CORE-01"],
+          "behavioral_patterns": [
+            {
+              "pattern_id": "BEH-001",
+              "pattern_name": "Shell fan-out",
+              "score": 0.6,
+              "evidence": {"shell_children_in_window": 6, "window_seconds": 60}
+            }
+          ]
+        },
+        "session_timeline": [
+          {"at": "12:00:01", "label": "bash", "type": "shell_exec"},
+          {"at": "12:00:02", "label": "bash", "type": "shell_exec"},
+          {"at": "12:00:03", "label": "bash", "type": "shell_exec"}
+        ]
+      }
+    }
+  ],
+  "expected": {
+    "session_verdict": "interesting"
+  }
+}

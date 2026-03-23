@@ -1,0 +1,14 @@
+# Development overrides. Use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# NOT auto-loaded (renamed from override.yml to prevent accidental production use).
+
+services:
+  db:
+    ports:
+      - "5432:5432"
+
+  api:
+    environment:
+      DEBUG: "true"
+    volumes:
+      - ./api:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload

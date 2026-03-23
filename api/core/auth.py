@@ -1,0 +1,81 @@
+"""JWT utilities and password hashing."""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
+import jwt as pyjwt
+from passlib.context import CryptContext
+
+from .config import settings
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return pwd_context.verify(plain, hashed)
+
+
+_TOKEN_ISSUER = "detec-api"
+_TOKEN_AUDIENCE = "detec-api"
+
+
+def create_access_token(subject: str, tenant_id: str, extra: dict[str, Any] | None = None) -> str:
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=settings.access_token_expire_minutes)
+    payload: dict[str, Any] = {
+        "sub": subject,
+        "tenant_id": tenant_id,
+        "exp": expire,
+        "iat": now,
+        "jti": uuid.uuid4().hex,
+        "type": "access",
+        "iss": _TOKEN_ISSUER,
+        "aud": _TOKEN_AUDIENCE,
+        **(extra or {}),
+    }
+    return pyjwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def create_refresh_token(subject: str, tenant_id: str) -> tuple[str, str]:
+    """Create a refresh JWT. Returns (encoded_token, jti)."""
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(days=settings.refresh_token_expire_days)
+    jti = uuid.uuid4().hex
+    payload: dict[str, Any] = {
+        "sub": subject,
+        "tenant_id": tenant_id,
+        "exp": expire,
+        "iat": now,
+        "jti": jti,
+        "type": "refresh",
+        "iss": _TOKEN_ISSUER,
+        "aud": _TOKEN_AUDIENCE,
+    }
+    return pyjwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm), jti
+
+
+def decode_token(token: str) -> dict[str, Any]:
+    """Decode and validate a JWT. Raises pyjwt.PyJWTError on failure."""
+    return pyjwt.decode(
+        token,
+        settings.jwt_secret,
+        algorithms=[settings.jwt_algorithm],
+        audience=_TOKEN_AUDIENCE,
+    )
+
+
+def is_valid_token(token: str, token_type: str = "access") -> dict[str, Any] | None:
+    try:
+        payload = decode_token(token)
+        if payload.get("type") != token_type:
+            return None
+        return payload
+    except pyjwt.PyJWTError:
+        return None

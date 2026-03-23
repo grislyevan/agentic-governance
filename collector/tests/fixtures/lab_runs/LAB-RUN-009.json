@@ -1,0 +1,22 @@
+{
+  "lab_run": "LAB-RUN-009",
+  "tool_name": "LM Studio",
+  "tool_version": "TBD",
+  "tool_class": "B",
+  "platform": "macOS ARM64",
+  "date": "2026-03-16",
+  "signals": {
+    "process": 0.85,
+    "file": 0.85,
+    "network": 0.85,
+    "identity": 0.30,
+    "behavior": 0.75
+  },
+  "penalties": [
+    ["weak_identity_correlation", 0.10]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Medium",
+  "expected_score_range": [0.68, 0.72],
+  "notes": "LMS-POS-01 protocol-expected scenario: install + model download + local server. Evidence supplied; no live run. Local server on :1234 trivially attributable; identity weak (OS user only)."
+}

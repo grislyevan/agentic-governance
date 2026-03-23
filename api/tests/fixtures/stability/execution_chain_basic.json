@@ -1,0 +1,50 @@
+{
+  "description": "Minimal LLM -> shell -> file/git chain (BEH-009).",
+  "events": [
+    {
+      "observed_at": "2026-03-15T12:00:00Z",
+      "tool_name": "Unknown Agent",
+      "endpoint_id": "ep-stability-1",
+      "payload": {
+        "event_id": "stability-exec-chain-1",
+        "event_type": "detection.observed",
+        "event_version": "1.0",
+        "tool": {"name": "Unknown Agent", "class": "C", "version": "0.1", "attribution_confidence": 0.7},
+        "action": {"type": "exec", "risk_class": "R2", "summary": "Behavioral detection"},
+        "endpoint": {"id": "ep-stability-1", "hostname": "host", "os": "Darwin"},
+        "evidence_details": {
+          "detection_codes": ["DETEC-BEH-CORE-04"],
+          "behavioral_patterns": [
+            {
+              "pattern_id": "BEH-009",
+              "pattern_name": "Agent Execution Chain",
+              "score": 0.8,
+              "evidence": {
+                "pattern_id": "BEH-009",
+                "window_start": "2026-03-15T12:00:00Z",
+                "window_end": "2026-03-15T12:02:00Z",
+                "file_count": 1,
+                "git_action_count": 0,
+                "flags": {"multi_file_change": false, "repeated_git_activity": false},
+                "distinct_file_count": 1,
+                "git_action_count": 0,
+                "multi_file_change": false,
+                "repeated_git_activity": false
+              }
+            }
+          ]
+        },
+        "session_timeline": [
+          {"at": "12:00:02", "label": "LLM", "type": "llm"},
+          {"at": "12:00:05", "label": "bash", "type": "shell_exec"},
+          {"at": "12:00:11", "label": "write out.txt", "type": "file_write"}
+        ]
+      }
+    }
+  ],
+  "expected": {
+    "session_verdict": "interesting",
+    "top_behavior_chains_contains": ["shell_exec", "file_write"],
+    "key_evidence_contains": ["agentic behavior"]
+  }
+}

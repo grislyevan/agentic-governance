@@ -1,0 +1,36 @@
+{
+  "description": "BEH-006 style: sensitive path change + outbound network.",
+  "events": [
+    {
+      "observed_at": "2026-03-15T12:00:00Z",
+      "tool_name": "Unknown Agent",
+      "endpoint_id": "ep-stability-4",
+      "payload": {
+        "event_id": "stability-sensitive-1",
+        "event_type": "detection.observed",
+        "event_version": "1.0",
+        "tool": {"name": "Unknown Agent", "class": "C", "version": "0.1", "attribution_confidence": 0.8},
+        "action": {"type": "exec", "risk_class": "R3", "summary": "Sensitive access then outbound"},
+        "endpoint": {"id": "ep-stability-4", "hostname": "host", "os": "Darwin"},
+        "evidence_details": {
+          "detection_codes": ["DETEC-BEH-CORE-03"],
+          "behavioral_patterns": [
+            {
+              "pattern_id": "BEH-006",
+              "pattern_name": "Config/credential access",
+              "score": 0.9,
+              "evidence": {"sensitive_files_accessed": 2, "has_network": true}
+            }
+          ]
+        },
+        "session_timeline": [
+          {"at": "12:00:01", "label": "modified .env", "type": "file_write"},
+          {"at": "12:00:05", "label": "outbound", "type": "network"}
+        ]
+      }
+    }
+  ],
+  "expected": {
+    "session_verdict": "risky"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "lab_run": "LAB-RUN-012",
+  "tool_name": "Cline",
+  "tool_version": "TBD",
+  "tool_class": "C",
+  "platform": "macOS ARM64",
+  "date": "2026-03-16",
+  "signals": {
+    "process": 0.30,
+    "file": 0.75,
+    "network": 0.55,
+    "identity": 0.45,
+    "behavior": 0.85
+  },
+  "penalties": [],
+  "evasion_boost": 0.0,
+  "expected_band": "Medium",
+  "expected_score_range": [0.58, 0.66],
+  "notes": "CLINE-POS-01 protocol-expected scenario: extension installed, globalStorage + tasks, latest task with write/exec or tool_use. Collector run had Cline not installed (confidence 0.105, suppressed); fixture reflects full scenario per template."
+}

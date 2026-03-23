@@ -1,0 +1,65 @@
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
+
+export default function AdminLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const onUsers = location.pathname === '/admin' || location.pathname === '/admin/';
+  const onPlaybooks = location.pathname === '/playbooks';
+  const onProfiles = location.pathname === '/endpoint-profiles';
+  const onSso = location.pathname === '/admin/sso';
+  const onServer = location.pathname === '/admin/server';
+
+  const tabCls = (on) =>
+    `px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${on ? 'bg-detec-ui-accent text-white' : 'text-detec-ui-muted hover:text-detec-ui-text'}`;
+
+  return (
+    <div className="space-y-4 min-w-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="text-xl sm:text-2xl font-bold text-detec-ui-text">Admin</h1>
+        <nav className="flex flex-wrap rounded-detec border border-detec-ui-border bg-detec-ui-surface p-0.5 shadow-detec-sm gap-0.5" aria-label="Admin sections">
+          <button
+            type="button"
+            onClick={() => navigate('/admin')}
+            aria-current={onUsers ? 'page' : undefined}
+            className={tabCls(onUsers)}
+          >
+            Users
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/playbooks')}
+            aria-current={onPlaybooks ? 'page' : undefined}
+            className={tabCls(onPlaybooks)}
+          >
+            Playbooks
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/endpoint-profiles')}
+            aria-current={onProfiles ? 'page' : undefined}
+            className={tabCls(onProfiles)}
+          >
+            Endpoint Profiles
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/server')}
+            aria-current={onServer ? 'page' : undefined}
+            className={tabCls(onServer)}
+          >
+            Server
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/sso')}
+            aria-current={onSso ? 'page' : undefined}
+            className={tabCls(onSso)}
+          >
+            SSO
+          </button>
+        </nav>
+      </div>
+      <Outlet />
+    </div>
+  );
+}

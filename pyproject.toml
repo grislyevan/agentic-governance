@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentic-governance"
+version = "0.2.0"
+description = "Detec endpoint agent — agentic AI tool detection and governance"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Detec", email = "info@detecadg.com"},
+]
+dependencies = [
+    "jsonschema>=4.20.0",
+    "watchdog>=4.0.0",
+    "psutil>=7.0.0",
+    "cryptography>=42.0.0",
+    "msgpack>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+gui-win = [
+    "pystray>=0.19.0",
+    "Pillow>=10.0.0",
+]
+
+[project.scripts]
+detec-agent = "collector.agent_cli:main"
+detec = "collector.agent_cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["collector", "collector*", "protocol", "protocol*"]
+
+[tool.setuptools.package-data]
+"collector.providers.ebpf_programs" = ["*.c"]
+"collector.config" = ["*.json", "*.txt"]
+"collector.schema" = ["*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["collector/tests"]
+pythonpath = ["collector"]
+asyncio_mode = "auto"
+markers = [
+    "benchmark: latency and throughput benchmarks (skip in CI)",
+    "evasion: evasion suite scenarios (INIT-31); run on demand or in nightly CI",
+    "slow: slow tests (skip in CI)",
+]

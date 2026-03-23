@@ -1,0 +1,20 @@
+{
+  "lab_run": "LAB-RUN-010",
+  "tool_name": "Continue",
+  "tool_version": "TBD",
+  "tool_class": "A",
+  "platform": "macOS ARM64",
+  "date": "2026-03-16",
+  "signals": {
+    "process": 0.30,
+    "file": 0.80,
+    "network": 0.0,
+    "identity": 0.45,
+    "behavior": 0.65
+  },
+  "penalties": [],
+  "evasion_boost": 0.10,
+  "expected_band": "Medium",
+  "expected_score_range": [0.58, 0.66],
+  "notes": "CONT-POS-01 protocol-expected: extension installed, ~/.continue/config.json with Ollama, active session. Network 0 without elevation. Class A, unapproved-backend escalation. Evidence from protocol-expected scenario only."
+}
