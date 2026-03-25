@@ -20,24 +20,20 @@ import sys
 import threading
 from pathlib import Path
 
-from collector.gui.daemon_bridge import (
-    DaemonBridge,
-    STATUS_CONNECTED,
-    STATUS_DISCONNECTED,
-    STATUS_SCANNING,
-    STATUS_ERROR,
-    STATUS_STOPPED,
-)
+from collector.gui.daemon_bridge import DaemonBridge
+
+import sys
+
+if sys.platform == "win32":
+    try:
+        from windows_toasts import Toast, ToastDisplayImage, WindowsToaster
+        HAS_TOASTS = True
+    except ImportError:
+        HAS_TOASTS = False
+else:
+    HAS_TOASTS = False
 
 logger = logging.getLogger(__name__)
-
-_STATUS_DISPLAY = {
-    STATUS_CONNECTED: "Connected",
-    STATUS_DISCONNECTED: "Disconnected",
-    STATUS_SCANNING: "Scanning...",
-    STATUS_ERROR: "Error",
-    STATUS_STOPPED: "Stopped",
-}
 
 _POLL_MS = 5_000
 
@@ -79,9 +75,51 @@ class DetecTrayApp:
 
     def __init__(self) -> None:
         self._bridge = DaemonBridge()
+        self._bridge.on_detection(self._on_detection_event)
         self._tray = None
         self._root = None
         self._status_window = None
+
+    def _find_icon(self, filename: str) -> str | None:
+        """Locate a branding asset by filename."""
+        bundle_dir = getattr(sys, "_MEIPASS", None)
+        if bundle_dir:
+            candidate = os.path.join(bundle_dir, "branding", filename)
+            if os.path.exists(candidate):
+                return candidate
+
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        candidate = repo_root / "branding" / filename
+        if candidate.exists():
+            return str(candidate)
+
+        return None
+
+    def _show_toast(self, title: str, body: str):
+        if not HAS_TOASTS:
+            return
+        try:
+            toaster = WindowsToaster("Detec Agent")
+            toast = Toast()
+            toast.text_fields = [title, body]
+            icon_path = self._find_icon("Icon.png")
+            if icon_path:
+                toast.AddImage(ToastDisplayImage.fromPath(icon_path))
+            toaster.show_toast(toast)
+        except Exception as exc:
+            logger.warning("Toast notification failed: %s", exc)
+
+    def _on_detection_event(self, data: dict):
+        tool = data.get("tool_name", "Unknown tool")
+        state = data.get("decision_state", "detect")
+        status = data.get("status")  # for approval events
+
+        if status == "approved":
+            self._show_toast("Tool Approved", f"{tool} has been approved on this machine")
+        elif state == "block":
+            self._show_toast("Tool Blocked", f"Detec blocked {tool} — contact your admin for approval")
+        elif state in ("detect", "warn"):
+            self._show_toast("Tool Detected", f"Detec detected {tool} — audit mode, no action taken")
 
     def run(self) -> None:
         """Start the tray app (blocks until quit)."""
@@ -107,18 +145,19 @@ class DetecTrayApp:
         import pystray
 
         icon_image = _load_icon()
+
+        def _status_label(_):
+            status = self._bridge.status
+            connected = status.get("connected", False)
+            return f"Status: {'Connected' if connected else 'Disconnected'}"
+
+        def _events_label(_):
+            return f"Events Sent: {self._bridge.events_sent}"
+
         menu = pystray.Menu(
             pystray.MenuItem("Show Status Window", self._on_show_status, default=True),
-            pystray.MenuItem(
-                lambda _: f"Status: {_STATUS_DISPLAY.get(self._bridge.status, 'Unknown')}",
-                None,
-                enabled=False,
-            ),
-            pystray.MenuItem(
-                lambda _: f"Events Sent: {self._bridge.events_sent}",
-                None,
-                enabled=False,
-            ),
+            pystray.MenuItem(_status_label, None, enabled=False),
+            pystray.MenuItem(_events_label, None, enabled=False),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Run Scan Now", self._on_run_scan),
             pystray.Menu.SEPARATOR,
@@ -139,13 +178,14 @@ class DetecTrayApp:
             return
 
         status = self._bridge.status
-        display = _STATUS_DISPLAY.get(status, status.title())
+        connected = status.get("connected", False)
+        display = "Connected" if connected else "Disconnected"
 
         if self._tray:
             self._tray.title = f"Detec Agent - {display}"
 
         if self._status_window:
-            self._status_window.update_status(status)
+            self._status_window.update_status(display)
 
         self._root.after(_POLL_MS, self._poll_status)
 
@@ -158,8 +198,7 @@ class DetecTrayApp:
             self._root.after(0, self._show_status_window)
 
     def _on_run_scan(self, icon=None, item=None) -> None:
-        if self._bridge.is_running:
-            self._bridge.request_scan()
+        self._bridge.request_scan()
 
     def _on_quit(self, icon=None, item=None) -> None:
         self._bridge.stop()
