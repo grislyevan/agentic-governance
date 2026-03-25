@@ -298,6 +298,23 @@ class TestAgentKeyManagement:
         assert resp.status_code == 403
 
 
+class TestEnrollEmailRequestModel:
+    def test_enroll_email_request_platform_field(self):
+        """EnrollEmailRequest accepts all Platform enum values without model_rebuild error."""
+        from routers.agent_download import EnrollEmailRequest, Platform
+        for plat in Platform:
+            req = EnrollEmailRequest(email="test@test.com", platform=plat)
+            assert req.platform == plat
+
+    def test_enroll_email_request_model_rebuild(self):
+        """EnrollEmailRequest.model_rebuild() must not raise PydanticUndefinedAnnotation."""
+        from routers.agent_download import EnrollEmailRequest, Platform
+        from typing import Literal
+        Proto = Literal["auto", "http", "tcp"]
+        # Should not raise even when called with explicit namespace
+        EnrollEmailRequest.model_rebuild(_types_namespace={"Platform": Platform, "Proto": Proto})
+
+
 class TestAgentDownloadValidation:
     def test_invalid_platform_returns_422(self, client):
         headers, _ = _register_owner(client)
