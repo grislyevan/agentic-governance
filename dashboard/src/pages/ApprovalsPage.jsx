@@ -272,6 +272,11 @@ function DrawerRow({ label, value }) {
   );
 }
 
+const REASON_TEMPLATES = {
+  approve: ['Approved by security review', 'Expected behavior for this tool', 'Temporary allow for maintenance'],
+  deny: ['Violates security policy', 'Unauthorized tool usage', 'Exceeds approved scope'],
+};
+
 export default function ApprovalsPage({ onNavigate }) {
   const [activeTab, setActiveTab] = useState('pending');
   const [items, setItems] = useState([]);
@@ -282,6 +287,11 @@ export default function ApprovalsPage({ onNavigate }) {
   const [selectedItem, setSelectedItem] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState(null);
+
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkDecision, setBulkDecision] = useState(null); // 'approve' | 'deny' | null
+  const [bulkReason, setBulkReason] = useState('');
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -322,6 +332,33 @@ export default function ApprovalsPage({ onNavigate }) {
       setActionLoading(false);
     }
   };
+
+  function toggleSelect(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+  function selectAllPending(pendingItems) { setSelectedIds(new Set(pendingItems.map(i => i.id))); }
+  function clearSelection() { setSelectedIds(new Set()); }
+
+  async function executeBulkDecision() {
+    setBulkBusy(true);
+    const actionFn = bulkDecision === 'approve' ? approveRequest : denyRequest;
+    const ids = [...selectedIds];
+    try {
+      await Promise.all(ids.map(id => actionFn(id, bulkReason)));
+      clearSelection();
+      setBulkDecision(null);
+      setBulkReason('');
+      await load();
+    } catch (e) {
+      alert(`Some actions failed: ${e.message}`);
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -371,12 +408,34 @@ export default function ApprovalsPage({ onNavigate }) {
       {/* Empty state */}
       {items.length === 0 && !loading && !error && <EmptyState tab={activeTab} />}
 
+      {/* Bulk action bar */}
+      {activeTab === 'pending' && selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-detec-slate-50 border border-detec-ui-border rounded-lg mb-4">
+          <span className="text-sm text-detec-ui-muted">{selectedIds.size} selected</span>
+          <button className="px-3 py-1 text-xs rounded bg-emerald-500 text-white hover:bg-emerald-600" onClick={() => setBulkDecision('approve')}>Approve all</button>
+          <button className="px-3 py-1 text-xs rounded bg-red-500 text-white hover:bg-red-600" onClick={() => setBulkDecision('deny')}>Deny all</button>
+          <button className="text-xs text-detec-ui-muted hover:text-detec-ui-text ml-auto" onClick={clearSelection}>Clear selection</button>
+        </div>
+      )}
+
       {/* Table */}
       {items.length > 0 && (
         <div className="rounded-xl border border-detec-ui-border/50 overflow-x-auto overflow-hidden">
           <table className="w-full text-left min-w-[700px]" aria-label="Approval requests">
             <thead>
               <tr className="bg-detec-ui-surface/80 border-b border-detec-ui-border/50">
+                {activeTab === 'pending' && (
+                  <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider w-8">
+                    <input
+                      type="checkbox"
+                      onChange={e => {
+                        const sortedPending = [...items].sort((a, b) => new Date(a.requested_at) - new Date(b.requested_at));
+                        e.target.checked ? selectAllPending(sortedPending) : clearSelection();
+                      }}
+                      checked={selectedIds.size === items.length && items.length > 0}
+                    />
+                  </th>
+                )}
                 <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Tool</th>
                 <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider hidden md:table-cell">Endpoint</th>
                 <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Confidence</th>
@@ -401,6 +460,11 @@ export default function ApprovalsPage({ onNavigate }) {
                   className="border-b border-detec-ui-border/40 hover:bg-detec-ui-surface/40 cursor-pointer"
                   onClick={() => setSelectedItem(item)}
                 >
+                  {activeTab === 'pending' && (
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                      <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} />
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-sm font-mono text-detec-ui-text">{item.tool_name}</td>
                   <td className="px-4 py-3 text-sm text-detec-ui-muted hidden md:table-cell">
                     {item.endpoint_id ? item.endpoint_id.slice(0, 12) + '…' : '—'}
@@ -487,6 +551,25 @@ export default function ApprovalsPage({ onNavigate }) {
           actionLoading={actionLoading}
           onNavigate={onNavigate}
         />
+      )}
+
+      {/* Bulk decision modal */}
+      {bulkDecision && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-detec-surface border border-detec-ui-border rounded-lg p-6 w-96 space-y-4">
+            <h2 className="font-semibold text-detec-ui-text capitalize">{bulkDecision} {selectedIds.size} requests</h2>
+            <div className="flex flex-wrap gap-1 mb-2">
+              {(REASON_TEMPLATES[bulkDecision] || []).map(t => (
+                <button key={t} className="text-xs px-2 py-0.5 rounded border border-detec-ui-border hover:bg-detec-slate-100" onClick={() => setBulkReason(t)}>{t}</button>
+              ))}
+            </div>
+            <textarea className="w-full border border-detec-ui-border rounded px-3 py-1.5 text-sm bg-detec-bg text-detec-ui-text" rows={2} placeholder="Reason..." value={bulkReason} onChange={e => setBulkReason(e.target.value)} />
+            <div className="flex gap-2">
+              <button className="flex-1 py-1.5 text-sm rounded bg-detec-ui-accent text-white hover:opacity-90 disabled:opacity-50" disabled={bulkBusy || !bulkReason.trim()} onClick={executeBulkDecision}>{bulkBusy ? 'Processing…' : 'Confirm'}</button>
+              <button className="flex-1 py-1.5 text-sm rounded border border-detec-ui-border text-detec-ui-muted" onClick={() => { setBulkDecision(null); setBulkReason(''); }}>Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
