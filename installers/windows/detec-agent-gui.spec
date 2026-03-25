@@ -76,6 +76,10 @@ hiddenimports = [
     "protocol.wire",
     "protocol.messages",
     "protocol.connection",
+    "collector.ipc",
+    "collector.ipc.protocol",
+    "collector.ipc.pipe_client",
+    "windows_toasts",
 ]
 
 datas = []

@@ -59,6 +59,9 @@ hiddenimports = [
     "protocol.wire",
     "protocol.messages",
     "protocol.connection",
+    "collector.ipc",
+    "collector.ipc.protocol",
+    "collector.ipc.pipe_server",
 ]
 
 # Data files: schemas for event validation, branding for icon.
