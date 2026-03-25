@@ -101,7 +101,8 @@ def _load_env() -> None:
     env_file = _data_dir() / "agent.env"
     if not env_file.exists():
         return
-    for line in env_file.read_text(encoding="utf-8").splitlines():
+    # utf-8-sig strips BOM if present (PowerShell Out-File adds one)
+    for line in env_file.read_text(encoding="utf-8-sig").splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
