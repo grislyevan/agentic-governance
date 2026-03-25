@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, EmailStr, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -287,6 +288,64 @@ def _build_download_response(
 
 
 # ---------------------------------------------------------------------------
+# MSI stamped download helper
+# ---------------------------------------------------------------------------
+
+def _build_msi_download(tenant: Tenant, db: Session) -> FileResponse | None:
+    """Try to serve a stamped MSI for the tenant. Returns FileResponse or None.
+
+    Looks up the latest AgentBuild for the tenant. If found and the file exists,
+    stamps it with tenant config and returns a FileResponse. Returns None if no
+    build is available (caller should fall back to zip-based download).
+    """
+    import shutil
+    import tempfile
+    from starlette.background import BackgroundTask
+
+    from models.agent_build import AgentBuild
+    from core.msi_stamper import stamp_msi
+
+    build = (
+        db.query(AgentBuild)
+        .filter(AgentBuild.tenant_id == tenant.id)
+        .order_by(AgentBuild.uploaded_at.desc())
+        .first()
+    )
+    if not build or not os.path.exists(build.file_path):
+        return None
+
+    api_url = os.environ.get("DETEC_API_URL", "http://localhost:8000")
+    agent_key = _ensure_agent_key(tenant, db)
+
+    tmp_dir = tempfile.mkdtemp()
+    slug = getattr(tenant, "slug", None) or str(tenant.id)
+    output_path = os.path.join(tmp_dir, f"DetecAgent-{slug}.msi")
+
+    try:
+        stamp_msi(
+            base_msi_path=build.file_path,
+            output_path=output_path,
+            api_url=api_url,
+            api_key=agent_key,
+            tenant_id=str(tenant.id),
+        )
+    except Exception:
+        logger.exception("Failed to stamp MSI for tenant %s; falling back to zip", tenant.id)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return None
+
+    def cleanup():
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    return FileResponse(
+        output_path,
+        media_type="application/octet-stream",
+        filename=f"DetecAgent-{slug}.msi",
+        background=BackgroundTask(cleanup),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Authenticated download (dashboard / admin)
 # ---------------------------------------------------------------------------
 
@@ -314,6 +373,12 @@ def download_agent(
         raise HTTPException(status_code=500, detail="Tenant not found")
 
     agent_key = _ensure_agent_key(tenant, db)
+
+    # Try MSI stamped download first (if a build has been uploaded for this tenant)
+    if platform == Platform.windows:
+        msi_response = _build_msi_download(tenant, db)
+        if msi_response:
+            return msi_response
 
     pkg_path = _find_package(platform.value)
     if pkg_path is None:
