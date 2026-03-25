@@ -148,3 +148,20 @@ export async function fetchCurrentUser() {
   if (!res.ok) return null;
   return res.json();
 }
+
+const ROLE_KEY = 'detec_user_role';
+
+/**
+ * Returns the current user's role from session storage.
+ * Defaults to 'viewer' if not set.
+ */
+export function getUserRole() {
+  try { return sessionStorage.getItem(ROLE_KEY) || 'viewer'; } catch { return 'viewer'; }
+}
+
+export function setUserRole(role) {
+  try {
+    if (role) sessionStorage.setItem(ROLE_KEY, role);
+    else sessionStorage.removeItem(ROLE_KEY);
+  } catch { /* noop */ }
+}

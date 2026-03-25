@@ -96,7 +96,13 @@ class TestAgentDownloadTenantKey:
         assert "AGENTIC_GOV_PROTOCOL=http" in env_content
 
     def test_tenant_key_is_auto_generated(self, client, tmp_path):
-        """Downloading auto-generates a tenant key if one doesn't exist."""
+        """Downloading auto-generates a tenant key if one doesn't exist.
+
+        First download returns the full key (64 chars) since it was just created.
+        Subsequent downloads return only the prefix (8 chars) because the full
+        key is not stored after initial generation (hash-based storage).
+        The prefix from the second download must match the start of the first key.
+        """
         pkg_dir = _create_fake_package(tmp_path, "detec-agent.zip")
         headers, _ = _register_owner(client)
 
@@ -108,7 +114,13 @@ class TestAgentDownloadTenantKey:
         zf2 = zipfile.ZipFile(BytesIO(resp2.content))
         cfg1 = json.loads(zf1.read("collector.json"))
         cfg2 = json.loads(zf2.read("collector.json"))
-        assert cfg1["api_key"] == cfg2["api_key"]
+
+        # First download returns the full key (64 hex chars)
+        assert len(cfg1["api_key"]) == 64
+        # Second download returns only the prefix (8 chars) — full key is not stored
+        assert len(cfg2["api_key"]) == 8
+        # The prefix must match the beginning of the full key
+        assert cfg1["api_key"].startswith(cfg2["api_key"])
 
     def test_agent_can_auth_with_tenant_key(self, client, tmp_path):
         """An agent using the tenant key can call the heartbeat endpoint."""
@@ -284,6 +296,23 @@ class TestAgentKeyManagement:
         headers, _ = _register_viewer(client)
         resp = client.post(f"{API}/agent/key/rotate", headers=headers)
         assert resp.status_code == 403
+
+
+class TestEnrollEmailRequestModel:
+    def test_enroll_email_request_platform_field(self):
+        """EnrollEmailRequest accepts all Platform enum values without model_rebuild error."""
+        from routers.agent_download import EnrollEmailRequest, Platform
+        for plat in Platform:
+            req = EnrollEmailRequest(email="test@test.com", platform=plat)
+            assert req.platform == plat
+
+    def test_enroll_email_request_model_rebuild(self):
+        """EnrollEmailRequest.model_rebuild() must not raise PydanticUndefinedAnnotation."""
+        from routers.agent_download import EnrollEmailRequest, Platform
+        from typing import Literal
+        Proto = Literal["auto", "http", "tcp"]
+        # Should not raise even when called with explicit namespace
+        EnrollEmailRequest.model_rebuild(_types_namespace={"Platform": Platform, "Proto": Proto})
 
 
 class TestAgentDownloadValidation:

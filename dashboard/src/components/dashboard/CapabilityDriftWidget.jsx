@@ -209,10 +209,10 @@ export default function CapabilityDriftWidget({ onNavigate }) {
               {/* Actions */}
               <div className="flex items-center gap-3 shrink-0">
                 <a
-                  href="/docs/detection-review-cadence.md"
+                  href="https://github.com/grislyevan/agentic-governance/blob/main/docs/capability-drift-runbook.md"
                   target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-detec-ui-accent hover:underline"
+                  rel="noreferrer"
+                  className="text-xs text-blue-600 hover:underline"
                 >
                   View runbook
                 </a>

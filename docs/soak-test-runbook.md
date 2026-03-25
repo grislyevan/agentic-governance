@@ -196,7 +196,7 @@ Copy/paste for each soak execution.
 - [ ] No sustained metrics regression post-restart
 
 ## Notes / Incidents
-- 
+-
 
 ## Final Verdict
 - [ ] PASS
@@ -205,3 +205,9 @@ Copy/paste for each soak execution.
 - Approver(s):
 - Follow-up actions:
 ```
+
+## Run History
+
+| Date       | Duration    | Fatal crashes | Notes |
+|------------|-------------|---------------|-------|
+| 2026-03-24 | import only | 0             | N1 fix applied (PydanticUndefinedAnnotation resolved, commit d63e3bf). Script invokes correctly (`--help` passes). Full server soak requires Postgres — run with `make dev` in `api/`. Direct invocation via `python3 scripts/soak/replay_traces.py` works; blake2 warnings from pyenv/OpenSSL mismatch are non-fatal. |

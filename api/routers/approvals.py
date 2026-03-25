@@ -29,6 +29,7 @@ class ApprovalRequestResponse(BaseModel):
     endpoint_id: str | None
     event_id: str | None
     tool_name: str | None
+    tool_class: str | None
     confidence_band: str | None
     confidence_score: float | None
     policy_rule_id: str | None
@@ -55,6 +56,7 @@ class ApprovalCreate(BaseModel):
     endpoint_id: str | None = None
     event_id: str | None = None
     tool_name: str | None = None
+    tool_class: str | None = None
     confidence_band: str | None = None
     confidence_score: float | None = None
     policy_rule_id: str | None = None
@@ -69,6 +71,7 @@ def _serialize(ar: ApprovalRequest) -> ApprovalRequestResponse:
         endpoint_id=ar.endpoint_id,
         event_id=ar.event_id,
         tool_name=ar.tool_name,
+        tool_class=ar.tool_class,
         confidence_band=ar.confidence_band,
         confidence_score=ar.confidence_score,
         policy_rule_id=ar.policy_rule_id,
@@ -88,6 +91,7 @@ def _serialize(ar: ApprovalRequest) -> ApprovalRequestResponse:
 def list_approvals(
     request: Request,
     status_filter: str | None = Query(default=None, alias="status"),
+    event_id: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
     authorization: str | None = Depends(get_authorization),
     x_api_key: str | None = Header(default=None),
@@ -101,6 +105,9 @@ def list_approvals(
 
     if status_filter and status_filter != "all":
         q = q.filter(ApprovalRequest.status == status_filter)
+
+    if event_id:
+        q = q.filter(ApprovalRequest.event_id == event_id)
 
     q = q.order_by(ApprovalRequest.requested_at.desc()).limit(limit)
     items = q.all()
@@ -160,6 +167,7 @@ def create_approval(
         endpoint_id=body.endpoint_id,
         event_id=body.event_id,
         tool_name=body.tool_name,
+        tool_class=body.tool_class,
         confidence_band=body.confidence_band,
         confidence_score=body.confidence_score,
         policy_rule_id=body.policy_rule_id,

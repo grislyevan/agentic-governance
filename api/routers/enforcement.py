@@ -141,6 +141,7 @@ class PostureSummaryResponse(BaseModel):
 
 class AllowListEntryResponse(BaseModel):
     id: str
+    tenant_id: str | None = None
     pattern: str
     pattern_type: str
     description: str | None
@@ -156,12 +157,21 @@ class AllowListEntryResponse(BaseModel):
 
 class AllowListEntryCreate(BaseModel):
     pattern: str = Field(..., min_length=3, max_length=512)
-    pattern_type: str = Field(default="name", pattern="^(name|path|hash)$")
+    pattern_type: str = Field(default="name", pattern="^(name|path|hash|process_name)$")
     description: str | None = Field(default=None, max_length=512)
     expires_at: datetime | None = None
     scope: str = Field(default="tenant", pattern="^(tenant|endpoint|tool)$")
     reason_code: str | None = Field(default=None, max_length=64)
     owner_id: str | None = None
+
+
+class AllowListPatch(BaseModel):
+    scope: str | None = Field(default=None, pattern="^(tenant|endpoint|tool)$")
+    expires_at: datetime | None = None
+    reason_code: str | None = Field(default=None, max_length=64)
+    owner_id: str | None = Field(default=None, max_length=128)
+    description: str | None = Field(default=None, max_length=512)
+    no_expiry_override: bool | None = None
 
 
 class AllowListResponse(BaseModel):
@@ -364,6 +374,7 @@ def list_allow_list(
         items=[
             AllowListEntryResponse(
                 id=e.id,
+                tenant_id=e.tenant_id,
                 pattern=e.pattern,
                 pattern_type=e.pattern_type,
                 description=e.description,
@@ -450,6 +461,7 @@ def create_allow_list_entry(
 
     return AllowListEntryResponse(
         id=entry.id,
+        tenant_id=entry.tenant_id,
         pattern=entry.pattern,
         pattern_type=entry.pattern_type,
         description=entry.description,
@@ -512,6 +524,83 @@ def delete_allow_list_entry(
             ep.auto_enforce_threshold,
             allow_list,
         )
+
+
+def _serialize_allow_list_entry(e: AllowListEntry) -> dict:
+    """Return a dict representation of an allow-list entry (includes tenant_id)."""
+    return {
+        "id": e.id,
+        "tenant_id": e.tenant_id,
+        "pattern": e.pattern,
+        "pattern_type": e.pattern_type,
+        "description": e.description,
+        "created_by": e.created_by,
+        "created_at": e.created_at.isoformat() if e.created_at else "",
+        "expires_at": e.expires_at.isoformat() if e.expires_at else None,
+        "scope": e.scope,
+        "reason_code": e.reason_code,
+        "owner_id": e.owner_id,
+    }
+
+
+@router.patch("/allow-list/{entry_id}", response_model=AllowListEntryResponse)
+@limiter.limit("30/minute")
+def patch_allow_list_entry(
+    request: Request,
+    entry_id: str,
+    body: AllowListPatch,
+    authorization: str | None = Depends(get_authorization),
+    x_api_key: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    """Partially update an allow-list entry. Owner/admin only."""
+    auth = resolve_auth(authorization, x_api_key, db)
+    require_role(auth, "owner", "admin")
+
+    entry = db.query(AllowListEntry).filter(
+        AllowListEntry.id == entry_id,
+        strict_tenant_filter(auth, AllowListEntry),
+    ).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Allow-list entry not found")
+
+    before_snapshot = {
+        "scope": entry.scope,
+        "expires_at": entry.expires_at.isoformat() if entry.expires_at else None,
+        "reason_code": entry.reason_code,
+        "owner_id": entry.owner_id,
+        "description": entry.description,
+        "no_expiry_override": getattr(entry, "no_expiry_override", False),
+    }
+
+    update_data = body.model_dump(exclude_unset=True)
+    for field_name, value in update_data.items():
+        if hasattr(entry, field_name):
+            setattr(entry, field_name, value)
+
+    after_snapshot = {
+        "scope": entry.scope,
+        "expires_at": entry.expires_at.isoformat() if entry.expires_at else None,
+        "reason_code": entry.reason_code,
+        "owner_id": entry.owner_id,
+        "description": entry.description,
+        "no_expiry_override": getattr(entry, "no_expiry_override", False),
+    }
+
+    audit_record(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="enforcement.allow_list_updated",
+        resource_type="allow_list_entry",
+        resource_id=entry.id,
+        detail={"before": before_snapshot, "after": after_snapshot},
+    )
+
+    db.commit()
+    db.refresh(entry)
+
+    return AllowListEntryResponse(**_serialize_allow_list_entry(entry))
 
 
 # -- EDR enforcement config schemas -----------------------------------------

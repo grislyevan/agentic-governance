@@ -407,6 +407,12 @@ class EnrollEmailRequest(BaseModel):
     protocol: Proto | None = None
 
 
+# Explicitly provide the types namespace so Pydantic v2 can resolve `Platform`
+# and `Proto` if the model is rebuilt (e.g., during FastAPI startup with
+# deferred annotation evaluation).
+EnrollEmailRequest.model_rebuild(_types_namespace={"Platform": Platform, "Proto": Proto})
+
+
 class EnrollEmailResponse(BaseModel):
     status: str
     email: str

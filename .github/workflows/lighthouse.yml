@@ -1,0 +1,85 @@
+name: Lighthouse Performance
+
+on:
+  pull_request:
+    paths:
+      - 'dashboard/src/**'
+      - 'dashboard/package.json'
+      - 'dashboard/vite.config.js'
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Lighthouse
+        run: npm install -g lighthouse
+
+      - name: Start preview server
+        run: npx vite preview --port 4173 &
+        env:
+          NODE_ENV: production
+
+      - name: Wait for server
+        run: sleep 5
+
+      - name: Run Lighthouse
+        run: |
+          lighthouse http://localhost:4173/ \
+            --output json \
+            --output-path /tmp/lh-result.json \
+            --chrome-flags="--headless --no-sandbox --disable-gpu" \
+            --quiet
+
+      - name: Check performance budget
+        run: |
+          python3 - <<'EOF'
+          import json, sys
+          d = json.load(open('/tmp/lh-result.json'))
+          score = d['categories']['performance']['score']
+          lcp_ms = d['audits']['largest-contentful-paint']['numericValue']
+          fcp_ms = d['audits']['first-contentful-paint']['numericValue']
+
+          warnings = []
+          failures = []
+
+          if score < 0.70:
+            warnings.append(f"Performance score {score:.2f} < 0.70 (soft threshold)")
+          if score < 0.50:
+            failures.append(f"Performance score {score:.2f} < 0.50 (hard threshold)")
+          if lcp_ms > 3500:
+            warnings.append(f"LCP {lcp_ms:.0f}ms > 3500ms (soft threshold)")
+          if lcp_ms > 5000:
+            failures.append(f"LCP {lcp_ms:.0f}ms > 5000ms (hard threshold)")
+          if fcp_ms > 2000:
+            warnings.append(f"FCP {fcp_ms:.0f}ms > 2000ms (soft threshold)")
+          if fcp_ms > 3500:
+            failures.append(f"FCP {fcp_ms:.0f}ms > 3500ms (hard threshold)")
+
+          for w in warnings:
+            print(f"::warning::{w}")
+          for f in failures:
+            print(f"::error::{f}")
+
+          if failures:
+            sys.exit(1)
+          print(f"Lighthouse budget OK: score={score:.2f} LCP={lcp_ms:.0f}ms FCP={fcp_ms:.0f}ms")
+          EOF
