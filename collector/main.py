@@ -45,6 +45,7 @@ except ImportError:
 from providers import get_best_provider
 
 from orchestrator import EVENT_VERSION, build_event, run_scan
+from collector.ipc.pipe_server import PipeServer
 
 logger = logging.getLogger(__name__)
 
@@ -402,6 +403,20 @@ def _run_daemon(args: argparse.Namespace) -> None:
         file=sys.stderr,
     )
 
+    last_scan_time: str | None = None
+    events_sent: int = 0
+
+    pipe_server = PipeServer(
+        status_provider=lambda: {
+            "connected": emitter.connected if hasattr(emitter, 'connected') else True,
+            "last_scan": last_scan_time,
+            "events_sent": events_sent,
+            "version": EVENT_VERSION,
+        },
+        scan_callback=lambda: run_scan(args, emitter, pipe_server=pipe_server),
+    )
+    pipe_server.start()
+
     while not stop_event.is_set():
         flushed = emitter.flush_buffer()
         if flushed and args.verbose:
@@ -418,11 +433,18 @@ def _run_daemon(args: argparse.Namespace) -> None:
             state_differ=differ,
             posture_manager=posture_mgr,
             enforcer=enforcer,
+            pipe_server=pipe_server,
         )
+
+        from datetime import datetime, timezone
+        last_scan_time = datetime.now(timezone.utc).isoformat()
+        events_sent = emitter.stats.get("emitted", 0) if hasattr(emitter, "stats") else events_sent
 
         scan_trigger.wait(timeout=current_interval_holder["interval"])
         if stop_event.is_set():
             break
+
+    pipe_server.stop()
 
     shutdown_event = _build_lifecycle_event(
         event_type="agent.shutdown",

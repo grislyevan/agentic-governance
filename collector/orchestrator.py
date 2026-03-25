@@ -508,6 +508,7 @@ def _process_detection(
     possible_continuation: dict[str, Any] | None = None,
     agent_status: dict[str, Any] | None = None,
     config: dict | None = None,
+    pipe_server: Any = None,
 ) -> int:
     """Score, evaluate policy, enforce, and emit events for one detection."""
     events_emitted = 0
@@ -631,6 +632,14 @@ def _process_detection(
                 decision_state=policy_decision.decision_state,
                 detected=True,
             )
+
+    if pipe_server and policy_decision.decision_state in ("detect", "warn", "block", "approval_required"):
+        from collector.ipc.protocol import EVT_DETECTION, make_event
+        pipe_server.broadcast(make_event(EVT_DETECTION, {
+            "tool_name": scan.tool_name,
+            "decision_state": policy_decision.decision_state,
+            "confidence": confidence,
+        }))
 
     if verbose:
         print(f"  Policy: {policy_decision.decision_state} "
@@ -785,6 +794,8 @@ def run_scan(
     state_differ: StateDiffer | None = None,
     posture_manager: PostureManager | None = None,
     enforcer: Enforcer | None = None,
+    *,
+    pipe_server: Any = None,
 ) -> int:
     """Execute one full scan cycle: telemetry, scanners, score, policy, enforce, emit.
 
@@ -1143,6 +1154,7 @@ def run_scan(
             possible_continuation=possible_continuation_by_scan[i] if i < len(possible_continuation_by_scan) else None,
             agent_status=agent_status,
             config=collector_config,
+            pipe_server=pipe_server,
         )
 
     for tree in trees:
