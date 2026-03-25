@@ -19,3 +19,26 @@
 
 - **In-repo repeatable:** Build time and bundle size via `scripts/measure_dashboard_performance.sh`.
 - **Requires served app:** Load time and LCP via Lighthouse against running server; document baseline in this file or in SECURITY-TECHNICAL-REPORT.
+
+## Lighthouse Baseline
+
+> **Note:** Baseline captured via `scripts/lighthouse/run.sh` in CI (headless Chrome). Run locally with `bash scripts/lighthouse/run.sh /tmp/lh-results` to update.
+>
+> *Initial capture pending first CI run. Values below are thresholds; actual measurements will replace these after the first successful CI run.*
+
+| View        | Score  | FCP    | LCP    |
+|-------------|--------|--------|--------|
+| /dashboard  | TBD    | TBD    | TBD    |
+| /events     | TBD    | TBD    | TBD    |
+| /sessions   | TBD    | TBD    | TBD    |
+| /approvals  | TBD    | TBD    | TBD    |
+| /exceptions | TBD    | TBD    | TBD    |
+
+## Budget Thresholds
+
+| Metric          | Soft (warn) | Hard (fail CI) |
+|-----------------|-------------|----------------|
+| Performance     | < 0.70      | < 0.50         |
+| LCP             | > 3.5 s     | > 5.0 s        |
+| FCP             | > 2.0 s     | > 3.5 s        |
+| Bundle chunk    | > 600 KB    | > 700 KB       |
