@@ -24,6 +24,7 @@ import AdminServerPage from './pages/AdminServerPage';
 import SettingsPage from './pages/SettingsPage';
 import BillingPage from './pages/BillingPage';
 import OrgPage from './pages/OrgPage';
+import OrgSettingsPage from './pages/OrgSettingsPage';
 import DemoBanner from './components/layout/DemoBanner';
 import ExceptionsPage from './pages/ExceptionsPage';
 
@@ -40,6 +41,7 @@ const PATH_TO_PAGE = {
   '/settings': 'settings',
   '/billing': 'billing',
   '/org': 'org',
+  '/org-settings': 'org-settings',
   '/exceptions': 'exceptions',
 };
 
@@ -173,6 +175,7 @@ export default function App() {
             <Route path="/settings" element={<SettingsPage {...pageProps} />} />
             <Route path="/billing" element={<BillingPage {...pageProps} />} />
             <Route path="/org" element={<OrgPage {...pageProps} />} />
+            <Route path="/org-settings" element={<OrgSettingsPage />} />
             <Route path="*" element={<Navigate to="/endpoints" replace />} />
           </Routes>
         </main>
