@@ -97,3 +97,13 @@ class TestAllowListPatch:
             json={"reason_code": "x"},
         )
         assert resp.status_code == 404
+
+    def test_patch_scope_rejects_invalid_value(self, client):
+        headers, _ = _register_admin(client, email="patch-inv@test.com", tenant="InvOrg")
+        entry = _create_entry(client, headers)
+        resp = client.patch(
+            f"{API}/enforcement/allow-list/{entry['id']}",
+            headers=headers,
+            json={"scope": "global"},
+        )
+        assert resp.status_code == 422

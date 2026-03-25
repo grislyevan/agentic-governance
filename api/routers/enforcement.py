@@ -166,11 +166,11 @@ class AllowListEntryCreate(BaseModel):
 
 
 class AllowListPatch(BaseModel):
-    scope: str | None = Field(default=None, max_length=128)
+    scope: str | None = Field(default=None, pattern="^(tenant|endpoint|tool)$")
     expires_at: datetime | None = None
-    reason_code: str | None = Field(default=None, max_length=128)
+    reason_code: str | None = Field(default=None, max_length=64)
     owner_id: str | None = Field(default=None, max_length=128)
-    description: str | None = Field(default=None, max_length=1024)
+    description: str | None = Field(default=None, max_length=512)
     no_expiry_override: bool | None = None
 
 
@@ -543,7 +543,7 @@ def _serialize_allow_list_entry(e: AllowListEntry) -> dict:
     }
 
 
-@router.patch("/allow-list/{entry_id}")
+@router.patch("/allow-list/{entry_id}", response_model=AllowListEntryResponse)
 @limiter.limit("30/minute")
 def patch_allow_list_entry(
     request: Request,
@@ -591,7 +591,7 @@ def patch_allow_list_entry(
         db,
         tenant_id=auth.tenant_id,
         actor_id=auth.user_id,
-        action="allow_list.updated",
+        action="enforcement.allow_list_updated",
         resource_type="allow_list_entry",
         resource_id=entry.id,
         detail={"before": before_snapshot, "after": after_snapshot},
