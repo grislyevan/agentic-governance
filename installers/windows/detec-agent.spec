@@ -62,6 +62,20 @@ hiddenimports = [
     "collector.ipc",
     "collector.ipc.protocol",
     "collector.ipc.pipe_server",
+    "requests",
+    "urllib3",
+    "charset_normalizer",
+    "certifi",
+    "idna",
+    "collector.enforcement",
+    "collector.enforcement.approval_hold",
+    "collector.enforcement.enforcer",
+    "collector.enforcement.posture",
+    "collector.enforcement.process_kill",
+    "collector.enforcement.network_block",
+    "collector.enforcement.proxy_inject",
+    "collector.enforcement.rate_limiter",
+    "collector.enforcement.service_restore",
 ]
 
 # Data files: schemas for event validation, branding for icon.
