@@ -175,9 +175,7 @@ def _run_daemon(args: argparse.Namespace) -> None:
         else:
             try:
                 os.kill(old_pid, 0)
-            except ProcessLookupError:
-                _remove_pid_file()
-            except OSError:
+            except (ProcessLookupError, OSError, SystemError):
                 _remove_pid_file()
             else:
                 if _pid_cmdline_looks_like_detec(old_pid):
