@@ -41,6 +41,7 @@ from engine.policy import (
     evaluate_policy,
 )
 from enforcement.enforcer import Enforcer, EnforcementResult
+from enforcement.approval_hold import ApprovalHoldManager, HoldConfig
 from enforcement.posture import PostureManager
 from output.emitter import EventEmitter
 from output.http_emitter import HttpEmitter
@@ -665,7 +666,6 @@ def _process_detection(
         elif policy_decision.decision_state == "approval_required":
             # Hold enforcement: post to server and wait for analyst decision.
             hold_cfg_dict = (config or {}).get("approval_hold", {})
-            from enforcement.approval_hold import ApprovalHoldManager, HoldConfig
             hold_mgr = ApprovalHoldManager(
                 api_url=(config or {}).get("api_url", ""),
                 api_key=(config or {}).get("api_key", ""),
