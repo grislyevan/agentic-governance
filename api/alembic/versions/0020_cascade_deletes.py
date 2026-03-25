@@ -44,6 +44,17 @@ _SET_NULL_FKS = [
     ("events", "endpoint_id", "endpoints", "SET NULL", "fk_events_endpoint_id_endpoints"),
 ]
 
+# PostgreSQL auto-names inline ForeignKey() constraints as {table}_{column}_fkey.
+# The original migrations used unnamed sa.ForeignKey(), so we need to map from
+# our desired names to the actual names in the database.
+_PG_AUTO_NAMES = {
+    "fk_events_tenant_id_tenants": "events_tenant_id_fkey",
+    "fk_events_endpoint_id_endpoints": "events_endpoint_id_fkey",
+    "fk_endpoints_tenant_id_tenants": "endpoints_tenant_id_fkey",
+    "fk_users_tenant_id_tenants": "users_tenant_id_fkey",
+    "fk_tenant_memberships_tenant_id_tenants": "tenant_memberships_tenant_id_fkey",
+}
+
 
 def upgrade() -> None:
     bind = op.get_bind()
@@ -92,8 +103,11 @@ def upgrade() -> None:
 
     else:
         # PostgreSQL (and other ANSI dialects): drop by name then recreate.
+        # Look up the actual constraint name — it may be an auto-generated
+        # PostgreSQL name ({table}_{col}_fkey) rather than the desired name.
         for table, col, ref_table, ondelete, name in _CASCADE_FKS + _SET_NULL_FKS:
-            op.drop_constraint(name, table, type_="foreignkey")
+            old_name = _PG_AUTO_NAMES.get(name, name)
+            op.drop_constraint(old_name, table, type_="foreignkey")
             op.create_foreign_key(
                 name,
                 table, ref_table,
@@ -141,10 +155,12 @@ def downgrade() -> None:
             )
 
     else:
+        # Upgrade created constraints with our fk_* names; restore originals.
         for table, col, ref_table, _ondelete, name in _CASCADE_FKS + _SET_NULL_FKS:
             op.drop_constraint(name, table, type_="foreignkey")
+            original_name = _PG_AUTO_NAMES.get(name, name)
             op.create_foreign_key(
-                name,
+                original_name,
                 table, ref_table,
                 [col], ["id"],
             )

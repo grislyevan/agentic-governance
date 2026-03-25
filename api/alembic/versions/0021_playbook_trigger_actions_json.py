@@ -22,19 +22,37 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    with op.batch_alter_table("response_playbooks") as batch_op:
-        batch_op.alter_column(
-            "trigger",
-            existing_type=sa.Text(),
-            type_=sa.JSON(),
-            existing_nullable=False,
-        )
-        batch_op.alter_column(
-            "actions",
-            existing_type=sa.Text(),
-            type_=sa.JSON(),
-            existing_nullable=False,
-        )
+    bind = op.get_bind()
+    if bind.dialect.name == "sqlite":
+        # SQLite JSON is TEXT under the hood — logical change only.
+        with op.batch_alter_table("response_playbooks") as batch_op:
+            batch_op.alter_column(
+                "trigger",
+                existing_type=sa.Text(),
+                type_=sa.JSON(),
+                existing_nullable=False,
+            )
+            batch_op.alter_column(
+                "actions",
+                existing_type=sa.Text(),
+                type_=sa.JSON(),
+                existing_nullable=False,
+            )
+    else:
+        # PostgreSQL: drop text defaults, cast column, re-add JSON defaults.
+        conn = op.get_bind()
+        conn.execute(sa.text(
+            "ALTER TABLE response_playbooks "
+            "ALTER COLUMN trigger DROP DEFAULT, "
+            "ALTER COLUMN trigger TYPE JSON USING trigger::json, "
+            "ALTER COLUMN trigger SET DEFAULT '{}'::json"
+        ))
+        conn.execute(sa.text(
+            "ALTER TABLE response_playbooks "
+            "ALTER COLUMN actions DROP DEFAULT, "
+            "ALTER COLUMN actions TYPE JSON USING actions::json, "
+            "ALTER COLUMN actions SET DEFAULT '[]'::json"
+        ))
 
 
 def downgrade() -> None:
