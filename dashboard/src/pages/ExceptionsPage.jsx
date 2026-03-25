@@ -471,6 +471,11 @@ export default function ExceptionsPage() {
   const [deletingId, setDeletingId] = useState(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkExtendOpen, setBulkExtendOpen] = useState(false);
+  const [newExpiry, setNewExpiry] = useState('');
+  const [bulkExtendBusy, setBulkExtendBusy] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
@@ -524,6 +529,16 @@ export default function ExceptionsPage() {
       setDeleteBusy(false);
     }
   }
+
+  function toggleSelect(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+  function selectAll(items) { setSelectedIds(new Set(items.map(i => i.id))); }
+  function clearSelection() { setSelectedIds(new Set()); }
 
   // Filtering
   const filtered = entries.filter((e) => {
@@ -631,11 +646,26 @@ export default function ExceptionsPage() {
           ) : null}
         </div>
       ) : (
+        <>
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-detec-slate-50 border border-detec-ui-border rounded-lg mb-4">
+              <span className="text-sm text-detec-ui-muted">{selectedIds.size} selected</span>
+              <button className="px-3 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600" onClick={() => setBulkExtendOpen(true)}>Extend expiry</button>
+              <button className="text-xs text-detec-ui-muted hover:text-detec-ui-text ml-auto" onClick={clearSelection}>Clear</button>
+            </div>
+          )}
         <div className="rounded-detec border border-detec-ui-border shadow-detec-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-detec-slate-100 border-b border-detec-ui-border">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ui-muted uppercase tracking-wide w-8">
+                    <input
+                      type="checkbox"
+                      onChange={e => e.target.checked ? selectAll(filtered) : clearSelection()}
+                      checked={selectedIds.size === filtered.length && filtered.length > 0}
+                    />
+                  </th>
                   <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ui-muted uppercase tracking-wide">
                     Pattern
                   </th>
@@ -672,6 +702,9 @@ export default function ExceptionsPage() {
                       key={entry.id}
                       className={`transition-colors ${expired ? 'opacity-60' : 'hover:bg-detec-slate-100/50'}`}
                     >
+                      <td className="px-4 py-3">
+                        <input type="checkbox" checked={selectedIds.has(entry.id)} onChange={() => toggleSelect(entry.id)} />
+                      </td>
                       <td className="px-4 py-3">
                         <span className="font-mono text-xs text-detec-ui-text break-all">
                           {entry.pattern}
@@ -753,6 +786,7 @@ export default function ExceptionsPage() {
             </table>
           </div>
         </div>
+        </>
       )}
 
       {/* Drawer */}
@@ -762,6 +796,36 @@ export default function ExceptionsPage() {
           onClose={handleCloseDrawer}
           onSaved={handleSaved}
         />
+      )}
+
+      {/* Bulk extend expiry modal */}
+      {bulkExtendOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-detec-surface border border-detec-ui-border rounded-lg p-6 w-96 space-y-4">
+            <h2 className="font-semibold text-detec-ui-text">Extend expiry for {selectedIds.size} entries</h2>
+            <div>
+              <label className="block text-xs font-medium text-detec-ui-muted mb-1" htmlFor="new-expiry-input">New expiry</label>
+              <input id="new-expiry-input" aria-label="New expiry" type="datetime-local" className="w-full border border-detec-ui-border rounded px-3 py-1.5 text-sm bg-detec-bg text-detec-ui-text" value={newExpiry} onChange={e => setNewExpiry(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <button
+                className="flex-1 py-1.5 text-sm rounded bg-detec-ui-accent text-white hover:opacity-90 disabled:opacity-50"
+                disabled={bulkExtendBusy || !newExpiry}
+                onClick={async () => {
+                  setBulkExtendBusy(true);
+                  try {
+                    await Promise.all([...selectedIds].map(id => updateAllowListEntry(id, { expires_at: newExpiry + ':00Z' })));
+                    clearSelection();
+                    setBulkExtendOpen(false);
+                    setNewExpiry('');
+                    await load();
+                  } catch(e) { alert(e.message); } finally { setBulkExtendBusy(false); }
+                }}
+              >{bulkExtendBusy ? 'Applying…' : 'Apply'}</button>
+              <button className="flex-1 py-1.5 text-sm rounded border border-detec-ui-border text-detec-ui-muted" onClick={() => { setBulkExtendOpen(false); setNewExpiry(''); }}>Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

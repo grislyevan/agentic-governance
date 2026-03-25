@@ -170,7 +170,8 @@ describe('ExceptionsPage', () => {
 
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
 
-    const overrideCheckbox = screen.getByRole('checkbox');
+    const dialog = screen.getByRole('dialog');
+    const overrideCheckbox = within(dialog).getByRole('checkbox');
     fireEvent.click(overrideCheckbox);
 
     await waitFor(() => {
