@@ -29,6 +29,7 @@ class ApprovalRequestResponse(BaseModel):
     endpoint_id: str | None
     event_id: str | None
     tool_name: str | None
+    tool_class: str | None
     confidence_band: str | None
     confidence_score: float | None
     policy_rule_id: str | None
@@ -55,6 +56,7 @@ class ApprovalCreate(BaseModel):
     endpoint_id: str | None = None
     event_id: str | None = None
     tool_name: str | None = None
+    tool_class: str | None = None
     confidence_band: str | None = None
     confidence_score: float | None = None
     policy_rule_id: str | None = None
@@ -69,6 +71,7 @@ def _serialize(ar: ApprovalRequest) -> ApprovalRequestResponse:
         endpoint_id=ar.endpoint_id,
         event_id=ar.event_id,
         tool_name=ar.tool_name,
+        tool_class=ar.tool_class,
         confidence_band=ar.confidence_band,
         confidence_score=ar.confidence_score,
         policy_rule_id=ar.policy_rule_id,
@@ -164,6 +167,7 @@ def create_approval(
         endpoint_id=body.endpoint_id,
         event_id=body.event_id,
         tool_name=body.tool_name,
+        tool_class=body.tool_class,
         confidence_band=body.confidence_band,
         confidence_score=body.confidence_score,
         policy_rule_id=body.policy_rule_id,
