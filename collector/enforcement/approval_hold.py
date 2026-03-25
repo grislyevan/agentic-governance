@@ -49,7 +49,13 @@ class HoldResult:
 
 def _normalize_decision(behavior: str) -> str:
     """Map config behavior strings to canonical decision values."""
-    return "denied" if behavior == "deny" else "approved"
+    if behavior in ("deny", "denied"):
+        return "denied"
+    elif behavior in ("approve", "approved"):
+        return "approved"
+    else:
+        # Should never happen due to HoldConfig validation, but fail secure
+        return "denied"
 
 
 class ApprovalHoldManager:

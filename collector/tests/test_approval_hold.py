@@ -141,6 +141,54 @@ def test_holdconfig_from_dict_rejects_invalid_behavior():
 
 # --- Fix 4: 401 during polling returns denied immediately, no retry ---
 
+# --- Fix: _normalize_decision handles all 4 valid behavior values ---
+
+@pytest.mark.parametrize("behavior,expected", [
+    ("deny", "denied"),
+    ("denied", "denied"),
+    ("approve", "approved"),
+    ("approved", "approved"),
+])
+def test_normalize_decision_all_valid_values(behavior, expected):
+    """_normalize_decision must map all 4 valid behavior strings correctly."""
+    from enforcement.approval_hold import _normalize_decision
+    assert _normalize_decision(behavior) == expected
+
+
+def test_timeout_behavior_denied_string_returns_denied():
+    """timeout_behavior='denied' must yield a denied HoldResult (not approved)."""
+    config = HoldConfig(poll_interval_seconds=0, timeout_seconds=0, timeout_behavior="denied")
+    manager = ApprovalHoldManager(api_url="http://localhost:8000/api", api_key="k", config=config)
+
+    with patch.object(manager, "_create_approval_request", return_value="ar-td"), \
+         patch.object(manager, "_poll_decision", return_value="pending"), \
+         patch("enforcement.approval_hold.time.sleep"):
+        result = manager.wait_for_decision(
+            event_id="evt-td", tool_name="tool", tool_class="A",
+            confidence_band="low", confidence_score=0.1, policy_rule_id="R-td",
+        )
+
+    assert result.decision == "denied", (
+        f"Expected 'denied' but got '{result.decision}' — _normalize_decision bug"
+    )
+    assert result.timed_out is True
+
+
+def test_offline_behavior_approved_string_returns_approved():
+    """offline_behavior='approved' must yield an approved HoldResult."""
+    config = HoldConfig(offline_behavior="approved")
+    manager = ApprovalHoldManager(api_url="http://localhost:8000/api", api_key="k", config=config)
+
+    with patch.object(manager, "_create_approval_request", side_effect=Exception("offline")):
+        result = manager.wait_for_decision(
+            event_id="evt-oa", tool_name="tool", tool_class="A",
+            confidence_band="low", confidence_score=0.1, policy_rule_id="R-oa",
+        )
+
+    assert result.decision == "approved"
+    assert result.timed_out is False
+
+
 def test_poll_401_returns_denied_immediately():
     """A 401 response during polling must return denied without sleeping/retrying."""
     config = HoldConfig(poll_interval_seconds=60, timeout_seconds=300)
