@@ -393,13 +393,14 @@ export async function rotateMyApiKey() {
 
 export async function downloadAgent() {
   const config = getApiConfig();
-  const url = `${config.apiUrl.replace(/\/+$/, '')}/agent/download`;
+  const url = `${config.apiUrl.replace(/\/+$/, '')}/agent/download?platform=windows`;
   const headers = buildAuthHeaders();
 
   const res = await fetch(url, { headers, credentials: 'include' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Download failed' }));
-    throw new Error(err.detail || 'Download failed');
+    const msg = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail) || 'Download failed';
+    throw new Error(msg);
   }
   const blob = await res.blob();
   const disposition = res.headers.get('content-disposition') || '';
