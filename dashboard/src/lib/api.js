@@ -301,6 +301,10 @@ export async function deleteUser(id) {
   return apiMutate('DELETE', `/users/${id}`);
 }
 
+export async function deactivateUser(id) {
+  return apiMutate('PATCH', `/users/${id}`, { is_active: false });
+}
+
 export async function sendInvite({ email, role }) {
   const localPart = (email || '').split('@')[0] || 'User';
   const first_name = localPart.charAt(0).toUpperCase() + localPart.slice(1).replace(/[^a-zA-Z0-9]/g, '') || 'User';
