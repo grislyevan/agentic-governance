@@ -29,6 +29,7 @@ from core.database import SessionLocal
 from models.event import Event
 
 from routers import (
+    agent_builds,
     agent_download,
     approvals,
     audit,
@@ -212,6 +213,7 @@ def create_app(lifespan_context_manager):
         _apply_security_headers(response)
         return response
 
+    app.include_router(agent_builds.router, prefix=API_PREFIX)
     app.include_router(agent_download.router, prefix=API_PREFIX)
     app.include_router(approvals.router, prefix=API_PREFIX)
     app.include_router(auth.router, prefix=API_PREFIX)
