@@ -23,5 +23,12 @@
     "tcp_recovery_stability_seconds": 10,
 
     "verbose": false,
-    "dry_run": false
+    "dry_run": false,
+
+    "approval_hold": {
+        "poll_interval_seconds": 10,
+        "timeout_seconds": 300,
+        "timeout_behavior": "deny",
+        "offline_behavior": "deny"
+    }
 }

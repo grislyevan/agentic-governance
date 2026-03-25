@@ -506,6 +506,7 @@ def _process_detection(
     cross_tree_correlation: dict[str, Any] | None = None,
     possible_continuation: dict[str, Any] | None = None,
     agent_status: dict[str, Any] | None = None,
+    config: dict | None = None,
 ) -> int:
     """Score, evaluate policy, enforce, and emit events for one detection."""
     events_emitted = 0
@@ -655,7 +656,37 @@ def _process_detection(
     if emitter.emit(policy_event):
         events_emitted += 1
 
-    if enforcer and policy_decision.decision_state in ("block", "approval_required"):
+    should_enforce = False
+    hold_result = None
+
+    if enforcer:
+        if policy_decision.decision_state == "block":
+            should_enforce = True
+        elif policy_decision.decision_state == "approval_required":
+            # Hold enforcement: post to server and wait for analyst decision.
+            hold_cfg_dict = (config or {}).get("approval_hold", {})
+            from enforcement.approval_hold import ApprovalHoldManager, HoldConfig
+            hold_mgr = ApprovalHoldManager(
+                api_url=(config or {}).get("api_url", ""),
+                api_key=(config or {}).get("api_key", ""),
+                config=HoldConfig.from_dict(hold_cfg_dict),
+            )
+            hold_result = hold_mgr.wait_for_decision(
+                event_id=detection_event["event_id"],
+                tool_name=scan.tool_name or "unknown",
+                tool_class=scan.tool_class or "A",
+                confidence_band=conf_class.lower(),
+                confidence_score=confidence,
+                policy_rule_id=policy_decision.rule_id,
+                endpoint_id=endpoint_id,
+            )
+            # Only enforce (block) if denied; on approval, allow through.
+            should_enforce = hold_result.decision == "denied"
+            if verbose:
+                outcome = "denied → enforcing" if should_enforce else "approved → allowing"
+                print(f"  Approval hold resolved: {outcome} (timed_out={hold_result.timed_out})")
+
+    if should_enforce and enforcer:
         network_elevated = "NET" in (policy_decision.rule_id or "")
         enf_result = enforcer.enforce(
             decision=policy_decision,
@@ -805,7 +836,8 @@ def run_scan(
     )
 
     on_alert = getattr(args, "_on_alert", None)
-    event_store_cfg = load_collector_config().get("event_store") or {}
+    collector_config = load_collector_config()
+    event_store_cfg = collector_config.get("event_store") or {}
     event_store = EventStore(
         max_events=event_store_cfg.get("max_events", 10_000),
         retention_seconds=event_store_cfg.get("retention_seconds", 120.0),
@@ -1110,6 +1142,7 @@ def run_scan(
             cross_tree_correlation=cross_tree,
             possible_continuation=possible_continuation_by_scan[i] if i < len(possible_continuation_by_scan) else None,
             agent_status=agent_status,
+            config=collector_config,
         )
 
     for tree in trees:
