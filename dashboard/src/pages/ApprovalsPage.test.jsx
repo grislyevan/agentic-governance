@@ -77,6 +77,43 @@ const mockPending = {
   ],
 };
 
+// Mock data including a null requested_at to exercise the formatAge guard
+const mockPendingWithNullTimestamp = {
+  total: 2,
+  items: [
+    {
+      id: 'req-null',
+      tenant_id: 't1',
+      endpoint_id: 'ep-null',
+      tool_name: 'cursor',
+      confidence_band: null,
+      confidence_score: null,
+      policy_rule_id: null,
+      status: 'pending',
+      requested_at: null,
+      requester_type: 'agent',
+      decided_by: null,
+      decided_at: null,
+      reason: null,
+    },
+    {
+      id: 'req-valid',
+      tenant_id: 't1',
+      endpoint_id: 'ep-valid',
+      tool_name: 'grep',
+      confidence_band: 'Low',
+      confidence_score: 0.2,
+      policy_rule_id: null,
+      status: 'pending',
+      requested_at: '2026-03-24T10:00:00Z',
+      requester_type: 'agent',
+      decided_by: null,
+      decided_at: null,
+      reason: null,
+    },
+  ],
+};
+
 const mockApproved = {
   total: 1,
   items: [
@@ -274,6 +311,52 @@ describe('ApprovalsPage', () => {
     await waitFor(() => {
       expect(screen.queryByRole('columnheader', { name: /actions/i })).not.toBeInTheDocument();
     });
+  });
+
+  // ── formatAge edge-case tests (tested indirectly via render) ────────────────
+
+  it('formatAge: null requested_at renders "—" in the Age cell, not "NaNd ago"', async () => {
+    api.fetchApprovals.mockResolvedValue(mockPendingWithNullTimestamp);
+    api.approveRequest.mockResolvedValue({});
+    api.denyRequest.mockResolvedValue({});
+
+    render(<ApprovalsPage onNavigate={vi.fn()} />);
+    // Wait for items to load (the non-null tool_name)
+    await waitFor(() => expect(screen.getByText('cursor')).toBeInTheDocument());
+
+    // "NaNd ago" must never appear anywhere in the document
+    expect(screen.queryByText(/NaNd ago/)).not.toBeInTheDocument();
+  });
+
+  it('formatAge: undefined requested_at renders "—" in the Age cell, not "NaNd ago"', async () => {
+    const mockWithUndefined = {
+      total: 1,
+      items: [
+        {
+          id: 'req-undef',
+          tenant_id: 't1',
+          endpoint_id: 'ep-undef',
+          tool_name: 'python',
+          confidence_band: null,
+          confidence_score: null,
+          policy_rule_id: null,
+          status: 'pending',
+          requested_at: undefined,
+          requester_type: 'agent',
+          decided_by: null,
+          decided_at: null,
+          reason: null,
+        },
+      ],
+    };
+    api.fetchApprovals.mockResolvedValue(mockWithUndefined);
+    api.approveRequest.mockResolvedValue({});
+    api.denyRequest.mockResolvedValue({});
+
+    render(<ApprovalsPage onNavigate={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText('python')).toBeInTheDocument());
+
+    expect(screen.queryByText(/NaNd ago/)).not.toBeInTheDocument();
   });
 
   it('clicking a row opens the detail drawer showing tool_name, confidence_band, endpoint_id', async () => {

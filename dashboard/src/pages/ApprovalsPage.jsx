@@ -37,8 +37,11 @@ function fmtDate(d) {
 }
 
 function formatAge(isoString) {
-  const diffMs = Date.now() - new Date(isoString).getTime();
-  const diffMin = Math.floor(diffMs / 60000);
+  if (!isoString) return '—';
+  const ts = new Date(isoString).getTime();
+  if (isNaN(ts)) return '—';
+  const diffMs = Date.now() - ts;
+  const diffMin = Math.floor(Math.max(0, diffMs) / 60000);
   if (diffMin < 1) return 'just now';
   if (diffMin < 60) return `${diffMin}m ago`;
   const hours = Math.floor(diffMin / 60);
@@ -159,7 +162,7 @@ function DetailDrawer({ item, onClose, onAction, actionLoading, onNavigate }) {
               {statusLabel(item.status)}
             </span>
             {item.status === 'pending' && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold">
+              <span className="inline-flex items-center px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs font-semibold">
                 Execution held pending approval
               </span>
             )}
