@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { fetchApprovals, approveRequest, denyRequest } from '../lib/api';
 import usePolling from '../hooks/usePolling';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
@@ -278,7 +278,7 @@ const REASON_TEMPLATES = {
 };
 
 export default function ApprovalsPage({ onNavigate }) {
-  const [activeTab, setActiveTab] = useState('pending');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('approvals_status_filter') || 'pending');
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -292,6 +292,18 @@ export default function ApprovalsPage({ onNavigate }) {
   const [bulkDecision, setBulkDecision] = useState(null); // 'approve' | 'deny' | null
   const [bulkReason, setBulkReason] = useState('');
   const [bulkBusy, setBulkBusy] = useState(false);
+
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.key === 'Escape') {
+        setSelectedItem(null);
+        setBulkDecision(null);
+        setBulkReason('');
+      }
+    }
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -311,6 +323,7 @@ export default function ApprovalsPage({ onNavigate }) {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
+    localStorage.setItem('approvals_status_filter', tab);
     setPage(1);
     setSelectedItem(null);
   };

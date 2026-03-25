@@ -464,8 +464,8 @@ export default function ExceptionsPage() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-  const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState(() => localStorage.getItem('exceptions_filter') || 'all');
+  const [search, setSearch] = useState(() => localStorage.getItem('exceptions_search') || '');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editEntry, setEditEntry] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
@@ -495,6 +495,27 @@ export default function ExceptionsPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    localStorage.setItem('exceptions_filter', filter);
+  }, [filter]);
+
+  useEffect(() => {
+    localStorage.setItem('exceptions_search', search);
+  }, [search]);
+
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.key === 'Escape') {
+        setDrawerOpen(false);
+        setEditEntry(null);
+        setBulkExtendOpen(false);
+        setNewExpiry('');
+      }
+    }
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
 
   function handleOpenCreate() {
     setEditEntry(null);

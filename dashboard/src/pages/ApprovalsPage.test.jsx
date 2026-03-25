@@ -150,6 +150,7 @@ async function renderWithPending() {
 describe('ApprovalsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   it('renders the Pending tab as active by default and shows pending items', async () => {

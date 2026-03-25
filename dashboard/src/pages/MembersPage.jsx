@@ -76,6 +76,11 @@ export default function MembersPage() {
         </button>
       </div>
 
+      {members.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-detec-ui-border bg-detec-slate-50 px-8 py-16 text-center text-sm text-detec-ui-muted">
+          No members found.
+        </div>
+      ) : (
       <div className="bg-detec-surface border border-detec-ui-border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -148,6 +153,7 @@ export default function MembersPage() {
           </tbody>
         </table>
       </div>
+      )}
 
       {addOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
