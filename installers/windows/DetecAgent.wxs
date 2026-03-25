@@ -117,8 +117,5 @@
       <ComponentRef Id="ActiveSetupTray" />
     </Feature>
 
-    <!-- Minimal UI: just a progress bar -->
-    <UIRef Id="WixUI_Minimal" />
-
   </Package>
 </Wix>
