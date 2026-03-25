@@ -39,10 +39,10 @@
 
     <MediaTemplate EmbedCab="yes" />
 
-    <!-- Properties stamped by server at download time -->
-    <Property Id="DETEC_API_URL" Value="" />
-    <Property Id="DETEC_API_KEY" Value="" />
-    <Property Id="DETEC_TENANT_ID" Value="" />
+    <!-- Properties stamped by server at download time (placeholders replaced by msi_stamper) -->
+    <Property Id="DETEC_API_URL" Value="PLACEHOLDER" Secure="yes" />
+    <Property Id="DETEC_API_KEY" Value="PLACEHOLDER" Secure="yes" Hidden="yes" />
+    <Property Id="DETEC_TENANT_ID" Value="PLACEHOLDER" Secure="yes" />
 
     <StandardDirectory Id="ProgramFilesFolder">
       <Directory Id="INSTALLFOLDER" Name="Detec">
@@ -91,7 +91,7 @@
     <!-- ActiveSetup: launch tray app once per user at first logon -->
     <Component Id="ActiveSetupTray" Directory="AGENTFOLDER" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567897">
       <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Active Setup\Installed Components\DetecAgentTray">
-        <RegistryValue Name="" Type="string" Value="Detec Agent Tray" KeyPath="yes" />
+        <RegistryValue Type="string" Value="Detec Agent Tray" KeyPath="yes" />
         <RegistryValue Name="StubPath" Type="string"
           Value="&quot;[GUIFOLDER]detec-agent-gui.exe&quot;" />
         <RegistryValue Name="Version" Type="string" Value="1,0,0" />
@@ -107,7 +107,7 @@
       Return="check" />
 
     <InstallExecuteSequence>
-      <Custom Action="WriteAgentEnv" After="InstallFiles">NOT Installed OR REINSTALL</Custom>
+      <Custom Action="WriteAgentEnv" After="InstallFiles" Condition="NOT Installed OR REINSTALL" />
     </InstallExecuteSequence>
 
     <Feature Id="Complete" Level="1">
