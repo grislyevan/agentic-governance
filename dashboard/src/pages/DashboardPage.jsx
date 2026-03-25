@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import useEndpoints from '../hooks/useEndpoints';
 import usePolling from '../hooks/usePolling';
 import { fetchEvents, getApiConfig } from '../lib/api';
+import { getUserRole } from '../lib/auth';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
 import PollingStatus from '../components/PollingStatus';
 import SummaryCards from '../components/dashboard/SummaryCards';
@@ -18,6 +19,8 @@ import EndpointsTable from '../components/dashboard/EndpointsTable';
 import CapabilityDriftWidget from '../components/dashboard/CapabilityDriftWidget';
 
 export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef, onAlertCountChange }) {
+  const isAdminOrOwner = ['owner', 'admin'].includes(getUserRole());
+
   const {
     tools, counts, endpointCount, endpoints, endpointStatuses, profiles,
     loading, error, refresh, filters, updateFilters,
@@ -129,12 +132,16 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
       <SummaryCards counts={counts} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <PostureSummaryWidget onPostureReset={refresh} />
+        {isAdminOrOwner && (
+          <div data-testid="posture-summary-widget">
+            <PostureSummaryWidget onPostureReset={refresh} />
+          </div>
+        )}
         <DataFlowWidget />
         <ResponseTimelineWidget onNavigate={onNavigate} />
       </div>
 
-      <CapabilityDriftWidget onNavigate={onNavigate} />
+      {isAdminOrOwner && <CapabilityDriftWidget onNavigate={onNavigate} />}
 
       <EndpointContextBar
         endpointCount={endpointCount}
