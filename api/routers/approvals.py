@@ -88,6 +88,7 @@ def _serialize(ar: ApprovalRequest) -> ApprovalRequestResponse:
 def list_approvals(
     request: Request,
     status_filter: str | None = Query(default=None, alias="status"),
+    event_id: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
     authorization: str | None = Depends(get_authorization),
     x_api_key: str | None = Header(default=None),
@@ -101,6 +102,9 @@ def list_approvals(
 
     if status_filter and status_filter != "all":
         q = q.filter(ApprovalRequest.status == status_filter)
+
+    if event_id:
+        q = q.filter(ApprovalRequest.event_id == event_id)
 
     q = q.order_by(ApprovalRequest.requested_at.desc()).limit(limit)
     items = q.all()

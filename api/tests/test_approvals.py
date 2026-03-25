@@ -6,6 +6,13 @@ import pytest
 from tests.conftest import API, _auth_header, register_user
 
 
+def _register_admin(client, email, tenant):
+    """Register a new owner (admin-level) user and return (auth_headers, tokens)."""
+    tokens = register_user(client, email=email, tenant_name=tenant)
+    headers = _auth_header(tokens["access_token"])
+    return headers, tokens
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -296,3 +303,19 @@ class TestTenantIsolation:
         # Tenant B analyst should not be able to fetch tenant A's approval by ID
         get_resp = client.get(f"{API}/approvals/{approval_id_a}", headers=analyst_b_header)
         assert get_resp.status_code == 404
+
+
+def test_list_approvals_by_event_id(client):
+    """event_id filter returns only matching records."""
+    headers, _ = _register_admin(client, email="evtfilter-admin@test.com", tenant="EvtFilterOrg")
+    # create two approvals with different event_ids
+    r1 = client.post(f"{API}/approvals", json={"event_id": "evt-aaa"}, headers=headers)
+    r2 = client.post(f"{API}/approvals", json={"event_id": "evt-bbb"}, headers=headers)
+    assert r1.status_code == 201
+    assert r2.status_code == 201
+
+    resp = client.get(f"{API}/approvals?event_id=evt-aaa", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 1
+    assert data["items"][0]["event_id"] == "evt-aaa"
