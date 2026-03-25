@@ -1,0 +1,76 @@
+{
+  "profile": "warn-heavy",
+  "version": "0.4.0",
+  "description": "High-confidence detections escalate to warn. Medium-confidence detections warn. Low-confidence detections log only. Class D tools require approval. No blocks. Use after baseline FP rate is established from visibility-only phase.",
+  "posture": "audit",
+  "policy_overrides": [
+    {
+      "rule_id": "ENFORCE-001",
+      "is_active": true,
+      "override_decision": "detect",
+      "description": "Low confidence band: log only, no notification",
+      "parameters": {
+        "conditions": {
+          "confidence_band": ["Low"]
+        }
+      }
+    },
+    {
+      "rule_id": "ENFORCE-002",
+      "is_active": true,
+      "override_decision": "warn",
+      "description": "Medium confidence band: log and notify analyst",
+      "parameters": {
+        "conditions": {
+          "confidence_band": ["Medium"]
+        }
+      }
+    },
+    {
+      "rule_id": "ENFORCE-003",
+      "is_active": true,
+      "override_decision": "warn",
+      "description": "High confidence band: warn (not block) — allows analyst review before any enforcement escalation",
+      "parameters": {
+        "conditions": {
+          "confidence_band": ["High"]
+        }
+      }
+    },
+    {
+      "rule_id": "ENFORCE-004",
+      "is_active": true,
+      "override_decision": "approval_required",
+      "description": "Class D tools always require approval regardless of confidence band",
+      "parameters": {
+        "conditions": {
+          "tool_classes": ["D"]
+        }
+      }
+    },
+    {
+      "rule_id": "ENFORCE-D01",
+      "is_active": true,
+      "override_decision": "detect",
+      "description": "Drift detection rules remain at detect-only; posture is audit, not active"
+    },
+    {
+      "rule_id": "ENFORCE-D02",
+      "is_active": true,
+      "override_decision": "detect",
+      "description": "Drift detection rules remain at detect-only"
+    },
+    {
+      "rule_id": "ENFORCE-D03",
+      "is_active": true,
+      "override_decision": "detect",
+      "description": "Drift detection rules remain at detect-only"
+    }
+  ],
+  "overlay_rules": [],
+  "tradeoffs": {
+    "fp_exposure": "moderate — warn decisions generate analyst notifications; FP warnings create noise but no enforcement impact under audit posture",
+    "coverage": "full visibility with analyst notification on medium and high signals",
+    "recommended_duration": "days 14–30 of pilot, after reviewing FP rate from visibility-only phase"
+  }
+}

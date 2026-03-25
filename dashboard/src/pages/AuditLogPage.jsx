@@ -10,6 +10,8 @@ const ACTION_FILTERS = [
   { value: 'enforcement.', label: 'Enforcement' },
   { value: 'enforcement.posture', label: 'Posture' },
   { value: 'enforcement.allow_list', label: 'Allow-list' },
+  { value: 'approval.', label: 'Approvals' },
+  { value: 'allow_list.', label: 'Allow-list' },
 ];
 
 function getActionBadgeClass(action) {
@@ -18,6 +20,8 @@ function getActionBadgeClass(action) {
   if (action.startsWith('policy.')) return 'bg-sky-500/10 text-sky-400 border-sky-500/30';
   if (action.startsWith('playbook.') || action.startsWith('playbooks.')) return 'bg-violet-500/10 text-violet-400 border-violet-500/30';
   if (action.startsWith('invite.') || action.startsWith('password.') || action.startsWith('settings.')) return 'bg-slate-500/10 text-slate-300 border-slate-600/50';
+  if (action.startsWith('approval.')) return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+  if (action.startsWith('allow_list.')) return 'bg-teal-500/10 text-teal-400 border-teal-500/30';
   if (['enforcement.applied', 'enforcement.escalated', 'enforcement.failed'].includes(action)) {
     return 'bg-red-500/10 text-red-400 border-red-500/30';
   }
@@ -64,6 +68,12 @@ function formatActionLabel(action) {
     'enforcement.tenant_posture_changed': 'Tenant Posture Changed',
     'enforcement.allow_list_added': 'Allow-list Added',
     'enforcement.allow_list_removed': 'Allow-list Removed',
+    'approval.created': 'Approval Requested',
+    'approval.approved': 'Request Approved',
+    'approval.denied': 'Request Denied',
+    'allow_list.created': 'Exception Created',
+    'allow_list.updated': 'Exception Updated',
+    'allow_list.deleted': 'Exception Deleted',
   };
   return labels[action] || action.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -106,7 +116,7 @@ function toDateStr(d) {
   return d.toISOString().slice(0, 10);
 }
 
-export default function AuditLogPage() {
+export default function AuditLogPage({ onNavigate }) {
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -355,6 +365,14 @@ export default function AuditLogPage() {
                   </td>
                   <td className="px-3 sm:px-4 py-3 text-sm text-detec-ui-muted max-w-xs">
                     {renderDetail(log.detail)}
+                    {log.resource_type === 'approval_request' && onNavigate && (
+                      <button
+                        onClick={() => onNavigate('approvals')}
+                        className="ml-2 text-xs text-detec-ui-accent hover:underline"
+                      >
+                        View approval
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

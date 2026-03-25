@@ -17,6 +17,7 @@ import PolicyStudioPage from './pages/PolicyStudioPage';
 import PlaybooksPage from './pages/PlaybooksPage';
 import EndpointProfilesPage from './pages/EndpointProfilesPage';
 import AuditLogPage from './pages/AuditLogPage';
+import ApprovalsPage from './pages/ApprovalsPage';
 import AdminPage from './pages/AdminPage';
 import AdminSsoPage from './pages/AdminSsoPage';
 import AdminServerPage from './pages/AdminServerPage';
@@ -24,6 +25,7 @@ import SettingsPage from './pages/SettingsPage';
 import BillingPage from './pages/BillingPage';
 import OrgPage from './pages/OrgPage';
 import DemoBanner from './components/layout/DemoBanner';
+import ExceptionsPage from './pages/ExceptionsPage';
 
 const PATH_TO_PAGE = {
   '/endpoints': 'endpoints',
@@ -33,10 +35,12 @@ const PATH_TO_PAGE = {
   '/playbooks': 'admin',
   '/endpoint-profiles': 'admin',
   '/audit': 'audit',
+  '/approvals': 'approvals',
   '/admin': 'admin',
   '/settings': 'settings',
   '/billing': 'billing',
   '/org': 'org',
+  '/exceptions': 'exceptions',
 };
 
 export default function App() {
@@ -164,6 +168,8 @@ export default function App() {
               <Route index element={<EndpointProfilesPage {...pageProps} />} />
             </Route>
             <Route path="/audit" element={<AuditLogPage {...pageProps} />} />
+            <Route path="/approvals" element={<ApprovalsPage {...pageProps} />} />
+            <Route path="/exceptions" element={<ExceptionsPage {...pageProps} />} />
             <Route path="/settings" element={<SettingsPage {...pageProps} />} />
             <Route path="/billing" element={<BillingPage {...pageProps} />} />
             <Route path="/org" element={<OrgPage {...pageProps} />} />

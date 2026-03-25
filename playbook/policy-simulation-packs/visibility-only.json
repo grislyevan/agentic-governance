@@ -1,0 +1,21 @@
+{
+  "profile": "visibility-only",
+  "version": "0.4.0",
+  "description": "All detections logged at detect level. No warnings or enforcement. Use for initial baseline capture and FP assessment.",
+  "posture": "passive",
+  "policy_overrides": [
+    {"rule_id": "ENFORCE-001", "is_active": true, "override_decision": "detect", "description": "Force all standard enforcement rules to detect-only"},
+    {"rule_id": "ENFORCE-002", "is_active": true, "override_decision": "detect", "description": "Force all standard enforcement rules to detect-only"},
+    {"rule_id": "ENFORCE-003", "is_active": true, "override_decision": "detect", "description": "Force all standard enforcement rules to detect-only"},
+    {"rule_id": "ENFORCE-004", "is_active": true, "override_decision": "detect", "description": "Force all standard enforcement rules to detect-only"},
+    {"rule_id": "ENFORCE-D01", "is_active": true, "override_decision": "detect", "description": "Drift detection rules downgraded to detect-only"},
+    {"rule_id": "ENFORCE-D02", "is_active": true, "override_decision": "detect", "description": "Drift detection rules downgraded to detect-only"},
+    {"rule_id": "ENFORCE-D03", "is_active": true, "override_decision": "detect", "description": "Drift detection rules downgraded to detect-only"}
+  ],
+  "overlay_rules": [],
+  "tradeoffs": {
+    "fp_exposure": "none — no enforcement actions, so false positives are low-impact",
+    "coverage": "full visibility, no suppression",
+    "recommended_duration": "first 7–14 days of pilot"
+  }
+}

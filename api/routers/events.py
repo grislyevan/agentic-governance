@@ -25,6 +25,9 @@ from core.metrics import (
     detec_playbook_run_latency_seconds,
     detec_beh009_hits_total,
     detec_beh009_chain_kind_total,
+    detec_agent_avg_scan_ms,
+    detec_agent_events_in_store,
+    detec_agent_capability_drift_total,
 )
 from core.rate_limit import limiter
 from core.database import get_db
@@ -137,6 +140,34 @@ def _record_beh009_metrics(event_payload: dict[str, Any]) -> None:
             break
     except Exception:
         logger.debug("BEH-009 metric recording failed", exc_info=True)
+
+
+def _record_agent_telemetry_metrics(event_payload: dict[str, Any], endpoint_id: str | None) -> None:
+    """Update Prometheus gauges from agent_status in event payload (additive, fail-open)."""
+    try:
+        agent_status = event_payload.get("agent_status")
+        if not agent_status:
+            return
+        eid = endpoint_id or "unknown"
+
+        avg_scan_ms = agent_status.get("avg_scan_ms")
+        if avg_scan_ms is not None:
+            detec_agent_avg_scan_ms.labels(endpoint_id=eid).set(float(avg_scan_ms))
+
+        events_in_store = agent_status.get("events_in_store")
+        if events_in_store is not None:
+            total = (
+                sum(events_in_store.values())
+                if isinstance(events_in_store, dict)
+                else events_in_store
+            )
+            detec_agent_events_in_store.labels(endpoint_id=eid).set(float(total))
+
+        capability_drift = agent_status.get("capability_drift") or []
+        for cap in capability_drift:
+            detec_agent_capability_drift_total.labels(endpoint_id=eid, capability=str(cap)).inc()
+    except Exception:
+        logger.debug("Agent telemetry metric recording failed", exc_info=True)
 
 
 async def _run_edr_enforcement(
@@ -358,6 +389,7 @@ def ingest_event(
 
     event_payload = body.model_dump(mode="json")
     _record_beh009_metrics(event_payload)
+    _record_agent_telemetry_metrics(event_payload, endpoint_id)
 
     try:
         _dispatch_webhooks(db, tenant_id, event_payload)

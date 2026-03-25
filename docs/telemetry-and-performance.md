@@ -4,6 +4,8 @@ This note covers agent telemetry store behavior, scan latency targets, and how t
 
 ## Scan latency
 
+Prometheus metric: `detec_agent_avg_scan_ms{endpoint_id=...}` — updated on each event ingest when agent_status is present.
+
 - **Target:** Keep average scan duration (`avg_scan_ms` in `agent_status`) in the **50–100 ms** range under normal load.
 - **Monitoring:** Rely on `agent_status.avg_scan_ms` and, once available, `agent_status.events_in_store` to spot regressions or memory pressure.
 - If `avg_scan_ms` consistently exceeds the target, consider: reducing EventStore query cost, tuning retention or rate caps, or trimming work per scan (e.g. incremental tree updates in the future).
@@ -24,3 +26,17 @@ This note covers agent telemetry store behavior, scan latency targets, and how t
 ## Capability drift
 
 When a telemetry capability that was previously available (e.g. file read events, network events) disappears, the agent sets `agent_status.capability_drift`. This does not change detection outcome; it allows the server or dashboard to alert on silent detection degradation.
+
+## Alert thresholds
+
+Recommended alert thresholds for Prometheus/Grafana or equivalent monitoring:
+
+| Metric | Condition | Severity | Action |
+|--------|-----------|----------|--------|
+| `detec_agent_avg_scan_ms` | > 200ms sustained (5+ min) | Warning | Investigate scan cost — check process tree size, EventStore config |
+| `detec_agent_avg_scan_ms` | > 500ms sustained | Critical | Likely performance regression or overloaded endpoint |
+| `detec_agent_events_in_store` | > 8,000 (near 10k default max) | Warning | EventStore near capacity — events may be dropped; tune retention_seconds or max_events |
+| `detec_agent_capability_drift_total` | Any increment | Warning | Telemetry capability lost; detection confidence may be degraded |
+| `detec_events_ingested_total` rate | Drops to 0 for known active endpoint > 5 min | Critical | Agent stopped sending events; check agent health |
+
+These metrics are exposed via the Prometheus `/metrics` endpoint on the API server (requires `prometheus_client` in api/requirements.txt, already present).

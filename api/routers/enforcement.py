@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
@@ -74,7 +75,10 @@ async def _push_tenant_posture_to_tcp(
     db = SessionLocal()
     try:
         allow_list = [
-            e.pattern for e in db.query(AllowListEntry).filter(AllowListEntry.tenant_id == tenant_id).all()
+            e.pattern for e in db.query(AllowListEntry).filter(
+                AllowListEntry.tenant_id == tenant_id,
+                (AllowListEntry.expires_at == None) | (AllowListEntry.expires_at > datetime.now(timezone.utc)),  # noqa: E711
+            ).all()
         ]
         endpoints = db.query(Endpoint).filter(Endpoint.tenant_id == tenant_id).all()
         for ep in endpoints:
@@ -142,6 +146,10 @@ class AllowListEntryResponse(BaseModel):
     description: str | None
     created_by: str | None
     created_at: str
+    expires_at: str | None
+    scope: str | None
+    reason_code: str | None
+    owner_id: str | None
 
     model_config = {"from_attributes": True}
 
@@ -150,6 +158,10 @@ class AllowListEntryCreate(BaseModel):
     pattern: str = Field(..., min_length=3, max_length=512)
     pattern_type: str = Field(default="name", pattern="^(name|path|hash)$")
     description: str | None = Field(default=None, max_length=512)
+    expires_at: datetime | None = None
+    scope: str = Field(default="tenant", pattern="^(tenant|endpoint|tool)$")
+    reason_code: str | None = Field(default=None, max_length=64)
+    owner_id: str | None = None
 
 
 class AllowListResponse(BaseModel):
@@ -212,7 +224,10 @@ async def set_endpoint_posture(
     db.refresh(ep)
 
     allow_list = [
-        e.pattern for e in db.query(AllowListEntry).filter(AllowListEntry.tenant_id == auth.tenant_id).all()
+        e.pattern for e in db.query(AllowListEntry).filter(
+            AllowListEntry.tenant_id == auth.tenant_id,
+            (AllowListEntry.expires_at == None) | (AllowListEntry.expires_at > datetime.now(timezone.utc)),  # noqa: E711
+        ).all()
     ]
     background_tasks.add_task(
         _push_posture_to_agent,
@@ -337,6 +352,9 @@ def list_allow_list(
     entries = (
         db.query(AllowListEntry)
         .filter(AllowListEntry.tenant_id == tenant_id)
+        .filter(
+            (AllowListEntry.expires_at == None) | (AllowListEntry.expires_at > datetime.now(timezone.utc))  # noqa: E711
+        )
         .order_by(AllowListEntry.created_at.desc())
         .all()
     )
@@ -351,6 +369,10 @@ def list_allow_list(
                 description=e.description,
                 created_by=e.created_by,
                 created_at=e.created_at.isoformat() if e.created_at else "",
+                expires_at=e.expires_at.isoformat() if e.expires_at else None,
+                scope=e.scope,
+                reason_code=e.reason_code,
+                owner_id=e.owner_id,
             )
             for e in entries
         ],
@@ -383,6 +405,10 @@ def create_allow_list_entry(
         pattern_type=body.pattern_type,
         description=body.description,
         created_by=auth.user_id,
+        expires_at=body.expires_at,
+        scope=body.scope,
+        reason_code=body.reason_code,
+        owner_id=body.owner_id,
     )
     db.add(entry)
 
@@ -396,6 +422,9 @@ def create_allow_list_entry(
         detail={
             "pattern": body.pattern,
             "pattern_type": body.pattern_type,
+            "scope": body.scope,
+            "reason_code": body.reason_code,
+            "expires_at": body.expires_at.isoformat() if body.expires_at else None,
         },
     )
 
@@ -403,7 +432,10 @@ def create_allow_list_entry(
     db.refresh(entry)
 
     allow_list = [
-        e.pattern for e in db.query(AllowListEntry).filter(AllowListEntry.tenant_id == tenant_id).all()
+        e.pattern for e in db.query(AllowListEntry).filter(
+            AllowListEntry.tenant_id == tenant_id,
+            (AllowListEntry.expires_at == None) | (AllowListEntry.expires_at > datetime.now(timezone.utc)),  # noqa: E711
+        ).all()
     ]
     endpoints = db.query(Endpoint).filter(Endpoint.tenant_id == tenant_id).all()
     for ep in endpoints:
@@ -423,6 +455,10 @@ def create_allow_list_entry(
         description=entry.description,
         created_by=entry.created_by,
         created_at=entry.created_at.isoformat() if entry.created_at else "",
+        expires_at=entry.expires_at.isoformat() if entry.expires_at else None,
+        scope=entry.scope,
+        reason_code=entry.reason_code,
+        owner_id=entry.owner_id,
     )
 
 

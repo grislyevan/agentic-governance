@@ -1,0 +1,105 @@
+{
+  "profile": "approval-required-high-risk",
+  "version": "0.4.0",
+  "description": "High-confidence detections require approval before any action proceeds. Class D tools block under active enforcement. Medium-confidence detections warn. Low-confidence detections log only. Use when FP rate is below acceptable threshold and the organization is ready to gate high-risk tool activity.",
+  "posture": "audit",
+  "note": "Active enforcement (process kill, network block) is reserved for explicit block rules on Class D tools. Switch posture to 'active' only after completing a dry-run review under 'audit' posture and confirming block precision.",
+  "policy_overrides": [
+    {
+      "rule_id": "ENFORCE-001",
+      "is_active": true,
+      "override_decision": "detect",
+      "description": "Low confidence band: log only",
+      "parameters": {
+        "conditions": {
+          "confidence_band": ["Low"]
+        }
+      }
+    },
+    {
+      "rule_id": "ENFORCE-002",
+      "is_active": true,
+      "override_decision": "warn",
+      "description": "Medium confidence band: log and notify analyst",
+      "parameters": {
+        "conditions": {
+          "confidence_band": ["Medium"]
+        }
+      }
+    },
+    {
+      "rule_id": "ENFORCE-003",
+      "is_active": true,
+      "override_decision": "approval_required",
+      "description": "High confidence band: hold pending analyst approval",
+      "parameters": {
+        "conditions": {
+          "confidence_band": ["High"]
+        }
+      }
+    },
+    {
+      "rule_id": "ENFORCE-004",
+      "is_active": true,
+      "override_decision": "block",
+      "description": "Class D tools: block under active enforcement. This rule has no effect while posture is 'audit'; switch posture to 'active' to enforce.",
+      "parameters": {
+        "conditions": {
+          "tool_classes": ["D"],
+          "sensitivity_tiers": ["Tier0", "Tier1"]
+        }
+      }
+    },
+    {
+      "rule_id": "ENFORCE-D01",
+      "is_active": true,
+      "override_decision": "warn",
+      "description": "Drift detection rule: escalate to warn so capability loss is surfaced to analysts"
+    },
+    {
+      "rule_id": "ENFORCE-D02",
+      "is_active": true,
+      "override_decision": "warn",
+      "description": "Drift detection rule: escalate to warn"
+    },
+    {
+      "rule_id": "ENFORCE-D03",
+      "is_active": true,
+      "override_decision": "warn",
+      "description": "Drift detection rule: escalate to warn"
+    }
+  ],
+  "overlay_rules": [
+    {
+      "rule_id": "OVERLAY-HR-001",
+      "is_active": true,
+      "description": "Elevate exfiltration risk signals to approval_required regardless of confidence band",
+      "parameters": {
+        "decision_state": "approval_required",
+        "conditions": {
+          "risk_signals": ["exfiltration"],
+          "confidence_band": ["Low", "Medium", "High"]
+        },
+        "precedence": 10
+      }
+    },
+    {
+      "rule_id": "OVERLAY-HR-002",
+      "is_active": true,
+      "description": "Elevate credential access risk signals at Medium or High confidence to approval_required",
+      "parameters": {
+        "decision_state": "approval_required",
+        "conditions": {
+          "risk_signals": ["credential access"],
+          "confidence_band": ["Medium", "High"]
+        },
+        "precedence": 10
+      }
+    }
+  ],
+  "tradeoffs": {
+    "fp_exposure": "higher — approval_required decisions hold activity pending review; a false positive at High confidence blocks legitimate tool use until an analyst resolves it",
+    "coverage": "maximum signal fidelity; all high-risk activity is gated; Class D tools can be blocked under active posture",
+    "recommended_duration": "sustained production use after pilot exit; not suitable for initial deployment without first completing visibility-only and warn-heavy phases"
+  }
+}

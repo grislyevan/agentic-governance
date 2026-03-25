@@ -1,0 +1,46 @@
+name: Bundle size check
+
+on:
+  pull_request:
+    paths:
+      - 'dashboard/**'
+
+jobs:
+  bundle-size:
+    name: Check JS bundle size
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: cd dashboard && npm ci
+
+      - name: Build
+        run: cd dashboard && npm run build
+
+      - name: Check bundle size
+        run: |
+          # Find the largest JS chunk in dist/assets/
+          MAX_BYTES=$(find dashboard/dist/assets -name '*.js' -exec wc -c {} \; | awk '{print $1}' | sort -n | tail -1)
+          MAX_KB=$(( MAX_BYTES / 1024 ))
+
+          echo "Largest JS chunk: ${MAX_KB} KB (${MAX_BYTES} bytes)"
+
+          WARN_KB=600
+          FAIL_KB=700
+
+          if [ "$MAX_KB" -ge "$FAIL_KB" ]; then
+            echo "::error::Bundle size FAIL — largest JS chunk is ${MAX_KB} KB, exceeds hard limit of ${FAIL_KB} KB."
+            exit 1
+          elif [ "$MAX_KB" -ge "$WARN_KB" ]; then
+            echo "::warning::Bundle size WARNING — largest JS chunk is ${MAX_KB} KB, exceeds warning threshold of ${WARN_KB} KB."
+          else
+            echo "Bundle size OK — largest JS chunk is ${MAX_KB} KB (limit: ${FAIL_KB} KB, warning: ${WARN_KB} KB)."
+          fi

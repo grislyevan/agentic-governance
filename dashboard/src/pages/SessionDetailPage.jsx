@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { fetchSessionReport } from '../lib/api';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
 import BehaviorChainViz from '../components/dashboard/BehaviorChainViz';
+import TriageActions from '../components/dashboard/TriageActions';
+import Toast from '../components/ui/Toast';
 
 const TIMELINE_TYPE_LABELS = {
   llm: 'LLM call',
@@ -78,6 +80,7 @@ export default function SessionDetailPage() {
   const [error, setError] = useState(null);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [copyLinkFeedback, setCopyLinkFeedback] = useState(false);
+  const [toast, setToast] = useState(null);
 
   const copySessionLink = useCallback(() => {
     const path = `/sessions/${id}`;
@@ -218,6 +221,8 @@ export default function SessionDetailPage() {
         </div>
       </div>
 
+      <TriageActions report={report} onToast={setToast} />
+
       <section aria-labelledby="risk-summary-heading">
         <h2 id="risk-summary-heading" className="text-sm font-semibold text-detec-ui-text mb-3">Risk summary</h2>
         <div className="rounded-lg border border-detec-ui-border/50 bg-detec-ui-surface/40 p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
@@ -331,6 +336,8 @@ export default function SessionDetailPage() {
       {timeline.length === 0 && strongestSubchain.length === 0 && chains.length === 0 && evidence.length === 0 && Object.keys(sim).length === 0 && (
         <p className="text-sm text-detec-ui-muted">No timeline or evidence for this session (aggregated from detection events only).</p>
       )}
+
+      <Toast toast={toast} onDismiss={() => setToast(null)} />
     </div>
   );
 }

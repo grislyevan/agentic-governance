@@ -5,6 +5,7 @@ import { fetchPolicies, createPolicy, updatePolicy, deletePolicy, restoreDefault
 import usePolling from '../hooks/usePolling';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
 import PollingStatus from '../components/PollingStatus';
+import PolicySimPacks from '../components/policy-studio/PolicySimPacks';
 
 const DECISION_BADGES = {
   block:             'bg-red-100 text-red-700 border-red-200',
@@ -116,6 +117,7 @@ export default function PoliciesPage() {
   const [selectedPresetId, setSelectedPresetId] = useState('');
   const [applyingPreset, setApplyingPreset] = useState(false);
   const [explainerRuleId, setExplainerRuleId] = useState(null);
+  const [simPacksOpen, setSimPacksOpen] = useState(false);
   const navigate = useNavigate();
 
   const canManage = user?.role === 'owner' || user?.role === 'admin';
@@ -223,6 +225,37 @@ export default function PoliciesPage() {
 
   return (
     <div className="space-y-4 min-w-0">
+      {/* Policy Simulation Packs — collapsible section */}
+      <div className="rounded-detec-lg border border-detec-ui-border bg-detec-ui-surface shadow-detec-sm">
+        <button
+          type="button"
+          onClick={() => setSimPacksOpen((o) => !o)}
+          className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-detec-slate-100/60 transition-colors rounded-detec-lg"
+          aria-expanded={simPacksOpen}
+        >
+          <div className="flex items-center gap-2.5">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            <span className="text-sm font-semibold text-detec-ui-text">Policy Simulation Packs</span>
+            <span className="text-xs text-detec-ui-muted font-normal">guided deployment profiles</span>
+          </div>
+          <svg
+            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+            className={`text-detec-ui-muted transition-transform duration-200 ${simPacksOpen ? 'rotate-180' : ''}`}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+
+        {simPacksOpen && (
+          <div className="px-5 pb-5 pt-1 border-t border-detec-ui-border/50">
+            <PolicySimPacks onApplied={load} />
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           <h1 className="text-xl sm:text-2xl font-bold text-detec-ui-text">Policies</h1>

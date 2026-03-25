@@ -127,6 +127,18 @@ See `.cursor/rules/git-and-versioning.mdc` for the bump policy:
 
 ---
 
+## Calibration gate
+
+Any PR that changes confidence weights, penalty values, or band thresholds in `collector/engine/confidence.py` MUST include at least one updated or new calibration fixture in `collector/tests/fixtures/lab_runs/` with a rationale in the fixture's `"notes"` field explaining why the score changed.
+
+Any PR that changes policy rule `decision_states` or `precedence` values in `collector/engine/policy.py` or `api/core/baseline_policies.py` MUST include a fixture or test update demonstrating the before/after policy outcome.
+
+PRs that change confidence or policy semantics without fixture evidence will be blocked at code review (not automated; reviewers check this).
+
+The "Calibration regression" CI job runs automatically and will catch regressions in existing fixtures. You cannot merge if it fails.
+
+---
+
 ## Archiving session/handoff docs
 
 When a session, handoff, or sprint report has been superseded by a canonical doc, move it to `docs/archive/handoffs/` and prepend the required front-matter. See [docs/archive/README.md](docs/archive/README.md) for full criteria and the "how to link" guidance.

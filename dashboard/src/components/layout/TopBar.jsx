@@ -1,23 +1,31 @@
 import { useState, useRef, useEffect } from 'react';
 import useAuth from '../../hooks/useAuth';
+import useTenants from '../../hooks/useTenants';
+import { switchTenant } from '../../lib/api';
+import { setActiveTenantId } from '../../lib/auth';
 
 const TOP_NAV = [
   { id: 'endpoints', label: 'Endpoints' },
   { id: 'events', label: 'Events' },
   { id: 'policies', label: 'Policies' },
+  { id: 'approvals', label: 'Approvals' },
   { id: 'audit', label: 'Audit Log' },
   { id: 'admin', label: 'Admin' },
 ];
 
 export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, alertCount = 0, onMenuClick }) {
   const { user, logout } = useAuth();
+  const { tenants } = useTenants();
   const [searchValue, setSearchValue] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showOrgSwitcher, setShowOrgSwitcher] = useState(false);
   const [alertOnApproval, setAlertOnApproval] = useState(true);
   const [emailDigest, setEmailDigest] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const userMenuRef = useRef(null);
   const notificationsRef = useRef(null);
+  const orgSwitcherRef = useRef(null);
   const debounceRef = useRef(null);
 
   useEffect(() => {
@@ -28,6 +36,9 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
       if (notificationsRef.current && !notificationsRef.current.contains(e.target)) {
         setShowNotifications(false);
       }
+      if (orgSwitcherRef.current && !orgSwitcherRef.current.contains(e.target)) {
+        setShowOrgSwitcher(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
@@ -35,6 +46,27 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);
+
+  const activeTenantId = user?.activeTenantId;
+  const activeTenant = tenants.find((t) => String(t.id) === String(activeTenantId)) ?? tenants[0] ?? null;
+
+  async function handleSwitchTenant(tenantId) {
+    if (switching || String(tenantId) === String(activeTenantId)) {
+      setShowOrgSwitcher(false);
+      return;
+    }
+    setSwitching(true);
+    try {
+      await switchTenant(tenantId);
+      setActiveTenantId(tenantId);
+    } catch {
+      // If switch fails, still update local preference; server will validate
+    } finally {
+      setSwitching(false);
+      setShowOrgSwitcher(false);
+      window.location.reload();
+    }
+  }
 
   const handleSearchChange = (e) => {
     const val = e.target.value;
@@ -80,6 +112,65 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
         })}
         </nav>
       </div>
+
+      {/* Org switcher — desktop only, between nav and search */}
+      {tenants.length > 0 && (
+        <div className="hidden lg:flex items-center shrink-0 relative" ref={orgSwitcherRef}>
+          {tenants.length === 1 ? (
+            <span className="px-3 py-1.5 text-sm font-medium text-detec-ui-muted border border-detec-ui-border rounded-detec bg-detec-ui-surface max-w-[160px] truncate" title={activeTenant?.name}>
+              {activeTenant?.name ?? ''}
+            </span>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowOrgSwitcher(!showOrgSwitcher)}
+                aria-expanded={showOrgSwitcher}
+                aria-haspopup="listbox"
+                aria-label="Switch organisation"
+                disabled={switching}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border border-detec-ui-border bg-detec-ui-surface text-detec-ui-text hover:bg-detec-slate-100 disabled:opacity-60 max-w-[180px]"
+              >
+                <BuildingIcon />
+                <span className="truncate max-w-[120px]">{activeTenant?.name ?? 'Select org'}</span>
+                <ChevronDownIcon />
+              </button>
+              {showOrgSwitcher && (
+                <div
+                  role="listbox"
+                  aria-label="Select organisation"
+                  className="absolute left-0 top-full mt-2 w-56 bg-detec-ui-surface border border-detec-ui-border rounded-detec shadow-detec-card py-1 z-50"
+                >
+                  <div className="px-3 py-2 border-b border-detec-ui-border">
+                    <span className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Switch organisation</span>
+                  </div>
+                  {tenants.map((t) => {
+                    const isActive = String(t.id) === String(activeTenantId) || (!activeTenantId && t === tenants[0]);
+                    return (
+                      <button
+                        key={t.id}
+                        role="option"
+                        aria-selected={isActive}
+                        type="button"
+                        onClick={() => handleSwitchTenant(t.id)}
+                        className="w-full text-left px-3 py-2.5 text-sm text-detec-ui-text hover:bg-detec-slate-100 transition-colors flex items-center justify-between gap-2"
+                      >
+                        <span className="flex flex-col min-w-0">
+                          <span className="truncate font-medium">{t.name}</span>
+                          {t.role && (
+                            <span className="text-xs text-detec-ui-muted capitalize">{t.role}</span>
+                          )}
+                        </span>
+                        {isActive && <CheckIcon />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 max-w-md lg:mx-6">
         <div className="relative flex-1">
@@ -235,6 +326,32 @@ function MenuIcon() {
       <line x1="3" y1="6" x2="21" y2="6" />
       <line x1="3" y1="12" x2="21" y2="12" />
       <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
+
+function BuildingIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+      <path d="M3 9h18" />
+      <path d="M9 21V9" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 opacity-60">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-detec-ui-accent">
+      <polyline points="20 6 9 17 4 12" />
     </svg>
   );
 }

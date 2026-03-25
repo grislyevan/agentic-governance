@@ -1,0 +1,87 @@
+name: Docs Link Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/*.md'
+      - 'docs/**'
+  push:
+    branches: [main]
+    paths:
+      - '**/*.md'
+      - 'docs/**'
+
+permissions:
+  contents: read
+
+jobs:
+  link-check:
+    name: Docs Link Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for broken relative links in docs
+        run: |
+          python3 << 'EOF'
+          import os
+          import re
+          import sys
+
+          ROOT = os.getcwd()
+
+          # Collect all .md files to check
+          md_files = []
+
+          # docs/ directory (recursive)
+          docs_dir = os.path.join(ROOT, 'docs')
+          if os.path.isdir(docs_dir):
+              for dirpath, dirnames, filenames in os.walk(docs_dir):
+                  for fname in filenames:
+                      if fname.endswith('.md'):
+                          md_files.append(os.path.join(dirpath, fname))
+
+          # Root-level known docs
+          for name in ['README.md', 'CONTRIBUTING.md', 'SERVER.md', 'DEPLOY.md', 'CHANGELOG.md', 'AGENTS.md']:
+              path = os.path.join(ROOT, name)
+              if os.path.isfile(path):
+                  md_files.append(path)
+
+          LINK_RE = re.compile(r'\[(?:[^\]]*)\]\(([^)]+)\)')
+
+          broken = []
+          checked = 0
+
+          for md_path in sorted(md_files):
+              rel_md = os.path.relpath(md_path, ROOT)
+              print(f'Checking: {rel_md}')
+              checked += 1
+              md_dir = os.path.dirname(md_path)
+              with open(md_path, 'r', encoding='utf-8', errors='replace') as f:
+                  content = f.read()
+              for match in LINK_RE.finditer(content):
+                  target = match.group(1).strip()
+                  # Skip external links, mailto, and anchor-only links
+                  if target.startswith('http://') or target.startswith('https://'):
+                      continue
+                  if target.startswith('mailto:'):
+                      continue
+                  if target.startswith('#'):
+                      continue
+                  # Strip fragment identifier
+                  if '#' in target:
+                      target = target[:target.index('#')]
+                  if not target:
+                      continue
+                  resolved = os.path.normpath(os.path.join(md_dir, target))
+                  if not os.path.exists(resolved):
+                      rel_broken = os.path.relpath(resolved, ROOT)
+                      print(f'  BROKEN: {rel_broken}')
+                      broken.append((rel_md, rel_broken))
+
+          print()
+          print(f'Checked {checked} files, found {len(broken)} broken links')
+
+          if broken:
+              sys.exit(1)
+          EOF

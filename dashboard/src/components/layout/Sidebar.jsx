@@ -9,6 +9,8 @@ const NAV_ITEMS = [
   { id: 'sessions', label: 'Sessions', icon: SessionsIcon },
   { id: 'events', label: 'Events', icon: EventsIcon },
   { id: 'policies', label: 'Policies', icon: PoliciesIcon },
+  { id: 'approvals', label: 'Approvals', icon: ApprovalsIcon },
+  { id: 'exceptions', label: 'Exceptions', icon: ExceptionsIcon },
   { id: 'audit', label: 'Audit Log', icon: AuditIcon },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
@@ -298,6 +300,25 @@ function PoliciesIcon({ active }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={active ? 'text-detec-ui-accent' : 'text-detec-ui-muted'}>
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
+function ApprovalsIcon({ active }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={active ? 'text-detec-ui-accent' : 'text-detec-ui-muted'}>
+      <polyline points="9 11 12 14 22 4" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+    </svg>
+  );
+}
+
+function ExceptionsIcon({ active }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={active ? 'text-detec-ui-accent' : 'text-detec-ui-muted'}>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <line x1="9" y1="9" x2="15" y2="15" />
+      <line x1="15" y1="9" x2="9" y2="15" />
     </svg>
   );
 }

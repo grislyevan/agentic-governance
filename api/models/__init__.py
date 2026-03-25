@@ -1,4 +1,5 @@
 from .allow_list import AllowListEntry
+from .approval_request import ApprovalRequest
 from .audit import AuditLog
 from .auth_token import AuthToken
 from .endpoint import Endpoint
@@ -13,6 +14,7 @@ from .webhook import Webhook
 
 __all__ = [
     "AllowListEntry",
+    "ApprovalRequest",
     "AuditLog",
     "AuthToken",
     "Endpoint",

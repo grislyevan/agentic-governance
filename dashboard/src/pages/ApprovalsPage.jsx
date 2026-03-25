@@ -1,0 +1,464 @@
+import { useState, useCallback } from 'react';
+import { fetchApprovals, approveRequest, denyRequest } from '../lib/api';
+import usePolling from '../hooks/usePolling';
+import ApertureSpinner from '../components/branding/ApertureSpinner';
+import PollingStatus from '../components/PollingStatus';
+
+const TABS = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'denied', label: 'Denied' },
+];
+
+function statusBadgeClass(status) {
+  if (status === 'pending') return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+  if (status === 'approved') return 'bg-green-500/10 text-green-400 border-green-500/30';
+  if (status === 'denied') return 'bg-red-500/10 text-red-400 border-red-500/30';
+  return 'bg-detec-slate-100 text-detec-ui-text border-detec-ui-border/50';
+}
+
+function statusLabel(status) {
+  if (status === 'pending') return 'Pending';
+  if (status === 'approved') return 'Approved';
+  if (status === 'denied') return 'Denied';
+  return status || '';
+}
+
+function fmtPct(score) {
+  if (score == null) return '—';
+  const n = parseFloat(score);
+  if (isNaN(n)) return String(score);
+  return `${(n * 100).toFixed(1)}%`;
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleString();
+}
+
+function EmptyState({ tab }) {
+  const msgs = {
+    pending: { title: 'No pending approvals', body: 'When tool executions require human approval, they will appear here.' },
+    approved: { title: 'No approved requests', body: 'Requests you have approved will show here.' },
+    denied: { title: 'No denied requests', body: 'Requests you have denied will show here.' },
+  };
+  const m = msgs[tab] || { title: 'Nothing here', body: '' };
+  return (
+    <div className="rounded-xl border border-dashed border-detec-ui-border bg-detec-slate-50 px-8 py-20 text-center">
+      <div className="mb-3 opacity-40">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="inline-block" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      </div>
+      <div className="text-detec-ui-muted text-sm font-medium mb-1">{m.title}</div>
+      <div className="text-detec-ui-muted text-sm max-w-sm mx-auto">{m.body}</div>
+    </div>
+  );
+}
+
+function ActionModal({ item, mode, onConfirm, onCancel, loading }) {
+  const [reason, setReason] = useState('');
+  const isApprove = mode === 'approve';
+  const reasonRequired = !isApprove;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (reasonRequired && !reason.trim()) return;
+    onConfirm(reason.trim() || undefined);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onCancel}>
+      <div
+        className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-page/95 p-6 max-w-md w-full mx-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-base font-semibold text-detec-ui-text mb-1">
+          {isApprove ? 'Approve request' : 'Deny request'}
+        </h2>
+        <p className="text-sm text-detec-ui-muted mb-4">
+          Tool: <span className="font-mono text-detec-ui-text">{item.tool_name}</span>
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-detec-ui-muted uppercase tracking-wider mb-1">
+              Reason {reasonRequired ? <span className="text-red-400">*</span> : <span className="text-detec-ui-muted">(optional)</span>}
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              required={reasonRequired}
+              rows={3}
+              placeholder={isApprove ? 'Reason for approval (optional)' : 'Reason for denial (required)'}
+              className="w-full px-3 py-2 rounded-lg border border-detec-ui-border/50 bg-detec-ui-surface text-detec-ui-text text-sm resize-none focus:outline-none focus:ring-2 focus:ring-detec-ui-accent/30 focus:border-detec-ui-accent"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-3 py-1.5 text-sm text-detec-ui-muted hover:text-detec-ui-text"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading || (reasonRequired && !reason.trim())}
+              className={`px-4 py-1.5 text-sm font-medium rounded-lg disabled:opacity-50 transition-colors ${
+                isApprove
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-red-600 hover:bg-red-700 text-white'
+              }`}
+            >
+              {loading ? 'Saving...' : isApprove ? 'Approve' : 'Deny'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function DetailDrawer({ item, onClose, onAction, actionLoading, onNavigate }) {
+  const [mode, setMode] = useState(null); // 'approve' | 'deny' | null
+
+  if (!item) return null;
+
+  const handleConfirm = (reason) => {
+    onAction(item, mode, reason);
+    setMode(null);
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-30 bg-black/20"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      {/* Drawer */}
+      <div className="fixed right-0 top-0 bottom-0 z-40 w-full max-w-md bg-detec-ui-surface border-l border-detec-ui-border shadow-xl flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-detec-ui-border">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="font-mono font-semibold text-detec-ui-text truncate">{item.tool_name}</span>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium ${statusBadgeClass(item.status)}`}>
+              {statusLabel(item.status)}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-detec-ui-muted hover:text-detec-ui-text transition-colors rounded"
+            aria-label="Close detail panel"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          {/* Detection */}
+          <section>
+            <h3 className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider mb-2">Detection</h3>
+            <dl className="space-y-1.5">
+              <DrawerRow label="Confidence band" value={item.confidence_band || '—'} />
+              <DrawerRow label="Confidence score" value={fmtPct(item.confidence_score)} />
+              <DrawerRow label="Policy rule" value={item.policy_rule_id ? <span className="font-mono text-xs">{item.policy_rule_id}</span> : '—'} />
+              <DrawerRow
+                label="Event ID"
+                value={
+                  item.event_id
+                    ? (
+                      <button
+                        onClick={() => { onClose(); onNavigate?.('events'); }}
+                        className="font-mono text-xs text-detec-ui-accent hover:underline"
+                      >
+                        {item.event_id.slice(0, 16)}…
+                      </button>
+                    )
+                    : '—'
+                }
+              />
+            </dl>
+          </section>
+
+          {/* Context */}
+          <section>
+            <h3 className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider mb-2">Context</h3>
+            <dl className="space-y-1.5">
+              <DrawerRow label="Endpoint" value={item.endpoint_id ? <span className="font-mono text-xs">{item.endpoint_id.slice(0, 16)}…</span> : '—'} />
+              <DrawerRow label="Requester type" value={item.requester_type || '—'} />
+              <DrawerRow label="Requested at" value={fmtDate(item.requested_at)} />
+            </dl>
+          </section>
+
+          {/* Decision */}
+          {(item.decided_by || item.decided_at || item.reason) && (
+            <section>
+              <h3 className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider mb-2">Decision</h3>
+              <dl className="space-y-1.5">
+                {item.decided_by && <DrawerRow label="Decided by" value={item.decided_by} />}
+                {item.decided_at && <DrawerRow label="Decided at" value={fmtDate(item.decided_at)} />}
+                {item.reason && <DrawerRow label="Reason" value={item.reason} />}
+              </dl>
+            </section>
+          )}
+        </div>
+
+        {/* Actions for pending */}
+        {item.status === 'pending' && (
+          <div className="px-5 py-4 border-t border-detec-ui-border flex gap-2">
+            <button
+              onClick={() => setMode('approve')}
+              disabled={actionLoading}
+              className="flex-1 px-4 py-2 text-sm font-medium rounded-lg bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transition-colors"
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => setMode('deny')}
+              disabled={actionLoading}
+              className="flex-1 px-4 py-2 text-sm font-medium rounded-lg bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 transition-colors"
+            >
+              Deny
+            </button>
+          </div>
+        )}
+      </div>
+
+      {mode && (
+        <ActionModal
+          item={item}
+          mode={mode}
+          onConfirm={handleConfirm}
+          onCancel={() => setMode(null)}
+          loading={actionLoading}
+        />
+      )}
+    </>
+  );
+}
+
+function DrawerRow({ label, value }) {
+  return (
+    <div className="flex items-start justify-between gap-4 text-sm">
+      <dt className="text-detec-ui-muted shrink-0 w-32">{label}</dt>
+      <dd className="text-detec-ui-text text-right">{value}</dd>
+    </div>
+  );
+}
+
+export default function ApprovalsPage({ onNavigate }) {
+  const [activeTab, setActiveTab] = useState('pending');
+  const [items, setItems] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchApprovals({ status: activeTab, page, pageSize: 50 });
+      setItems(data.items || []);
+      setTotal(data.total || 0);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, page]);
+
+  const { lastUpdated, paused, togglePause } = usePolling(load, 30000);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setPage(1);
+    setSelectedItem(null);
+  };
+
+  const handleAction = async (item, mode, reason) => {
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      if (mode === 'approve') {
+        await approveRequest(item.id, reason);
+      } else {
+        await denyRequest(item.id, reason);
+      }
+      setSelectedItem(null);
+      await load();
+    } catch (e) {
+      setActionError(e.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Page header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-detec-ui-text">Approvals</h1>
+            <p className="text-sm text-detec-ui-muted mt-0.5">
+              Review and action tool execution requests that require human approval.
+            </p>
+          </div>
+          <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
+        </div>
+        {loading && <ApertureSpinner size="sm" label="Loading approvals" />}
+      </div>
+
+      {/* Tabs */}
+      <div className="inline-flex rounded-lg border border-detec-ui-border/50 bg-detec-ui-surface/80 p-0.5">
+        {TABS.map(({ value, label }) => (
+          <button
+            key={value}
+            onClick={() => handleTabChange(value)}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              activeTab === value
+                ? 'bg-detec-slate-200 text-detec-ui-text'
+                : 'text-detec-ui-muted hover:text-detec-ui-text hover:bg-detec-slate-100'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Errors */}
+      {error && (
+        <div className="rounded-lg border border-detec-enforce-block/30 bg-detec-enforce-block/10 px-4 py-3 text-sm text-detec-enforce-block">
+          {error}
+        </div>
+      )}
+      {actionError && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {actionError}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {items.length === 0 && !loading && !error && <EmptyState tab={activeTab} />}
+
+      {/* Table */}
+      {items.length > 0 && (
+        <div className="rounded-xl border border-detec-ui-border/50 overflow-x-auto overflow-hidden">
+          <table className="w-full text-left min-w-[700px]" aria-label="Approval requests">
+            <thead>
+              <tr className="bg-detec-ui-surface/80 border-b border-detec-ui-border/50">
+                <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Tool</th>
+                <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider hidden md:table-cell">Endpoint</th>
+                <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Confidence</th>
+                <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider hidden lg:table-cell">Policy rule</th>
+                <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Requested at</th>
+                <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Status</th>
+                {activeTab === 'pending' && (
+                  <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Actions</th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr
+                  key={item.id}
+                  className="border-b border-detec-ui-border/40 hover:bg-detec-ui-surface/40 cursor-pointer"
+                  onClick={() => setSelectedItem(item)}
+                >
+                  <td className="px-4 py-3 text-sm font-mono text-detec-ui-text">{item.tool_name}</td>
+                  <td className="px-4 py-3 text-sm text-detec-ui-muted hidden md:table-cell">
+                    {item.endpoint_id ? item.endpoint_id.slice(0, 12) + '…' : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-detec-ui-muted">
+                    <span className="font-mono">{fmtPct(item.confidence_score)}</span>
+                    {item.confidence_band && (
+                      <span className="ml-1.5 text-xs text-detec-ui-muted opacity-70">({item.confidence_band})</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-mono text-detec-ui-muted hidden lg:table-cell">
+                    {item.policy_rule_id ? item.policy_rule_id.slice(0, 16) + '…' : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-detec-ui-muted whitespace-nowrap">
+                    {fmtDate(item.requested_at)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium ${statusBadgeClass(item.status)}`}>
+                      {statusLabel(item.status)}
+                    </span>
+                  </td>
+                  {activeTab === 'pending' && (
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleAction(item, 'approve', undefined)}
+                          disabled={actionLoading}
+                          className="px-2.5 py-1 text-xs font-medium rounded-md bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transition-colors"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => { setSelectedItem(item); }}
+                          disabled={actionLoading}
+                          className="px-2.5 py-1 text-xs font-medium rounded-md bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 transition-colors"
+                          title="Open drawer to deny with reason"
+                        >
+                          Deny
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {total > 50 && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="px-3 py-1.5 text-sm text-detec-ui-muted hover:text-detec-ui-text disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-detec-ui-muted">
+            Page {page} of {Math.ceil(total / 50)}
+          </span>
+          <button
+            onClick={() => setPage((p) => p + 1)}
+            disabled={page * 50 >= total}
+            className="px-3 py-1.5 text-sm text-detec-ui-muted hover:text-detec-ui-text disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+      )}
+
+      {/* Detail drawer */}
+      {selectedItem && (
+        <DetailDrawer
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
+          onAction={handleAction}
+          actionLoading={actionLoading}
+          onNavigate={onNavigate}
+        />
+      )}
+    </div>
+  );
+}

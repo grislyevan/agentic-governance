@@ -1,11 +1,15 @@
 # Detec agentic-governance: test and build targets
 # Run from repo root. See docs/ci-security.md and docs/release-checklist.md for CI/release.
+# Quick start for new contributors: run `make smoke` to bootstrap and verify local sanity (no Postgres needed).
 
 .PHONY: bootstrap-dev test-collector test-api test-protocol test-all-safe build-dashboard \
-        test-collector-noinstall test-api-noinstall test-protocol-noinstall help
+        test-collector-noinstall test-api-noinstall test-protocol-noinstall smoke help
 
 help:
 	@echo "Detec test targets"
+	@echo ""
+	@echo "  Quick start (new contributors):"
+	@echo "    make smoke                       Bootstrap + collector smoke + core behavioral tests (no Postgres needed)"
 	@echo ""
 	@echo "  With pip bootstrap (first run or fresh clone):"
 	@echo "    make bootstrap-dev               Install dev + API deps (run once)"
@@ -28,6 +32,13 @@ help:
 bootstrap-dev:
 	pip install -e ".[dev]"
 	pip install -r api/requirements.txt
+
+# Contributor quick-path smoke check: bootstrap, confirm collector works without API, run core behavioral detections.
+# Does NOT require Postgres or any external service.
+smoke:
+	$(MAKE) bootstrap-dev
+	detec scan --dry-run --verbose
+	python -m pytest collector/tests/test_behavioral_core_detections.py -q
 
 test-collector:
 	pip install -e ".[dev]"

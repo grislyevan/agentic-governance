@@ -1,0 +1,25 @@
+{
+  "lab_run": "LAB-RUN-001-windows",
+  "tool_name": "Claude Code",
+  "tool_version": "2.1.59",
+  "tool_class": "C",
+  "platform": "Windows x64",
+  "date": "2026-03-20",
+  "signals": {
+    "process": 0.80,
+    "file": 0.90,
+    "network": 0.20,
+    "identity": 0.40,
+    "behavior": 0.70
+  },
+  "penalties": [
+    ["unresolved_proc_net_linkage", 0.10],
+    ["weak_identity_correlation", 0.05]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Medium",
+  "expected_score_range": [0.49, 0.53],
+  "telemetry_source": "polling",
+  "notes": "Windows: no ESF/ETW. Network attribution weak — HTTPS to api.anthropic.com seen in netstat but PID linkage incomplete. File signal strong via filesystem events. Identity via process cmdline only, no entitlement or keychain equivalent.",
+  "label": "tp"
+}

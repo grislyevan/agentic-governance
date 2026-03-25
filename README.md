@@ -124,8 +124,8 @@ Architecture overview:
 | Endpoint enforcement | Available |
 | Behavioral demo artifacts | Available |
 | CrowdStrike enrichment | Experimental |
-| Native ESF / ETW / eBPF telemetry | Experimental / roadmap |
-| Dashboard and management workflows | Available (advanced features in progress) |
+| Native ESF / ETW / eBPF telemetry | Experimental / Roadmap |
+| Dashboard and management workflows | Available |
 
 See [docs/product-status.md](docs/product-status.md) for details.
 

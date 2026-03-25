@@ -1,7 +1,22 @@
 export const STORAGE_KEYS = {
   apiUrl: 'detec_api_url',
   apiKey: 'detec_api_key',
+  activeTenantId: 'detec_active_tenant_id',
 };
+
+export function getActiveTenantId() {
+  try { return localStorage.getItem(STORAGE_KEYS.activeTenantId) || null; } catch { return null; }
+}
+
+export function setActiveTenantId(id) {
+  try {
+    if (id == null) {
+      localStorage.removeItem(STORAGE_KEYS.activeTenantId);
+    } else {
+      localStorage.setItem(STORAGE_KEYS.activeTenantId, String(id));
+    }
+  } catch { /* noop */ }
+}
 
 function getStored(key) {
   try { return localStorage.getItem(key) || ''; } catch { return ''; }

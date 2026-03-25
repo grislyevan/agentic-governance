@@ -468,20 +468,26 @@ export async function updateTenantPosture({ enforcement_posture, auto_enforce_th
   });
 }
 
-export async function fetchAllowList() {
-  return apiFetch('/enforcement/allow-list');
+export async function fetchAllowList(params) {
+  const qs = params ? `?${new URLSearchParams(params)}` : '';
+  return apiFetch(`/enforcement/allow-list${qs}`);
 }
 
+export async function createAllowListEntry(data) {
+  return apiMutate('POST', '/enforcement/allow-list', data);
+}
+
+export async function updateAllowListEntry(id, data) {
+  return apiMutate('PATCH', `/enforcement/allow-list/${id}`, data);
+}
+
+export async function deleteAllowListEntry(id) {
+  return apiMutate('DELETE', `/enforcement/allow-list/${id}`);
+}
+
+// Legacy alias kept for backwards compatibility
 export async function addAllowListEntry({ pattern, pattern_type, description }) {
-  return apiMutate('POST', '/enforcement/allow-list', {
-    pattern,
-    pattern_type,
-    description,
-  });
-}
-
-export async function deleteAllowListEntry(entryId) {
-  return apiMutate('DELETE', `/enforcement/allow-list/${entryId}`);
+  return createAllowListEntry({ pattern, pattern_type, description });
 }
 
 // Disabled services (anti-resurrection recovery)
@@ -529,6 +535,26 @@ export async function deleteWebhook(id) {
 
 export async function testWebhook(id) {
   return apiMutate('POST', `/webhooks/${id}/test`);
+}
+
+// Approvals
+
+export async function createApproval(data) {
+  return apiMutate('POST', '/approvals', data);
+}
+
+export async function fetchApprovals({ status, page = 1, pageSize = 50 } = {}) {
+  const params = new URLSearchParams({ page, page_size: pageSize });
+  if (status) params.set('status', status);
+  return apiFetch(`/approvals?${params}`);
+}
+
+export async function approveRequest(id, reason) {
+  return apiMutate('POST', `/approvals/${id}/approve`, { reason: reason || undefined });
+}
+
+export async function denyRequest(id, reason) {
+  return apiMutate('POST', `/approvals/${id}/deny`, { reason: reason || undefined });
 }
 
 // Billing
@@ -602,6 +628,10 @@ export async function fetchDataFlowSummary(days = 7) {
 }
 
 // Tenants (organizations)
+
+export async function fetchTenants() {
+  return apiFetch('/tenants');
+}
 
 export async function fetchCurrentTenant() {
   return apiFetch('/tenants/current');

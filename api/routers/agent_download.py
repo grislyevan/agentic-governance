@@ -8,8 +8,6 @@ Endpoints:
   POST /agent/key/rotate        — Rotate the tenant agent key
 """
 
-from __future__ import annotations
-
 import io
 import json
 import logging

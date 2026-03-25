@@ -1,0 +1,25 @@
+{
+  "lab_run": "LAB-RUN-FP-001",
+  "tool_name": "Cursor",
+  "tool_version": "2.5.26",
+  "tool_class": "C",
+  "platform": "macOS ARM64",
+  "date": "2026-03-20",
+  "signals": {
+    "process": 0.90,
+    "file": 0.85,
+    "network": 0.70,
+    "identity": 0.55,
+    "behavior": 0.40
+  },
+  "penalties": [
+    ["weak_identity_correlation", 0.05],
+    ["expected_tool_in_baseline", 0.20]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Medium",
+  "expected_score_range": [0.44, 0.48],
+  "telemetry_source": "polling",
+  "notes": "Cursor present in allow-list baseline; policy suppressed to detect level. Behavioral signal lower because no autonomous shell fan-out observed (user-interactive session only). Ground truth: known-benign in this context. Score lands at Medium threshold boundary; predicted positive but ground truth negative — fp label correct.",
+  "label": "fp"
+}

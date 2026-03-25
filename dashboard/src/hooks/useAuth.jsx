@@ -6,6 +6,7 @@ import {
   refreshAccessToken,
   clearTokens,
   getStoredTokens,
+  getActiveTenantId,
 } from '../lib/auth';
 
 const AuthContext = createContext(null);
@@ -40,7 +41,11 @@ export function AuthProvider({ children }) {
     try {
       const userData = await fetchCurrentUser();
       if (userData) {
-        setUser(userData);
+        const storedTenantId = getActiveTenantId();
+        setUser({
+          ...userData,
+          activeTenantId: storedTenantId ?? userData.tenant_id ?? null,
+        });
         const { accessToken } = getStoredTokens();
         if (accessToken) startRefreshTimer();
       }
@@ -61,17 +66,21 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (email, password) => {
     const tokens = await loginRequest(email, password);
     const userData = await fetchCurrentUser();
-    setUser(userData);
+    const storedTenantId = getActiveTenantId();
+    const enriched = { ...userData, activeTenantId: storedTenantId ?? userData?.tenant_id ?? null };
+    setUser(enriched);
     startRefreshTimer();
-    return { tokens, user: userData };
+    return { tokens, user: enriched };
   }, [startRefreshTimer]);
 
   const register = useCallback(async (email, password, firstName, lastName, tenantName) => {
     const tokens = await registerRequest(email, password, firstName, lastName, tenantName);
     const userData = await fetchCurrentUser();
-    setUser(userData);
+    const storedTenantId = getActiveTenantId();
+    const enriched = { ...userData, activeTenantId: storedTenantId ?? userData?.tenant_id ?? null };
+    setUser(enriched);
     startRefreshTimer();
-    return { tokens, user: userData };
+    return { tokens, user: enriched };
   }, [startRefreshTimer]);
 
   const logout = useCallback(() => {

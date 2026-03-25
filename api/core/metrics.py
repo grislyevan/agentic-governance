@@ -98,5 +98,25 @@ detec_beh009_chain_kind_total = Counter(
 )
 
 
+# Agent telemetry pressure metrics — updated on event ingest when agent_status is present
+detec_agent_avg_scan_ms = Gauge(
+    "detec_agent_avg_scan_ms",
+    "Rolling average scan duration in milliseconds reported by agent (last received value per endpoint)",
+    ["endpoint_id"],
+)
+
+detec_agent_events_in_store = Gauge(
+    "detec_agent_events_in_store",
+    "Total events in agent event store (sum across types, last received value per endpoint)",
+    ["endpoint_id"],
+)
+
+detec_agent_capability_drift_total = Counter(
+    "detec_agent_capability_drift_total",
+    "Total capability drift incidents reported by agents (a previously-present telemetry capability disappeared)",
+    ["endpoint_id", "capability"],
+)
+
+
 def get_metrics() -> bytes:
     return generate_latest()

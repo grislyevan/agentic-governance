@@ -1,0 +1,25 @@
+{
+  "lab_run": "LAB-RUN-EVASION-001",
+  "tool_name": "Claude Code",
+  "tool_version": "2.1.59",
+  "tool_class": "C",
+  "platform": "macOS ARM64",
+  "date": "2026-03-18",
+  "signals": {
+    "process": 0.70,
+    "file": 0.80,
+    "network": 0.25,
+    "identity": 0.60,
+    "behavior": 0.65
+  },
+  "penalties": [
+    ["unresolved_proc_net_linkage", 0.05],
+    ["evasion_signal_present", 0.10]
+  ],
+  "evasion_boost": 0.15,
+  "expected_band": "Medium",
+  "expected_score_range": [0.62, 0.66],
+  "telemetry_source": "polling",
+  "notes": "CC-EVA-01: trailer suppression vector. Process and file signals partially degraded by suppression. evasion_boost applied because evasion scanner detected E1-global-hook indicator. Net effect: penalty offsets boost partially.",
+  "label": "tp"
+}

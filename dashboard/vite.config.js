@@ -5,6 +5,14 @@ export default defineConfig({
   plugins: [react()],
   build: {
     sourcemap: false,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
   },
   test: {
     environment: 'jsdom',

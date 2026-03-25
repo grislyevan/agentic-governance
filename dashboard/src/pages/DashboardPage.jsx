@@ -15,6 +15,7 @@ import DataFlowWidget from '../components/dashboard/DataFlowWidget';
 import ResponseTimelineWidget from '../components/dashboard/ResponseTimelineWidget';
 import SystemStatusBanner from '../components/dashboard/SystemStatusBanner';
 import EndpointsTable from '../components/dashboard/EndpointsTable';
+import CapabilityDriftWidget from '../components/dashboard/CapabilityDriftWidget';
 
 export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef, onAlertCountChange }) {
   const {
@@ -132,6 +133,8 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
         <DataFlowWidget />
         <ResponseTimelineWidget onNavigate={onNavigate} />
       </div>
+
+      <CapabilityDriftWidget onNavigate={onNavigate} />
 
       <EndpointContextBar
         endpointCount={endpointCount}

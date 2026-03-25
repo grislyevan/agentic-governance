@@ -1,0 +1,24 @@
+{
+  "lab_run": "LAB-RUN-001-linux",
+  "tool_name": "Claude Code",
+  "tool_version": "2.1.59",
+  "tool_class": "C",
+  "platform": "Linux x64",
+  "date": "2026-03-20",
+  "signals": {
+    "process": 0.85,
+    "file": 0.85,
+    "network": 0.35,
+    "identity": 0.50,
+    "behavior": 0.75
+  },
+  "penalties": [
+    ["unresolved_proc_net_linkage", 0.08]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Medium",
+  "expected_score_range": [0.61, 0.65],
+  "telemetry_source": "polling",
+  "notes": "Linux: /proc/net/tcp provides connections but PID linkage is best-effort. File and process signals strong. No identity source equivalent to macOS keychain/entitlements.",
+  "label": "tp"
+}

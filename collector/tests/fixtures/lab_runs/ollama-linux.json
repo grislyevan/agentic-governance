@@ -1,0 +1,24 @@
+{
+  "lab_run": "LAB-RUN-003-linux",
+  "tool_name": "Ollama",
+  "tool_version": "0.17.0",
+  "tool_class": "B",
+  "platform": "Linux x64",
+  "date": "2026-03-20",
+  "signals": {
+    "process": 0.90,
+    "file": 0.85,
+    "network": 0.65,
+    "identity": 0.30,
+    "behavior": 0.75
+  },
+  "penalties": [
+    ["weak_identity_correlation", 0.10]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Medium",
+  "expected_score_range": [0.64, 0.68],
+  "telemetry_source": "polling",
+  "notes": "Ollama on Linux server: strong process/file/behavior signals (server listens on :11434, model files in ~/.ollama). Identity signal low — no macOS entitlement equivalent. Network: local port visible, no outbound model API calls.",
+  "label": "tp"
+}

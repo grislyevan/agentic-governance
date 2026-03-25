@@ -30,6 +30,7 @@ from models.event import Event
 
 from routers import (
     agent_download,
+    approvals,
     audit,
     auth,
     billing,
@@ -212,6 +213,7 @@ def create_app(lifespan_context_manager):
         return response
 
     app.include_router(agent_download.router, prefix=API_PREFIX)
+    app.include_router(approvals.router, prefix=API_PREFIX)
     app.include_router(auth.router, prefix=API_PREFIX)
     app.include_router(audit.router, prefix=API_PREFIX)
     app.include_router(events.router, prefix=API_PREFIX)
