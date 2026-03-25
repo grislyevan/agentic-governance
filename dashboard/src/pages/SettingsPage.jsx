@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { fetchWebhooks, fetchWebhookTemplates, createWebhook, createWebhookFromTemplate, updateWebhook, deleteWebhook, testWebhook, downloadAgent, enrollAgentByEmail, fetchAllowList, addAllowListEntry, deleteAllowListEntry, updateTenantPosture, fetchPostureSummary, fetchDisabledServices, restoreServices } from '../lib/api';
+import { useState, useEffect, useCallback } from 'react';
+import { fetchWebhooks, fetchWebhookTemplates, createWebhook, createWebhookFromTemplate, updateWebhook, deleteWebhook, testWebhook, downloadAgent, fetchAllowList, addAllowListEntry, deleteAllowListEntry, updateTenantPosture, fetchPostureSummary, fetchDisabledServices, restoreServices } from '../lib/api';
 import useAuth from '../hooks/useAuth';
 
 const EVENT_TYPES = [
@@ -35,45 +35,15 @@ export default function SettingsPage() {
   );
 }
 
-const PLATFORMS = [
-  { value: 'windows', label: 'Windows' },
-  { value: 'linux', label: 'Linux' },
-];
-
 function AgentDownloadSection() {
-  const [platform, setPlatform] = useState('windows');
-  const [interval, setInterval_] = useState('300');
-  const [protocol, setProtocol] = useState('');
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
-  const successTimer = useRef(null);
-
-  const [enrollEmail, setEnrollEmail] = useState('');
-  const [enrolling, setEnrolling] = useState(false);
-  const [enrollSuccess, setEnrollSuccess] = useState(null);
-  const enrollTimer = useRef(null);
-
-  useEffect(() => {
-    return () => {
-      if (successTimer.current) clearTimeout(successTimer.current);
-      if (enrollTimer.current) clearTimeout(enrollTimer.current);
-    };
-  }, []);
 
   const handleDownload = async () => {
-    setError(null);
-    setSuccess(false);
     setDownloading(true);
+    setError(null);
     try {
-      await downloadAgent({
-        platform,
-        interval: interval || undefined,
-        protocol: protocol || undefined,
-      });
-      setSuccess(true);
-      if (successTimer.current) clearTimeout(successTimer.current);
-      successTimer.current = setTimeout(() => setSuccess(false), 4000);
+      await downloadAgent();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -81,138 +51,28 @@ function AgentDownloadSection() {
     }
   };
 
-  const handleEnroll = async () => {
-    if (!enrollEmail.trim()) return;
-    setError(null);
-    setEnrollSuccess(null);
-    setEnrolling(true);
-    try {
-      await enrollAgentByEmail({
-        email: enrollEmail.trim(),
-        platform,
-        interval: parseInt(interval, 10) || 300,
-        ...(protocol ? { protocol } : {}),
-      });
-      setEnrollSuccess(enrollEmail.trim());
-      setEnrollEmail('');
-      if (enrollTimer.current) clearTimeout(enrollTimer.current);
-      enrollTimer.current = setTimeout(() => setEnrollSuccess(null), 6000);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setEnrolling(false);
-    }
-  };
-
   return (
     <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/80 p-5 space-y-4">
       <h2 className="text-sm font-semibold text-detec-ui-text uppercase tracking-wider">
-        Deploy Agent
+        Agent Installer
       </h2>
       <p className="text-xs text-detec-ui-muted">
-        Download a pre-configured agent package or email a download link to a user.
-        The server URL and credentials are embedded automatically, so the agent connects
-        with zero manual setup after install.
+        Download a pre-configured Windows installer. The agent will automatically
+        connect to this server with your tenant credentials.
       </p>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
-        <label className="block space-y-1.5">
-          <span className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider">
-            Platform
-          </span>
-          <select
-            value={platform}
-            onChange={(e) => setPlatform(e.target.value)}
-            className="w-full bg-detec-ui-page border border-detec-ui-border rounded-lg px-3 py-2 text-sm text-detec-ui-text focus:outline-none focus:border-detec-ui-accent/50 transition-colors"
-          >
-            {PLATFORMS.map((p) => (
-              <option key={p.value} value={p.value}>{p.label}</option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block space-y-1.5">
-          <span className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider">
-            Interval (sec)
-          </span>
-          <input
-            type="number"
-            min="30"
-            max="86400"
-            value={interval}
-            onChange={(e) => setInterval_(e.target.value)}
-            className="w-full bg-detec-ui-page border border-detec-ui-border rounded-lg px-3 py-2 text-sm text-detec-ui-text focus:outline-none focus:border-detec-ui-accent/50 transition-colors"
-          />
-        </label>
-
-        <label className="block space-y-1.5">
-          <span className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider">
-            Protocol
-          </span>
-          <select
-            value={protocol}
-            onChange={(e) => setProtocol(e.target.value)}
-            className="w-full bg-detec-ui-page border border-detec-ui-border rounded-lg px-3 py-2 text-sm text-detec-ui-text focus:outline-none focus:border-detec-ui-accent/50 transition-colors"
-          >
-            <option value="">Default (HTTP, Docker-friendly)</option>
-            <option value="http">HTTP only</option>
-            <option value="auto">Auto (TCP first on :8001, then HTTP)</option>
-            <option value="tcp">TCP only (binary gateway)</option>
-          </select>
-        </label>
-      </div>
-
       {error && (
         <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
       )}
-
-      <div className="flex items-center gap-3">
-        <button
-          onClick={handleDownload}
-          disabled={downloading}
-          className="px-4 py-2 bg-detec-ui-accent hover:bg-detec-ui-accent text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-        >
-          {downloading ? 'Downloading\u2026' : platform === 'windows' ? 'Download Installer' : 'Download Agent'}
-        </button>
-        {success && (
-          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-detec-teal-500 detec-toast-enter">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="20 6 9 17 4 12" className="detec-checkmark" />
-            </svg>
-            Download started
-          </span>
-        )}
-      </div>
-
-      <div className="border-t border-detec-ui-border/30 pt-4 mt-2 space-y-3">
-        <h3 className="text-xs font-semibold text-detec-ui-muted uppercase tracking-wider">
-          Email to User
-        </h3>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="email"
-            value={enrollEmail}
-            onChange={(e) => setEnrollEmail(e.target.value)}
-            placeholder="user@company.com"
-            spellCheck={false}
-            className="flex-1 min-w-0 bg-detec-ui-page border border-detec-ui-border rounded-lg px-3 py-3 sm:py-2 text-sm text-detec-ui-text font-mono placeholder:text-detec-ui-muted focus:outline-none focus:border-detec-ui-accent/50 transition-colors min-h-[44px] sm:min-h-0"
-          />
-          <button
-            onClick={handleEnroll}
-            disabled={enrolling || !enrollEmail.trim()}
-            className="px-4 py-3 sm:py-2 bg-detec-ui-accent hover:bg-detec-ui-accentHover text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap min-h-[44px] sm:min-h-0"
-          >
-            {enrolling ? 'Sending...' : 'Send Download Link'}
-          </button>
-        </div>
-        {enrollSuccess && (
-          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-detec-teal-500 detec-toast-enter">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="20 6 9 17 4 12" className="detec-checkmark" />
-            </svg>
-            Download link sent to {enrollSuccess} (expires in 72 hours)
-          </span>
-        )}
-      </div>
+      <button
+        onClick={handleDownload}
+        disabled={downloading}
+        className="px-4 py-2 bg-detec-ui-accent hover:bg-detec-ui-accentHover text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+      >
+        {downloading ? 'Preparing...' : 'Download Agent MSI'}
+      </button>
+      <p className="text-xs text-detec-ui-muted">
+        Install silently: <code className="font-mono">msiexec /i DetecAgent.msi /qn</code>
+      </p>
     </div>
   );
 }

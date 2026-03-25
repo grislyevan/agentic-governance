@@ -391,49 +391,27 @@ export async function rotateMyApiKey() {
 
 // Agent download (uses JWT auth; server embeds tenant agent key automatically)
 
-export async function downloadAgent({ platform, interval, protocol }) {
+export async function downloadAgent() {
   const config = getApiConfig();
-  const params = new URLSearchParams({ platform });
-  if (interval) params.set('interval', interval);
-  if (protocol) params.set('protocol', protocol);
-  const url = `${config.apiUrl.replace(/\/+$/, '')}/agent/download?${params}`;
-
+  const url = `${config.apiUrl.replace(/\/+$/, '')}/agent/download`;
   const headers = buildAuthHeaders();
 
   const res = await fetch(url, { headers, credentials: 'include' });
-  if (res.status === 404) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || 'No pre-built package available for this platform.');
-  }
-  if (res.status === 401 || res.status === 403) {
-    throw new Error('Authentication failed. Admin or owner role is required.');
-  }
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    const detail = data.detail;
-    const msg =
-      typeof detail === 'string'
-        ? detail
-        : Array.isArray(detail)
-          ? detail.map((d) => d.msg || d).join(' ')
-          : detail
-            ? JSON.stringify(detail)
-            : `Download failed (${res.status})`;
-    throw new Error(msg);
+    const err = await res.json().catch(() => ({ detail: 'Download failed' }));
+    throw new Error(err.detail || 'Download failed');
   }
-
   const blob = await res.blob();
-  const disposition = res.headers.get('Content-Disposition') || '';
-  const match = disposition.match(/filename="?([^"]+)"?/);
-  const filename = match ? match[1] : `detec-agent-${platform}.zip`;
-
+  const disposition = res.headers.get('content-disposition') || '';
+  const filename = disposition.split('filename=')[1]?.replace(/"/g, '') || 'DetecAgent.msi';
+  const url2 = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
+  a.href = url2;
   a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(a.href);
+  window.URL.revokeObjectURL(url2);
 }
 
 export async function enrollAgentByEmail({ email, platform, interval, protocol }) {
