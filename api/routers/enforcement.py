@@ -600,7 +600,7 @@ def patch_allow_list_entry(
     db.commit()
     db.refresh(entry)
 
-    return _serialize_allow_list_entry(entry)
+    return AllowListEntryResponse(**_serialize_allow_list_entry(entry))
 
 
 # -- EDR enforcement config schemas -----------------------------------------

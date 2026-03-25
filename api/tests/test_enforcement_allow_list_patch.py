@@ -107,3 +107,16 @@ class TestAllowListPatch:
             json={"scope": "global"},
         )
         assert resp.status_code == 422
+
+    def test_patch_response_has_expected_shape(self, client):
+        headers, _ = _register_admin(client, email="shape@test.com", tenant="ShapeOrg")
+        entry = _create_entry(client, headers)
+        resp = client.patch(
+            f"{API}/enforcement/allow-list/{entry['id']}",
+            headers=headers,
+            json={"reason_code": "shape_test"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        for key in ("id", "pattern", "scope", "reason_code", "tenant_id"):
+            assert key in data, f"Expected key '{key}' in PATCH response"
