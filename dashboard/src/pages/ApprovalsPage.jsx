@@ -36,6 +36,16 @@ function fmtDate(d) {
   return new Date(d).toLocaleString();
 }
 
+function formatAge(isoString) {
+  const diffMs = Date.now() - new Date(isoString).getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const hours = Math.floor(diffMin / 60);
+  if (hours < 24) return `${hours}h ${diffMin % 60}m ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
 function EmptyState({ tab }) {
   const msgs = {
     pending: { title: 'No pending approvals', body: 'When tool executions require human approval, they will appear here.' },
@@ -143,11 +153,16 @@ function DetailDrawer({ item, onClose, onAction, actionLoading, onNavigate }) {
       <div className="fixed right-0 top-0 bottom-0 z-40 w-full max-w-md bg-detec-ui-surface border-l border-detec-ui-border shadow-xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-detec-ui-border">
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-wrap">
             <span className="font-mono font-semibold text-detec-ui-text truncate">{item.tool_name}</span>
             <span className={`inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium ${statusBadgeClass(item.status)}`}>
               {statusLabel(item.status)}
             </span>
+            {item.status === 'pending' && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold">
+                Execution held pending approval
+              </span>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -364,6 +379,9 @@ export default function ApprovalsPage({ onNavigate }) {
                 <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Confidence</th>
                 <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider hidden lg:table-cell">Policy rule</th>
                 <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Requested at</th>
+                {activeTab === 'pending' && (
+                  <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Age</th>
+                )}
                 <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Status</th>
                 {activeTab === 'pending' && (
                   <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Actions</th>
@@ -371,7 +389,10 @@ export default function ApprovalsPage({ onNavigate }) {
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {(activeTab === 'pending'
+                ? [...items].sort((a, b) => new Date(a.requested_at) - new Date(b.requested_at))
+                : items
+              ).map((item) => (
                 <tr
                   key={item.id}
                   className="border-b border-detec-ui-border/40 hover:bg-detec-ui-surface/40 cursor-pointer"
@@ -393,6 +414,11 @@ export default function ApprovalsPage({ onNavigate }) {
                   <td className="px-4 py-3 text-sm text-detec-ui-muted whitespace-nowrap">
                     {fmtDate(item.requested_at)}
                   </td>
+                  {activeTab === 'pending' && (
+                    <td className="px-4 py-3 text-sm text-detec-ui-muted whitespace-nowrap">
+                      {formatAge(item.requested_at)}
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium ${statusBadgeClass(item.status)}`}>
                       {statusLabel(item.status)}
