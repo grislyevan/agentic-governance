@@ -19,6 +19,17 @@ class HoldConfig:
     timeout_behavior: str = "deny"   # "deny" | "approve"
     offline_behavior: str = "deny"   # "deny" | "approve"
 
+    def __post_init__(self) -> None:
+        valid = {"deny", "approve", "denied", "approved"}
+        if self.timeout_behavior not in valid:
+            raise ValueError(
+                f"Invalid timeout_behavior: {self.timeout_behavior!r}. Must be one of {valid}"
+            )
+        if self.offline_behavior not in valid:
+            raise ValueError(
+                f"Invalid offline_behavior: {self.offline_behavior!r}. Must be one of {valid}"
+            )
+
     @classmethod
     def from_dict(cls, d: dict) -> HoldConfig:
         return cls(
@@ -66,6 +77,7 @@ class ApprovalHoldManager:
         payload: dict[str, Any] = {
             "event_id": event_id,
             "tool_name": tool_name,
+            "tool_class": tool_class,
             "confidence_band": confidence_band,
             "confidence_score": confidence_score,
             "policy_rule_id": policy_rule_id,
@@ -81,13 +93,19 @@ class ApprovalHoldManager:
         resp.raise_for_status()
         return resp.json()["id"]
 
-    def _poll_decision(self, approval_id: str) -> str:
-        """GET /approvals/:id. Returns status string."""
+    def _poll_decision(self, approval_id: str) -> str | None:
+        """GET /approvals/:id. Returns status string, or None to signal fast-fail denial."""
         resp = requests.get(
             f"{self._api_url}/approvals/{approval_id}",
             headers=self._headers(),
             timeout=10,
         )
+        if resp.status_code in (401, 403, 404):
+            logger.warning(
+                "Non-transient HTTP %s from approval endpoint for approval_id=%s; failing fast",
+                resp.status_code, approval_id,
+            )
+            return None
         resp.raise_for_status()
         return resp.json()["status"]
 
@@ -126,18 +144,21 @@ class ApprovalHoldManager:
         )
 
         deadline = time.monotonic() + self.config.timeout_seconds
-        while time.monotonic() < deadline:
+        while True:
             try:
                 status = self._poll_decision(approval_id)
-            except Exception:
+            except requests.exceptions.RequestException:
                 logger.warning("Poll failed for approval %s; retrying", approval_id)
-                time.sleep(self.config.poll_interval_seconds)
-                continue
+            else:
+                if status is None:
+                    # Non-transient HTTP error — fail fast
+                    return HoldResult(decision="denied", approval_id=approval_id)
+                if status in ("approved", "denied"):
+                    logger.info("Approval decision: %s for approval_id=%s", status, approval_id)
+                    return HoldResult(decision=status, approval_id=approval_id)
 
-            if status in ("approved", "denied"):
-                logger.info("Approval decision: %s for approval_id=%s", status, approval_id)
-                return HoldResult(decision=status, approval_id=approval_id)
-
+            if time.monotonic() >= deadline:
+                break
             time.sleep(self.config.poll_interval_seconds)
 
         logger.warning(

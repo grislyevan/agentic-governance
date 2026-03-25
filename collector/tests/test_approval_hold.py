@@ -1,6 +1,7 @@
 # collector/tests/test_approval_hold.py
 from unittest.mock import MagicMock, patch
 import pytest
+import requests
 from enforcement.approval_hold import ApprovalHoldManager, HoldConfig, HoldResult
 
 
@@ -91,3 +92,72 @@ def test_manager_timeout_returns_configured_behavior():
 
     assert result.decision == "denied"
     assert result.timed_out is True
+
+
+# --- Fix 1: timeout_seconds=0 still makes exactly one poll attempt ---
+
+def test_timeout_zero_makes_one_poll_attempt():
+    """timeout_seconds=0 must still poll once before timing out."""
+    config = HoldConfig(poll_interval_seconds=0, timeout_seconds=0, timeout_behavior="deny")
+    manager = ApprovalHoldManager(api_url="http://localhost:8000/api", api_key="k", config=config)
+
+    poll_calls = []
+    def _fake_poll(approval_id):
+        poll_calls.append(approval_id)
+        return "pending"
+
+    with patch.object(manager, "_create_approval_request", return_value="ar-zero"), \
+         patch.object(manager, "_poll_decision", side_effect=_fake_poll), \
+         patch("enforcement.approval_hold.time.sleep"):
+        result = manager.wait_for_decision(
+            event_id="evt-zero", tool_name="tool", tool_class="A",
+            confidence_band="low", confidence_score=0.1, policy_rule_id="R-0",
+        )
+
+    assert len(poll_calls) == 1, f"Expected exactly 1 poll, got {len(poll_calls)}"
+    assert result.timed_out is True
+    assert result.decision == "denied"
+
+
+# --- Fix 3: HoldConfig raises ValueError on invalid behavior values ---
+
+def test_holdconfig_rejects_invalid_timeout_behavior():
+    """HoldConfig must raise ValueError for unrecognised timeout_behavior."""
+    with pytest.raises(ValueError, match="timeout_behavior"):
+        HoldConfig(timeout_behavior="dny")
+
+
+def test_holdconfig_rejects_invalid_offline_behavior():
+    """HoldConfig must raise ValueError for unrecognised offline_behavior."""
+    with pytest.raises(ValueError, match="offline_behavior"):
+        HoldConfig(offline_behavior="grant")
+
+
+def test_holdconfig_from_dict_rejects_invalid_behavior():
+    """HoldConfig.from_dict must also raise ValueError for unrecognised values."""
+    with pytest.raises(ValueError, match="timeout_behavior"):
+        HoldConfig.from_dict({"timeout_behavior": "ALLOW"})
+
+
+# --- Fix 4: 401 during polling returns denied immediately, no retry ---
+
+def test_poll_401_returns_denied_immediately():
+    """A 401 response during polling must return denied without sleeping/retrying."""
+    config = HoldConfig(poll_interval_seconds=60, timeout_seconds=300)
+    manager = ApprovalHoldManager(api_url="http://localhost:8000/api", api_key="k", config=config)
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 401
+
+    sleep_calls = []
+    with patch.object(manager, "_create_approval_request", return_value="ar-401"), \
+         patch("requests.get", return_value=mock_resp), \
+         patch("enforcement.approval_hold.time.sleep", side_effect=lambda s: sleep_calls.append(s)):
+        result = manager.wait_for_decision(
+            event_id="evt-401", tool_name="tool", tool_class="B",
+            confidence_band="high", confidence_score=0.8, policy_rule_id="R-1",
+        )
+
+    assert result.decision == "denied"
+    assert result.timed_out is False
+    assert len(sleep_calls) == 0, "Should not sleep on non-transient 4xx error"
