@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Detec Agent - WiX v5 MSI Definition
+  Replaces the previous Inno Setup script (installer/detec-agent-setup.iss).
+
+  Key behaviours carried forward from Inno Setup:
+    - Installs to %ProgramFiles%\Detec\Agent  (64-bit)
+    - Service: DetecAgent, auto-start, LocalSystem
+    - GUI tray app installed to Agent-GUI subfolder
+    - ActiveSetup launches tray once per-user at first logon
+    - WriteAgentEnv custom action writes agent.env to
+      %ProgramData%\Detec\Agent\ from MSI properties stamped at
+      download time (DETEC_API_URL / DETEC_API_KEY / DETEC_TENANT_ID)
+    - MajorUpgrade: downgrades blocked, upgrades stop old service first
+
+  Build prerequisites:
+    - WiX Toolset v5  (dotnet tool install -g wix)
+    - PyInstaller dist\ directories already built
+      (see installers\windows\build-agent.ps1)
+
+  NOTE: File harvesting — the PyInstaller dist\ directories contain many
+  DLLs, PYDs, and support files beyond just the top-level .exe. This file
+  currently lists only the primary executables and branding assets. For a
+  production build you must harvest the full directory trees, either by:
+    a) Using `wix harvest dir dist\detec-agent ...` (WiX Heat equivalent)
+    b) Using a glob/fragment generated in the CI pipeline before candle/light
+  Until harvesting is wired up, the MSI will install only the files
+  explicitly listed here and the agent will fail to start.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="Detec Agent"
+    Manufacturer="Detec"
+    Version="0.5.0"
+    UpgradeCode="E8A1F2C3-4D56-7890-ABCD-EF1234567890">
+
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of Detec Agent is already installed." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Properties stamped by server at download time -->
+    <Property Id="DETEC_API_URL" Value="" />
+    <Property Id="DETEC_API_KEY" Value="" />
+    <Property Id="DETEC_TENANT_ID" Value="" />
+
+    <StandardDirectory Id="ProgramFilesFolder">
+      <Directory Id="INSTALLFOLDER" Name="Detec">
+        <Directory Id="AGENTFOLDER" Name="Agent">
+
+          <!-- Main agent executable + service -->
+          <Component Id="AgentFiles" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567891">
+            <File Id="DetecAgentExe" Source="dist\detec-agent\detec-agent.exe" KeyPath="yes" />
+            <ServiceInstall
+              Id="DetecAgentService"
+              Name="DetecAgent"
+              DisplayName="Detec Agent"
+              Description="Agentic AI endpoint telemetry collector."
+              Type="ownProcess"
+              Start="auto"
+              ErrorControl="normal"
+              Account="LocalSystem" />
+            <ServiceControl
+              Id="StartDetecAgent"
+              Name="DetecAgent"
+              Start="install"
+              Stop="both"
+              Remove="uninstall"
+              Wait="yes" />
+          </Component>
+
+          <!-- GUI tray application -->
+          <Directory Id="GUIFOLDER" Name="Agent-GUI">
+            <Component Id="GuiFiles" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567892">
+              <File Id="DetecAgentGuiExe" Source="dist\detec-agent-gui\detec-agent-gui.exe" KeyPath="yes" />
+            </Component>
+          </Directory>
+
+          <!-- Branding assets (Icon.ico / Icon.png live at repo root branding\) -->
+          <Directory Id="BRANDINGFOLDER" Name="branding">
+            <Component Id="BrandingFiles" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567893">
+              <File Id="IconIco" Source="..\..\branding\Icon.ico" KeyPath="yes" />
+              <File Id="IconPng" Source="..\..\branding\Icon.png" />
+            </Component>
+          </Directory>
+
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <!-- ActiveSetup: launch tray app once per user at first logon -->
+    <Component Id="ActiveSetupTray" Directory="AGENTFOLDER" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567897">
+      <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Active Setup\Installed Components\DetecAgentTray">
+        <RegistryValue Name="" Type="string" Value="Detec Agent Tray" KeyPath="yes" />
+        <RegistryValue Name="StubPath" Type="string"
+          Value="&quot;[GUIFOLDER]detec-agent-gui.exe&quot;" />
+        <RegistryValue Name="Version" Type="string" Value="1,0,0" />
+      </RegistryKey>
+    </Component>
+
+    <!-- Custom action: write agent.env from MSI properties to ProgramData -->
+    <CustomAction Id="WriteAgentEnv"
+      Directory="AGENTFOLDER"
+      ExeCommand="[SystemFolder]cmd.exe /c &quot;mkdir &quot;[CommonAppDataFolder]Detec\Agent&quot; 2>nul &amp;&amp; (echo AGENTIC_GOV_API_URL=[DETEC_API_URL]&amp; echo AGENTIC_GOV_API_KEY=[DETEC_API_KEY]&amp; echo AGENTIC_GOV_TENANT_ID=[DETEC_TENANT_ID]) > &quot;[CommonAppDataFolder]Detec\Agent\agent.env&quot;&quot;"
+      Execute="deferred"
+      Impersonate="no"
+      Return="check" />
+
+    <InstallExecuteSequence>
+      <Custom Action="WriteAgentEnv" After="InstallFiles">NOT Installed OR REINSTALL</Custom>
+    </InstallExecuteSequence>
+
+    <Feature Id="Complete" Level="1">
+      <ComponentRef Id="AgentFiles" />
+      <ComponentRef Id="GuiFiles" />
+      <ComponentRef Id="BrandingFiles" />
+      <ComponentRef Id="ActiveSetupTray" />
+    </Feature>
+
+    <!-- Minimal UI: just a progress bar -->
+    <UIRef Id="WixUI_Minimal" />
+
+  </Package>
+</Wix>
