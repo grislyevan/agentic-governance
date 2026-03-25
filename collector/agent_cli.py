@@ -43,6 +43,128 @@ def _env_path() -> Path:
 
 
 # -------------------------------------------------------------------
+# Auto-config from MSI trailer (DETEC_CFG_V1)
+# -------------------------------------------------------------------
+
+_CFG_MAGIC = b"DETEC_CFG_V1\x00"
+
+
+def _try_extract_installer_config() -> None:
+    """Check if agent.env exists; if not, look for a DETEC_CFG_V1 config
+    trailer appended to the MSI that installed us and write agent.env from it.
+
+    This enables zero-touch config: the server stamps the MSI with tenant
+    config at download time, and the agent self-configures on first start.
+    """
+    import json
+    import struct
+
+    env = _env_path()
+    if env.exists():
+        return  # already configured
+
+    # Find the MSI: check Windows Installer registry for our product
+    # or look for the MSI next to our exe (dev/manual installs)
+    msi_path = _find_source_msi()
+    if not msi_path or not os.path.exists(msi_path):
+        return
+
+    try:
+        with open(msi_path, "rb") as f:
+            data = f.read()
+
+        # Trailer format: [MAGIC] [JSON] [4-byte LE len] [MAGIC]
+        if not data.endswith(_CFG_MAGIC):
+            return
+
+        # Strip trailing magic
+        data = data[: -len(_CFG_MAGIC)]
+
+        # Read 4-byte length
+        if len(data) < 4:
+            return
+        json_len = struct.unpack("<I", data[-4:])[0]
+        data = data[:-4]
+
+        # Read JSON
+        if len(data) < json_len + len(_CFG_MAGIC):
+            return
+        json_bytes = data[-json_len:]
+
+        # Verify leading magic
+        prefix = data[-(json_len + len(_CFG_MAGIC)) : -json_len]
+        if prefix != _CFG_MAGIC:
+            return
+
+        config = json.loads(json_bytes)
+        api_url = config.get("api_url", "")
+        api_key = config.get("api_key", "")
+        tenant_id = config.get("tenant_id", "")
+
+        if not api_url or not api_key:
+            return
+
+        _ensure_data_dir()
+
+        from urllib.parse import urlparse
+        gh = urlparse(api_url).hostname or "localhost"
+
+        lines = [
+            f"AGENTIC_GOV_API_URL={api_url}",
+            f"AGENTIC_GOV_API_KEY={api_key}",
+            f"AGENTIC_GOV_TENANT_ID={tenant_id}",
+            "AGENTIC_GOV_PROTOCOL=auto",
+            f"AGENTIC_GOV_GATEWAY_HOST={gh}",
+            "AGENTIC_GOV_GATEWAY_PORT=8001",
+            "AGENTIC_GOV_INTERVAL=300",
+        ]
+        env.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        logger.info("Auto-configured from installer trailer: %s", env)
+
+    except Exception:
+        logger.debug("No installer config trailer found", exc_info=True)
+
+
+def _find_source_msi() -> str | None:
+    """Try to locate the MSI that installed this agent."""
+    if not _IS_WINDOWS:
+        return None
+
+    # Method 1: Check common download locations
+    for candidate in [
+        Path(os.environ.get("USERPROFILE", "")) / "Downloads",
+        Path(r"C:\Detec"),
+        Path(r"C:\temp"),
+    ]:
+        for msi in candidate.glob("DetecAgent*.msi"):
+            return str(msi)
+
+    # Method 2: Check Windows Installer cache via registry
+    try:
+        import winreg
+        key = winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE,
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+        )
+        for i in range(winreg.QueryInfoKey(key)[0]):
+            subkey_name = winreg.EnumKey(key, i)
+            try:
+                subkey = winreg.OpenKey(key, subkey_name)
+                name, _ = winreg.QueryValueEx(subkey, "DisplayName")
+                if "Detec Agent" in str(name):
+                    source, _ = winreg.QueryValueEx(subkey, "InstallSource")
+                    source_msi = Path(source) / "DetecAgent.msi"
+                    if source_msi.exists():
+                        return str(source_msi)
+            except (OSError, FileNotFoundError):
+                continue
+    except Exception:
+        pass
+
+    return None
+
+
+# -------------------------------------------------------------------
 # ``detec-agent setup``
 # -------------------------------------------------------------------
 
@@ -130,6 +252,7 @@ def cmd_session_report(args: argparse.Namespace) -> None:
 
 def cmd_run(args: argparse.Namespace) -> None:
     """Run the agent daemon in the foreground."""
+    _try_extract_installer_config()
     _load_env()
 
     from config_loader import load_collector_config

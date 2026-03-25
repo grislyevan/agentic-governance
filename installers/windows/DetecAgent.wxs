@@ -98,17 +98,11 @@
       </RegistryKey>
     </Component>
 
-    <!-- Custom action: write agent.env from MSI properties to ProgramData -->
-    <CustomAction Id="WriteAgentEnv"
-      Directory="AGENTFOLDER"
-      ExeCommand="[SystemFolder]cmd.exe /c &quot;mkdir &quot;[CommonAppDataFolder]Detec\Agent&quot; 2>nul &amp;&amp; (echo AGENTIC_GOV_API_URL=[DETEC_API_URL]&amp; echo AGENTIC_GOV_API_KEY=[DETEC_API_KEY]&amp; echo AGENTIC_GOV_TENANT_ID=[DETEC_TENANT_ID]) > &quot;[CommonAppDataFolder]Detec\Agent\agent.env&quot;&quot;"
-      Execute="deferred"
-      Impersonate="no"
-      Return="check" />
-
-    <InstallExecuteSequence>
-      <Custom Action="WriteAgentEnv" After="InstallFiles" Condition="NOT Installed OR REINSTALL" />
-    </InstallExecuteSequence>
+    <!-- Config is written by the agent on first start.
+         The stamped MSI has a DETEC_CFG_V1 trailer appended by the server.
+         The agent reads this trailer, extracts api_url/api_key/tenant_id,
+         and writes agent.env to ProgramData\Detec\Agent\ automatically.
+         See collector/agent_cli.py _extract_config_from_installer(). -->
 
     <Feature Id="Complete" Level="1">
       <ComponentRef Id="AgentFiles" />

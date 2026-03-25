@@ -155,6 +155,12 @@ class DetecAgentService(win32serviceutil.ServiceFramework):
             )
 
     def _run_agent(self) -> None:
+        # Auto-configure from MSI trailer if agent.env doesn't exist yet
+        try:
+            from agent_cli import _try_extract_installer_config
+            _try_extract_installer_config()
+        except Exception:
+            pass
         _load_env()
 
         # Ensure site-packages are importable when running as a Windows Service
