@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import secrets
 import uuid
 from datetime import datetime, timezone
 
@@ -27,11 +28,15 @@ from models.endpoint import (
 )
 from models.endpoint_profile import EndpointProfile
 from schemas.endpoints import (
+    DecommissionResponse,
     EndpointCreate,
     EndpointListResponse,
     EndpointResponse,
     EndpointStatusResponse,
     EndpointUpdate,
+    UninstallTokenResponse,
+    ValidateUninstallTokenRequest,
+    ValidateUninstallTokenResponse,
 )
 from schemas.session_report import SessionReportListResponse
 
@@ -437,4 +442,110 @@ def enroll_endpoint(
         endpoint_id=endpoint.id,
         key_fingerprint=fingerprint,
         enrolled_at=now.isoformat(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tamper control — uninstall token and decommission (Task 2)
+# ---------------------------------------------------------------------------
+
+@router.post("/{endpoint_id}/uninstall-token", response_model=UninstallTokenResponse)
+def generate_uninstall_token(
+    request: Request,
+    endpoint_id: str,
+    db: Session = Depends(get_db),
+    authorization: str | None = Depends(get_authorization),
+    x_api_key: str | None = Header(default=None),
+) -> UninstallTokenResponse:
+    """Generate a one-time uninstall authorization token for an endpoint.
+
+    The plaintext token is returned once and never stored.  Only the
+    SHA-256 hash is persisted so it can be verified later.
+    """
+    auth = resolve_auth(authorization, x_api_key, db)
+    require_role(auth, "owner", "admin")
+    endpoint = db.query(Endpoint).filter(
+        Endpoint.id == endpoint_id, strict_tenant_filter(auth, Endpoint)
+    ).first()
+    if not endpoint:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+
+    token = secrets.token_hex(32)
+    endpoint.uninstall_token_hash = hashlib.sha256(token.encode()).hexdigest()
+    db.commit()
+
+    audit_record(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="endpoint.uninstall_token_generated",
+        resource_type="endpoint",
+        resource_id=endpoint.id,
+        detail={"hostname": endpoint.hostname},
+        ip_address=request.client.host if request.client else None,
+    )
+
+    return UninstallTokenResponse(uninstall_token=token)
+
+
+@router.post("/{endpoint_id}/validate-uninstall-token", response_model=ValidateUninstallTokenResponse)
+def validate_uninstall_token(
+    endpoint_id: str,
+    body: ValidateUninstallTokenRequest,
+    db: Session = Depends(get_db),
+    authorization: str | None = Depends(get_authorization),
+    x_api_key: str | None = Header(default=None),
+) -> ValidateUninstallTokenResponse:
+    """Validate an uninstall token against the stored hash."""
+    auth = resolve_auth(authorization, x_api_key, db)
+    endpoint = db.query(Endpoint).filter(
+        Endpoint.id == endpoint_id, strict_tenant_filter(auth, Endpoint)
+    ).first()
+    if not endpoint:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+
+    if not endpoint.uninstall_token_hash:
+        return ValidateUninstallTokenResponse(valid=False)
+
+    candidate_hash = hashlib.sha256(body.token.encode()).hexdigest()
+    valid = secrets.compare_digest(candidate_hash, endpoint.uninstall_token_hash)
+    return ValidateUninstallTokenResponse(valid=valid)
+
+
+@router.post("/{endpoint_id}/decommission", response_model=DecommissionResponse)
+def decommission_endpoint(
+    request: Request,
+    endpoint_id: str,
+    db: Session = Depends(get_db),
+    authorization: str | None = Depends(get_authorization),
+    x_api_key: str | None = Header(default=None),
+) -> DecommissionResponse:
+    """Mark an endpoint as decommissioned and remove it from governance."""
+    auth = resolve_auth(authorization, x_api_key, db)
+    require_role(auth, "owner", "admin")
+    endpoint = db.query(Endpoint).filter(
+        Endpoint.id == endpoint_id, strict_tenant_filter(auth, Endpoint)
+    ).first()
+    if not endpoint:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+
+    endpoint.status = "decommissioned"
+    endpoint.management_state = "unmanaged"
+    db.commit()
+
+    audit_record(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="endpoint.decommissioned",
+        resource_type="endpoint",
+        resource_id=endpoint.id,
+        detail={"hostname": endpoint.hostname},
+        ip_address=request.client.host if request.client else None,
+    )
+
+    return DecommissionResponse(
+        id=endpoint.id,
+        hostname=endpoint.hostname,
+        status=endpoint.status,
     )

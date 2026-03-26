@@ -54,3 +54,23 @@ class EndpointStatusResponse(BaseModel):
     is_stale: bool = False
 
     model_config = {"from_attributes": True}
+
+
+class UninstallTokenResponse(BaseModel):
+    uninstall_token: str
+    message: str = "Save this token. It is required to uninstall the agent on this endpoint."
+
+
+class ValidateUninstallTokenRequest(BaseModel):
+    token: str
+
+
+class ValidateUninstallTokenResponse(BaseModel):
+    valid: bool
+
+
+class DecommissionResponse(BaseModel):
+    id: str
+    hostname: str
+    status: str
+    message: str = "Endpoint decommissioned. The agent will stop reporting."

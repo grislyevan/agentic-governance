@@ -67,6 +67,9 @@ class Endpoint(Base):
     key_fingerprint: Mapped[str | None] = mapped_column(String(64), index=True)
     enrolled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Tamper control — uninstall authorization token (Task 2)
+    uninstall_token_hash: Mapped[str | None] = mapped_column(String(128), nullable=True, default=None)
+
     tenant: Mapped["Tenant"] = relationship("Tenant", back_populates="endpoints")  # noqa: F821
     endpoint_profile: Mapped["EndpointProfile | None"] = relationship(  # noqa: F821
         "EndpointProfile", back_populates="endpoints", lazy="select"
