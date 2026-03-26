@@ -85,9 +85,14 @@ def list_endpoints(
     q = db.query(Endpoint).filter(get_tenant_filter(auth, Endpoint))
     total = q.with_entities(func.count()).scalar() or 0
     items = q.order_by(Endpoint.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    response_items = []
+    for e in items:
+        resp = EndpointResponse.model_validate(e)
+        resp.computed_status = e.compute_status()
+        response_items.append(resp)
     return EndpointListResponse(
         total=total, page=page, page_size=page_size,
-        items=[EndpointResponse.model_validate(e) for e in items],
+        items=response_items,
     )
 
 

@@ -28,6 +28,7 @@ class EndpointResponse(BaseModel):
     auto_enforce_threshold: float = 0.75
     telemetry_provider: str | None = None
     status: str
+    computed_status: str | None = None
     heartbeat_interval: int
     last_seen_at: datetime | None
     created_at: datetime
