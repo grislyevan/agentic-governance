@@ -635,3 +635,11 @@ export async function updateTenant(id, data) {
 export async function switchTenant(tenantId) {
   return apiMutate('POST', '/tenants/switch', { tenant_id: tenantId });
 }
+
+export async function generateUninstallToken(endpointId) {
+  return apiMutate('POST', `/endpoints/${endpointId}/uninstall-token`);
+}
+
+export async function decommissionEndpoint(endpointId) {
+  return apiMutate('POST', `/endpoints/${endpointId}/decommission`);
+}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { updateEndpoint } from '../../lib/api';
+import { updateEndpoint, generateUninstallToken, decommissionEndpoint } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
 
 function timeSince(date) {
@@ -24,6 +24,11 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
   const [updatingId, setUpdatingId] = useState(null);
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [error, setError] = useState(null);
+
+  const [showTokenModal, setShowTokenModal] = useState(false);
+  const [uninstallToken, setUninstallToken] = useState('');
+  const [tokenHostname, setTokenHostname] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
@@ -84,6 +89,39 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
     return p?.name ?? profileId;
   };
 
+  const handleGetUninstallToken = async (ep) => {
+    setError(null);
+    try {
+      const data = await generateUninstallToken(ep.id);
+      setUninstallToken(data.uninstall_token);
+      setTokenHostname(ep.hostname);
+      setCopied(false);
+      setShowTokenModal(true);
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const handleDecommission = async (ep) => {
+    if (!window.confirm(`Decommission "${ep.hostname}"? This cannot be undone.`)) return;
+    setError(null);
+    try {
+      await decommissionEndpoint(ep.id);
+      onUpdate?.();
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const uninstallCommand = `msiexec /x DetecAgent.msi UNINSTALL_KEY=${uninstallToken}`;
+
+  const handleCopyCommand = () => {
+    navigator.clipboard.writeText(uninstallCommand).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   return (
     <div className="space-y-2">
       <h2 className="text-sm font-semibold text-detec-ui-text">Endpoints</h2>
@@ -108,9 +146,11 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
                 </th>
               )}
               <th className="px-3 py-2 font-medium">Hostname</th>
+              <th className="px-3 py-2 font-medium hidden sm:table-cell">Host OS</th>
               <th className="px-3 py-2 font-medium">Profile</th>
               <th className="px-3 py-2 font-medium">Management</th>
               <th className="px-3 py-2 font-medium">Last seen</th>
+              {canManage && <th className="px-3 py-2 font-medium">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -131,6 +171,7 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
                   </td>
                 )}
                 <td className="px-3 py-2 font-medium text-detec-ui-text">{ep.hostname}</td>
+                <td className="px-3 py-2 text-detec-ui-muted text-xs hidden sm:table-cell">{ep.os_info || '—'}</td>
                 <td className="px-3 py-2">
                   {canManage ? (
                     <select
@@ -159,6 +200,28 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
                     </span>
                   )}
                 </td>
+                {canManage && (
+                  <td className="px-3 py-2">
+                    {ep.status !== 'decommissioned' ? (
+                      <div className="flex flex-wrap gap-1">
+                        <button
+                          onClick={() => handleGetUninstallToken(ep)}
+                          className="rounded border border-detec-ui-border bg-detec-ui-surface px-2 py-1 text-xs text-detec-ui-text hover:bg-detec-ui-surface/80 hover:border-detec-ui-accent transition-colors"
+                        >
+                          Get Uninstall Token
+                        </button>
+                        <button
+                          onClick={() => handleDecommission(ep)}
+                          className="rounded border border-red-800/50 bg-red-950/30 px-2 py-1 text-xs text-red-400 hover:bg-red-950/60 transition-colors"
+                        >
+                          Decommission
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-detec-ui-muted italic">Decommissioned</span>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -187,6 +250,34 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
           >
             {bulkUpdating ? 'Updating...' : 'Assign selected'}
           </button>
+        </div>
+      )}
+
+      {showTokenModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-lg rounded-lg border border-detec-ui-border bg-detec-slate-50 p-6 shadow-xl">
+            <h3 className="mb-4 text-sm font-semibold text-detec-ui-text">
+              Uninstall Token for {tokenHostname}
+            </h3>
+            <p className="mb-2 text-xs text-detec-ui-muted">Run the following command on the endpoint to uninstall the agent:</p>
+            <div className="mb-4 rounded border border-detec-ui-border bg-detec-ui-surface px-3 py-2 font-mono text-xs text-detec-ui-text break-all select-all">
+              {uninstallCommand}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCopyCommand}
+                className="rounded-lg bg-detec-ui-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-detec-ui-accentHover transition-colors"
+              >
+                {copied ? 'Copied!' : 'Copy Command'}
+              </button>
+              <button
+                onClick={() => setShowTokenModal(false)}
+                className="rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-1.5 text-sm font-medium text-detec-ui-text hover:bg-detec-ui-surface/80 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
