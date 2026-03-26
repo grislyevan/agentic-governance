@@ -115,7 +115,7 @@
     -->
     <CustomAction Id="RegisterTask"
       Directory="AGENTFOLDER"
-      ExeCommand='schtasks.exe /create /tn "DetecAgent" /tr "\"[AGENTFOLDER]detec-agent.exe\" run" /sc onstart /ru SYSTEM /rl HIGHEST /f'
+      ExeCommand="schtasks.exe /create /tn DetecAgent /tr &quot;'C:\Program Files\Detec\Agent\detec-agent.exe' run&quot; /sc onstart /ru SYSTEM /rl HIGHEST /f"
       Execute="immediate"
       Return="check" />
 

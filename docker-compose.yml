@@ -25,10 +25,9 @@ services:
       - "8000:8000"
     env_file:
       - .env
-    # Agent installers live in the image (docker/default-agent-packages/ at build time).
-    # Uncomment to override with a host folder instead of rebuilding the api image:
-    # volumes:
-    #   - ./dist/packages:/data/packages:ro
+    # Agent installer uploads persist across container rebuilds via this volume.
+    volumes:
+      - agent-packages:/data/packages
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-agentic_governance}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
@@ -71,6 +70,7 @@ services:
 
 volumes:
   pgdata:
+  agent-packages:
 
 networks:
   backend:
