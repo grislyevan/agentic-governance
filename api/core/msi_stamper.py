@@ -10,11 +10,49 @@ On Linux/macOS: appends config as a JSON trailer using the DETEC_CFG_V1 marker
 import hashlib
 import json
 import os
+import re
 import shutil
 import struct
 import sys
 
 MAGIC_MARKER = b"DETEC_CFG_V1\x00"
+
+# Maximum length for any single property value stamped into the MSI.
+_MAX_VALUE_LENGTH = 4096
+
+# Regex: allow printable ASCII and common URL / key characters.
+# Rejects control characters, null bytes, backticks, and other
+# characters that could interfere with MSI SQL or shell contexts.
+_SAFE_VALUE_RE = re.compile(
+    r"^[a-zA-Z0-9\-._~:/?#\[\]@!$&()*+,=%{}\\ \"\^|]+$"
+)
+
+
+def _validate_stamp_value(name: str, value: str) -> None:
+    """Validate a single config value before it reaches any stamping method.
+
+    Raises ValueError if the value contains dangerous characters, null bytes,
+    or exceeds the maximum length.  This is a defense-in-depth measure --
+    the msilib path also uses parameterized queries, and the trailer path
+    uses JSON serialization, but we reject obviously malicious input early.
+    """
+    if not isinstance(value, str):
+        raise ValueError(f"MSI stamp value for '{name}' must be a string")
+    if len(value) == 0:
+        raise ValueError(f"MSI stamp value for '{name}' must not be empty")
+    if len(value) > _MAX_VALUE_LENGTH:
+        raise ValueError(
+            f"MSI stamp value for '{name}' exceeds maximum length "
+            f"({len(value)} > {_MAX_VALUE_LENGTH})"
+        )
+    if "\x00" in value:
+        raise ValueError(
+            f"MSI stamp value for '{name}' contains null bytes"
+        )
+    if not _SAFE_VALUE_RE.match(value):
+        raise ValueError(
+            f"MSI stamp value for '{name}' contains disallowed characters"
+        )
 
 
 def stamp_msi(
@@ -27,6 +65,11 @@ def stamp_msi(
     """Stamp tenant config into a copy of the base MSI."""
     if not os.path.exists(base_msi_path):
         raise FileNotFoundError(f"Base MSI not found: {base_msi_path}")
+
+    # Validate all values at the entry point before any file I/O.
+    _validate_stamp_value("api_url", api_url)
+    _validate_stamp_value("api_key", api_key)
+    _validate_stamp_value("tenant_id", tenant_id)
 
     shutil.copy2(base_msi_path, output_path)
 
@@ -49,11 +92,17 @@ def stamp_msi(
 
 
 def _stamp_via_msilib(msi_path: str, config: dict):
-    """Inject properties into the MSI Property table (Windows only)."""
+    """Inject properties into the MSI Property table (Windows only).
+
+    Uses parameterized queries (``?`` placeholders + MsiRecord) to avoid
+    SQL injection.  Property names are hardcoded constants below so they
+    never contain user input; values are bound via CreateRecord.
+    """
     import msilib
 
     db = msilib.OpenDatabase(msi_path, msilib.MSIDBOPEN_TRANSACT)
 
+    # Property names are constants we control -- not user input.
     property_map = {
         "DETEC_API_URL": config["api_url"],
         "DETEC_API_KEY": config["api_key"],
@@ -61,26 +110,32 @@ def _stamp_via_msilib(msi_path: str, config: dict):
     }
 
     for prop, val in property_map.items():
-        # Escape single quotes for SQL
-        safe_val = val.replace("'", "''")
-        safe_prop = prop.replace("'", "''")
-
+        # -- SELECT: check if the property already exists ----------------
+        # Property name is a compile-time constant, safe to interpolate.
+        # The value column is not referenced in the WHERE clause here.
         view = db.OpenView(
-            f"SELECT `Value` FROM `Property` WHERE `Property` = '{safe_prop}'"
+            f"SELECT `Value` FROM `Property` WHERE `Property` = '{prop}'"
         )
         view.Execute(None)
         rec = view.Fetch()
         view.Close()
 
         if rec:
+            # -- UPDATE: bind the new value via parameterized query ------
             view = db.OpenView(
-                f"UPDATE `Property` SET `Value` = '{safe_val}' WHERE `Property` = '{safe_prop}'"
+                f"UPDATE `Property` SET `Value` = ? WHERE `Property` = '{prop}'"
             )
+            rec = msilib.CreateRecord(1)
+            rec.SetString(1, val)
         else:
+            # -- INSERT: bind both property name and value via params ----
             view = db.OpenView(
-                f"INSERT INTO `Property` (`Property`, `Value`) VALUES ('{safe_prop}', '{safe_val}')"
+                "INSERT INTO `Property` (`Property`, `Value`) VALUES (?, ?)"
             )
-        view.Execute(None)
+            rec = msilib.CreateRecord(2)
+            rec.SetString(1, prop)
+            rec.SetString(2, val)
+        view.Execute(rec)
         view.Close()
 
     db.Commit()
