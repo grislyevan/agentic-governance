@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
+from sqlalchemy import func as sa_func
 from sqlalchemy.orm import Session
 
 from core.auth_cookies import (
@@ -73,7 +74,7 @@ def _slugify(name: str) -> str:
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("3/minute")
 def register(request: Request, body: RegisterRequest, db: Session = Depends(get_db)) -> RegisterResponse:
-    existing = db.query(User).filter(User.email == body.email).first()
+    existing = db.query(User).filter(sa_func.lower(User.email) == body.email.lower()).first()
     if existing:
         logger.warning("Registration attempt with existing email (domain: %s)", body.email.split("@")[-1] if "@" in body.email else "unknown")
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
@@ -144,7 +145,7 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
 @router.post("/login", response_model=LoginResponse)
 @limiter.limit("5/minute")
 def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
-    user = db.query(User).filter(User.email == body.email).first()
+    user = db.query(User).filter(sa_func.lower(User.email) == body.email.lower()).first()
     if user and user.auth_provider != "local":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -201,7 +202,7 @@ def forgot_password(
     """
     from core.config import settings as _settings
 
-    user = db.query(User).filter(User.email == body.email, User.is_active.is_(True)).first()
+    user = db.query(User).filter(sa_func.lower(User.email) == body.email.lower(), User.is_active.is_(True)).first()
     if not user:
         return PasswordResetResponse(message="If that email is registered, a reset link has been created.")
     if user.auth_provider != "local":
@@ -641,7 +642,7 @@ def sso_callback(
         first_name = parts[0] if parts else ""
         last_name = parts[1] if len(parts) > 1 else ""
 
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(sa_func.lower(User.email) == email.lower()).first()
     if user:
         if not user.is_active:
             raise HTTPException(

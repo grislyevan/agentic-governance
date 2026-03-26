@@ -107,12 +107,12 @@ export default function LoginPage() {
             )}
 
             <label className="block space-y-1.5">
-              <span className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Email</span>
+              <span className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Username</span>
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com"
+                placeholder="Administrator"
                 required
                 className="w-full bg-detec-ui-page border border-detec-ui-border rounded-lg px-3 py-2 text-sm text-detec-ui-text placeholder:text-detec-ui-muted focus:outline-none focus:border-detec-ui-accent/50 transition-colors"
               />

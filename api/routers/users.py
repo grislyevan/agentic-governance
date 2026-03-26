@@ -143,7 +143,7 @@ def create_user(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
 
-    existing = db.query(User).filter(User.email == body.email).first()
+    existing = db.query(User).filter(func.lower(User.email) == body.email.lower()).first()
     if existing:
         logger.warning("User creation failed: email %s already exists", body.email)
         raise HTTPException(
