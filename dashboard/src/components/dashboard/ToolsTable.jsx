@@ -9,7 +9,7 @@ const COLUMNS = [
   { label: '', className: 'w-10' },
 ];
 
-export default function ToolsTable({ tools }) {
+export default function ToolsTable({ tools, onNavigate }) {
   if (tools.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-detec-ui-border bg-detec-slate-50 px-8 py-16 text-center">
@@ -45,7 +45,7 @@ export default function ToolsTable({ tools }) {
         </thead>
         <tbody>
           {tools.map((tool, i) => (
-            <ToolRow key={`${tool.name}-${i}`} tool={tool} />
+            <ToolRow key={`${tool.name}-${i}`} tool={tool} onNavigate={onNavigate} />
           ))}
         </tbody>
       </table>

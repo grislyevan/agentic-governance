@@ -36,7 +36,14 @@ const TOOL_ICONS = {
   'Claude Cowork':      '👥',
 };
 
-export default function ToolRow({ tool }) {
+const DECISION_ROUTES = {
+  block: 'events',
+  approval_required: 'approvals',
+  warn: 'events',
+  detect: 'events',
+};
+
+export default function ToolRow({ tool, onNavigate }) {
   const [expanded, setExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -152,9 +159,17 @@ export default function ToolRow({ tool }) {
 
         <td className="px-4 py-3">
           <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold border ${ds.bg} ${ds.text} ${ds.border}`}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const route = DECISION_ROUTES[tool.decision_state] || 'events';
+                onNavigate?.(route);
+              }}
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold border hover:ring-1 hover:ring-current/30 transition-all ${ds.bg} ${ds.text} ${ds.border}`}
+              title={`View ${ds.label.toLowerCase()} details`}
+            >
               {ds.label}
-            </span>
+            </button>
             <span className="text-xs text-detec-ui-muted max-w-[180px] truncate">
               {tool.summary || ''}
             </span>

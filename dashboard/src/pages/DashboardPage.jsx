@@ -129,7 +129,15 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
 
       <SystemStatusBanner counts={counts} endpoints={endpoints} endpointCount={endpointCount} />
 
-      <SummaryCards counts={counts} />
+      <SummaryCards counts={counts} onCardClick={(key) => { setActiveTab(key === 'block' ? 'block' : key); }} />
+
+      {endpoints.length > 0 && (
+        <EndpointsTable
+          endpoints={endpoints}
+          profiles={profiles}
+          onUpdate={refresh}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {isAdminOrOwner && (
@@ -151,15 +159,8 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
         onPostureChange={refresh}
         onProfileChange={refresh}
         lastEventAt={lastEventAt}
+        onNavigate={onNavigate}
       />
-
-      {endpoints.length > 0 && (
-        <EndpointsTable
-          endpoints={endpoints}
-          profiles={profiles}
-          onUpdate={refresh}
-        />
-      )}
 
       <ToolTabs
         activeTab={activeTab}
@@ -184,7 +185,7 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
         </div>
       )}
 
-      {tools.length > 0 && <ToolsTable tools={paginatedTools} />}
+      {tools.length > 0 && <ToolsTable tools={paginatedTools} onNavigate={onNavigate} />}
 
       {filteredTools.length > 0 && (
         <Pagination

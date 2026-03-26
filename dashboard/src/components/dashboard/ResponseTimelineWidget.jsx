@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react';
 import { fetchAuditLog } from '../../lib/api';
 
+function formatTime(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  } catch {
+    return iso;
+  }
+}
+
 export default function ResponseTimelineWidget({ onNavigate }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,17 +56,20 @@ export default function ResponseTimelineWidget({ onNavigate }) {
       {items.length === 0 ? (
         <p className="text-xs text-detec-ui-muted">No playbook responses yet.</p>
       ) : (
-        <ul className="space-y-1.5">
-          {items.slice(0, 5).map((entry) => (
-            <li key={entry.id} className="text-xs text-detec-ui-muted">
-              <span className="text-detec-ui-muted">{entry.occurred_at}</span>
-              {' '}
-              <span className="text-detec-ui-text">{entry.resource_id}</span>
-              {entry.detail?.event_id && (
-                <span className="text-detec-ui-muted"> ({entry.detail.event_id})</span>
-              )}
-            </li>
-          ))}
+        <ul className="space-y-2">
+          {items.slice(0, 5).map((entry) => {
+            const action = entry.detail?.action || entry.action || 'Enforcement applied';
+            const endpoint = entry.detail?.endpoint_name || entry.resource_id || 'unknown endpoint';
+            const time = formatTime(entry.occurred_at);
+            return (
+              <li key={entry.id} className="text-xs text-detec-ui-text leading-relaxed">
+                <span className="font-medium">{action}</span>
+                {' on '}
+                <span className="font-medium">{endpoint}</span>
+                <span className="text-detec-ui-muted"> — {time}</span>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

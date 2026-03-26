@@ -10,7 +10,7 @@ function freshnessDotClass(secs) {
   return 'bg-detec-enforce-block';
 }
 
-export default function PollingStatus({ lastUpdated, paused, onTogglePause }) {
+export default function PollingStatus({ lastUpdated, paused, onTogglePause, onForceScan }) {
   const [ago, setAgo] = useState('');
   const [secs, setSecs] = useState(null);
 
@@ -50,6 +50,14 @@ export default function PollingStatus({ lastUpdated, paused, onTogglePause }) {
             <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
           </svg>
         )}
+      </button>
+      <button
+        onClick={onForceScan}
+        disabled={!onForceScan}
+        className="ml-2 px-2 py-0.5 rounded border border-detec-ui-border text-[11px] font-medium text-detec-ui-muted hover:text-detec-ui-text hover:border-detec-ui-accent/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        title="Force all endpoints to scan immediately (coming soon)"
+      >
+        Force Scan
       </button>
     </div>
   );

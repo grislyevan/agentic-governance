@@ -4,16 +4,7 @@ import useTenants from '../../hooks/useTenants';
 import { switchTenant } from '../../lib/api';
 import { setActiveTenantId } from '../../lib/auth';
 
-const TOP_NAV = [
-  { id: 'endpoints', label: 'Endpoints' },
-  { id: 'events', label: 'Events' },
-  { id: 'policies', label: 'Policies' },
-  { id: 'approvals', label: 'Approvals' },
-  { id: 'audit', label: 'Audit Log' },
-  { id: 'admin', label: 'Admin' },
-];
-
-export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, alertCount = 0, onMenuClick }) {
+export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0, onMenuClick }) {
   const { user, logout } = useAuth();
   const { tenants } = useTenants();
   const [searchValue, setSearchValue] = useState('');
@@ -90,27 +81,7 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
         >
           <MenuIcon />
         </button>
-        <nav className="hidden lg:flex items-center gap-1" aria-label="Section navigation">
-          {TOP_NAV.map((item) => {
-          const active = activePage === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              aria-current={active ? 'page' : undefined}
-              className={`
-                flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors
-                ${active
-                  ? 'text-detec-ui-text font-medium'
-                  : 'text-detec-ui-muted hover:text-detec-ui-text'
-                }
-              `}
-            >
-              {item.label}
-            </button>
-          );
-        })}
-        </nav>
+        {/* Navigation consolidated to sidebar */}
       </div>
 
       {/* Org switcher — desktop only, between nav and search */}
@@ -172,7 +143,7 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
         </div>
       )}
 
-      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 max-w-md lg:mx-6">
+      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 max-w-2xl lg:mx-6">
         <div className="relative flex-1">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-detec-ui-muted" />
           <input
@@ -241,6 +212,13 @@ export default function TopBar({ activePage, onNavigate, onSearch, onRefresh, al
                   className="w-full text-left px-3 py-2 text-sm text-detec-ui-text hover:bg-detec-slate-100 transition-colors"
                 >
                   View all events
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { onNavigate('settings'); setShowNotifications(false); }}
+                  className="w-full text-left px-3 py-2 text-sm text-detec-ui-muted hover:bg-detec-slate-100 transition-colors"
+                >
+                  Notification settings
                 </button>
               </div>
             </div>

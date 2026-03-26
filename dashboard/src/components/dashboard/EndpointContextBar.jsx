@@ -16,6 +16,7 @@ export default function EndpointContextBar({
   onPostureChange,
   onProfileChange,
   lastEventAt = null,
+  onNavigate,
 }) {
   const multipleEndpoints = endpoints?.length > 1;
   const firstEp = endpoints?.[0];
@@ -191,10 +192,13 @@ export default function EndpointContextBar({
         </span>
 
         <span
-          className="ml-auto flex items-center gap-1.5"
-          title={`${statusCounts.active} active, ${statusCounts.stale} stale, ${statusCounts.ungoverned} ungoverned`}
+          className="ml-auto flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity"
+          title={`${statusCounts.active} active, ${statusCounts.stale} stale, ${statusCounts.ungoverned} ungoverned — Click to view`}
           aria-label={`Endpoint health: ${statusCounts.active} active, ${statusCounts.stale} stale, ${statusCounts.ungoverned} ungoverned`}
-          onClick={(e) => e.stopPropagation()}
+          role="button"
+          tabIndex={0}
+          onClick={(e) => { e.stopPropagation(); onNavigate?.('endpoints'); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onNavigate?.('endpoints'); } }}
         >
           <span className="text-[10px] uppercase tracking-wider text-detec-ui-muted">Endpoint health</span>
           {statusBars(statusCounts).map((h, i) => (

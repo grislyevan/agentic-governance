@@ -32,7 +32,7 @@ const CARDS = [
 const MUTED_CARD = 'bg-detec-ui-surface/80 border-detec-ui-border';
 const MUTED_TEXT = 'text-detec-ui-muted';
 
-export default function SummaryCards({ counts }) {
+export default function SummaryCards({ counts, onCardClick }) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {CARDS.map((card) => {
@@ -41,10 +41,15 @@ export default function SummaryCards({ counts }) {
         const cardColor = isZero ? MUTED_CARD : card.color;
         const labelClass = isZero ? `text-sm font-semibold ${MUTED_TEXT}` : `text-sm font-semibold ${card.text}`;
         const valueClass = isZero ? `text-2xl font-bold ${MUTED_TEXT}` : `text-3xl font-bold ${card.text}`;
-        const hoverClass = isZero ? '' : 'transition-colors duration-150 hover:border-opacity-50 motion-reduce:transition-none';
+        const clickable = !isZero && onCardClick;
+        const hoverClass = isZero ? '' : 'transition-colors duration-150 hover:border-opacity-50 hover:shadow-detec-card motion-reduce:transition-none cursor-pointer';
         return (
           <div
             key={card.key}
+            role={clickable ? 'button' : undefined}
+            tabIndex={clickable ? 0 : undefined}
+            onClick={clickable ? () => onCardClick(card.key) : undefined}
+            onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCardClick(card.key); } } : undefined}
             className={`rounded-xl border px-5 py-4 flex items-center justify-between ${cardColor} ${hoverClass}`}
           >
             <div className="flex items-center gap-3">

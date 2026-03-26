@@ -144,7 +144,6 @@ export default function App() {
       >
         <DemoBanner />
         <TopBar
-          activePage={activePage}
           onNavigate={handleNavigate}
           onSearch={setSearchQuery}
           onRefresh={handleRefresh}
