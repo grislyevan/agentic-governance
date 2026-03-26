@@ -403,6 +403,7 @@ def _run_daemon(args: argparse.Namespace) -> None:
 
     last_scan_time: str | None = None
     events_sent: int = 0
+    _watchdog_check_cycle: int = 0
 
     pipe_server = PipeServer(
         status_provider=lambda: {
@@ -437,6 +438,47 @@ def _run_daemon(args: argparse.Namespace) -> None:
         from datetime import datetime, timezone
         last_scan_time = datetime.now(timezone.utc).isoformat()
         events_sent = emitter.stats.get("emitted", 0) if hasattr(emitter, "stats") else events_sent
+
+        # Mutual monitoring: ensure the watchdog task is still registered.
+        # Only check every 5 scan cycles to avoid unnecessary overhead.
+        if sys.platform == "win32":
+            _watchdog_check_cycle += 1
+            if _watchdog_check_cycle >= 5:
+                _watchdog_check_cycle = 0
+                try:
+                    from watchdog import (
+                        _WATCHDOG_TASK_NAME,
+                        _AGENT_EXE_PATH,
+                        is_task_registered,
+                    )
+                    if not is_task_registered(_WATCHDOG_TASK_NAME):
+                        logger.warning(
+                            "Watchdog task '%s' not found — re-registering", _WATCHDOG_TASK_NAME
+                        )
+                        _watchdog_exe = _AGENT_EXE_PATH
+                        import subprocess as _sp
+                        _sp.run(
+                            [
+                                "schtasks", "/create",
+                                "/tn", _WATCHDOG_TASK_NAME,
+                                "/tr", f"'{_watchdog_exe}' watchdog",
+                                "/sc", "onstart",
+                                "/ru", "SYSTEM",
+                                "/rl", "HIGHEST",
+                                "/f",
+                            ],
+                            capture_output=True,
+                            text=True,
+                            timeout=30,
+                        )
+                        _sp.run(
+                            ["schtasks", "/run", "/tn", _WATCHDOG_TASK_NAME],
+                            capture_output=True,
+                            text=True,
+                            timeout=30,
+                        )
+                except Exception:
+                    logger.exception("Failed to check/restore watchdog task")
 
         scan_trigger.wait(timeout=current_interval_holder["interval"])
         if stop_event.is_set():

@@ -527,6 +527,16 @@ def cmd_remove_task(args: argparse.Namespace) -> None:
 
 
 # -------------------------------------------------------------------
+# ``detec-agent watchdog``
+# -------------------------------------------------------------------
+
+def cmd_watchdog(args: argparse.Namespace) -> None:
+    """Run the watchdog process — monitors the agent and restarts it if it dies."""
+    from watchdog import run_watchdog
+    run_watchdog()
+
+
+# -------------------------------------------------------------------
 # ``detec-agent status``
 # -------------------------------------------------------------------
 
@@ -692,6 +702,13 @@ def main() -> None:
     # --- status ---
     p_status = sub.add_parser("status", help="Show agent status and config")
     p_status.set_defaults(func=cmd_status)
+
+    # --- watchdog ---
+    p_watchdog = sub.add_parser(
+        "watchdog",
+        help="Run the watchdog process that monitors and restarts the agent (Windows)",
+    )
+    p_watchdog.set_defaults(func=cmd_watchdog)
 
     args = parser.parse_args()
     if not hasattr(args, "func"):
