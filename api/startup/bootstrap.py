@@ -6,6 +6,7 @@ import sys
 import uuid
 from pathlib import Path
 
+import sqlalchemy as sa
 from core.auth import hash_password
 from core.config import settings
 from core.database import SessionLocal, engine
@@ -47,19 +48,29 @@ def seed() -> None:
     """Seed a default admin user and tenant on first startup."""
     db = SessionLocal()
     try:
-        existing = db.query(User).filter(User.email == settings.seed_admin_email).first()
+        existing = db.query(User).filter(
+            sa.func.lower(User.email) == settings.seed_admin_email.lower()
+        ).first()
         if existing:
             return
 
         from core.tenant import generate_agent_key
 
         slug = settings.seed_tenant_name.lower().replace(" ", "-")[:64]
-        agent_key = settings.seed_agent_key or generate_agent_key()
+        if settings.seed_agent_key:
+            from core.tenant import _hash_agent_key, AGENT_KEY_PREFIX_LEN
+            agent_key = settings.seed_agent_key
+            agent_key_prefix = agent_key[:AGENT_KEY_PREFIX_LEN]
+            agent_key_hash = _hash_agent_key(agent_key)
+        else:
+            agent_key, agent_key_prefix, agent_key_hash = generate_agent_key()
         tenant = Tenant(
             id=str(uuid.uuid4()),
             name=settings.seed_tenant_name,
             slug=slug,
             agent_key=agent_key,
+            agent_key_prefix=agent_key_prefix,
+            agent_key_hash=agent_key_hash,
         )
         db.add(tenant)
         db.flush()

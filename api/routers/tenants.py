@@ -154,14 +154,14 @@ def create_tenant(
     if existing_slug:
         slug = f"{slug}-{uuid.uuid4().hex[:6]}"
 
-    full_key, prefix, key_hash = generate_agent_key()
+    agent_key, agent_key_prefix, agent_key_hash = generate_agent_key()
     tenant = Tenant(
         id=str(uuid.uuid4()),
         name=tenant_name,
         slug=slug,
-        agent_key=full_key,
-        agent_key_prefix=prefix,
-        agent_key_hash=key_hash,
+        agent_key=agent_key,
+        agent_key_prefix=agent_key_prefix,
+        agent_key_hash=agent_key_hash,
     )
     db.add(tenant)
     db.flush()

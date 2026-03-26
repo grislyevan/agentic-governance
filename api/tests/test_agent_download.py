@@ -98,10 +98,8 @@ class TestAgentDownloadTenantKey:
     def test_tenant_key_is_auto_generated(self, client, tmp_path):
         """Downloading auto-generates a tenant key if one doesn't exist.
 
-        First download returns the full key (64 chars) since it was just created.
-        Subsequent downloads return only the prefix (8 chars) because the full
-        key is not stored after initial generation (hash-based storage).
-        The prefix from the second download must match the start of the first key.
+        Both downloads return the full key (64 chars) since the plaintext is
+        now stored alongside the hash for MSI download stamping.
         """
         pkg_dir = _create_fake_package(tmp_path, "detec-agent.zip")
         headers, _ = _register_owner(client)
@@ -115,12 +113,11 @@ class TestAgentDownloadTenantKey:
         cfg1 = json.loads(zf1.read("collector.json"))
         cfg2 = json.loads(zf2.read("collector.json"))
 
-        # First download returns the full key (64 hex chars)
+        # Both downloads return the full key (64 hex chars)
         assert len(cfg1["api_key"]) == 64
-        # Second download returns only the prefix (8 chars) — full key is not stored
-        assert len(cfg2["api_key"]) == 8
-        # The prefix must match the beginning of the full key
-        assert cfg1["api_key"].startswith(cfg2["api_key"])
+        assert len(cfg2["api_key"]) == 64
+        # Same key on both downloads
+        assert cfg1["api_key"] == cfg2["api_key"]
 
     def test_agent_can_auth_with_tenant_key(self, client, tmp_path):
         """An agent using the tenant key can call the heartbeat endpoint."""

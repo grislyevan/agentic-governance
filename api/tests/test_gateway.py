@@ -38,12 +38,14 @@ def _seed_tenant_with_agent_key() -> tuple[str, str]:
     db = _db_mod.SessionLocal()
     try:
         tenant_id = str(uuid.uuid4())
-        agent_key = generate_agent_key()
+        agent_key, agent_key_prefix, agent_key_hash = generate_agent_key()
         tenant = Tenant(
             id=tenant_id,
             name="TestTenant",
             slug="test-tenant",
             agent_key=agent_key,
+            agent_key_prefix=agent_key_prefix,
+            agent_key_hash=agent_key_hash,
         )
         db.add(tenant)
         db.commit()

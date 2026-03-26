@@ -64,12 +64,14 @@ def _seed_tenant_with_agent_key() -> tuple[str, str]:
     try:
         tenant_id = str(uuid.uuid4())
         from core.tenant import generate_agent_key
-        agent_key = generate_agent_key()
+        agent_key, agent_key_prefix, agent_key_hash = generate_agent_key()
         tenant = Tenant(
             id=tenant_id,
             name="AgentKeyTenant",
             slug="agent-key-tenant",
             agent_key=agent_key,
+            agent_key_prefix=agent_key_prefix,
+            agent_key_hash=agent_key_hash,
         )
         db.add(tenant)
         db.commit()
