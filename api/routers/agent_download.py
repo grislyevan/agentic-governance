@@ -85,31 +85,23 @@ def _find_package(platform: str) -> Path | None:
 
 
 def _ensure_agent_key(tenant: Tenant, db: Session) -> str:
-    """Return the tenant's agent key (full key), generating one if it doesn't exist yet.
+    """Return the tenant's full agent key, generating one if needed.
 
-    For tenants already on the new hash-based scheme (agent_key_hash is set),
-    this cannot return the full key — callers that need the full key should use
-    the rotate endpoint instead.  For new tenants with no key at all, we generate
-    a hashed key and return the full key once.
+    The full key is stored in tenant.agent_key alongside the hash so it can
+    be re-embedded in MSI downloads.  Auth validates against the hash;
+    the plaintext is only used for download stamping.
     """
-    if tenant.agent_key_hash:
-        # Key exists in hashed form; full key is not stored. Return a placeholder
-        # so download endpoints can still function — agents received the full key
-        # at rotation time.  Downloads will embed the prefix only as a hint.
-        # Callers that truly need the raw key must rotate.
-        return tenant.agent_key_prefix or ""
-    if not tenant.agent_key:
-        # No key at all — generate a new hashed key
-        full_key, prefix, key_hash = generate_agent_key()
-        tenant.agent_key_prefix = prefix
-        tenant.agent_key_hash = key_hash
-        tenant.agent_key = None
-        db.commit()
-        db.refresh(tenant)
-        logger.info("Generated agent key for tenant %s (%s)", tenant.name, tenant.id)
-        return full_key
-    # Legacy plaintext key — return as-is until rotated
-    return tenant.agent_key
+    if tenant.agent_key:
+        return tenant.agent_key
+    # No key — generate one
+    full_key, prefix, key_hash = generate_agent_key()
+    tenant.agent_key_prefix = prefix
+    tenant.agent_key_hash = key_hash
+    tenant.agent_key = full_key
+    db.commit()
+    db.refresh(tenant)
+    logger.info("Generated agent key for tenant %s (%s)", tenant.name, tenant.id)
+    return full_key
 
 
 def _build_agent_env(api_url: str, api_key: str, interval: int, protocol: str,
@@ -624,7 +616,7 @@ def rotate_agent_key(
     full_key, prefix, key_hash = generate_agent_key()
     tenant.agent_key_prefix = prefix
     tenant.agent_key_hash = key_hash
-    tenant.agent_key = None  # clear plaintext; full key shown once below
+    tenant.agent_key = full_key  # keep plaintext for MSI download stamping
 
     from core.audit_logger import record as audit_record
     audit_record(

@@ -130,14 +130,25 @@ def _find_source_msi() -> str | None:
     if not _IS_WINDOWS:
         return None
 
-    # Method 1: Check common download locations
-    for candidate in [
-        Path(os.environ.get("USERPROFILE", "")) / "Downloads",
+    # Method 1: Check common download locations for all user profiles
+    search_dirs = [
         Path(r"C:\Detec"),
         Path(r"C:\temp"),
-    ]:
-        for msi in candidate.glob("DetecAgent*.msi"):
-            return str(msi)
+    ]
+    # Check all user Downloads folders (SYSTEM can read them)
+    users_dir = Path(r"C:\Users")
+    if users_dir.exists():
+        for user_dir in users_dir.iterdir():
+            dl = user_dir / "Downloads"
+            if dl.is_dir():
+                search_dirs.append(dl)
+
+    for candidate in search_dirs:
+        try:
+            for msi in candidate.glob("DetecAgent*.msi"):
+                return str(msi)
+        except (OSError, PermissionError):
+            continue
 
     # Method 2: Check Windows Installer cache via registry
     try:
@@ -387,6 +398,135 @@ def cmd_install_service(args: argparse.Namespace) -> None:
 
 
 # -------------------------------------------------------------------
+# Scheduled Task commands (replaces Windows Service for PyInstaller)
+# -------------------------------------------------------------------
+
+_TASK_NAME = "DetecAgent"
+
+
+def cmd_write_env(args: argparse.Namespace) -> None:
+    """Write agent.env from CLI args or MSI trailer. Called by MSI custom action."""
+    import json
+    import struct
+
+    api_url = getattr(args, "api_url", None) or ""
+    api_key = getattr(args, "api_key", None) or ""
+    tenant_id = getattr(args, "tenant_id", None) or ""
+    msi_path = getattr(args, "from_msi", None) or ""
+
+    # If --from-msi is provided, extract config from the MSI trailer
+    if msi_path and os.path.exists(msi_path):
+        try:
+            with open(msi_path, "rb") as f:
+                data = f.read()
+            if data.endswith(_CFG_MAGIC):
+                data = data[: -len(_CFG_MAGIC)]
+                json_len = struct.unpack("<I", data[-4:])[0]
+                data = data[:-4]
+                json_bytes = data[-json_len:]
+                config = json.loads(json_bytes)
+                api_url = config.get("api_url", api_url)
+                api_key = config.get("api_key", api_key)
+                tenant_id = config.get("tenant_id", tenant_id)
+                print(f"Extracted config from MSI trailer: {msi_path}")
+        except Exception as e:
+            print(f"Warning: failed to read MSI trailer: {e}", file=sys.stderr)
+
+    # Skip if values are still placeholders
+    if not api_url or api_url == "PLACEHOLDER" or not api_key or api_key == "PLACEHOLDER":
+        print("No valid config found (PLACEHOLDER or empty). Skipping write-env.", file=sys.stderr)
+        print("The agent will self-configure from the MSI trailer on first start.", file=sys.stderr)
+        return
+
+    _ensure_data_dir()
+    env_file = _env_path()
+
+    from urllib.parse import urlparse
+    gh = urlparse(api_url).hostname or "localhost"
+
+    lines = [
+        f"AGENTIC_GOV_API_URL={api_url}",
+        f"AGENTIC_GOV_API_KEY={api_key}",
+        f"AGENTIC_GOV_TENANT_ID={tenant_id}",
+        "AGENTIC_GOV_PROTOCOL=auto",
+        f"AGENTIC_GOV_GATEWAY_HOST={gh}",
+        "AGENTIC_GOV_GATEWAY_PORT=8001",
+        "AGENTIC_GOV_INTERVAL=300",
+    ]
+    env_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"Config written to {env_file}")
+
+
+def cmd_install_task(args: argparse.Namespace) -> None:
+    """Register a Scheduled Task to run the agent at system startup."""
+    if not _IS_WINDOWS:
+        print("Scheduled Task install is only supported on Windows.")
+        sys.exit(1)
+
+    import subprocess
+
+    exe = sys.executable
+    if getattr(sys, "frozen", False):
+        exe = sys.executable  # the frozen .exe itself
+
+    # Create the task: runs at startup, under SYSTEM, restarts on failure
+    result = subprocess.run(
+        [
+            "schtasks.exe", "/create",
+            "/tn", _TASK_NAME,
+            "/tr", f'"{exe}" run',
+            "/sc", "onstart",
+            "/ru", "SYSTEM",
+            "/rl", "HIGHEST",
+            "/f",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(f"Failed to create scheduled task: {result.stderr.strip()}", file=sys.stderr)
+        sys.exit(result.returncode)
+    print(f"Scheduled task '{_TASK_NAME}' registered.")
+
+    # Start it immediately
+    result = subprocess.run(
+        ["schtasks.exe", "/run", "/tn", _TASK_NAME],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        print(f"Scheduled task '{_TASK_NAME}' started.")
+    else:
+        print(f"Task registered but failed to start: {result.stderr.strip()}", file=sys.stderr)
+
+
+def cmd_remove_task(args: argparse.Namespace) -> None:
+    """Stop and unregister the Scheduled Task."""
+    if not _IS_WINDOWS:
+        print("Scheduled Task remove is only supported on Windows.")
+        sys.exit(1)
+
+    import subprocess
+
+    # Stop first (ignore errors if not running)
+    subprocess.run(
+        ["schtasks.exe", "/end", "/tn", _TASK_NAME],
+        capture_output=True,
+        text=True,
+    )
+
+    result = subprocess.run(
+        ["schtasks.exe", "/delete", "/tn", _TASK_NAME, "/f"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        print(f"Scheduled task '{_TASK_NAME}' removed.")
+    else:
+        print(f"Failed to remove task: {result.stderr.strip()}", file=sys.stderr)
+
+
+# -------------------------------------------------------------------
 # ``detec-agent status``
 # -------------------------------------------------------------------
 
@@ -407,13 +547,19 @@ def cmd_status(args: argparse.Namespace) -> None:
                 print(f"  {key.strip()} = {val.strip()}")
 
     if _IS_WINDOWS:
-        try:
-            import win32serviceutil  # type: ignore[import-untyped]
-            status = win32serviceutil.QueryServiceStatus("DetecAgent")
-            state_map = {1: "stopped", 2: "starting", 3: "stopping", 4: "running"}
-            print(f"Service        : {state_map.get(status[1], f'unknown ({status[1]})')}")
-        except Exception:
-            print("Service        : not installed")
+        import subprocess
+        result = subprocess.run(
+            ["schtasks.exe", "/query", "/tn", _TASK_NAME, "/fo", "list"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                if line.strip().startswith("Status:"):
+                    print(f"Scheduled Task : {line.split(':', 1)[1].strip()}")
+                    break
+        else:
+            print("Scheduled Task : not registered")
 
 
 # -------------------------------------------------------------------
@@ -515,30 +661,33 @@ def main() -> None:
     p_run.add_argument("--verbose", action="store_true", help="Show detailed scan output")
     p_run.set_defaults(func=cmd_run)
 
-    # --- Windows service commands ---
-    p_install = sub.add_parser("install", help="Install as a Windows Service")
+    # --- Scheduled Task commands (Windows) ---
+    p_install_task = sub.add_parser("install-task", help="Register a Scheduled Task to run the agent at startup (Windows)")
+    p_install_task.set_defaults(func=cmd_install_task)
+
+    p_remove_task = sub.add_parser("remove-task", help="Stop and unregister the Scheduled Task (Windows)")
+    p_remove_task.set_defaults(func=cmd_remove_task)
+
+    # --- write-env (used by MSI custom action) ---
+    p_write_env = sub.add_parser("write-env", help="Write agent.env config file (used by MSI installer)")
+    p_write_env.add_argument("--api-url", default="", help="Server API URL")
+    p_write_env.add_argument("--api-key", default="", help="API key")
+    p_write_env.add_argument("--tenant-id", default="", help="Tenant ID")
+    p_write_env.add_argument("--from-msi", default="", help="Path to MSI to extract config trailer from")
+    p_write_env.set_defaults(func=cmd_write_env)
+
+    # --- Legacy Windows Service commands (kept for backward compat) ---
+    p_install = sub.add_parser("install", help="Install as a Windows Service (legacy)")
     p_install.set_defaults(func=cmd_install)
 
-    p_remove = sub.add_parser("remove", help="Remove the Windows Service")
+    p_remove = sub.add_parser("remove", help="Remove the Windows Service (legacy)")
     p_remove.set_defaults(func=cmd_remove)
 
-    p_start = sub.add_parser("start", help="Start the Windows Service")
+    p_start = sub.add_parser("start", help="Start the Windows Service (legacy)")
     p_start.set_defaults(func=cmd_start)
 
-    p_stop = sub.add_parser("stop", help="Stop the Windows Service")
+    p_stop = sub.add_parser("stop", help="Stop the Windows Service (legacy)")
     p_stop.set_defaults(func=cmd_stop)
-
-    p_set_recovery = sub.add_parser(
-        "set-recovery",
-        help="Configure restart-on-failure for the Windows Service (run after install)",
-    )
-    p_set_recovery.set_defaults(func=cmd_set_recovery)
-
-    p_install_service = sub.add_parser(
-        "install-service",
-        help="Install, start, and set recovery for the Windows Service (one step)",
-    )
-    p_install_service.set_defaults(func=cmd_install_service)
 
     # --- status ---
     p_status = sub.add_parser("status", help="Show agent status and config")
@@ -552,14 +701,38 @@ def main() -> None:
     args.func(args)
 
 
-def _start_as_windows_service() -> None:
-    """Called when the SCM starts us with no arguments (frozen exe only)."""
-    import servicemanager  # type: ignore[import-untyped]
-    from win_agent_service import DetecAgentService
+def _start_daemon_headless() -> None:
+    """Called when the frozen exe runs with no arguments (e.g. via Scheduled Task).
 
-    servicemanager.Initialize()
-    servicemanager.PrepareToHostSingle(DetecAgentService)
-    servicemanager.StartServiceCtrlDispatcher()
+    Loads agent.env, builds a config namespace, and enters the daemon loop.
+    The pywin32 Windows Service approach (pythonservice.exe) doesn't work with
+    PyInstaller bundles, so Scheduled Task is the supported deployment model.
+    """
+    _try_extract_installer_config()
+    _load_env()
+
+    from config_loader import load_collector_config
+    from main import _run_daemon
+
+    cfg = load_collector_config()
+    ns = argparse.Namespace(**cfg)
+
+    if not ns.api_url or not ns.api_key:
+        logger.error(
+            "api_url and api_key are required. "
+            "Run 'detec-agent setup' first, or ensure agent.env exists at %s",
+            _env_path(),
+        )
+        sys.exit(1)
+    if ns.interval <= 0:
+        ns.interval = 300
+
+    logging.basicConfig(
+        level=logging.WARNING,
+        format="%(levelname)s %(name)s: %(message)s",
+    )
+
+    _run_daemon(ns)
 
 
 if __name__ == "__main__":
@@ -568,6 +741,6 @@ if __name__ == "__main__":
         and getattr(sys, "frozen", False)
         and len(sys.argv) == 1
     ):
-        _start_as_windows_service()
+        _start_daemon_headless()
     else:
         main()

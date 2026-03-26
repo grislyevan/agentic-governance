@@ -186,6 +186,8 @@ def _platform_config_paths() -> list[Path]:
     elif sys.platform == "win32":
         program_data = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "Detec"
         paths.append(program_data / "collector.json")
+        # The MSI installs agent.env under Detec\Agent (data dir, separate from binaries).
+        paths.append(program_data / "Agent" / "agent.env")
     else:
         config_home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
         detec_dir = config_home / "detec"
@@ -198,7 +200,7 @@ def _parse_env_file(path: Path) -> dict[str, Any]:
     """Parse a KEY=VALUE env file, ignoring comments and blank lines."""
     result: dict[str, Any] = {}
     try:
-        with open(path) as fh:
+        with open(path, encoding="utf-8-sig") as fh:
             for line in fh:
                 line = line.strip()
                 if not line or line.startswith("#"):

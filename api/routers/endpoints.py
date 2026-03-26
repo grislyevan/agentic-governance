@@ -324,6 +324,8 @@ def update_endpoint(
     if body.endpoint_profile_id is not None:
         if body.endpoint_profile_id == "":
             endpoint.endpoint_profile_id = None
+            if endpoint.management_state == "managed":
+                endpoint.management_state = "unmanaged"
         else:
             profile = db.query(EndpointProfile).filter(
                 EndpointProfile.id == body.endpoint_profile_id,
@@ -335,6 +337,9 @@ def update_endpoint(
                     detail="Profile not found or not in this tenant",
                 )
             endpoint.endpoint_profile_id = body.endpoint_profile_id
+            # Auto-promote to managed when a profile is assigned
+            if endpoint.management_state != "managed":
+                endpoint.management_state = "managed"
     if body.management_state is not None:
         endpoint.management_state = body.management_state
     db.commit()
