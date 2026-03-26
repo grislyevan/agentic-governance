@@ -14,6 +14,7 @@ from core.database import Base
 
 ENDPOINT_STATUS_ACTIVE = "active"
 ENDPOINT_STATUS_STALE = "stale"
+ENDPOINT_STATUS_TAMPER_SUSPECTED = "tamper_suspected"
 ENDPOINT_STATUS_UNGOVERNED = "ungoverned"
 ENDPOINT_STATUS_DECOMMISSIONED = "decommissioned"
 
@@ -90,6 +91,8 @@ class Endpoint(Base):
             return ENDPOINT_STATUS_ACTIVE
         if elapsed <= threshold * 3:
             return ENDPOINT_STATUS_STALE
+        if self.management_state == "managed":
+            return ENDPOINT_STATUS_TAMPER_SUSPECTED
         return ENDPOINT_STATUS_UNGOVERNED
 
     @property

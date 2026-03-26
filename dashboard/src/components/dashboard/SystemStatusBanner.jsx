@@ -5,6 +5,7 @@ function getStatus(counts, endpoints = [], connectedCount) {
   const approvalRequired = counts?.approval_required ?? 0;
   const hasAlerts = blocked > 0 || approvalRequired > 0;
   const nonConformant = endpoints.filter((ep) => ep.management_state !== 'managed').length;
+  const tamperCount = endpoints.filter((ep) => ep.computed_status === 'tamper_suspected').length;
   const hasActivePosture = endpoints.some((ep) => ep.enforcement_posture === 'active' || ep.enforcement_posture === 'audit');
   const nConnected =
     typeof connectedCount === 'number' ? connectedCount : endpoints.length;
@@ -23,6 +24,15 @@ function getStatus(counts, endpoints = [], connectedCount) {
       summary: `${blocked} blocked • ${approvalRequired} approval required`,
       className: 'border-detec-enforce-block/40 bg-detec-enforce-block/5 text-detec-enforce-block',
       pulse: false,
+    };
+  }
+  if (tamperCount > 0) {
+    return {
+      state: 'tamper',
+      title: 'Tamper Alert',
+      summary: `${tamperCount} managed endpoint${tamperCount !== 1 ? 's' : ''} silent • Enforcement: ${postureLabel}`,
+      className: 'border-red-800/40 bg-red-950/10 text-red-400',
+      pulse: true,
     };
   }
   if (hasAlerts || nonConformant > 0) {

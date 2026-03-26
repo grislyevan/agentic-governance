@@ -153,6 +153,11 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
                 </td>
                 <td className="px-3 py-2 text-detec-ui-muted text-xs">
                   {timeSince(ep.last_seen_at)}
+                  {ep.computed_status === 'tamper_suspected' && (
+                    <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold bg-red-950/60 text-red-400 border border-red-800/50">
+                      Tamper Alert
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}
