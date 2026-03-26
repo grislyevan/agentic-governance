@@ -537,6 +537,86 @@ def cmd_watchdog(args: argparse.Namespace) -> None:
 
 
 # -------------------------------------------------------------------
+# ``detec-agent validate-uninstall``
+# -------------------------------------------------------------------
+
+def cmd_validate_uninstall(args: argparse.Namespace) -> None:
+    """Validate an uninstall token against the server."""
+    import socket
+    import requests
+
+    _load_env()
+
+    from config_loader import load_collector_config
+
+    cfg = load_collector_config()
+    api_url = cfg.get("api_url", "").rstrip("/")
+    api_key = cfg.get("api_key", "")
+    hostname = socket.gethostname()
+
+    if not api_url or not api_key:
+        print("Error: api_url and api_key are required. Run 'detec-agent setup' first.", file=sys.stderr)
+        sys.exit(1)
+
+    headers = {"X-API-Key": api_key}
+
+    # Find our endpoint by hostname
+    try:
+        resp = requests.get(
+            f"{api_url}/endpoints",
+            params={"page_size": 200},
+            headers=headers,
+            timeout=10,
+        )
+        resp.raise_for_status()
+    except requests.exceptions.ConnectionError:
+        print("Error: Unable to connect to server. Cannot validate uninstall token.", file=sys.stderr)
+        sys.exit(1)
+    except requests.exceptions.RequestException as exc:
+        print(f"Error: Request failed: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    endpoints = resp.json()
+    # Handle both list response and paginated {"results": [...]} response
+    if isinstance(endpoints, dict):
+        endpoints = endpoints.get("results", [])
+
+    endpoint_id = None
+    for ep in endpoints:
+        if ep.get("hostname", "").lower() == hostname.lower():
+            endpoint_id = ep.get("id")
+            break
+
+    if endpoint_id is None:
+        print(f"Error: No endpoint found with hostname '{hostname}'.", file=sys.stderr)
+        sys.exit(1)
+
+    # Validate the token
+    try:
+        resp = requests.post(
+            f"{api_url}/endpoints/{endpoint_id}/validate-uninstall-token",
+            json={"token": args.token},
+            headers=headers,
+            timeout=10,
+        )
+        resp.raise_for_status()
+    except requests.exceptions.ConnectionError:
+        print("Error: Unable to connect to server. Cannot validate uninstall token.", file=sys.stderr)
+        sys.exit(1)
+    except requests.exceptions.RequestException as exc:
+        print(f"Error: Request failed: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    data = resp.json()
+    if data.get("valid"):
+        print("Token valid. Uninstall authorized.")
+        sys.exit(0)
+    else:
+        print("Invalid uninstall token.")
+        sys.exit(1)
+
+
+# -------------------------------------------------------------------
 # ``detec-agent status``
 # -------------------------------------------------------------------
 
@@ -709,6 +789,11 @@ def main() -> None:
         help="Run the watchdog process that monitors and restarts the agent (Windows)",
     )
     p_watchdog.set_defaults(func=cmd_watchdog)
+
+    # --- validate-uninstall ---
+    p_validate_uninstall = sub.add_parser("validate-uninstall", help="Validate uninstall token against server")
+    p_validate_uninstall.add_argument("--token", required=True, help="Uninstall token from dashboard")
+    p_validate_uninstall.set_defaults(func=cmd_validate_uninstall)
 
     args = parser.parse_args()
     if not hasattr(args, "func"):

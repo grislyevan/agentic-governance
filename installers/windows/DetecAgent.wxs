@@ -39,6 +39,12 @@
     <Property Id="DETEC_API_KEY" Value="PLACEHOLDER" Secure="yes" Hidden="yes" />
     <Property Id="DETEC_TENANT_ID" Value="PLACEHOLDER" Secure="yes" />
 
+    <!-- Tamper control: require an uninstall key to remove the agent -->
+    <Property Id="UNINSTALL_KEY" Value="" Secure="yes" />
+    <Condition Message="Uninstall requires authorization. Run: msiexec /x DetecAgent.msi UNINSTALL_KEY=&lt;token-from-dashboard&gt;">
+      NOT (REMOVE="ALL") OR UNINSTALL_KEY
+    </Condition>
+
     <!-- Directory layout — ProgramFiles64Folder ensures C:\Program Files\ on 64-bit -->
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="Detec">
