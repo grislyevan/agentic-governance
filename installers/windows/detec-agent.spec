@@ -76,6 +76,7 @@ hiddenimports = [
     "collector.enforcement.proxy_inject",
     "collector.enforcement.rate_limiter",
     "collector.enforcement.service_restore",
+    "collector.watchdog",
 ]
 
 # Data files: schemas for event validation, branding for icon.

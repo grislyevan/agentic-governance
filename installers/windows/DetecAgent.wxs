@@ -137,10 +137,38 @@
       Execute="immediate"
       Return="ignore" />
 
+    <CustomAction Id="RegisterWatchdog"
+      Directory="AGENTFOLDER"
+      ExeCommand="schtasks.exe /create /tn DetecAgentWatchdog /tr &quot;'C:\Program Files\Detec\Agent\detec-agent.exe' watchdog&quot; /sc onstart /ru SYSTEM /rl HIGHEST /f"
+      Execute="immediate"
+      Return="check" />
+
+    <CustomAction Id="StartWatchdog"
+      Directory="AGENTFOLDER"
+      ExeCommand='schtasks.exe /run /tn DetecAgentWatchdog'
+      Execute="immediate"
+      Return="ignore" />
+
+    <CustomAction Id="StopWatchdog"
+      Directory="AGENTFOLDER"
+      ExeCommand='schtasks.exe /end /tn DetecAgentWatchdog'
+      Execute="immediate"
+      Return="ignore" />
+
+    <CustomAction Id="DeleteWatchdog"
+      Directory="AGENTFOLDER"
+      ExeCommand='schtasks.exe /delete /tn DetecAgentWatchdog /f'
+      Execute="immediate"
+      Return="ignore" />
+
     <InstallExecuteSequence>
       <Custom Action="RegisterTask" After="InstallFinalize" Condition="NOT Installed AND NOT REMOVE" />
       <Custom Action="StartTask" After="RegisterTask" Condition="NOT Installed AND NOT REMOVE" />
-      <Custom Action="StopTask" Before="InstallValidate" Condition='REMOVE="ALL"' />
+      <Custom Action="RegisterWatchdog" After="StartTask" Condition="NOT Installed AND NOT REMOVE" />
+      <Custom Action="StartWatchdog" After="RegisterWatchdog" Condition="NOT Installed AND NOT REMOVE" />
+      <Custom Action="StopWatchdog" Before="InstallValidate" Condition='REMOVE="ALL"' />
+      <Custom Action="DeleteWatchdog" After="StopWatchdog" Condition='REMOVE="ALL"' />
+      <Custom Action="StopTask" After="DeleteWatchdog" Condition='REMOVE="ALL"' />
       <Custom Action="DeleteTask" After="StopTask" Condition='REMOVE="ALL"' />
     </InstallExecuteSequence>
 
