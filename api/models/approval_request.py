@@ -32,6 +32,9 @@ class ApprovalRequest(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     requester_type: Mapped[str] = mapped_column(String(16), nullable=False, default="agent")
+    requested_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     decided_by: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -40,4 +43,5 @@ class ApprovalRequest(Base):
 
     tenant: Mapped["Tenant"] = relationship("Tenant")  # noqa: F821
     endpoint: Mapped["Endpoint | None"] = relationship("Endpoint")  # noqa: F821
+    requested_by_user: Mapped["User | None"] = relationship("User", foreign_keys=[requested_by])  # noqa: F821
     decided_by_user: Mapped["User | None"] = relationship("User", foreign_keys=[decided_by])  # noqa: F821

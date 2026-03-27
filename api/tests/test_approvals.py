@@ -104,14 +104,15 @@ class TestListApprovals:
     def test_list_approvals_filter_by_status(self, client):
         """Status filter returns only matching requests."""
         owner_header = _setup_owner(client)
+        admin_header = _create_admin(client, owner_header, "filter-admin@test.com")
 
         # Create two pending requests
         client.post(f"{API}/approvals", json={"tool_name": "tool-x"}, headers=owner_header)
         r2 = client.post(f"{API}/approvals", json={"tool_name": "tool-y"}, headers=owner_header)
         approval_id = r2.json()["id"]
 
-        # Approve one
-        client.post(f"{API}/approvals/{approval_id}/approve", json={}, headers=owner_header)
+        # Approve one (different user to satisfy dual-control)
+        client.post(f"{API}/approvals/{approval_id}/approve", json={}, headers=admin_header)
 
         resp = client.get(f"{API}/approvals?status=pending", headers=owner_header)
         assert resp.status_code == 200
@@ -226,23 +227,25 @@ class TestDoubleDecision:
     def test_double_approve_fails_409(self, client):
         """Approving an already-approved request returns 409 Conflict."""
         owner_header = _setup_owner(client)
+        admin_header = _create_admin(client, owner_header, "dbl-appr-admin@test.com")
 
         create_resp = client.post(f"{API}/approvals", json={}, headers=owner_header)
         approval_id = create_resp.json()["id"]
 
-        client.post(f"{API}/approvals/{approval_id}/approve", json={}, headers=owner_header)
-        resp = client.post(f"{API}/approvals/{approval_id}/approve", json={}, headers=owner_header)
+        client.post(f"{API}/approvals/{approval_id}/approve", json={}, headers=admin_header)
+        resp = client.post(f"{API}/approvals/{approval_id}/approve", json={}, headers=admin_header)
         assert resp.status_code == 409, resp.text
 
     def test_deny_after_approve_fails_409(self, client):
         """Denying an already-approved request returns 409 Conflict."""
         owner_header = _setup_owner(client)
+        admin_header = _create_admin(client, owner_header, "dbl-deny-admin@test.com")
 
         create_resp = client.post(f"{API}/approvals", json={}, headers=owner_header)
         approval_id = create_resp.json()["id"]
 
-        client.post(f"{API}/approvals/{approval_id}/approve", json={}, headers=owner_header)
-        resp = client.post(f"{API}/approvals/{approval_id}/deny", json={}, headers=owner_header)
+        client.post(f"{API}/approvals/{approval_id}/approve", json={}, headers=admin_header)
+        resp = client.post(f"{API}/approvals/{approval_id}/deny", json={}, headers=admin_header)
         assert resp.status_code == 409, resp.text
 
 

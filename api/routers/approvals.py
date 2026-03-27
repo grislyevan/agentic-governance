@@ -173,6 +173,7 @@ def create_approval(
         policy_rule_id=body.policy_rule_id,
         status="pending",
         requester_type=requester_type,
+        requested_by=auth.user_id,
     )
     db.add(ar)
     db.commit()
@@ -198,9 +199,15 @@ def approve_request(
     ar = db.query(ApprovalRequest).filter(
         ApprovalRequest.id == approval_id,
         strict_tenant_filter(auth, ApprovalRequest),
-    ).first()
+    ).with_for_update().first()
     if not ar:
         raise HTTPException(status_code=404, detail="Approval request not found")
+
+    if auth.user_id and auth.user_id == ar.requested_by:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot approve your own request",
+        )
 
     if ar.status != "pending":
         raise HTTPException(
@@ -250,9 +257,15 @@ def deny_request(
     ar = db.query(ApprovalRequest).filter(
         ApprovalRequest.id == approval_id,
         strict_tenant_filter(auth, ApprovalRequest),
-    ).first()
+    ).with_for_update().first()
     if not ar:
         raise HTTPException(status_code=404, detail="Approval request not found")
+
+    if auth.user_id and auth.user_id == ar.requested_by:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot deny your own request",
+        )
 
     if ar.status != "pending":
         raise HTTPException(
