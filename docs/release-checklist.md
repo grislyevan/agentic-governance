@@ -9,7 +9,7 @@ Use this checklist before cutting a release (tag and/or production deploy). All 
 ## Pre-release
 
 - [ ] **Version and changelog:** Bump version in `pyproject.toml` (and any other version pins). Update `CHANGELOG.md` or release notes with user-visible changes.
-- [ ] **Security findings:** Confirm [AUDIT-REPORT.md](../AUDIT-REPORT.md) and [docs/security-findings.md](security-findings.md) are current; no open critical/high without owner and sprint (see [docs/remediation-tracker.md](remediation-tracker.md)).
+- [ ] **Security findings:** Confirm [docs/SECURITY-TECHNICAL-REPORT.md](SECURITY-TECHNICAL-REPORT.md) and [docs/hardening-checklist.md](hardening-checklist.md) are current; no open critical/high without owner and sprint.
 
 ---
 

@@ -1,6 +1,6 @@
 # Validation Expansion — Technical Architecture and Foundation
 
-**Purpose:** Technical and UX foundation for the seven workstreams in the Detec Validation Expansion plan. Use this when implementing tasks from [project-tasks/detec-validation-expansion-tasklist.md](../project-tasks/detec-validation-expansion-tasklist.md). References INIT-30, INIT-31, INIT-32 and existing code paths.
+**Purpose:** Technical and UX foundation for the seven workstreams in the Detec Validation Expansion plan. References INIT-30, INIT-31, INIT-32 and existing code paths. (The task list was previously in `project-tasks/detec-validation-expansion-tasklist.md`, now removed.)
 
 ---
 
@@ -78,15 +78,15 @@ Each evasion scenario must include:
 
 ### Current flow (reference code paths)
 
-- **Detection entry:** [collector/main.py](collector/main.py) `run_scan()` builds a list of scanners (named tools + behavioral), calls `_collect_scan_results()`, then for each detection `_process_detection()`.
+- **Detection entry:** [collector/main.py](../collector/main.py) `run_scan()` builds a list of scanners (named tools + behavioral), calls `_collect_scan_results()`, then for each detection `_process_detection()`.
 - **Per-detection pipeline:** `_process_detection()` in main.py: `compute_confidence(scan)`, `classify_confidence()`, `evaluate_policy()`, state_differ, enforcer, emitter. One event per tool detection; no explicit "agent A called agent B" event.
-- **Behavioral scanner:** [collector/scanner/behavioral.py](collector/scanner/behavioral.py) builds process trees from the event store, filters out PIDs already detected by named scanners, scores candidate trees with [collector/scanner/behavioral_patterns.py](collector/scanner/behavioral_patterns.py) (e.g. BEH-005 session duration). Output is a single `ScanResult` for "Unknown Agent" (Class C).
+- **Behavioral scanner:** [collector/scanner/behavioral.py](../collector/scanner/behavioral.py) builds process trees from the event store, filters out PIDs already detected by named scanners, scores candidate trees with [collector/scanner/behavioral_patterns.py](../collector/scanner/behavioral_patterns.py) (e.g. BEH-005 session duration). Output is a single `ScanResult` for "Unknown Agent" (Class C).
 - **Event payload:** Events carry `tool_name`, `tool_class`, `confidence`, `signals`, policy decision, etc. No field today for "primary_agent" / "secondary_agent" or "multi_agent_workflow_id".
 
 ### Extension points for multi-agent / cross-agent
 
 1. **Correlation layer:** After named + behavioral scans, add a step that inspects all detected tools and process trees in this cycle (or over a short time window). If two or more known tools (or one known + behavioral "Unknown Agent") appear in the same tree or same time window, compute a cross-agent signal.
-2. **Signals:** Possible signals: same process tree (parent/child or sibling), same session/time window, shared network egress, or MCP-like invocation (one process spawning another known agent). Data already available: `detected_scans`, `event_store` (process events with PIDs, timestamps), and process tree helpers in [collector/scanner/process_tree.py](collector/scanner/process_tree.py).
+2. **Signals:** Possible signals: same process tree (parent/child or sibling), same session/time window, shared network egress, or MCP-like invocation (one process spawning another known agent). Data already available: `detected_scans`, `event_store` (process events with PIDs, timestamps), and process tree helpers in [collector/scanner/process_tree.py](../collector/scanner/process_tree.py).
 3. **Event shape:** Option A: add optional `correlation_context` to existing event (e.g. `multi_agent: true`, `related_tool_names: ["Cursor", "Open Interpreter"]`). Option B: emit a separate "cross_agent_observation" event type. Design doc in `docs/cross-agent-detection-design.md` should decide and reference these paths.
 4. **Tests:** Unit tests for correlation logic (e.g. two ScanResults in same tree → correlation flag set); integration test that runs scan with two tools present and asserts event shape.
 
@@ -98,7 +98,7 @@ Each evasion scenario must include:
 
 ## 4. Container and remote-dev detection (Workstream 2)
 
-- **Existing:** [collector/engine/container.py](collector/engine/container.py) — `is_containerized(pid)`, `is_child_of_docker(pid)`. Linux: cgroup, mountinfo, /.dockerenv. macOS: Docker parent chain, /var/run/docker.sock.
+- **Existing:** [collector/engine/container.py](../collector/engine/container.py) — `is_containerized(pid)`, `is_child_of_docker(pid)`. Linux: cgroup, mountinfo, /.dockerenv. macOS: Docker parent chain, /var/run/docker.sock.
 - **Extension:** Add `is_devcontainer(pid)` and/or `is_remote_dev_context()` using documented env vars (e.g. `DEVCONTAINER`, VS Code remote env), or metadata paths. Keep existing functions unchanged; new helpers used for reporting and playbook "host weakens here" documentation.
 - **Policy:** ISO-001 already uses `is_containerized` for Class C. DevContainer/remote-dev can be reported as context in events (e.g. `container_context: devcontainer`) without changing policy until explicitly required.
 
@@ -106,7 +106,7 @@ Each evasion scenario must include:
 
 ## 5. Endpoint footprint measurement (Workstream 7)
 
-- **Scan latency:** Instrument [collector/main.py](collector/main.py) `run_scan()`: record wall-clock time for full scan (after provider.start, through _collect_scan_results and _process_detection). Optional: per-scanner timing. Benchmark test or script should run `run_scan` (e.g. dry-run) N times and record mean/p95.
+- **Scan latency:** Instrument [collector/main.py](../collector/main.py) `run_scan()`: record wall-clock time for full scan (after provider.start, through _collect_scan_results and _process_detection). Optional: per-scanner timing. Benchmark test or script should run `run_scan` (e.g. dry-run) N times and record mean/p95.
 - **CPU / memory:** Use standard library or psutil: sample process CPU and RSS before/after a short daemon loop (e.g. 2–3 scan cycles) or during one run_scan. Report in docs (e.g. SECURITY-TECHNICAL-REPORT or docs/endpoint-footprint.md). Repeatable script (e.g. in `collector/tests/` or `scripts/`) preferred so CI or release process can regenerate numbers.
 
 ---
@@ -114,9 +114,9 @@ Each evasion scenario must include:
 ## 6. Enterprise integrations (Workstream 6)
 
 - **OIDC / Okta:** Dashboard already uses OIDC (see dashboard Settings, api auth). Document Okta-specific issuer/claims and test flow in docs/enterprise-oidc-okta.md (or equivalent).
-- **SentinelOne:** Add provider in [api/integrations/](api/integrations/) following [api/integrations/crowdstrike.py](api/integrations/crowdstrike.py) and [api/integrations/base.py](api/integrations/base.py). Same interfaces: EDRProvider (enrichment), EnforcementProvider (if applicable).
-- **SIEM:** Schema is SIEM-friendly; add doc and optionally a small export path (Splunk HEC or syslog) with config example and proof run. Reference [docs/enforcement-roadmap.md](docs/enforcement-roadmap.md) for Splunk HEC.
+- **SentinelOne:** Add provider in [api/integrations/](../api/integrations/) following [api/integrations/crowdstrike.py](../api/integrations/crowdstrike.py) and [api/integrations/base.py](../api/integrations/base.py). Same interfaces: EDRProvider (enrichment), EnforcementProvider (if applicable).
+- **SIEM:** Schema is SIEM-friendly; add doc and optionally a small export path (Splunk HEC or syslog) with config example and proof run. Reference [docs/enforcement-roadmap.md](enforcement-roadmap.md) for Splunk HEC.
 
 ---
 
-*This document is the architecture foundation for the validation expansion. Implement tasks from the task list in project-tasks/detec-validation-expansion-tasklist.md; update this doc if the architecture evolves.*
+*This document is the architecture foundation for the validation expansion. Update this doc if the architecture evolves.*

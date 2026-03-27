@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-      - uses: semgrep/semgrep-action@713efdd345a63f0e4c60cc6218ebb22d7e10def0 # v1
+      - uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
         with:
           config: >-
             p/owasp-top-ten
@@ -93,7 +93,9 @@ jobs:
           pip install -e .
           pip install -r api/requirements.txt
       - name: Audit Python dependencies (collector + API)
-        run: pip-audit
+        # CVE-2026-4539: pygments 2.19.2 — transitive dep (not ours); no fix
+        # version available yet. Re-evaluate when pygments releases a patch.
+        run: pip-audit --ignore-vuln CVE-2026-4539
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4
         with:
           node-version: "20"
@@ -111,6 +113,6 @@ jobs:
         with:
           fetch-depth: 0
       - name: Detect hardcoded secrets
-        uses: gitleaks/gitleaks-action@44c470ffc35caa8b1eb3e027b9df8c6395417929 # v2
+        uses: gitleaks/gitleaks-action@bf2dc8e55639c1e091e9b45970152e4313705814 # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

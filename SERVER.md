@@ -378,7 +378,7 @@ The `fly.toml` at repo root configures internal port 8000, health check on `/api
 
 ## Security hardening
 
-The API includes several hardening measures for production use. For a concise checklist (headers, error handling, secrets, playbook/audit), see [docs/hardening-checklist.md](docs/hardening-checklist.md). For a mini assessment and findings with remediation, see [docs/security-findings.md](docs/security-findings.md).
+The API includes several hardening measures for production use. For a concise checklist (headers, error handling, secrets, playbook/audit), see [docs/hardening-checklist.md](docs/hardening-checklist.md). For a security assessment and findings, see [docs/SECURITY-TECHNICAL-REPORT.md](docs/SECURITY-TECHNICAL-REPORT.md).
 
 ### API key hashing
 

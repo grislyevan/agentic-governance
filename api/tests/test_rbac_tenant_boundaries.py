@@ -128,7 +128,7 @@ class TestAnalystCannotMutateOtherTenant:
 
         wh = client.post(
             f"{API}/webhooks",
-            json={"url": "https://b.com/cb", "events": ["detection"]},
+            json={"url": "https://example.com/cb", "events": ["detection"]},
             headers=auth_b,
         )
         assert wh.status_code == 201

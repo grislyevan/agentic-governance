@@ -37,5 +37,4 @@ flowchart LR
 ## More detail
 
 - [Behavioral core demo pack](behavioral-core-demo-pack.md)
-- [Behavioral core policy mapping](behavioral-core-policy-mapping.md)
 - [Playbook](../playbook/PLAYBOOK-v0.4.1-agentic-ai-endpoint-detection-governance.md) for detection methodology and rule catalog.

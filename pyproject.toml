@@ -18,6 +18,7 @@ dependencies = [
     "psutil>=7.0.0",
     "cryptography>=42.0.0",
     "msgpack>=1.0.0",
+    "requests>=2.28.0",
 ]
 
 [project.optional-dependencies]

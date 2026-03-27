@@ -3,7 +3,7 @@
 **Created:** 2026-03-11
 **Updated:** 2026-03-12
 **Status:** All phases implemented. Remaining items tracked in per-phase notes below.
-**Context:** [Enforcement architecture discussion](../agent-transcripts/) from 2026-03-11
+**Context:** Enforcement architecture discussion from 2026-03-11 (transcript removed)
 **Depends on:** Playbook v0.4, Milestone M2 (complete), baseline policies (seeded)
 
 ---

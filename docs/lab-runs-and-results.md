@@ -8,10 +8,8 @@
 
 | Path | Contents |
 |------|----------|
-| **lab-runs/** | All lab run protocols (procedures) and results. |
-| **lab-runs/*.md** | Protocol docs (e.g. `LAB-RUN-014-claude-cowork-install-and-runtime.md`) and matching `*-RESULTS.md` (e.g. `LAB-RUN-014-RESULTS.md`). Templates (e.g. `LAB-RUN-012-TEMPLATE-cline.md`) are protocols for tools not yet lab-run. |
-| **lab-runs/scripts/** | Executable capture scripts. [lab-runs/scripts/README.md](../lab-runs/scripts/README.md) describes usage. |
-| **lab-runs/lab-cleanup.sh** | Utility for cleaning lab evidence directories (if present). |
+| **lab-runs/** (removed) | Lab run protocols and results were previously stored here. Protocols and results have been consolidated; calibration fixtures remain in `collector/tests/fixtures/lab_runs/`. |
+| **lab-runs/scripts/** (removed) | Capture scripts were previously stored here. |
 
 ---
 
@@ -28,31 +26,33 @@ Protocols reference their results (e.g. "Full results: LAB-RUN-014-RESULTS.md").
 
 ### Completed runs (protocol + results)
 
-| Run ID | Tool | Protocol | Results | Scenario |
-|--------|------|----------|---------|----------|
-| LAB-RUN-001 | Claude Code | [LAB-RUN-001-claude-code-install-and-runtime.md](../lab-runs/LAB-RUN-001-claude-code-install-and-runtime.md) | [LAB-RUN-001-RESULTS.md](../lab-runs/LAB-RUN-001-RESULTS.md) | CC-POS-01 |
-| LAB-RUN-001-root | Claude Code (root rerun) | [LAB-RUN-001-ROOT-RERUN.md](../lab-runs/LAB-RUN-001-ROOT-RERUN.md) | [LAB-RUN-001-root-RESULTS.md](../lab-runs/LAB-RUN-001-root-RESULTS.md) | CC-POS-01 with full visibility. 2026-03-16: Pass, 0.825 (High); protocol-expected (Path B). |
-| LAB-RUN-002 | Claude Code | (extends 001) | [LAB-RUN-002-RESULTS.md](../lab-runs/LAB-RUN-002-RESULTS.md) | CC-POS-02 |
-| LAB-RUN-EVASION-001 | Claude Code | (evasion) | [LAB-RUN-EVASION-001-RESULTS.md](../lab-runs/LAB-RUN-EVASION-001-RESULTS.md) | CC-EVA-01 |
-| LAB-RUN-003 | Ollama | [LAB-RUN-003-ollama-install-and-runtime.md](../lab-runs/LAB-RUN-003-ollama-install-and-runtime.md) | [LAB-RUN-003-RESULTS.md](../lab-runs/LAB-RUN-003-RESULTS.md) | OL-POS-01 |
-| LAB-RUN-004 | Cursor | [LAB-RUN-004-cursor-install-and-runtime.md](../lab-runs/LAB-RUN-004-cursor-install-and-runtime.md) | [LAB-RUN-004-RESULTS.md](../lab-runs/LAB-RUN-004-RESULTS.md) | CUR-POS-01 |
-| LAB-RUN-005 | GitHub Copilot | [LAB-RUN-005-copilot-install-and-runtime.md](../lab-runs/LAB-RUN-005-copilot-install-and-runtime.md) | [LAB-RUN-005-RESULTS.md](../lab-runs/LAB-RUN-005-RESULTS.md) | CP-POS-01 |
-| LAB-RUN-006 | Open Interpreter | [LAB-RUN-006-open-interpreter-install-and-runtime.md](../lab-runs/LAB-RUN-006-open-interpreter-install-and-runtime.md) | [LAB-RUN-006-RESULTS.md](../lab-runs/LAB-RUN-006-RESULTS.md) | OI-POS-01 |
-| LAB-RUN-007 | OpenClaw | [LAB-RUN-007-openclaw-install-and-runtime.md](../lab-runs/LAB-RUN-007-openclaw-install-and-runtime.md) | [LAB-RUN-007-RESULTS.md](../lab-runs/LAB-RUN-007-RESULTS.md) | OC-POS-01 |
-| LAB-RUN-013 | OpenClaw (local LLM) | [LAB-RUN-013-openclaw-local-llm.md](../lab-runs/LAB-RUN-013-openclaw-local-llm.md) | [LAB-RUN-013-RESULTS.md](../lab-runs/LAB-RUN-013-RESULTS.md) | OC-POS-05 |
-| LAB-RUN-014 | Claude Cowork | [LAB-RUN-014-claude-cowork-install-and-runtime.md](../lab-runs/LAB-RUN-014-claude-cowork-install-and-runtime.md) | [LAB-RUN-014-RESULTS.md](../lab-runs/LAB-RUN-014-RESULTS.md) | CW-POS-01 |
-| LAB-RUN-008 | Aider | [LAB-RUN-008-TEMPLATE-aider.md](../lab-runs/LAB-RUN-008-TEMPLATE-aider.md) | [LAB-RUN-008-RESULTS.md](../lab-runs/LAB-RUN-008-RESULTS.md) | AI-POS-01 |
-| LAB-RUN-012 | Cline | [LAB-RUN-012-TEMPLATE-cline.md](../lab-runs/LAB-RUN-012-TEMPLATE-cline.md) | [LAB-RUN-012-RESULTS.md](../lab-runs/LAB-RUN-012-RESULTS.md) | CLINE-POS-01 |
-| LAB-RUN-010 | Continue | [LAB-RUN-010-TEMPLATE-continue.md](../lab-runs/LAB-RUN-010-TEMPLATE-continue.md) | [LAB-RUN-010-RESULTS.md](../lab-runs/LAB-RUN-010-RESULTS.md) | CONT-POS-01 |
-| LAB-RUN-009 | LM Studio | [LAB-RUN-009-TEMPLATE-lm-studio.md](../lab-runs/LAB-RUN-009-TEMPLATE-lm-studio.md) | [LAB-RUN-009-RESULTS.md](../lab-runs/LAB-RUN-009-RESULTS.md) | LMS-POS-01 |
-| LAB-RUN-011 | GPT-Pilot | [LAB-RUN-011-TEMPLATE-gpt-pilot.md](../lab-runs/LAB-RUN-011-TEMPLATE-gpt-pilot.md) | [LAB-RUN-011-RESULTS.md](../lab-runs/LAB-RUN-011-RESULTS.md) | GPT-POS-01 |
-| LAB-RUN-015 | Claude Cowork (gap) | [LAB-RUN-015-claude-cowork-scheduled-dxt-skill.md](../lab-runs/LAB-RUN-015-claude-cowork-scheduled-dxt-skill.md) | [LAB-RUN-015-RESULTS.md](../lab-runs/LAB-RUN-015-RESULTS.md) | CW-POS-02, CW-POS-03, skill-creator |
+| Run ID | Tool | Calibration Fixture | Scenario |
+|--------|------|---------------------|----------|
+| LAB-RUN-001 | Claude Code | `collector/tests/fixtures/lab_runs/LAB-RUN-001.json` | CC-POS-01 |
+| LAB-RUN-001-root | Claude Code (root rerun) | `collector/tests/fixtures/lab_runs/LAB-RUN-001-root.json` | CC-POS-01 with full visibility. 2026-03-16: Pass, 0.825 (High); protocol-expected (Path B). |
+| LAB-RUN-002 | Claude Code | (extends 001) | CC-POS-02 |
+| LAB-RUN-EVASION-001 | Claude Code | `collector/tests/fixtures/lab_runs/LAB-RUN-EVASION-001.json` | CC-EVA-01 |
+| LAB-RUN-003 | Ollama | `collector/tests/fixtures/lab_runs/LAB-RUN-003.json` | OL-POS-01 |
+| LAB-RUN-004 | Cursor | `collector/tests/fixtures/lab_runs/LAB-RUN-004.json` | CUR-POS-01 |
+| LAB-RUN-005 | GitHub Copilot | `collector/tests/fixtures/lab_runs/LAB-RUN-005.json` | CP-POS-01 |
+| LAB-RUN-006 | Open Interpreter | `collector/tests/fixtures/lab_runs/LAB-RUN-006.json` | OI-POS-01 |
+| LAB-RUN-007 | OpenClaw | `collector/tests/fixtures/lab_runs/LAB-RUN-007.json` | OC-POS-01 |
+| LAB-RUN-013 | OpenClaw (local LLM) | `collector/tests/fixtures/lab_runs/LAB-RUN-013.json` | OC-POS-05 |
+| LAB-RUN-014 | Claude Cowork | `collector/tests/fixtures/lab_runs/LAB-RUN-014.json` | CW-POS-01 |
+| LAB-RUN-008 | Aider | `collector/tests/fixtures/lab_runs/LAB-RUN-008.json` | AI-POS-01 |
+| LAB-RUN-012 | Cline | `collector/tests/fixtures/lab_runs/LAB-RUN-012.json` | CLINE-POS-01 |
+| LAB-RUN-010 | Continue | `collector/tests/fixtures/lab_runs/LAB-RUN-010.json` | CONT-POS-01 |
+| LAB-RUN-009 | LM Studio | `collector/tests/fixtures/lab_runs/LAB-RUN-009.json` | LMS-POS-01 |
+| LAB-RUN-011 | GPT-Pilot | `collector/tests/fixtures/lab_runs/LAB-RUN-011.json` | GPT-POS-01 |
+| LAB-RUN-015 | Claude Cowork (gap) | `collector/tests/fixtures/lab_runs/LAB-RUN-015.json` | CW-POS-02, CW-POS-03, skill-creator |
+
+> **Note:** Lab run protocol and results files were previously stored in `lab-runs/`. That directory has been removed. Calibration fixtures in `collector/tests/fixtures/lab_runs/` are the remaining machine-readable evidence for each run.
 
 ### Protocol only (pending or gap scenarios)
 
 **Calibrated vs synthetic:** Tools with a calibration fixture in `collector/tests/fixtures/lab_runs/*.json` and (optionally) a completed RESULTS file are considered **calibrated**; confidence scores are empirically validated. LAB-RUN-008 (Aider) has a live run (2026-03-16; repo in ~/Documents/aider-lab; evidence in that repo's LAB-RUN-008/ subdir, do not commit). LAB-RUN-012 (Cline) has RESULTS and fixture from protocol-expected scenario (collector run had Cline not installed). LAB-RUN-010 (Continue) has RESULTS and fixture from protocol-expected scenario (no live run). LAB-RUN-009 (LM Studio) has RESULTS and fixture from protocol-expected scenario (no live run). LAB-RUN-011 (GPT-Pilot) has RESULTS and fixture from protocol-expected scenario (no live run). LAB-RUN-015 (Cowork gap) has RESULTS and fixture from protocol-expected scenario (evidence supplied; CW-POS-02/03, skill-creator). LAB-RUN-001-root (Claude Code root rerun) has RESULTS and fixture from protocol-expected scenario (Path B; full visibility baseline). Tools with only synthetic scanner tests and no fixture are **synthetic only**; PM and sales should phrase confidence accordingly until live lab runs are completed.
 
-**Next runs (20–30 tool goal):** See [project-tasks/detec-validation-expansion-lab-priority.md](../project-tasks/detec-validation-expansion-lab-priority.md) for prioritised order (template tools first, then gap scenarios, then net-new tools). For executable task breakdown (WP1–WP7) and deliverables per run, see [project-tasks/detec-lab-expansion-tasklist.md](../project-tasks/detec-lab-expansion-tasklist.md). When new runs are completed, add them to the tables above and to playbook Section 12.5.
+**Next runs (20-30 tool goal):** The prioritised order (template tools first, then gap scenarios, then net-new tools) and the executable task breakdown (WP1-WP7) were previously tracked in `project-tasks/` (removed). When new runs are completed, add them to the tables above and to playbook Section 12.5.
 
 ---
 
@@ -60,10 +60,10 @@ Protocols reference their results (e.g. "Full results: LAB-RUN-014-RESULTS.md").
 
 | Script | Purpose | Doc |
 |--------|---------|-----|
-| **lab-runs/scripts/cowork-capture.sh** | Automated capture for Claude Cowork (LAB-RUN-014): baseline, phase1, phase2, phase4. Phase 3 is manual. Optional `--with-monitors` for phase2 (connection/pstree streams). | [lab-runs/scripts/README.md](lab-runs/scripts/README.md) |
-| **lab-runs/scripts/claude-code-capture.sh** | Automated capture for Claude Code (LAB-RUN-001/002): baseline, phase1 post-install, phase2 post-launch, phase4. Phase 3 (agentic session) is manual. Optional `--with-monitors` for phase2. | [lab-runs/scripts/README.md](lab-runs/scripts/README.md) |
+| **lab-runs/scripts/cowork-capture.sh** (removed) | Was automated capture for Claude Cowork (LAB-RUN-014): baseline, phase1, phase2, phase4. Phase 3 is manual. Optional `--with-monitors` for phase2 (connection/pstree streams). | Removed with `lab-runs/` |
+| **lab-runs/scripts/claude-code-capture.sh** (removed) | Was automated capture for Claude Code (LAB-RUN-001/002): baseline, phase1 post-install, phase2 post-launch, phase4. Phase 3 (agentic session) is manual. Optional `--with-monitors` for phase2. | Removed with `lab-runs/` |
 
-Usage: Set `LAB_DIR` to override default (Cowork: `~/cowork-lab/LAB-RUN-014`; Claude Code: `~/claude-lab/LAB-RUN-001`). See [scripts/README.md](../lab-runs/scripts/README.md).
+Usage: Set `LAB_DIR` to override default (Cowork: `~/cowork-lab/LAB-RUN-014`; Claude Code: `~/claude-lab/LAB-RUN-001`). Capture scripts were previously in `lab-runs/scripts/` (removed).
 
 ---
 
@@ -91,7 +91,7 @@ Usage: Set `LAB_DIR` to override default (Cowork: `~/cowork-lab/LAB-RUN-014`; Cl
 
 - **Event-level fixtures:** [collector/tests/fixtures/behavioral_core_fixtures.py](../collector/tests/fixtures/behavioral_core_fixtures.py) — seed functions for shell fan-out, read-modify-write loop, and sensitive access + outbound (positive, false-positive, ambiguous, renamed).
 - **Test:** `pytest collector/tests/test_behavioral_core_detections.py -v` replays event stores through BehavioralScanner and asserts pattern presence and evidence. Uses a lowered detection threshold (0.28) so fixtures that trigger the core patterns pass aggregate.
-- **Specs:** [project-specs/detec-beh-core-01-spec.md](../project-specs/detec-beh-core-01-spec.md), [detec-beh-core-02-spec.md](../project-specs/detec-beh-core-02-spec.md), [detec-beh-core-03-spec.md](../project-specs/detec-beh-core-03-spec.md).
+- **Specs:** The DETEC-BEH-CORE-01/02/03 specification documents were previously in `project-specs/` (removed). Detection logic is implemented in `collector/scanner/behavioral_patterns.py`.
 
 ### Init issues (backlog)
 

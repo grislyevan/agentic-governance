@@ -230,7 +230,7 @@ Recommended branch protection: require Security Tests, Semgrep, at least one dep
 
 ### 6.3 Security Findings Summary
 
-From `docs/security-findings.md` (mini assessment: auth, playbooks, gateway, tenant isolation, input validation):
+Mini assessment (auth, playbooks, gateway, tenant isolation, input validation):
 
 | Severity | Count | Fixed |
 |----------|--------|------|
@@ -247,13 +247,13 @@ Findings are traceable to specific files and remediation status; no critical iss
 
 | Artifact type | Location | Integrity / notes |
 |---------------|----------|-------------------|
-| Lab protocols | lab-runs/LAB-RUN-*.md, *-TEMPLATE-*.md | Versioned in repo |
-| Lab results | lab-runs/*-RESULTS.md | Versioned; evidence dirs not committed |
+| Lab protocols | (removed; previously in lab-runs/) | Were versioned in repo |
+| Lab results | (removed; previously in lab-runs/) | Were versioned; evidence dirs not committed |
 | Calibration fixtures | collector/tests/fixtures/lab_runs/*.json | Versioned; replayed in CI |
 | Playbook lab log | playbook/PLAYBOOK-v0.4.1-*.md Section 12.5 | Single source of run log |
 | Test suites | collector/tests/, api/tests/, protocol/tests/ | Run in CI; counts in this report |
 | CI definitions | .github/workflows/ci.yml, security.yml | Source of job list |
-| Security findings | docs/security-findings.md | ID-based tracking |
+| Security findings | (consolidated into this report and docs/hardening-checklist.md) | ID-based tracking |
 | Calibration design | docs/architecture-calibration-pipeline.md | Pipeline and fixture format |
 | Lab index | docs/lab-runs-and-results.md | Index of protocols, results, scripts |
 

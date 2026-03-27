@@ -59,8 +59,12 @@ def _setup_db_and_seed() -> tuple[str, str]:
     db = _db_mod.SessionLocal()
     try:
         tenant_id = str(uuid.uuid4())
-        agent_key = generate_agent_key()
-        tenant = Tenant(id=tenant_id, name="IntegTest", slug="integ-test", agent_key=agent_key)
+        agent_key, agent_key_prefix, agent_key_hash = generate_agent_key()
+        tenant = Tenant(
+            id=tenant_id, name="IntegTest", slug="integ-test",
+            agent_key=agent_key, agent_key_prefix=agent_key_prefix,
+            agent_key_hash=agent_key_hash,
+        )
         db.add(tenant)
         db.commit()
         return tenant_id, agent_key
