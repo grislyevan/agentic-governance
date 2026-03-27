@@ -9,11 +9,14 @@ On Linux/macOS: appends config as a JSON trailer using the DETEC_CFG_V1 marker
 
 import hashlib
 import json
+import logging
 import os
 import re
 import shutil
 import struct
 import sys
+
+logger = logging.getLogger(__name__)
 
 MAGIC_MARKER = b"DETEC_CFG_V1\x00"
 
@@ -84,7 +87,7 @@ def stamp_msi(
             _stamp_via_msilib(output_path, config)
             return output_path
         except Exception:
-            pass
+            logger.warning("msilib stamping failed, falling back to trailer", exc_info=True)
 
     # Fallback: append config trailer (works on any platform)
     _stamp_via_trailer(output_path, config)

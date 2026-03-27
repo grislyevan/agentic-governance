@@ -44,7 +44,7 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: str
+    email: str = Field(max_length=320)
     password: str
 
     @field_validator("password")

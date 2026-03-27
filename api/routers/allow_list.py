@@ -239,9 +239,7 @@ def delete_allow_list_entry(
     db.delete(entry)
     db.commit()
 
-    allow_list = [
-        e.pattern for e in db.query(AllowListEntry).filter(AllowListEntry.tenant_id == auth.tenant_id).all()
-    ]
+    allow_list = get_active_allow_list_patterns(db, auth.tenant_id)
     endpoints = db.query(Endpoint).filter(Endpoint.tenant_id == auth.tenant_id).all()
     for ep in endpoints:
         background_tasks.add_task(
