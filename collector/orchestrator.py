@@ -3,15 +3,17 @@
 This module runs a single collector cycle: start telemetry, run all scanners,
 correlate, score confidence, evaluate policy, optionally enforce, and emit events.
 The CLI entrypoint (main.py) invokes run_scan() for one-shot or daemon loop.
+
+Sub-modules (extracted to reduce file size):
+  event_builder   -- canonical event dict assembly and severity computation
+  decision_engine -- credibility gating, session violation tracking
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
-import platform
 import sys
-import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,7 +22,6 @@ from typing import Any, Union
 from config_loader import load_collector_config
 from probe.models import TriggerContext
 
-from engine.attack_mapping import map_scan_result
 from engine.confidence import classify_confidence, compute_confidence
 from engine.network import DEFAULT_ALLOWLIST_PATH, _matches_allowlist
 from engine.session_timeline import build_session_timeline, timeline_summary_from_entries
@@ -66,27 +67,40 @@ from scanner.evasion import EvasionScanner
 from scanner.mcp import MCPScanner
 from scanner.openclaw import OpenClawScanner
 
+# ---------------------------------------------------------------------------
+# Re-exports from event_builder (backward compat for main.py, tests, patches)
+# ---------------------------------------------------------------------------
+from event_builder import (  # noqa: F401 – re-exported
+    EVENT_VERSION,
+    build_event,
+)
+
+# ---------------------------------------------------------------------------
+# Re-exports from decision_engine (backward compat for tests)
+# ---------------------------------------------------------------------------
+from decision_engine import (  # noqa: F401 – re-exported
+    EMISSION_MIN_CONFIDENCE,
+    EMISSION_NO_SIGNALS_MAX_CONFIDENCE,
+    SESSION_VIOLATION_TTL_SECONDS,
+    _maybe_prune_violation_counts,
+    _should_suppress_emission,
+    _suppressed_reason,
+    get_violation_count,
+    record_violation,
+)
+
+# Import the session violation counts dict so orchestrator-level code can
+# still reference it (tests may access it).
+from decision_engine import _session_violation_counts  # noqa: F401
+
 logger = logging.getLogger(__name__)
 
 AnyEmitter = Union[EventEmitter, HttpEmitter, TcpEmitter]
 
-# Version map: Playbook 0.4 -> EVENT_VERSION 0.4.0
-EVENT_VERSION = "0.4.0"
 
-# Session violation tracking (Section 6.4): maps (endpoint_id, tool_name) ->
-# (violation_count, last_updated_epoch) for the current session window.
-SESSION_VIOLATION_TTL_SECONDS = 86400  # 24 hours
-# Maps (endpoint_id, tool_name) -> violation count for current session window
-_session_violation_counts: dict[tuple[str, str], tuple[int, float]] = {}
-
-
-def _maybe_prune_violation_counts() -> None:
-    """Remove session violation entries older than SESSION_VIOLATION_TTL_SECONDS."""
-    cutoff = time.monotonic() - SESSION_VIOLATION_TTL_SECONDS
-    expired = [k for k, (_, ts) in _session_violation_counts.items() if ts < cutoff]
-    for k in expired:
-        del _session_violation_counts[k]
-
+# ---------------------------------------------------------------------------
+# Utility helpers
+# ---------------------------------------------------------------------------
 
 def explain_native_failure(provider_name: str, error: BaseException) -> str:
     """Return a short, readable explanation for native telemetry provider startup failure."""
@@ -180,205 +194,40 @@ def _build_network_context(
     )
 
 
-def _trigger_context_to_dict(ctx: TriggerContext) -> dict[str, Any]:
-    """Serialize TriggerContext for event payload."""
-    return {
-        "scan_reason": ctx.scan_reason,
-        "trigger_type": ctx.trigger_type,
-        "trigger_source": ctx.trigger_source,
-        "trigger_confidence": ctx.trigger_confidence,
-        "trigger_signals": list(ctx.trigger_signals),
-        "trigger_time": ctx.trigger_time.isoformat(),
-        "probe_window_seconds": ctx.probe_window_seconds,
-        "cooldown_applied": ctx.cooldown_applied,
-        "suppressed_duplicates": ctx.suppressed_duplicates,
-    }
-
-
-def build_event(
-    event_type: str,
-    endpoint_id: str,
-    actor_id: str,
-    session_id: str,
-    trace_id: str,
-    scan: ScanResult,
-    confidence: float,
-    sensitivity: str,
-    parent_event_id: str | None = None,
-    policy: PolicyDecision | None = None,
-    enforcement: EnforcementResult | None = None,
-    correlation_context: list[str] | None = None,
-    trigger_context: TriggerContext | None = None,
-    session_timeline: list[dict[str, Any]] | None = None,
-    timeline_summary: dict[str, int] | None = None,
-    cross_tree_correlation: dict[str, Any] | None = None,
-    possible_continuation: dict[str, Any] | None = None,
-    agent_status: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Construct a canonical event dict conforming to the JSON Schema."""
-    now = datetime.now(timezone.utc).isoformat()
-
-    event_evidence: dict[str, Any] = dict(scan.evidence_details) if scan.evidence_details else {}
-    event: dict[str, Any] = {
-        "event_id": str(uuid.uuid4()),
-        "event_type": event_type,
-        "event_version": EVENT_VERSION,
-        "observed_at": now,
-        "ingested_at": now,
-        "session_id": session_id,
-        "trace_id": trace_id,
-        "parent_event_id": parent_event_id,
-        "actor": {
-            "id": actor_id,
-            "type": "human",
-            # T0 for unknown/unclassified actors (Class C, D, or no tool_class);
-            # T1 for identified Class A/B tools with a known process identity.
-            "trust_tier": "T0" if (scan.tool_class or "A") in ("C", "D") or not scan.tool_name else "T1",
-            "identity_confidence": min(1.0, scan.signals.identity) if scan.signals.identity > 0 else 0.5,
-            "org_context": "unknown",
-        },
-        "endpoint": {
-            "id": endpoint_id,
-            "os": f"{platform.system()} {platform.release()} {platform.machine()}",
-            "posture": "unmanaged",
-        },
-    }
-
-    # Schema allows only A, B, C, D. Scanners like EvasionScanner may use "X"; normalize to schema enum.
-    _SCHEMA_TOOL_CLASSES = frozenset({"A", "B", "C", "D"})
-    tool_class = (
-        scan.tool_class
-        if (scan.tool_class and scan.tool_class in _SCHEMA_TOOL_CLASSES)
-        else "A"
-    )
-    event["tool"] = {
-        "name": scan.tool_name,
-        "class": tool_class,
-        "version": scan.tool_version,
-        "attribution_confidence": confidence,
-        "attribution_sources": scan.signals.active_layers(),
-    }
-
-    # Schema allows only: read, write, exec, network, repo, privileged, removal, observe.
-    # Scanners may set policy-like values (e.g. approval_required, warn, none); normalize to schema enum.
-    _SCHEMA_ACTION_TYPES = frozenset(
-        {"read", "write", "exec", "network", "repo", "privileged", "removal", "observe"}
-    )
-    action_type = (
-        scan.action_type
-        if (scan.action_type and scan.action_type in _SCHEMA_ACTION_TYPES)
-        else "observe"
-    )
-    risk_class = (
-        scan.action_risk
-        if (scan.action_risk and scan.action_risk in ("R1", "R2", "R3", "R4"))
-        else "R1"
-    )
-    event["action"] = {
-        "type": action_type,
-        "risk_class": risk_class,
-        "summary": scan.action_summary,
-        "raw_ref": f"evidence://collector-scan/{scan.tool_name or 'unknown'}/{session_id}",
-    }
-
-    event["target"] = {
-        "type": "host",
-        "id": endpoint_id,
-        "scope": "local endpoint",
-        "sensitivity_tier": sensitivity,
-    }
-
-    if policy:
-        event["policy"] = {
-            "decision_state": policy.decision_state,
-            "rule_id": policy.rule_id,
-            "rule_version": policy.rule_version,
-            "reason_codes": policy.reason_codes,
-            "decision_confidence": policy.decision_confidence,
-        }
-
-    if enforcement:
-        event["enforcement"] = {
-            "tactic": enforcement.tactic,
-            "success": enforcement.success,
-            "detail": enforcement.detail,
-            "simulated": enforcement.simulated,
-            "allow_listed": enforcement.allow_listed,
-            "rate_limited": getattr(enforcement, "rate_limited", False),
-            "escalated": getattr(enforcement, "escalated", False),
-        }
-        if enforcement.simulated or enforcement.allow_listed or getattr(enforcement, "rate_limited", False):
-            outcome_result = "simulated"
-        else:
-            outcome_result = "denied" if enforcement.success else "allowed"
-        event["outcome"] = {
-            "enforcement_result": outcome_result,
-            "incident_flag": False,
-            "incident_id": None,
-        }
-
-    severity_level = _compute_severity(confidence, scan.action_risk, sensitivity, policy)
-    event["severity"] = {"level": severity_level}
-
-    if correlation_context:
-        event["correlation_context"] = {
-            "multi_agent": True,
-            "related_tool_names": correlation_context,
-        }
-
-    if trigger_context is not None:
-        event["trigger_context"] = _trigger_context_to_dict(trigger_context)
-
-    techniques = map_scan_result(scan)
-    if techniques:
-        event["mitre_attack"] = {"techniques": techniques}
-
-    if session_timeline:
-        event["session_timeline"] = session_timeline
-    if timeline_summary:
-        event["timeline_summary"] = timeline_summary
-
-    if cross_tree_correlation is not None and isinstance(cross_tree_correlation, dict):
-        event["cross_tree_correlation"] = cross_tree_correlation
-
-    if possible_continuation is not None and isinstance(possible_continuation, dict):
-        event_evidence["possible_continuation_of_fragment"] = possible_continuation
-    if event_evidence:
-        event["evidence_details"] = event_evidence
-
-    if agent_status is not None and isinstance(agent_status, dict):
-        event["agent_status"] = agent_status
-
-    return event
-
-
-def _compute_severity(
-    confidence: float,
-    action_risk: str,
-    sensitivity: str,
-    policy: PolicyDecision | None,
-) -> str:
-    """Map detection to severity level per Playbook Section 8."""
-    risk_num = {"R1": 1, "R2": 2, "R3": 3, "R4": 4}.get(action_risk, 1)
-    tier_num = {"Tier0": 0, "Tier1": 1, "Tier2": 2, "Tier3": 3}.get(sensitivity, 0)
-
-    if policy and policy.decision_state == "block":
-        if tier_num >= 3 or risk_num >= 4:
-            return "S4"
-        return "S3"
-
-    if policy and policy.decision_state == "approval_required":
-        if tier_num >= 2 and risk_num >= 3:
-            return "S3"
-        return "S2"
-
-    if confidence >= 0.75 and risk_num >= 3:
-        return "S2"
-
-    if confidence >= 0.45:
-        return "S1"
-
-    return "S0"
+def print_scan_summary(
+    scan_summary: dict[str, list[dict[str, Any]]],
+    telemetry_fidelity: str | None = None,
+) -> None:
+    """Print the Detec findings summary block (HIGH / MEDIUM / LOW / SUPPRESSED)."""
+    has_any = any(scan_summary.get(k) for k in ("high", "medium", "low", "suppressed"))
+    if not has_any:
+        return
+    print("\n================= Detec Findings =================")
+    for level in ("high", "medium", "low"):
+        entries = scan_summary.get(level, [])
+        if not entries:
+            continue
+        label = level.upper()
+        print(f"\n{label}")
+        for e in entries:
+            tool = e.get("tool") or "Unknown"
+            tool_class = e.get("tool_class") or "A"
+            policy = e.get("policy") or "observe"
+            reason = e.get("reason") or ""
+            print(f"  {tool} (Class {tool_class})")
+            print(f"  Policy: {policy}")
+            if reason:
+                print(f"  Reason: {reason}")
+    suppressed = scan_summary.get("suppressed", [])
+    if suppressed:
+        print("\nSUPPRESSED")
+        for e in suppressed:
+            tool = e.get("tool") or "Unknown"
+            reason = e.get("reason") or "credibility gate"
+            print(f"  {tool} – {reason}")
+    if telemetry_fidelity:
+        print(f"\nTelemetry fidelity: {telemetry_fidelity}")
+    print("==================================================")
 
 
 def _collect_scan_results(
@@ -416,76 +265,9 @@ def _collect_scan_results(
     return detected, detected_names, failures
 
 
-# Minimum confidence below which we suppress emission (signal credibility).
-# Rationale: extremely low confidence is typically identity-only or artifact-only;
-# emitting full detection/policy events for these reduces trust. See
-# project-docs/detec-signal-credibility-architecture.md.
-EMISSION_MIN_CONFIDENCE = 0.20
-
-# Maximum confidence at which we still suppress when summary says "no signals."
-# Avoids emitting the confusing case: "No X signals detected" with medium confidence.
-EMISSION_NO_SIGNALS_MAX_CONFIDENCE = 0.45
-
-
-def _no_signals_summary(scan: ScanResult) -> bool:
-    """True when action_summary indicates no real signals (e.g. 'No X signals detected')."""
-    summary = (scan.action_summary or "").strip().lower()
-    return "no " in summary and " signals detected" in summary
-
-
-def _should_suppress_emission(scan: ScanResult, confidence: float) -> bool:
-    """True when this scan should not emit detection/policy events (credibility gating)."""
-    if confidence < EMISSION_MIN_CONFIDENCE:
-        return True
-    if _no_signals_summary(scan) and confidence < EMISSION_NO_SIGNALS_MAX_CONFIDENCE:
-        return True
-    return False
-
-
-def _suppressed_reason(scan: ScanResult, confidence: float) -> str:
-    """Return a short reason for suppression for the analyst summary."""
-    if _no_signals_summary(scan):
-        return "no runtime evidence"
-    if confidence < EMISSION_MIN_CONFIDENCE:
-        return "artifact evidence only"
-    return "credibility gate"
-
-
-def print_scan_summary(
-    scan_summary: dict[str, list[dict[str, Any]]],
-    telemetry_fidelity: str | None = None,
-) -> None:
-    """Print the Detec findings summary block (HIGH / MEDIUM / LOW / SUPPRESSED)."""
-    has_any = any(scan_summary.get(k) for k in ("high", "medium", "low", "suppressed"))
-    if not has_any:
-        return
-    print("\n================= Detec Findings =================")
-    for level in ("high", "medium", "low"):
-        entries = scan_summary.get(level, [])
-        if not entries:
-            continue
-        label = level.upper()
-        print(f"\n{label}")
-        for e in entries:
-            tool = e.get("tool") or "Unknown"
-            tool_class = e.get("tool_class") or "A"
-            policy = e.get("policy") or "observe"
-            reason = e.get("reason") or ""
-            print(f"  {tool} (Class {tool_class})")
-            print(f"  Policy: {policy}")
-            if reason:
-                print(f"  Reason: {reason}")
-    suppressed = scan_summary.get("suppressed", [])
-    if suppressed:
-        print("\nSUPPRESSED")
-        for e in suppressed:
-            tool = e.get("tool") or "Unknown"
-            reason = e.get("reason") or "credibility gate"
-            print(f"  {tool} – {reason}")
-    if telemetry_fidelity:
-        print(f"\nTelemetry fidelity: {telemetry_fidelity}")
-    print("==================================================")
-
+# ---------------------------------------------------------------------------
+# Per-detection pipeline
+# ---------------------------------------------------------------------------
 
 def _process_detection(
     scan: ScanResult,
@@ -533,7 +315,7 @@ def _process_detection(
 
     _maybe_prune_violation_counts()
     _session_key = (endpoint_id, scan.tool_name or "unknown")
-    _prior_violations = _session_violation_counts.get(_session_key, (0, 0.0))[0]
+    _prior_violations = get_violation_count(_session_key)
     # Derive trust tier: T0 for unknown/autonomous actors (Class C/D or no process
     # name), T1 for identified Class A/B tools.
     _actor_trust_tier = (
@@ -562,8 +344,7 @@ def _process_detection(
     # that repeat offenders are stepped up to approval_required on the next cycle.
     _VIOLATION_STATES = frozenset({"warn", "approval_required", "block"})
     if policy_decision.decision_state in _VIOLATION_STATES:
-        _prev_count = _session_violation_counts.get(_session_key, (0, 0.0))[0]
-        _session_violation_counts[_session_key] = (_prev_count + 1, time.monotonic())
+        record_violation(_session_key)
 
     if scan_summary is not None:
         bucket = conf_class.lower()
@@ -787,6 +568,10 @@ def _emit_cleared_events(
         state_differ.mark_cleared(tool_name)
     return events_emitted
 
+
+# ---------------------------------------------------------------------------
+# Main scan cycle
+# ---------------------------------------------------------------------------
 
 def run_scan(
     args: argparse.Namespace,
