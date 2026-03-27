@@ -151,13 +151,33 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)) -
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This account uses SSO. Please sign in with your identity provider.",
         )
+
+    # Check account lockout before password verification
+    if user and user.locked_until and user.locked_until > datetime.now(timezone.utc):
+        logger.warning("Login attempt on locked account %s", user.id)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account temporarily locked. Try again later.",
+        )
+
     if not user or not verify_password(body.password, user.hashed_password):
         masked = body.email.split("@")[0][:2] + "***@" + body.email.split("@")[-1] if "@" in body.email else "***"
         logger.warning("Failed login attempt for %s", masked)
+        # Increment failed attempt counter when user exists
+        if user:
+            user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+            if user.failed_login_attempts >= 5:
+                user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
+                logger.warning("Account %s locked after %d failed attempts", user.id, user.failed_login_attempts)
+            db.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if not user.is_active:
         logger.warning("Login attempt for disabled account %s", body.email)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
+
+    # Reset lockout state on successful login
+    user.failed_login_attempts = 0
+    user.locked_until = None
 
     audit_record(
         db,
