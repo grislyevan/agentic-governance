@@ -307,7 +307,7 @@ def get_endpoint(
 ) -> EndpointResponse:
     auth = resolve_auth(authorization, x_api_key, db)
     endpoint = db.query(Endpoint).filter(
-        Endpoint.id == endpoint_id, strict_tenant_filter(auth, Endpoint)
+        Endpoint.id == endpoint_id, get_tenant_filter(auth, Endpoint)
     ).first()
     if not endpoint:
         logger.warning("Endpoint %s not found for user %s", endpoint_id, auth.user_id)

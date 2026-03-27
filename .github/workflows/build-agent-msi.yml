@@ -46,8 +46,11 @@ jobs:
       - name: Upload to Detec server
         if: ${{ secrets.DETEC_SERVER_URL != '' }}
         shell: pwsh
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          $version = if ("${{ github.ref_name }}") { "${{ github.ref_name }}" } else { "${{ inputs.version }}" }
+          $version = if ($env:REF_NAME) { $env:REF_NAME } else { $env:INPUT_VERSION }
           curl.exe -X POST "${{ secrets.DETEC_SERVER_URL }}/api/agent-builds" `
             -H "X-Api-Key: ${{ secrets.DETEC_ADMIN_API_KEY }}" `
             -F "file=@installers\windows\dist\DetecAgent.msi" `
