@@ -16,6 +16,8 @@ _UNSAFE_DEFAULTS = frozenset({
     "dev-secret-change-in-production",
     "change-me",
     "change-me-use-openssl-rand-hex-32",
+    "REPLACE_WITH_OPENSSL_RAND_HEX_32",
+    "dev-only-not-for-production",
 })
 
 

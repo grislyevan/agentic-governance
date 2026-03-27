@@ -251,8 +251,17 @@ def update_user(
         changes["last_name"] = update_data["last_name"]
 
     if "role" in update_data:
-        user.role = update_data["role"]
-        changes["role"] = update_data["role"]
+        new_role = update_data["role"]
+        # Enforce role hierarchy: admins can only assign analyst/viewer.
+        # Only owners can assign owner or admin roles.
+        _ADMIN_ASSIGNABLE = {"analyst", "viewer"}
+        if auth.role == "admin" and new_role not in _ADMIN_ASSIGNABLE:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient privileges to assign this role",
+            )
+        user.role = new_role
+        changes["role"] = new_role
 
     if "is_active" in update_data:
         if user.id == auth.user_id:
