@@ -119,9 +119,10 @@ Architecture overview:
 | Capability | Status |
 |------------|--------|
 | Core behavioral detections | Available |
-| Confidence scoring and calibration | Available |
+| Confidence scoring and calibration | Available (ECE 0.11) |
 | Deterministic policy engine | Available |
 | Endpoint enforcement | Available |
+| Tamper controls (uninstall tokens, decommission) | Available |
 | Behavioral demo artifacts | Available |
 | CrowdStrike enrichment | Experimental |
 | Native ESF / ETW / eBPF telemetry | Experimental / Roadmap |
@@ -135,7 +136,7 @@ See [docs/product-status.md](docs/product-status.md) for details.
 
 → [docs/START-HERE.md](docs/START-HERE.md) — navigation index for contributors, operators, and deployers
 
-- **collector/** — Endpoint agent, telemetry, scanners, confidence, policy, enforcement
+- **collector/** — Endpoint agent, telemetry, scanners, confidence, policy, enforcement (`collector/enforcement/` package), orchestrator, event builder, decision engine
 - **api/** — Backend API, ingest, policy/config management
 - **protocol/** — Wire protocol and gateway support
 - **dashboard/** — Management UI

@@ -10,7 +10,7 @@
 
 | Path | Purpose |
 |------|--------|
-| `collector/` | Python agent: scanners, confidence engine, policy, HTTP + TCP + adaptive emitters, telemetry providers. Entry: `main.py`; daemon: `--interval` + `--api-url` + `--api-key` + `--protocol auto\|tcp\|http` + `--telemetry-provider auto\|native\|polling`. Config: `config_loader.py` + `config/collector.json` + `AGENTIC_GOV_*` env. |
+| `collector/` | Python agent: scanners, confidence engine, policy, enforcement (`collector/enforcement/` package), orchestrator + event_builder + decision_engine, HTTP + TCP + adaptive emitters, telemetry providers. Entry: `main.py`; daemon: `--interval` + `--api-url` + `--api-key` + `--protocol auto\|tcp\|http` + `--telemetry-provider auto\|native\|polling`. Config: `config_loader.py` + `config/collector.json` + `AGENTIC_GOV_*` env. |
 | `collector/telemetry/` | Event store (thread-safe ring buffer) and typed event classes (`ProcessExecEvent`, `NetworkConnectEvent`, `FileChangeEvent`). Decouples telemetry collection from scanner consumption. |
 | `collector/providers/` | Telemetry provider interface and implementations. `PollingProvider` (psutil-based, always available), provider registry (`get_best_provider()`). Native OS providers (ESF, ETW, eBPF) are on the roadmap (ROADMAP). |
 | `api/` | FastAPI backend: auth (JWT + API key, invite tokens, password reset), events, endpoints, policies, users, webhooks, billing, EDR enrichment. Binary protocol gateway (`gateway.py`, port 8001). Stripe billing (`core/billing.py`, `core/tier_limits.py`, `routers/billing.py`). Baseline policies seeded per tenant (`core/baseline_policies.py`). Config: `core/config.py` + `.env` (see root `.env.example`). |

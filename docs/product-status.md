@@ -12,7 +12,7 @@ This page tracks capability maturity across Detec's core components. Use it to u
 | DETEC-BEH-CORE-02 — Agentic Read-Modify-Write Loop | Available | |
 | DETEC-BEH-CORE-03 — Sensitive Access Followed by Outbound Activity | Available | |
 | DETEC-BEH-CORE-04 — Agent Execution Chain | Available | |
-| 5-dimension confidence scoring with calibration regression gate | Available | |
+| 5-dimension confidence scoring with calibration regression gate | Available | ECE 0.11 (improved from 0.31); 8 new labeled fixtures |
 | Behavioral evasion detection | Available | Validated via EVASION-001 lab run |
 | MCP scanner | Available | |
 | CrowdStrike enrichment (confidence layer 5) | Experimental | Partial; not required for baseline operation |
@@ -55,6 +55,7 @@ This page tracks capability maturity across Detec's core components. Use it to u
 | Proxy injection | Available | Requires process model support for env-proxy control |
 | ISO-001 container isolation | Available (advisory) | Defined in policy; ships inactive by default — advisory recommendation only |
 | EDR delegate enforcement via CrowdStrike RTR | Experimental | Partial; provider-limited |
+| Tamper controls (uninstall tokens, decommission, tamper_suspected) | Available | SHA-256 hashed tokens; see [docs/tamper-controls.md](tamper-controls.md) |
 
 ---
 
@@ -126,4 +127,4 @@ For the full list of known limitations, see [docs/known-limitations.md](known-li
 
 ---
 
-_Last updated: 2026-03-24_
+_Last updated: 2026-03-26_

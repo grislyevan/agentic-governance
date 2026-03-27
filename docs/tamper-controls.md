@@ -68,6 +68,35 @@ packaged agent used root-installed paths; if you still have that layout, unload
 
 ---
 
+## Server-side tamper controls
+
+The following server-side controls are implemented in the API.
+
+### Uninstall tokens
+
+Each endpoint can be issued an **uninstall token** via the API. The token is:
+
+- Generated as a cryptographically random value.
+- Hashed with SHA-256 before storage; the plaintext is returned **once** at generation time and is never retrievable again.
+- Required for authorized uninstall/decommission workflows. Operators should store the token securely (e.g., in a secrets manager or MDM configuration).
+
+### Decommission endpoint
+
+`POST /api/endpoints/{id}/decommission` marks an endpoint as decommissioned. This requires a valid uninstall token. Decommissioned endpoints stop receiving policy updates and are flagged in the dashboard.
+
+### `tamper_suspected` status
+
+Endpoints can be marked `tamper_suspected` when the API detects anomalous behavior such as:
+
+- Missed heartbeats beyond the configured threshold.
+- An agent reporting from unexpected network locations after a prior decommission attempt.
+
+The `tamper_suspected` status is visible in the dashboard and queryable via the API.
+
+Reference: `api/routers/endpoints.py`, `api/models/endpoint.py`, `api/schemas/endpoints.py`, migration `0026_add_uninstall_token_hash_to_endpoints.py`.
+
+---
+
 ## Future: tamper event
 
 A possible future enhancement is a **tamper signal** from the agent to the server when the agent detects an uninstall attempt or repeated kill (e.g. process repeatedly terminated). That would require:

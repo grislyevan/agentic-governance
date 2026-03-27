@@ -77,6 +77,20 @@ Use this checklist to verify and maintain security hardening of the Detec API an
 | Audit write fail-open with metric increment | Yes | api/core/audit_logger.py, api/core/metrics.py detec_audit_write_failures_total | Backend | Unit Test | On every PR |
 | Audit records are tenant-scoped and immutable (no delete endpoint) | Yes | api/routers/audit.py | Security Engineer | Code review + pentest tests | On every PR touching audit |
 
+## MSI stamper security
+
+| Item | Status | Reference | Owner | Verification | Cadence |
+|------|--------|-----------|-------|--------------|---------|
+| Parameterized SQL queries (no f-string interpolation) | Applied | `api/routers/agent_download.py` | Backend | Unit Test — test_msi_stamper.py | On every PR |
+| Allowlist input validation on stamper parameters | Applied | `api/routers/agent_download.py` | Backend | Unit Test — test_msi_stamper.py | On every PR |
+
+## Input validation
+
+| Item | Status | Reference | Owner | Verification | Cadence |
+|------|--------|-----------|-------|--------------|---------|
+| LoginRequest.email max_length=320 | Applied | `api/schemas/auth.py` | Backend | Schema validation | On every PR |
+| Auth email lookups case-insensitive | Applied | `api/routers/auth.py`, all auth paths (register, login, forgot-password, SSO, user creation) | Backend | Unit Test (CI) | On every PR |
+
 ## Validation
 
 - **Headers:** Use browser devtools or `curl -I` on any route (including `/api/nonexistent` and a 500 path); confirm all headers above are present.
