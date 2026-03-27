@@ -39,7 +39,19 @@ jobs:
           NODE_ENV: production
 
       - name: Wait for server
-        run: sleep 5
+        run: |
+          timeout=30
+          elapsed=0
+          until curl --silent --fail --output /dev/null http://localhost:4173/; do
+            if [ "$elapsed" -ge "$timeout" ]; then
+              echo "::error::Preview server did not become ready within ${timeout}s"
+              exit 1
+            fi
+            echo "Waiting for preview server... (${elapsed}s/${timeout}s)"
+            sleep 2
+            elapsed=$((elapsed + 2))
+          done
+          echo "Preview server is ready (took ~${elapsed}s)"
 
       - name: Run Lighthouse
         run: |
