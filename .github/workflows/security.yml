@@ -28,8 +28,8 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
         with:
           python-version: "3.11"
           cache: pip
@@ -57,8 +57,8 @@ jobs:
     name: Static Analysis (Semgrep)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: semgrep/semgrep-action@v1
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: semgrep/semgrep-action@713efdd345a63f0e4c60cc6218ebb22d7e10def0 # v1
         with:
           config: >-
             p/owasp-top-ten
@@ -70,9 +70,9 @@ jobs:
     name: Dependency Audit (Trivy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Scan for vulnerable dependencies
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # 0.35.0
         with:
           scan-type: fs
           severity: CRITICAL,HIGH
@@ -82,8 +82,8 @@ jobs:
     name: Dependency Audit (pip-audit, npm audit)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
         with:
           python-version: "3.11"
           cache: pip
@@ -94,7 +94,7 @@ jobs:
           pip install -r api/requirements.txt
       - name: Audit Python dependencies (collector + API)
         run: pip-audit
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4
         with:
           node-version: "20"
           cache: npm
@@ -107,10 +107,10 @@ jobs:
     name: Secrets Detection (Gitleaks)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           fetch-depth: 0
       - name: Detect hardcoded secrets
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@44c470ffc35caa8b1eb3e027b9df8c6395417929 # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
