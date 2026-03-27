@@ -16,13 +16,22 @@ class Base(DeclarativeBase):
 
 _is_sqlite = settings.database_url.startswith("sqlite")
 
+_db_url = settings.database_url
+
+# For PostgreSQL connections, enforce the configured sslmode if not already
+# present in the URL.  This ensures TLS can be mandated via a single setting
+# (DATABASE_SSLMODE) without requiring operators to hand-edit the URL.
+if _db_url.startswith("postgresql") and "sslmode=" not in _db_url:
+    _separator = "&" if "?" in _db_url else "?"
+    _db_url = f"{_db_url}{_separator}sslmode={settings.database_sslmode}"
+
 _engine_kwargs: dict = {}
 if _is_sqlite:
     _engine_kwargs["connect_args"] = {"check_same_thread": False}
 else:
     _engine_kwargs.update(pool_pre_ping=True, pool_size=10, max_overflow=20, pool_recycle=1800)
 
-engine = create_engine(settings.database_url, **_engine_kwargs)
+engine = create_engine(_db_url, **_engine_kwargs)
 
 if _is_sqlite:
     @sa_event.listens_for(engine, "connect")
