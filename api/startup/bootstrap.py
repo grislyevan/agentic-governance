@@ -44,6 +44,32 @@ def apply_migrations() -> None:
     Base.metadata.create_all(bind=engine)
 
 
+def warn_unhashed_agent_keys() -> None:
+    """Log a warning if any tenants still have un-hashed agent keys.
+
+    This is a non-blocking check -- the server starts regardless, but
+    operators are alerted so they can rotate keys before those tenants
+    are locked out (the legacy plaintext auth fallback has been removed).
+    """
+    db = SessionLocal()
+    try:
+        count = (
+            db.query(sa.func.count(Tenant.id))
+            .filter(Tenant.agent_key_hash.is_(None))
+            .scalar()
+        )
+        if count:
+            logger.warning(
+                "%d tenant(s) have un-hashed agent keys and cannot authenticate. "
+                "Run key rotation to fix: POST /api/agent/key/rotate",
+                count,
+            )
+    except Exception:
+        logger.debug("Could not check for un-hashed agent keys", exc_info=True)
+    finally:
+        db.close()
+
+
 def seed() -> None:
     """Seed a default admin user and tenant on first startup."""
     db = SessionLocal()

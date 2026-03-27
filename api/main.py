@@ -33,6 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     configure_logging()
     bootstrap.apply_migrations()
     bootstrap.seed()
+    bootstrap.warn_unhashed_agent_keys()
     db = SessionLocal()
     try:
         from core.retention import purge_expired_events

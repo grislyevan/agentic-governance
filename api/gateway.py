@@ -289,13 +289,6 @@ class AgentSession(BaseConnection):
         for candidate in candidates:
             if candidate.agent_key_hash and verify_agent_key(api_key, candidate.agent_key_hash):
                 return candidate.id
-        # Legacy fallback: plaintext match for tenants not yet rotated (agent_key_hash is NULL)
-        tenant = db.query(Tenant).filter(
-            Tenant.agent_key == api_key,
-            Tenant.agent_key_hash.is_(None),
-        ).first()
-        if tenant:
-            return tenant.id
         return None
 
     @staticmethod

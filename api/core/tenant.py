@@ -53,8 +53,9 @@ def resolve_auth(authorization: str | None, x_api_key: str | None, db: Session) 
     Lookup order:
       1. JWT Bearer token
       2. User API key (prefix match + hash verify)
-      3. Tenant agent key (exact match)
-    Raises 401 on failure.
+      3. Tenant agent key (prefix match + hash verify)
+    Raises 401 on failure.  Tenants without a hashed agent key are
+    rejected -- run key rotation to fix.
     """
     if authorization and authorization.startswith("Bearer "):
         token = authorization.removeprefix("Bearer ").strip()
@@ -99,21 +100,6 @@ def resolve_auth(authorization: str | None, x_api_key: str | None, db: Session) 
                     user_id=None,
                     role=AGENT_ROLE,
                 )
-        # Legacy fallback: plaintext match for tenants not yet rotated (agent_key_hash is NULL)
-        tenant = db.query(Tenant).filter(
-            Tenant.agent_key == x_api_key,
-            Tenant.agent_key_hash.is_(None),
-        ).first()
-        if tenant:
-            # Don't authenticate tenants with inactive subscriptions
-            if getattr(tenant, "subscription_status", None) in _INACTIVE_SUBSCRIPTION_STATUSES:
-                return None  # treat as unauthenticated
-            return AuthContext(
-                tenant_id=tenant.id,
-                user_id=None,
-                role=AGENT_ROLE,
-            )
-
     logger.warning("Authentication failed: no valid JWT or API key provided")
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
 
