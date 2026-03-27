@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import random
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class HoldConfig:
     poll_interval_seconds: int = 10
+    max_poll_interval_seconds: int = 60
     timeout_seconds: int = 300
     timeout_behavior: str = "deny"   # "deny" | "approve"
     offline_behavior: str = "deny"   # "deny" | "approve"
@@ -34,6 +36,7 @@ class HoldConfig:
     def from_dict(cls, d: dict) -> HoldConfig:
         return cls(
             poll_interval_seconds=int(d.get("poll_interval_seconds", 10)),
+            max_poll_interval_seconds=int(d.get("max_poll_interval_seconds", 60)),
             timeout_seconds=int(d.get("timeout_seconds", 300)),
             timeout_behavior=d.get("timeout_behavior", "deny"),
             offline_behavior=d.get("offline_behavior", "deny"),
@@ -150,11 +153,12 @@ class ApprovalHoldManager:
         )
 
         deadline = time.monotonic() + self.config.timeout_seconds
+        attempt = 0
         while True:
             try:
                 status = self._poll_decision(approval_id)
             except requests.exceptions.RequestException:
-                logger.warning("Poll failed for approval %s; retrying", approval_id)
+                logger.warning("Poll failed for approval %s; retrying with backoff", approval_id)
             else:
                 if status is None:
                     # Non-transient HTTP error — fail fast
@@ -165,7 +169,13 @@ class ApprovalHoldManager:
 
             if time.monotonic() >= deadline:
                 break
-            time.sleep(self.config.poll_interval_seconds)
+
+            # Exponential backoff with jitter to avoid thundering herd
+            base = self.config.poll_interval_seconds
+            raw_delay = min(base * (2 ** attempt), self.config.max_poll_interval_seconds)
+            jittered_delay = raw_delay * (0.5 + random.random() * 0.5)
+            time.sleep(jittered_delay)
+            attempt += 1
 
         logger.warning(
             "Approval hold timed out for approval_id=%s; applying timeout_behavior=%s",

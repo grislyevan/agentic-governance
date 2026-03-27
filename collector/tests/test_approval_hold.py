@@ -1,5 +1,5 @@
 # collector/tests/test_approval_hold.py
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 import pytest
 import requests
 from enforcement.approval_hold import ApprovalHoldManager, HoldConfig, HoldResult
@@ -209,3 +209,173 @@ def test_poll_401_returns_denied_immediately():
     assert result.decision == "denied"
     assert result.timed_out is False
     assert len(sleep_calls) == 0, "Should not sleep on non-transient 4xx error"
+
+
+# --- Exponential backoff with jitter tests ---
+
+def test_backoff_delays_increase_exponentially():
+    """Sleep durations must follow exponential backoff pattern (with jitter in bounds)."""
+    config = HoldConfig(poll_interval_seconds=2, max_poll_interval_seconds=60, timeout_seconds=600)
+    manager = ApprovalHoldManager(api_url="http://localhost:8000/api", api_key="k", config=config)
+
+    poll_count = 0
+    def _fake_poll(approval_id):
+        nonlocal poll_count
+        poll_count += 1
+        if poll_count < 6:
+            return "pending"
+        return "approved"
+
+    sleep_durations = []
+    with patch.object(manager, "_create_approval_request", return_value="ar-bo"), \
+         patch.object(manager, "_poll_decision", side_effect=_fake_poll), \
+         patch("enforcement.approval_hold.time.sleep", side_effect=lambda s: sleep_durations.append(s)), \
+         patch("enforcement.approval_hold.random.random", return_value=0.5):
+        result = manager.wait_for_decision(
+            event_id="evt-bo", tool_name="tool", tool_class="A",
+            confidence_band="low", confidence_score=0.1, policy_rule_id="R-bo",
+        )
+
+    assert result.decision == "approved"
+    # With random.random()=0.5, jitter multiplier is 0.5 + 0.5*0.5 = 0.75
+    # attempt 0: min(2*2^0, 60) * 0.75 = 2 * 0.75 = 1.5
+    # attempt 1: min(2*2^1, 60) * 0.75 = 4 * 0.75 = 3.0
+    # attempt 2: min(2*2^2, 60) * 0.75 = 8 * 0.75 = 6.0
+    # attempt 3: min(2*2^3, 60) * 0.75 = 16 * 0.75 = 12.0
+    # attempt 4: min(2*2^4, 60) * 0.75 = 32 * 0.75 = 24.0
+    assert len(sleep_durations) == 5  # 5 "pending" polls, then "approved" on 6th
+    assert sleep_durations == pytest.approx([1.5, 3.0, 6.0, 12.0, 24.0])
+
+
+def test_backoff_capped_at_max_poll_interval():
+    """Backoff delay must never exceed max_poll_interval_seconds (before jitter)."""
+    config = HoldConfig(poll_interval_seconds=10, max_poll_interval_seconds=30, timeout_seconds=600)
+    manager = ApprovalHoldManager(api_url="http://localhost:8000/api", api_key="k", config=config)
+
+    poll_count = 0
+    def _fake_poll(approval_id):
+        nonlocal poll_count
+        poll_count += 1
+        if poll_count < 5:
+            return "pending"
+        return "approved"
+
+    sleep_durations = []
+    with patch.object(manager, "_create_approval_request", return_value="ar-cap"), \
+         patch.object(manager, "_poll_decision", side_effect=_fake_poll), \
+         patch("enforcement.approval_hold.time.sleep", side_effect=lambda s: sleep_durations.append(s)), \
+         patch("enforcement.approval_hold.random.random", return_value=1.0):
+        # random.random()=1.0 => jitter multiplier = 0.5 + 1.0*0.5 = 1.0 (no reduction)
+        result = manager.wait_for_decision(
+            event_id="evt-cap", tool_name="tool", tool_class="A",
+            confidence_band="low", confidence_score=0.1, policy_rule_id="R-cap",
+        )
+
+    assert result.decision == "approved"
+    # attempt 0: min(10*1, 30) * 1.0 = 10
+    # attempt 1: min(10*2, 30) * 1.0 = 20
+    # attempt 2: min(10*4, 30) * 1.0 = 30  (capped)
+    # attempt 3: min(10*8, 30) * 1.0 = 30  (capped)
+    assert len(sleep_durations) == 4
+    assert sleep_durations == pytest.approx([10.0, 20.0, 30.0, 30.0])
+
+
+def test_backoff_jitter_bounds():
+    """With jitter, delay must be between raw_delay*0.5 and raw_delay*1.0."""
+    config = HoldConfig(poll_interval_seconds=4, max_poll_interval_seconds=60, timeout_seconds=600)
+    manager = ApprovalHoldManager(api_url="http://localhost:8000/api", api_key="k", config=config)
+
+    poll_count = 0
+    def _fake_poll(approval_id):
+        nonlocal poll_count
+        poll_count += 1
+        if poll_count < 2:
+            return "pending"
+        return "approved"
+
+    # Test with minimum jitter: random.random()=0.0 => multiplier=0.5
+    sleep_durations = []
+    with patch.object(manager, "_create_approval_request", return_value="ar-jl"), \
+         patch.object(manager, "_poll_decision", side_effect=_fake_poll), \
+         patch("enforcement.approval_hold.time.sleep", side_effect=lambda s: sleep_durations.append(s)), \
+         patch("enforcement.approval_hold.random.random", return_value=0.0):
+        manager.wait_for_decision(
+            event_id="evt-jl", tool_name="tool", tool_class="A",
+            confidence_band="low", confidence_score=0.1, policy_rule_id="R-jl",
+        )
+
+    # attempt 0: min(4*1, 60) * (0.5 + 0.0*0.5) = 4 * 0.5 = 2.0
+    assert len(sleep_durations) == 1
+    assert sleep_durations[0] == pytest.approx(2.0)
+
+
+def test_backoff_on_request_exception():
+    """Request exceptions should also trigger backoff (not fixed interval)."""
+    config = HoldConfig(poll_interval_seconds=5, max_poll_interval_seconds=60, timeout_seconds=600)
+    manager = ApprovalHoldManager(api_url="http://localhost:8000/api", api_key="k", config=config)
+
+    poll_count = 0
+    def _failing_poll(approval_id):
+        nonlocal poll_count
+        poll_count += 1
+        if poll_count <= 2:
+            raise requests.exceptions.ConnectionError("connection refused")
+        return "approved"
+
+    sleep_durations = []
+    with patch.object(manager, "_create_approval_request", return_value="ar-err"), \
+         patch.object(manager, "_poll_decision", side_effect=_failing_poll), \
+         patch("enforcement.approval_hold.time.sleep", side_effect=lambda s: sleep_durations.append(s)), \
+         patch("enforcement.approval_hold.random.random", return_value=0.5):
+        result = manager.wait_for_decision(
+            event_id="evt-err", tool_name="tool", tool_class="A",
+            confidence_band="low", confidence_score=0.1, policy_rule_id="R-err",
+        )
+
+    assert result.decision == "approved"
+    # Two exceptions trigger two sleeps; third call succeeds immediately
+    # jitter multiplier = 0.75
+    # attempt 0: min(5*1, 60) * 0.75 = 3.75
+    # attempt 1: min(5*2, 60) * 0.75 = 7.5
+    assert len(sleep_durations) == 2
+    assert sleep_durations == pytest.approx([3.75, 7.5])
+
+
+def test_holdconfig_max_poll_interval_default():
+    """HoldConfig default max_poll_interval_seconds is 60."""
+    cfg = HoldConfig()
+    assert cfg.max_poll_interval_seconds == 60
+
+
+def test_holdconfig_from_dict_max_poll_interval():
+    """HoldConfig.from_dict parses max_poll_interval_seconds."""
+    cfg = HoldConfig.from_dict({"max_poll_interval_seconds": 30})
+    assert cfg.max_poll_interval_seconds == 30
+
+
+def test_backoff_zero_base_interval():
+    """With poll_interval_seconds=0, all delays are 0 (no thundering herd possible)."""
+    config = HoldConfig(poll_interval_seconds=0, max_poll_interval_seconds=60, timeout_seconds=10)
+    manager = ApprovalHoldManager(api_url="http://localhost:8000/api", api_key="k", config=config)
+
+    poll_count = 0
+    def _fake_poll(approval_id):
+        nonlocal poll_count
+        poll_count += 1
+        if poll_count < 3:
+            return "pending"
+        return "denied"
+
+    sleep_durations = []
+    with patch.object(manager, "_create_approval_request", return_value="ar-z"), \
+         patch.object(manager, "_poll_decision", side_effect=_fake_poll), \
+         patch("enforcement.approval_hold.time.sleep", side_effect=lambda s: sleep_durations.append(s)):
+        result = manager.wait_for_decision(
+            event_id="evt-z", tool_name="tool", tool_class="A",
+            confidence_band="low", confidence_score=0.1, policy_rule_id="R-z",
+        )
+
+    assert result.decision == "denied"
+    assert len(sleep_durations) == 2
+    # 0 * anything = 0
+    assert all(d == 0.0 for d in sleep_durations)
