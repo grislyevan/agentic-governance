@@ -1,0 +1,24 @@
+{
+  "lab_run": "LAB-RUN-CAL-FN-001",
+  "tool_name": "Cline",
+  "tool_version": "3.2.1",
+  "tool_class": "C",
+  "platform": "Linux x64",
+  "date": "2026-03-25",
+  "signals": {
+    "process": 0.70,
+    "file": 0.75,
+    "network": 0.40,
+    "identity": 0.25,
+    "behavior": 0.55
+  },
+  "penalties": [
+    ["weak_identity_correlation", 0.05],
+    ["unresolved_proc_net_linkage", 0.10]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Low",
+  "expected_score_range": [0.42, 0.47],
+  "notes": "Calibration FN: Cline running autonomous code-generation session over SSH. Network attribution incomplete on headless Linux (no window-server linkage). Identity weak because extension runs under generic node process. Score falls below Medium threshold despite real autonomous activity. Ground truth: active AI coding agent that the score underweights.",
+  "label": "fn"
+}

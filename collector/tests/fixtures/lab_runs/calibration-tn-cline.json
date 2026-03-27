@@ -1,0 +1,24 @@
+{
+  "lab_run": "LAB-RUN-CAL-TN-003",
+  "tool_name": "Cline",
+  "tool_version": "3.2.1",
+  "tool_class": "C",
+  "platform": "macOS ARM64",
+  "date": "2026-03-25",
+  "signals": {
+    "process": 0.50,
+    "file": 0.55,
+    "network": 0.20,
+    "identity": 0.10,
+    "behavior": 0.30
+  },
+  "penalties": [
+    ["weak_identity_correlation", 0.05],
+    ["expected_tool_in_baseline", 0.15]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Low",
+  "expected_score_range": [0.17, 0.22],
+  "notes": "Calibration TN: Cline extension installed but in user-interactive mode only (no autonomous execution). Baseline suppression applies. Weak identity since extension manifest detected but no autonomous session active. Ground truth: user-driven IDE extension, no autonomous agent activity.",
+  "label": "tn"
+}

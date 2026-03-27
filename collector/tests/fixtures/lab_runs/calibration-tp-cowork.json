@@ -1,0 +1,21 @@
+{
+  "lab_run": "LAB-RUN-CAL-TP-001",
+  "tool_name": "Claude Cowork",
+  "tool_version": "1.1.4498",
+  "tool_class": "C",
+  "platform": "macOS ARM64",
+  "date": "2026-03-25",
+  "signals": {
+    "process": 0.90,
+    "file": 0.95,
+    "network": 0.80,
+    "identity": 0.90,
+    "behavior": 0.85
+  },
+  "penalties": [],
+  "evasion_boost": 0.0,
+  "expected_band": "High",
+  "expected_score_range": [0.87, 0.91],
+  "notes": "Calibration TP: Claude Cowork autonomous session with full VM execution, rich file footprint, cleartext identity from Anthropic API key. All five layers strong. Ground truth: actively running autonomous coding agent.",
+  "label": "tp"
+}

@@ -1,0 +1,23 @@
+{
+  "lab_run": "LAB-RUN-CAL-FP-002",
+  "tool_name": "Ollama",
+  "tool_version": "0.17.0",
+  "tool_class": "B",
+  "platform": "Linux x64",
+  "date": "2026-03-25",
+  "signals": {
+    "process": 0.80,
+    "file": 0.75,
+    "network": 0.70,
+    "identity": 0.20,
+    "behavior": 0.65
+  },
+  "penalties": [
+    ["expected_tool_in_baseline", 0.10]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Medium",
+  "expected_score_range": [0.58, 0.63],
+  "notes": "Calibration FP: Ollama serving local inference on approved ML workstation. Baseline suppression applies (sanctioned local model runner). Strong process and network signals from persistent daemon, but no autonomous coding actions observed. Ground truth: approved local LLM server, not performing autonomous coding.",
+  "label": "fp"
+}

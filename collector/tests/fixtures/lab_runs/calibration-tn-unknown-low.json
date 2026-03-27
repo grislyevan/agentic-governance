@@ -1,0 +1,24 @@
+{
+  "lab_run": "LAB-RUN-CAL-TN-001",
+  "tool_name": "Unknown Agent",
+  "tool_version": "unknown",
+  "tool_class": "C",
+  "platform": "Linux x64",
+  "date": "2026-03-25",
+  "signals": {
+    "process": 0.25,
+    "file": 0.05,
+    "network": 0.15,
+    "identity": 0.0,
+    "behavior": 0.25
+  },
+  "penalties": [
+    ["behavioral_only_no_file_artifact", 0.10],
+    ["weak_identity_correlation", 0.05]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Low",
+  "expected_score_range": [0.01, 0.05],
+  "notes": "Calibration TN: automated build runner with minor behavioral overlap. Single API call and log rotation triggered weak behavioral signal. No file artifacts, no identity. Ground truth: not an AI coding agent.",
+  "label": "tn"
+}

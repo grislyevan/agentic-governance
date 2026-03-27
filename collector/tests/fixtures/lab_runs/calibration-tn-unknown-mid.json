@@ -1,0 +1,23 @@
+{
+  "lab_run": "LAB-RUN-CAL-TN-002",
+  "tool_name": "Unknown Agent",
+  "tool_version": "unknown",
+  "tool_class": "C",
+  "platform": "macOS ARM64",
+  "date": "2026-03-25",
+  "signals": {
+    "process": 0.35,
+    "file": 0.10,
+    "network": 0.20,
+    "identity": 0.0,
+    "behavior": 0.40
+  },
+  "penalties": [
+    ["behavioral_only_no_file_artifact", 0.10]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Low",
+  "expected_score_range": [0.14, 0.19],
+  "notes": "Calibration TN: developer script with shell fan-out pattern (parallel test runners). Behavioral layer triggered by subprocess spawning cadence. No file artifacts beyond log writes. Ground truth: custom CI script, not an AI agent.",
+  "label": "tn"
+}

@@ -1,0 +1,23 @@
+{
+  "lab_run": "LAB-RUN-CAL-FP-001",
+  "tool_name": "GitHub Copilot",
+  "tool_version": "1.240.0",
+  "tool_class": "C",
+  "platform": "macOS ARM64",
+  "date": "2026-03-25",
+  "signals": {
+    "process": 0.80,
+    "file": 0.75,
+    "network": 0.60,
+    "identity": 0.30,
+    "behavior": 0.50
+  },
+  "penalties": [
+    ["expected_tool_in_baseline", 0.10]
+  ],
+  "evasion_boost": 0.0,
+  "expected_band": "Medium",
+  "expected_score_range": [0.51, 0.56],
+  "notes": "Calibration FP: GitHub Copilot in inline-suggestion mode on approved developer workstation. Baseline suppression applies (tool is in org allow-list). Behavioral signal moderate due to periodic completions but no autonomous fan-out. Ground truth: approved tool in non-autonomous mode, flagged due to strong process/file signals.",
+  "label": "fp"
+}
