@@ -38,6 +38,15 @@ class Settings(BaseSettings):
 
     # Database (defaults to SQLite; set DATABASE_URL for PostgreSQL)
     database_url: str = ""
+    # PostgreSQL SSL mode. Options:
+    #   disable    - no SSL at all
+    #   allow      - try non-SSL first, then SSL
+    #   prefer     - try SSL first, then non-SSL  (default)
+    #   require    - always SSL, but skip CA verification
+    #   verify-ca  - always SSL, verify server cert against CA
+    #   verify-full - always SSL, verify CA + hostname match
+    # Use 'require' or stricter in production.
+    database_sslmode: str = "prefer"
 
     # Auth
     jwt_secret: str = "dev-secret-change-in-production"
@@ -219,6 +228,14 @@ class Settings(BaseSettings):
             )
 
         if env in ("production", "staging"):
+            if self.database_sslmode in ("disable", "allow", "prefer"):
+                logger.warning(
+                    "database_sslmode is '%s' — should be 'require' or stricter "
+                    "(require, verify-ca, verify-full) in %s",
+                    self.database_sslmode,
+                    env,
+                )
+
             origins = [s.strip() for s in self.allowed_origins.split(",") if s.strip()]
             if not origins:
                 raise ValueError(
