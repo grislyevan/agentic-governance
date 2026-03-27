@@ -77,7 +77,6 @@ class WebhookOut(BaseModel):
     id: str
     url: str
     events: list[str]
-    secret: str
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -94,6 +93,11 @@ class WebhookOut(BaseModel):
             except (json.JSONDecodeError, TypeError):
                 return []
         return v or []
+
+
+class WebhookCreateResponse(WebhookOut):
+    """Returned only on create — includes the secret (shown once)."""
+    secret: str
 
 
 class WebhookListResponse(BaseModel):

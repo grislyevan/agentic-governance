@@ -18,6 +18,7 @@ from models.audit import AuditLog
 from models.webhook import Webhook, generate_webhook_secret
 from schemas.webhooks import (
     WebhookCreate,
+    WebhookCreateResponse,
     WebhookFromTemplateRequest,
     WebhookListResponse,
     WebhookOut,
@@ -62,7 +63,7 @@ def list_templates(
     return get_templates()
 
 
-@router.post("/from-template", response_model=WebhookOut, status_code=status.HTTP_201_CREATED)
+@router.post("/from-template", response_model=WebhookCreateResponse, status_code=status.HTTP_201_CREATED)
 def create_from_template(
     body: WebhookFromTemplateRequest,
     db: Session = Depends(get_db),
@@ -105,7 +106,7 @@ def create_from_template(
     db.refresh(webhook)
 
     logger.info("Webhook %s created from template %s by %s", webhook.id, body.template_id, auth.user_id)
-    return WebhookOut.model_validate(webhook)
+    return WebhookCreateResponse.model_validate(webhook)
 
 
 @router.get("", response_model=WebhookListResponse)
@@ -130,7 +131,7 @@ def list_webhooks(
     )
 
 
-@router.post("", response_model=WebhookOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=WebhookCreateResponse, status_code=status.HTTP_201_CREATED)
 def create_webhook(
     body: WebhookCreate,
     db: Session = Depends(get_db),
@@ -161,7 +162,7 @@ def create_webhook(
     db.refresh(webhook)
 
     logger.info("Webhook %s created by %s", webhook.id, auth.user_id)
-    return WebhookOut.model_validate(webhook)
+    return WebhookCreateResponse.model_validate(webhook)
 
 
 @router.patch("/{webhook_id}", response_model=WebhookOut)
@@ -187,6 +188,10 @@ def update_webhook(
     update_data = body.model_dump(exclude_unset=True)
 
     if "url" in update_data:
+        try:
+            _validate_webhook_url(update_data["url"])
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
         webhook.url = update_data["url"]
         changes["url"] = update_data["url"]
     if "events" in update_data:
