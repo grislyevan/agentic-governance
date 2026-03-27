@@ -31,6 +31,7 @@ from models.event import Event
 from routers import (
     agent_builds,
     agent_download,
+    allow_list,
     approvals,
     audit,
     auth,
@@ -42,6 +43,7 @@ from routers import (
     enforcement,
     events,
     policies,
+    posture,
     reports,
     response_playbooks,
     retention,
@@ -226,6 +228,8 @@ def create_app(lifespan_context_manager):
     app.include_router(users.router, prefix=API_PREFIX)
     app.include_router(webhooks.router, prefix=API_PREFIX)
     app.include_router(enforcement.router, prefix=API_PREFIX)
+    app.include_router(posture.router, prefix=API_PREFIX)
+    app.include_router(allow_list.router, prefix=API_PREFIX)
     app.include_router(billing.router, prefix=API_PREFIX)
     app.include_router(reports.router, prefix=API_PREFIX)
     app.include_router(session_reports.router, prefix=API_PREFIX)

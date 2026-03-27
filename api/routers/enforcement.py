@@ -1,8 +1,11 @@
-"""Enforcement router: manage endpoint posture, allow-lists, and EDR enforcement config.
+"""Enforcement router: EDR provider config and service recovery.
 
-Posture controls whether agents enforce block decisions locally.
-Allow-list entries exempt specific tools from enforcement.
-EDR config routes let admins bind endpoints to enforcement providers.
+EDR config routes let admins bind endpoints to enforcement providers
+(CrowdStrike, SentinelOne). Disabled-services routes handle anti-resurrection
+recovery -- restoring services that were disabled during escalation.
+
+Posture management lives in routers/posture.py.
+Allow-list governance lives in routers/allow_list.py.
 """
 
 from __future__ import annotations
@@ -10,597 +13,26 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timezone
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from core.audit_logger import record as audit_record
-from core.config import settings
 from core.database import get_db, SessionLocal
 from core.auth_cookies import get_authorization
 from core.tenant import resolve_auth, require_role, get_tenant_filter, strict_tenant_filter
 from integrations import enforcement_router as enf_router
-from models.allow_list import AllowListEntry
 from models.endpoint import Endpoint
+from routers._enforcement_shared import VALID_PROVIDERS
 
 logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/enforcement", tags=["enforcement"])
-
-VALID_POSTURES = {"passive", "audit", "active"}
-VALID_PROVIDERS = {"crowdstrike", "sentinelone"}
-
-
-async def _push_posture_to_agent(
-    request: Request,
-    endpoint_id: str,
-    posture: str,
-    threshold: float,
-    allow_list: list[str] | None = None,
-) -> None:
-    """Best-effort push of posture to a TCP-connected agent."""
-    gateway = getattr(request.app.state, "gateway", None)
-    if not gateway:
-        return
-    try:
-        sent = await gateway.push_posture(
-            endpoint_id=endpoint_id,
-            posture=posture,
-            auto_enforce_threshold=threshold,
-            allow_list=allow_list,
-        )
-        if sent:
-            logger.info("Pushed posture %s to endpoint %s via TCP", posture, endpoint_id)
-    except Exception:
-        logger.debug("Could not push posture to %s (not connected via TCP)", endpoint_id)
-
-
-async def _push_tenant_posture_to_tcp(
-    request: Request,
-    tenant_id: str,
-    posture: str,
-    threshold: float,
-) -> None:
-    """Push posture to all TCP-connected agents for the tenant."""
-    gateway = getattr(request.app.state, "gateway", None)
-    if not gateway:
-        return
-    db = SessionLocal()
-    try:
-        allow_list = [
-            e.pattern for e in db.query(AllowListEntry).filter(
-                AllowListEntry.tenant_id == tenant_id,
-                (AllowListEntry.expires_at == None) | (AllowListEntry.expires_at > datetime.now(timezone.utc)),  # noqa: E711
-            ).all()
-        ]
-        endpoints = db.query(Endpoint).filter(Endpoint.tenant_id == tenant_id).all()
-        for ep in endpoints:
-            try:
-                sent = await gateway.push_posture(
-                    endpoint_id=ep.id,
-                    posture=posture,
-                    auto_enforce_threshold=threshold,
-                    allow_list=allow_list,
-                )
-                if sent:
-                    logger.info("Pushed posture %s to endpoint %s via TCP", posture, ep.id)
-            except Exception:
-                logger.debug("Could not push posture to %s", ep.id)
-    finally:
-        db.close()
-
-
-# -- Schemas ----------------------------------------------------------------
-
-class PostureUpdate(BaseModel):
-    enforcement_posture: str = Field(
-        ..., pattern="^(passive|audit|active)$",
-        description="One of: passive, audit, active",
-    )
-    auto_enforce_threshold: float | None = Field(
-        default=None, ge=0.0, le=1.0,
-        description="Minimum confidence for auto-enforcement (0.0 - 1.0)",
-    )
-
-
-class PostureResponse(BaseModel):
-    endpoint_id: str
-    hostname: str
-    enforcement_posture: str
-    auto_enforce_threshold: float
-
-    model_config = {"from_attributes": True}
-
-
-class TenantPostureUpdate(BaseModel):
-    enforcement_posture: str = Field(
-        ..., pattern="^(passive|audit|active)$",
-    )
-    auto_enforce_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
-
-
-class TenantPostureResponse(BaseModel):
-    updated: int
-    enforcement_posture: str
-    auto_enforce_threshold: float
-
-
-class PostureSummaryResponse(BaseModel):
-    total: int
-    passive: int
-    audit: int
-    active: int
-
-
-class AllowListEntryResponse(BaseModel):
-    id: str
-    tenant_id: str | None = None
-    pattern: str
-    pattern_type: str
-    description: str | None
-    created_by: str | None
-    created_at: str
-    expires_at: str | None
-    scope: str | None
-    reason_code: str | None
-    owner_id: str | None
-
-    model_config = {"from_attributes": True}
-
-
-class AllowListEntryCreate(BaseModel):
-    pattern: str = Field(..., min_length=3, max_length=512)
-    pattern_type: str = Field(default="name", pattern="^(name|path|hash|process_name)$")
-    description: str | None = Field(default=None, max_length=512)
-    expires_at: datetime | None = None
-    scope: str = Field(default="tenant", pattern="^(tenant|endpoint|tool)$")
-    reason_code: str | None = Field(default=None, max_length=64)
-    owner_id: str | None = None
-
-
-class AllowListPatch(BaseModel):
-    scope: str | None = Field(default=None, pattern="^(tenant|endpoint|tool)$")
-    expires_at: datetime | None = None
-    reason_code: str | None = Field(default=None, max_length=64)
-    owner_id: str | None = Field(default=None, max_length=128)
-    description: str | None = Field(default=None, max_length=512)
-    no_expiry_override: bool | None = None
-
-
-class AllowListResponse(BaseModel):
-    total: int
-    items: list[AllowListEntryResponse]
-
-
-# -- Posture endpoints ------------------------------------------------------
-
-@router.put(
-    "/endpoints/{endpoint_id}/posture",
-    response_model=PostureResponse,
-)
-@limiter.limit("30/minute")
-async def set_endpoint_posture(
-    request: Request,
-    endpoint_id: str,
-    body: PostureUpdate,
-    background_tasks: BackgroundTasks,
-    authorization: str | None = Depends(get_authorization),
-    x_api_key: str | None = Header(default=None),
-    db: Session = Depends(get_db),
-):
-    """Set enforcement posture for a single endpoint. Requires admin or owner role.
-    Active posture requires owner role only."""
-    auth = resolve_auth(authorization, x_api_key, db)
-    if body.enforcement_posture == "active":
-        require_role(auth, "owner")
-    else:
-        require_role(auth, "owner", "admin")
-
-    ep = db.query(Endpoint).filter(
-        Endpoint.id == endpoint_id,
-        strict_tenant_filter(auth, Endpoint),  # mutation path: strict tenant scope (BOLA fix)
-    ).first()
-    if not ep:
-        raise HTTPException(status_code=404, detail="Endpoint not found")
-
-    old_posture = ep.enforcement_posture
-    ep.enforcement_posture = body.enforcement_posture
-    if body.auto_enforce_threshold is not None:
-        ep.auto_enforce_threshold = body.auto_enforce_threshold
-
-    audit_record(
-        db,
-        tenant_id=auth.tenant_id,
-        actor_id=auth.user_id,
-        action="enforcement.posture_changed",
-        resource_type="endpoint",
-        resource_id=endpoint_id,
-        detail={
-            "old_posture": old_posture,
-            "new_posture": body.enforcement_posture,
-            "auto_enforce_threshold": ep.auto_enforce_threshold,
-            "hostname": ep.hostname,
-        },
-    )
-
-    db.commit()
-    db.refresh(ep)
-
-    allow_list = [
-        e.pattern for e in db.query(AllowListEntry).filter(
-            AllowListEntry.tenant_id == auth.tenant_id,
-            (AllowListEntry.expires_at == None) | (AllowListEntry.expires_at > datetime.now(timezone.utc)),  # noqa: E711
-        ).all()
-    ]
-    background_tasks.add_task(
-        _push_posture_to_agent,
-        request,
-        endpoint_id,
-        ep.enforcement_posture,
-        ep.auto_enforce_threshold,
-        allow_list,
-    )
-
-    return PostureResponse(
-        endpoint_id=ep.id,
-        hostname=ep.hostname,
-        enforcement_posture=ep.enforcement_posture,
-        auto_enforce_threshold=ep.auto_enforce_threshold,
-    )
-
-
-@router.put("/tenant-posture", response_model=TenantPostureResponse)
-@limiter.limit("10/minute")
-def set_tenant_posture(
-    request: Request,
-    body: TenantPostureUpdate,
-    background_tasks: BackgroundTasks,
-    authorization: str | None = Depends(get_authorization),
-    x_api_key: str | None = Header(default=None),
-    db: Session = Depends(get_db),
-):
-    """Set default enforcement posture for all endpoints in the tenant. Owner only."""
-    auth = resolve_auth(authorization, x_api_key, db)
-    require_role(auth, "owner")
-
-    tenant_id = auth.tenant_id
-    threshold = body.auto_enforce_threshold or settings.default_auto_enforce_threshold
-
-    updated = (
-        db.query(Endpoint)
-        .filter(Endpoint.tenant_id == tenant_id)
-        .update({
-            Endpoint.enforcement_posture: body.enforcement_posture,
-            Endpoint.auto_enforce_threshold: threshold,
-        })
-    )
-
-    audit_record(
-        db,
-        tenant_id=tenant_id,
-        actor_id=auth.user_id,
-        action="enforcement.tenant_posture_changed",
-        resource_type="tenant",
-        resource_id=tenant_id,
-        detail={
-            "new_posture": body.enforcement_posture,
-            "auto_enforce_threshold": threshold,
-            "endpoints_updated": updated,
-        },
-    )
-
-    db.commit()
-
-    background_tasks.add_task(
-        _push_tenant_posture_to_tcp,
-        request,
-        tenant_id,
-        body.enforcement_posture,
-        threshold,
-    )
-
-    return TenantPostureResponse(
-        updated=updated,
-        enforcement_posture=body.enforcement_posture,
-        auto_enforce_threshold=threshold,
-    )
-
-
-@router.get("/posture-summary", response_model=PostureSummaryResponse)
-@limiter.limit("60/minute")
-def posture_summary(
-    request: Request,
-    authorization: str | None = Depends(get_authorization),
-    x_api_key: str | None = Header(default=None),
-    db: Session = Depends(get_db),
-):
-    """Return posture distribution across all endpoints in the tenant."""
-    auth = resolve_auth(authorization, x_api_key, db)
-    require_role(auth, "owner", "admin", "analyst")
-
-    tenant_id = auth.tenant_id
-    rows = (
-        db.query(Endpoint.enforcement_posture, func.count(Endpoint.id))
-        .filter(Endpoint.tenant_id == tenant_id)
-        .group_by(Endpoint.enforcement_posture)
-        .all()
-    )
-
-    counts = {r[0]: r[1] for r in rows}
-    total = sum(counts.values())
-
-    return PostureSummaryResponse(
-        total=total,
-        passive=counts.get("passive", 0),
-        audit=counts.get("audit", 0),
-        active=counts.get("active", 0),
-    )
-
-
-# -- Allow-list endpoints --------------------------------------------------
-
-@router.get("/allow-list", response_model=AllowListResponse)
-@limiter.limit("60/minute")
-def list_allow_list(
-    request: Request,
-    authorization: str | None = Depends(get_authorization),
-    x_api_key: str | None = Header(default=None),
-    db: Session = Depends(get_db),
-):
-    """List all allow-list entries for the tenant."""
-    auth = resolve_auth(authorization, x_api_key, db)
-    require_role(auth, "owner", "admin", "analyst")
-
-    tenant_id = auth.tenant_id
-    entries = (
-        db.query(AllowListEntry)
-        .filter(AllowListEntry.tenant_id == tenant_id)
-        .filter(
-            (AllowListEntry.expires_at == None) | (AllowListEntry.expires_at > datetime.now(timezone.utc))  # noqa: E711
-        )
-        .order_by(AllowListEntry.created_at.desc())
-        .all()
-    )
-
-    return AllowListResponse(
-        total=len(entries),
-        items=[
-            AllowListEntryResponse(
-                id=e.id,
-                tenant_id=e.tenant_id,
-                pattern=e.pattern,
-                pattern_type=e.pattern_type,
-                description=e.description,
-                created_by=e.created_by,
-                created_at=e.created_at.isoformat() if e.created_at else "",
-                expires_at=e.expires_at.isoformat() if e.expires_at else None,
-                scope=e.scope,
-                reason_code=e.reason_code,
-                owner_id=e.owner_id,
-            )
-            for e in entries
-        ],
-    )
-
-
-@router.post(
-    "/allow-list",
-    response_model=AllowListEntryResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-@limiter.limit("30/minute")
-def create_allow_list_entry(
-    request: Request,
-    body: AllowListEntryCreate,
-    background_tasks: BackgroundTasks,
-    authorization: str | None = Depends(get_authorization),
-    x_api_key: str | None = Header(default=None),
-    db: Session = Depends(get_db),
-):
-    """Add a new allow-list entry. Requires admin or owner role."""
-    auth = resolve_auth(authorization, x_api_key, db)
-    require_role(auth, "owner", "admin")
-
-    tenant_id = auth.tenant_id
-    entry = AllowListEntry(
-        id=str(uuid.uuid4()),
-        tenant_id=tenant_id,
-        pattern=body.pattern,
-        pattern_type=body.pattern_type,
-        description=body.description,
-        created_by=auth.user_id,
-        expires_at=body.expires_at,
-        scope=body.scope,
-        reason_code=body.reason_code,
-        owner_id=body.owner_id,
-    )
-    db.add(entry)
-
-    audit_record(
-        db,
-        tenant_id=tenant_id,
-        actor_id=auth.user_id,
-        action="enforcement.allow_list_added",
-        resource_type="allow_list_entry",
-        resource_id=entry.id,
-        detail={
-            "pattern": body.pattern,
-            "pattern_type": body.pattern_type,
-            "scope": body.scope,
-            "reason_code": body.reason_code,
-            "expires_at": body.expires_at.isoformat() if body.expires_at else None,
-        },
-    )
-
-    db.commit()
-    db.refresh(entry)
-
-    allow_list = [
-        e.pattern for e in db.query(AllowListEntry).filter(
-            AllowListEntry.tenant_id == tenant_id,
-            (AllowListEntry.expires_at == None) | (AllowListEntry.expires_at > datetime.now(timezone.utc)),  # noqa: E711
-        ).all()
-    ]
-    endpoints = db.query(Endpoint).filter(Endpoint.tenant_id == tenant_id).all()
-    for ep in endpoints:
-        background_tasks.add_task(
-            _push_posture_to_agent,
-            request,
-            ep.id,
-            ep.enforcement_posture,
-            ep.auto_enforce_threshold,
-            allow_list,
-        )
-
-    return AllowListEntryResponse(
-        id=entry.id,
-        tenant_id=entry.tenant_id,
-        pattern=entry.pattern,
-        pattern_type=entry.pattern_type,
-        description=entry.description,
-        created_by=entry.created_by,
-        created_at=entry.created_at.isoformat() if entry.created_at else "",
-        expires_at=entry.expires_at.isoformat() if entry.expires_at else None,
-        scope=entry.scope,
-        reason_code=entry.reason_code,
-        owner_id=entry.owner_id,
-    )
-
-
-@router.delete(
-    "/allow-list/{entry_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
-@limiter.limit("30/minute")
-def delete_allow_list_entry(
-    request: Request,
-    entry_id: str,
-    background_tasks: BackgroundTasks,
-    authorization: str | None = Depends(get_authorization),
-    x_api_key: str | None = Header(default=None),
-    db: Session = Depends(get_db),
-):
-    """Remove an allow-list entry. Requires admin or owner role."""
-    auth = resolve_auth(authorization, x_api_key, db)
-    require_role(auth, "owner", "admin")
-
-    entry = db.query(AllowListEntry).filter(
-        AllowListEntry.id == entry_id,
-        AllowListEntry.tenant_id == auth.tenant_id,
-    ).first()
-    if not entry:
-        raise HTTPException(status_code=404, detail="Allow-list entry not found")
-
-    audit_record(
-        db,
-        tenant_id=auth.tenant_id,
-        actor_id=auth.user_id,
-        action="enforcement.allow_list_removed",
-        resource_type="allow_list_entry",
-        resource_id=entry_id,
-        detail={"pattern": entry.pattern, "pattern_type": entry.pattern_type},
-    )
-
-    db.delete(entry)
-    db.commit()
-
-    allow_list = [
-        e.pattern for e in db.query(AllowListEntry).filter(AllowListEntry.tenant_id == auth.tenant_id).all()
-    ]
-    endpoints = db.query(Endpoint).filter(Endpoint.tenant_id == auth.tenant_id).all()
-    for ep in endpoints:
-        background_tasks.add_task(
-            _push_posture_to_agent,
-            request,
-            ep.id,
-            ep.enforcement_posture,
-            ep.auto_enforce_threshold,
-            allow_list,
-        )
-
-
-def _serialize_allow_list_entry(e: AllowListEntry) -> dict:
-    """Return a dict representation of an allow-list entry (includes tenant_id)."""
-    return {
-        "id": e.id,
-        "tenant_id": e.tenant_id,
-        "pattern": e.pattern,
-        "pattern_type": e.pattern_type,
-        "description": e.description,
-        "created_by": e.created_by,
-        "created_at": e.created_at.isoformat() if e.created_at else "",
-        "expires_at": e.expires_at.isoformat() if e.expires_at else None,
-        "scope": e.scope,
-        "reason_code": e.reason_code,
-        "owner_id": e.owner_id,
-    }
-
-
-@router.patch("/allow-list/{entry_id}", response_model=AllowListEntryResponse)
-@limiter.limit("30/minute")
-def patch_allow_list_entry(
-    request: Request,
-    entry_id: str,
-    body: AllowListPatch,
-    authorization: str | None = Depends(get_authorization),
-    x_api_key: str | None = Header(default=None),
-    db: Session = Depends(get_db),
-):
-    """Partially update an allow-list entry. Owner/admin only."""
-    auth = resolve_auth(authorization, x_api_key, db)
-    require_role(auth, "owner", "admin")
-
-    entry = db.query(AllowListEntry).filter(
-        AllowListEntry.id == entry_id,
-        strict_tenant_filter(auth, AllowListEntry),
-    ).first()
-    if not entry:
-        raise HTTPException(status_code=404, detail="Allow-list entry not found")
-
-    before_snapshot = {
-        "scope": entry.scope,
-        "expires_at": entry.expires_at.isoformat() if entry.expires_at else None,
-        "reason_code": entry.reason_code,
-        "owner_id": entry.owner_id,
-        "description": entry.description,
-        "no_expiry_override": getattr(entry, "no_expiry_override", False),
-    }
-
-    update_data = body.model_dump(exclude_unset=True)
-    for field_name, value in update_data.items():
-        if hasattr(entry, field_name):
-            setattr(entry, field_name, value)
-
-    after_snapshot = {
-        "scope": entry.scope,
-        "expires_at": entry.expires_at.isoformat() if entry.expires_at else None,
-        "reason_code": entry.reason_code,
-        "owner_id": entry.owner_id,
-        "description": entry.description,
-        "no_expiry_override": getattr(entry, "no_expiry_override", False),
-    }
-
-    audit_record(
-        db,
-        tenant_id=auth.tenant_id,
-        actor_id=auth.user_id,
-        action="enforcement.allow_list_updated",
-        resource_type="allow_list_entry",
-        resource_id=entry.id,
-        detail={"before": before_snapshot, "after": after_snapshot},
-    )
-
-    db.commit()
-    db.refresh(entry)
-
-    return AllowListEntryResponse(**_serialize_allow_list_entry(entry))
 
 
 # -- EDR enforcement config schemas -----------------------------------------
@@ -735,8 +167,10 @@ async def get_endpoint_edr_status(
         if provider:
             try:
                 available = await provider.available_for_endpoint(ep.hostname)
+            except (ConnectionError, OSError, asyncio.TimeoutError) as exc:
+                logger.warning("EDR availability check failed for %s: %s", ep.hostname, exc)
             except Exception:
-                logger.debug("EDR availability check failed for %s", ep.hostname)
+                logger.exception("Unexpected error checking EDR availability for %s", ep.hostname)
 
     return EDRStatusResponse(
         endpoint_id=ep.id,
@@ -805,8 +239,10 @@ async def test_edr_connectivity(
                 if edr_host_id != ep.edr_host_id:
                     ep.edr_host_id = edr_host_id
                     db.commit()
+    except (ConnectionError, OSError, asyncio.TimeoutError) as exc:
+        logger.warning("EDR test network error for endpoint %s: %s", endpoint_id, exc)
     except Exception:
-        logger.warning("EDR test failed for endpoint %s", endpoint_id, exc_info=True)
+        logger.exception("EDR test failed for endpoint %s", endpoint_id)
 
     audit_record(
         db,
@@ -1000,5 +436,7 @@ async def _push_restore_to_agent(
                     db.commit()
             finally:
                 db.close()
+    except (ConnectionError, OSError, asyncio.TimeoutError) as exc:
+        logger.warning("Could not push restore command to %s (not connected via TCP): %s", endpoint_id, exc)
     except Exception:
-        logger.debug("Could not push restore command to %s (not connected via TCP)", endpoint_id)
+        logger.exception("Unexpected error pushing restore command to %s", endpoint_id)
