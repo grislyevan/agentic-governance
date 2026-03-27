@@ -15,7 +15,18 @@ PREVIEW_PID=$!
 trap "kill $PREVIEW_PID 2>/dev/null || true" EXIT
 
 # Wait for server to be ready
-sleep 3
+timeout=30
+elapsed=0
+until curl --silent --fail --output /dev/null http://localhost:4173/; do
+  if [ "$elapsed" -ge "$timeout" ]; then
+    echo "ERROR: Preview server did not become ready within ${timeout}s"
+    exit 1
+  fi
+  echo "  Waiting for preview server... (${elapsed}s/${timeout}s)"
+  sleep 2
+  elapsed=$((elapsed + 2))
+done
+echo "  Preview server is ready (took ~${elapsed}s)"
 
 echo "Running Lighthouse on core views..."
 for ROUTE in "" "events" "sessions" "approvals" "exceptions"; do
