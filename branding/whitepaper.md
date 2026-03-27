@@ -66,7 +66,7 @@ The confidence engine scores five signal dimensions for each tool:
 
 **Behavior.** Temporal action sequences, prompt-edit-commit loops, fan-out writes, and inference bursts. Claude Code's agentic pattern is rapid multi-file read/write loops followed by shell command orchestration. Cursor's pattern is prompt-to-multi-file-write fan-out followed by shell execution via the agent-exec sandbox. Ollama's behavioral signal is inference burst cadence on the localhost API, with distinctive short-interval request clusters that differ from typical application traffic.
 
-A future sixth dimension, **binary hash verification** (SHA-256 hashing of the tool's entry-point binary), is planned for M3. It will provide cryptographic identity verification independent of process names or file paths.
+A future sixth dimension, **binary hash verification** (SHA-256 hashing of the tool's entry-point binary), is planned for a future release. It will provide cryptographic identity verification independent of process names or file paths. Some scanners already capture binary hashes opportunistically as supplementary evidence, but this is not yet a general scoring dimension.
 
 ### Tool classes
 
@@ -137,6 +137,10 @@ When a scanner detects active suppression of attribution markers, it boosts conf
 
 Lab validation revealed that Class D tools with strong infrastructure signals (running daemon, rich file footprint) could be underscored when the behavior layer dropped due to temporary model incapability. A small language model that fails all tool-use tasks produces zero behavioral signal, even though the tool's process, file, and identity footprints remain unchanged. The confidence engine applies a floor of 0.70 for tools with both process and file signals above 0.80, preventing infrastructure-class tools from falling below the Medium confidence band due to transient behavioral gaps.
 
+### Calibration validation
+
+The confidence engine is validated against a labeled fixture corpus covering true positives, false positives, true negatives, and false negatives across multiple tools. The test suite measures Expected Calibration Error (ECE) — the weighted deviation between reported confidence and actual detection accuracy — and enforces a ceiling of 0.20. When the system reports 60% confidence, approximately 60% of detections at that level are true positives. Calibration fixtures are maintained alongside the codebase and run in CI so that scoring regressions are caught before they ship.
+
 ### Confidence bands
 
 | Band | Range | Governance Implication |
@@ -192,7 +196,7 @@ Network correlation and container isolation rules evaluate as overlays on top of
 |---|---|---|
 | **Detect** | Record and monitor, no user disruption | Structured event with class, confidence, and context |
 | **Warn** | Notify operator, create policy awareness | Warning with reason, remediation guidance, acknowledgment marker |
-| **Approval Required** | Hold action pending authorized sign-off | Approval ticket with scope, expiration, and designated approver |
+| **Approval Required** | Hold action pending authorized sign-off | The collector's ApprovalHoldManager posts an approval request to the server, then polls for a decision with exponential backoff and jitter. Analysts approve or deny with reasons via the dashboard's approval queue, which supports bulk actions. Configurable timeout and offline behavior default to deny. |
 | **Block** | Deny action to enforce policy boundary | Deny with reason, evidence trace, and incident routing metadata |
 
 ### Explainability contract
@@ -209,7 +213,11 @@ Detec operates as a three-tier system: endpoint agents that scan and report, a c
 
 The agent runs as a background service on the endpoint, scanning at a configurable interval. Each scan cycle runs every scanner, computes confidence, evaluates policy, and builds structured events.
 
-Events are transmitted to the central API via HTTPS POST with API key authentication. The HTTP transport layer implements exponential-backoff retry (up to three attempts per event) and optional Ed25519 payload signing for tamper-evident transmission. When all retry attempts fail, the event is appended to a local NDJSON buffer file (capped at 10,000 events to guard against disk exhaustion) and will be flushed at the start of the next successful scan cycle. Client-side errors (HTTP 4xx) are not retried; only transient network failures and server errors trigger retry logic.
+Events are transmitted to the central API via one of two transport modes. **HTTPS POST** uses per-request API key authentication, exponential-backoff retry (up to three attempts per event), and optional Ed25519 payload signing for tamper-evident transmission. **TCP gateway** maintains a persistent TCP/TLS connection (port 8001) with a binary wire protocol; authentication happens once at connect time, and subsequent events and heartbeats are sent over the established session with server-side ACK/NACK per message. Events are batched (up to 50 per batch, 1-second window) before sending.
+
+An **adaptive transport** mode (`protocol: auto`) probes TCP at startup and falls back to HTTP if the gateway is unreachable. If the TCP connection fails during operation (configurable failure threshold, default 5 consecutive failures), the agent falls back to HTTP automatically. A background recovery thread periodically re-probes TCP and restores the persistent connection when two consecutive probes succeed, flushing any locally buffered events.
+
+For both transports, when all delivery attempts fail, the event is appended to a local NDJSON buffer file (capped at 10,000 events to guard against disk exhaustion) and will be flushed at the start of the next successful cycle. Client-side errors (HTTP 4xx) are not retried; only transient network failures and server errors trigger retry logic.
 
 In steady state, the agent reports only material changes to minimize API traffic:
 
@@ -220,9 +228,15 @@ In steady state, the agent reports only material changes to minimize API traffic
 
 State is persisted to disk and survives agent restarts. A separate heartbeat thread sends periodic liveness signals to the central API, enabling the server to distinguish between a clean agent shutdown, a restart, and an unresponsive endpoint.
 
+### Tamper controls
+
+Managed endpoints are protected against unauthorized removal and silent failure. Uninstalling the agent requires an **uninstall token**: a cryptographic secret generated via the dashboard, SHA-256 hashed on the server, and displayed to the administrator exactly once. The plaintext token is never stored server-side. Administrators can **decommission** an endpoint through the API, which marks it as removed from governance and stops policy updates.
+
+When a managed endpoint misses heartbeats beyond a configurable threshold (1.5x the heartbeat interval marks stale; 4.5x marks suspect), the server automatically transitions its status to **tamper_suspected**. This status is surfaced in the dashboard and distinguished from ordinary staleness: an unmanaged endpoint that goes silent is marked ungoverned, but a managed endpoint that goes silent is treated as a potential tamper event.
+
 ### Cross-platform abstraction
 
-The agent uses a platform abstraction layer backed by psutil that handles process enumeration, network connection queries, service status checks, identity lookups, and filesystem path resolution across Windows, macOS, and Linux. Scanners are written once against the abstraction layer rather than forked per platform. Platform-specific paths (install directories, config directories, data directories) are registered in a central path registry with per-OS resolution.
+The agent uses a platform abstraction layer that handles process enumeration, network connection queries, service status checks, identity lookups, and filesystem path resolution across Windows, macOS, and Linux. The baseline telemetry provider uses psutil for cross-platform polling. When available, kernel-level telemetry providers supply event-driven, high-fidelity data: **ESF** (macOS Endpoint Security Framework) for process exec, file open, and network connect events; **eBPF** (Linux, kernel 4.15+, BCC-based) for tracepoint and kprobe-driven process, network, and file telemetry; and **ETW** (Windows Event Tracing) for kernel-level process, file, and network events via pywintrace or ctypes. The agent auto-selects the best available provider at startup based on platform and privilege level. Scanners are written once against the abstraction layer rather than forked per platform. Platform-specific paths (install directories, config directories, data directories) are registered in a central path registry with per-OS resolution.
 
 ### Central API
 
@@ -241,7 +255,11 @@ This structure is designed for direct SIEM ingestion. Events can be forwarded to
 
 ### Dashboard
 
-The operator dashboard provides visibility into detected tools, confidence scores, enforcement states, and policy outcomes across the endpoint fleet. Detection events are structured records with full signal breakdowns, penalty annotations, and policy rule references.
+The operator dashboard provides visibility into detected tools, confidence scores, enforcement states, and policy outcomes across the endpoint fleet. Detection events are structured records with full signal breakdowns, penalty annotations, and policy rule references. Beyond the core detection view, the dashboard includes: an **approval queue** with individual and bulk approve/deny actions and required denial reasons; **exception and allow-list management** with expiry governance so exceptions do not persist indefinitely; a **policy studio** for authoring and simulating policy rules against pre-built simulation packs; **endpoint profiles** for fleet-wide configuration; **session timelines** that aggregate detection events into per-tool activity views; **audit logging**; **org settings and member management** with role-based access (owner, admin, analyst, viewer); and **multi-tenant switching** for managed service providers.
+
+### Webhook integration
+
+Detection events can be forwarded to external systems via configurable webhooks. Each webhook delivery is signed with an HMAC-SHA256 signature (`X-Detec-Signature` header) using a per-webhook secret, enabling receivers to verify payload integrity. Pre-built templates for Splunk, Elastic, and Microsoft Sentinel simplify setup. Webhooks support event type filtering, test delivery, and per-webhook enable/disable.
 
 ---
 
@@ -285,7 +303,7 @@ Detection confidence varies by tool and environment. High-risk autonomous tools 
 
 **Containerized and remote development environments** reduce host-level telemetry. When a tool runs inside a container or remote dev session, process and file signals on the host may be partial or absent. Detection relies more heavily on network and behavior layers in these configurations.
 
-**Renamed binaries and custom forks** require behavior-layer correlation for detection. Process-layer identification based on binary name or path will not match non-standard installs. Binary hash verification (planned for M3) will address this by matching against known SHA-256 hashes regardless of binary name or path.
+**Renamed binaries and custom forks** require behavior-layer correlation for detection. Process-layer identification based on binary name or path will not match non-standard installs. Binary hash verification (planned for a future release) will address this by matching against known SHA-256 hashes regardless of binary name or path.
 
 **Short-lived network connections** (sub-second HTTPS bursts typical of CLI tools like Claude Code) cannot be reliably attributed to a specific process using polling-based network capture. Reliable process-to-socket attribution for these connections requires EDR integration or endpoint security framework telemetry.
 
@@ -297,7 +315,9 @@ Detection confidence varies by tool and environment. High-risk autonomous tools 
 
 ## 8. Deployment and Integration
 
-The Detec agent installs as an operating system service: Windows Service, macOS LaunchAgent, or Linux systemd unit. It requires Python 3.11+ and network access to the central API endpoint over HTTPS.
+The Detec agent installs as an operating system service: Windows Service, macOS LaunchAgent, or Linux systemd unit. It requires Python 3.11+ and network access to the central API endpoint over HTTPS (or TCP port 8001 when using the gateway transport).
+
+For Windows endpoints, administrators can generate a **pre-configured agent download** directly from the dashboard. The download bundles the installer with tenant configuration (API URL, agent key, transport protocol) pre-stamped so that end users install with zero manual setup. Downloads can be initiated by an administrator or sent to end users via an email enrollment flow that generates a single-use, time-limited download link. When an MSI build has been uploaded for the tenant, the download serves a tenant-stamped MSI; otherwise, a zip containing the Inno Setup installer and configuration files is served.
 
 Configuration is layered: code defaults are overridden by a JSON config file, which is overridden by environment variables, which are overridden by CLI flags. This enables fleet-wide configuration via config management tools while preserving per-endpoint override capability.
 
@@ -308,7 +328,9 @@ Key deployment parameters:
 - **Reporting mode:** Changes-only (default, minimizes API traffic) or report-all (useful during initial deployment and troubleshooting)
 - **API authentication:** API key passed via header, supporting headless operation without interactive login
 
-No network reconfiguration is required. The agent communicates outbound to the central API over HTTPS. No inbound ports, no proxy changes, no firewall rules beyond standard outbound HTTPS.
+On Windows, the agent runs as a system service with a companion **system-tray application** connected via a named pipe (`\\.\pipe\DetecAgent`). The tray app provides scan status, on-demand scan triggers, detection notifications (via Windows toast notifications when available), and approval status updates without requiring the operator to open the dashboard.
+
+No network reconfiguration is required. The agent communicates outbound to the central API over HTTPS (or TCP 8001 for the gateway transport). No inbound ports, no proxy changes, no firewall rules beyond standard outbound HTTPS.
 
 Event data follows a canonical JSON schema designed for SIEM integration. Fields use strict enums for all decision-critical semantics (tool class, enforcement state, confidence band, action risk, sensitivity tier). Events can be forwarded to Splunk, Elastic, Microsoft Sentinel, or any system that ingests structured JSON.
 
