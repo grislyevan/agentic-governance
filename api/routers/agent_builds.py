@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -18,6 +19,11 @@ from core.tenant import require_role, resolve_auth, strict_tenant_filter
 from models.agent_build import AgentBuild
 
 router = APIRouter(prefix="/agent-builds", tags=["agent-builds"])
+
+# --- Security constants ---
+MAX_UPLOAD_SIZE = 200 * 1024 * 1024  # 200 MB
+_VERSION_RE = re.compile(r"^[a-zA-Z0-9._-]+$")
+_MSI_MAGIC = b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1"  # OLE compound document
 
 DATA_DIR = os.environ.get(
     "DETEC_DATA_DIR",
@@ -38,7 +44,36 @@ async def upload_agent_build(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
 
+    # H4a: Path traversal prevention
+    if ".." in version or not _VERSION_RE.match(version):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid version string. Only alphanumeric characters, dots, hyphens, and underscores are allowed.",
+        )
+
+    # H4c: File type validation (extension)
+    if not file.filename or not file.filename.lower().endswith(".msi"):
+        raise HTTPException(
+            status_code=400,
+            detail="Only .msi files are accepted.",
+        )
+
     content = await file.read()
+
+    # H4b: File size limit
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum upload size is {MAX_UPLOAD_SIZE // (1024 * 1024)} MB.",
+        )
+
+    # H4c: File type validation (magic bytes)
+    if len(content) < 8 or content[:8] != _MSI_MAGIC:
+        raise HTTPException(
+            status_code=400,
+            detail="File does not appear to be a valid MSI (OLE compound document).",
+        )
+
     sha256 = hashlib.sha256(content).hexdigest()
 
     version_dir = os.path.join(BUILDS_DIR, auth.tenant_id, version)
