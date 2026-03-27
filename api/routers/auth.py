@@ -535,8 +535,14 @@ def sso_callback(
             audience="sso-state",
         )
         nonce = payload.get("nonce")
+    except (pyjwt.ExpiredSignatureError, pyjwt.InvalidTokenError, pyjwt.DecodeError, ValueError, KeyError) as exc:
+        logger.warning("SSO callback: invalid or expired state: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired state. Please try signing in again.",
+        )
     except Exception:
-        logger.warning("SSO callback: invalid or expired state")
+        logger.exception("SSO callback: unexpected error decoding state")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired state. Please try signing in again.",
@@ -604,9 +610,16 @@ def sso_callback(
         )
         if decoded.get("nonce") != nonce:
             raise ValueError("nonce mismatch")
-    except Exception as e:
+    except (pyjwt.ExpiredSignatureError, pyjwt.InvalidTokenError, pyjwt.DecodeError, ValueError, KeyError) as e:
         # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.warning("SSO callback: ID token validation failed: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid ID token from identity provider",
+        )
+    except Exception as e:
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
+        logger.exception("SSO callback: unexpected error validating ID token: %s", e)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid ID token from identity provider",

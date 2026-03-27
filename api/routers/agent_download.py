@@ -321,8 +321,12 @@ def _build_msi_download(tenant: Tenant, db: Session) -> FileResponse | None:
             api_key=agent_key,
             tenant_id=str(tenant.id),
         )
+    except (FileNotFoundError, ValueError, OSError) as exc:
+        logger.warning("Failed to stamp MSI for tenant %s; falling back to zip: %s", tenant.id, exc)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return None
     except Exception:
-        logger.exception("Failed to stamp MSI for tenant %s; falling back to zip", tenant.id)
+        logger.exception("Unexpected error stamping MSI for tenant %s; falling back to zip", tenant.id)
         shutil.rmtree(tmp_dir, ignore_errors=True)
         return None
 
@@ -535,9 +539,16 @@ def enroll_email(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Email delivery is not configured. Set SMTP_HOST and SMTP_FROM in the server environment.",
         )
+    except (ConnectionError, OSError, TimeoutError) as exc:
+        db.rollback()
+        logger.warning("Failed to send enrollment email to %s: %s", body.email, exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to send email. Check SMTP configuration.",
+        )
     except Exception:
         db.rollback()
-        logger.exception("Failed to send enrollment email to %s", body.email)
+        logger.exception("Unexpected error sending enrollment email to %s", body.email)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Failed to send email. Check SMTP configuration.",

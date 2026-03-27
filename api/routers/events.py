@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -113,8 +114,11 @@ def _verify_signature(body: EventIngest, db: Session, tenant_id: str) -> bool | 
         sig_bytes = bytes.fromhex(sig_hex)
         pub_key.verify(sig_bytes, canonical)
         return True
+    except (ValueError, TypeError) as exc:
+        logger.warning("Signature verification failed for fingerprint %s: %s", fingerprint, exc)
+        return False
     except Exception:
-        logger.warning("Signature verification failed for fingerprint %s", fingerprint)
+        logger.exception("Unexpected error during signature verification for fingerprint %s", fingerprint)
         return False
 
 
@@ -138,8 +142,10 @@ def _record_beh009_metrics(event_payload: dict[str, Any]) -> None:
             else:
                 detec_beh009_chain_kind_total.labels(kind="other").inc()
             break
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        logger.warning("BEH-009 metric recording failed: %s", exc)
     except Exception:
-        logger.debug("BEH-009 metric recording failed", exc_info=True)
+        logger.exception("Unexpected error in BEH-009 metric recording")
 
 
 def _record_agent_telemetry_metrics(event_payload: dict[str, Any], endpoint_id: str | None) -> None:
@@ -166,8 +172,10 @@ def _record_agent_telemetry_metrics(event_payload: dict[str, Any], endpoint_id: 
         capability_drift = agent_status.get("capability_drift") or []
         for cap in capability_drift:
             detec_agent_capability_drift_total.labels(endpoint_id=eid, capability=str(cap)).inc()
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        logger.warning("Agent telemetry metric recording failed: %s", exc)
     except Exception:
-        logger.debug("Agent telemetry metric recording failed", exc_info=True)
+        logger.exception("Unexpected error in agent telemetry metric recording")
 
 
 async def _run_edr_enforcement(
@@ -209,11 +217,16 @@ async def _run_edr_enforcement(
             process_name=process_name,
         )
         db.commit()
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError) as exc:
         logger.warning(
+            "EDR enforcement network error for event %s: %s",
+            event_payload.get("event_id"),
+            exc,
+        )
+    except Exception:
+        logger.exception(
             "EDR enforcement failed for event %s",
             event_payload.get("event_id"),
-            exc_info=True,
         )
     finally:
         db.close()
@@ -251,11 +264,21 @@ async def _run_edr_enrichment(event_payload: dict[str, object]) -> None:
                 result.original_confidence,
                 result.enriched_confidence,
             )
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError) as exc:
         logger.warning(
+            "EDR enrichment network error for event %s: %s",
+            event_payload.get("event_id"),
+            exc,
+        )
+    except ImportError:
+        logger.warning(
+            "EDR enrichment import failed for event %s (missing dependency)",
+            event_payload.get("event_id"),
+        )
+    except Exception:
+        logger.exception(
             "EDR enrichment failed for event %s",
             event_payload.get("event_id"),
-            exc_info=True,
         )
 
 
@@ -393,9 +416,12 @@ def ingest_event(
 
     try:
         _dispatch_webhooks(db, tenant_id, event_payload)
+    except (ConnectionError, OSError, TimeoutError) as exc:
+        detec_http_webhook_errors_total.inc()
+        logger.warning("Webhook dispatch network error for event %s: %s", body.event_id, exc)
     except Exception:
         detec_http_webhook_errors_total.inc()
-        logger.warning("Webhook dispatch failed for event %s", body.event_id, exc_info=True)
+        logger.exception("Webhook dispatch failed for event %s", body.event_id)
 
     try:
         from core.config import settings as _cfg
@@ -404,8 +430,10 @@ def ingest_event(
                 _run_edr_enrichment,
                 event_payload,
             )
+    except (ImportError, AttributeError) as exc:
+        logger.warning("EDR enrichment hook failed to queue: %s", exc)
     except Exception:
-        logger.debug("EDR enrichment hook failed to queue", exc_info=True)
+        logger.exception("EDR enrichment hook failed to queue")
 
     if event_type_val and event_type_val in (
         "enforcement.applied", "enforcement.simulated"
@@ -454,16 +482,18 @@ def _run_playbooks_background(
             detec_playbook_run_outcomes_total.labels(result="success").inc()
         except Exception:
             detec_playbook_run_outcomes_total.labels(result="failure").inc()
-            logger.warning(
+            logger.exception(
                 "Playbook execution failed for event %s",
                 event_payload.get("event_id"),
-                exc_info=True,
             )
         finally:
             db.close()
+    except ImportError:
+        detec_playbook_run_outcomes_total.labels(result="failure").inc()
+        logger.warning("Playbook background task setup failed: missing import", exc_info=True)
     except Exception:
         detec_playbook_run_outcomes_total.labels(result="failure").inc()
-        logger.warning("Playbook background task setup failed", exc_info=True)
+        logger.exception("Playbook background task setup failed")
     finally:
         elapsed = (datetime.now(timezone.utc) - started).total_seconds()
         detec_playbook_run_latency_seconds.observe(max(0.0, elapsed))
@@ -625,8 +655,10 @@ async def _push_kill_to_agent(
                 "Agent for endpoint %s not reachable via TCP; kill_process command not delivered",
                 endpoint_id,
             )
+    except (ConnectionError, OSError, asyncio.TimeoutError) as exc:
+        logger.warning("Could not push kill_process to endpoint %s: %s", endpoint_id, exc)
     except Exception:
-        logger.debug("Could not push kill_process to endpoint %s", endpoint_id, exc_info=True)
+        logger.exception("Unexpected error pushing kill_process to endpoint %s", endpoint_id)
 
 
 @router.post("/{event_id}/block", response_model=BlockResponse)
@@ -702,7 +734,7 @@ def block_event(
             )
             enforcement_triggered = True
         except Exception:
-            logger.debug("EDR enforcement task not queued for admin block", exc_info=True)
+            logger.warning("EDR enforcement task not queued for admin block", exc_info=True)
 
         # Also push kill command directly to agent via TCP gateway if connected.
         gateway = getattr(request.app.state, "gateway", None)
@@ -722,7 +754,7 @@ def block_event(
                         tool_name,
                     )
                 except Exception:
-                    logger.debug("Gateway kill push task not queued for admin block", exc_info=True)
+                    logger.warning("Gateway kill push task not queued for admin block", exc_info=True)
 
     return BlockResponse(
         event_id=event_id,
