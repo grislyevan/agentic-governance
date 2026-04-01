@@ -118,6 +118,17 @@ EVENT_STORE_DEFAULTS: dict[str, Any] = {
     "max_events_per_burst": 0,
 }
 
+ENFORCEMENT_DEFAULTS: dict[str, Any] = {
+    "protected_parents": [],
+    "allow_persistent_disable": False,
+    "require_corroboration": True,
+}
+
+ENFORCEMENT_ENV_MAP: dict[str, str] = {
+    "allow_persistent_disable": f"{ENV_PREFIX}ENFORCEMENT_ALLOW_PERSISTENT_DISABLE",
+    "require_corroboration": f"{ENV_PREFIX}ENFORCEMENT_REQUIRE_CORROBORATION",
+}
+
 CODE_DEFAULTS: dict[str, Any] = {
     "output": "./scan-results.ndjson",
     "endpoint_id": None,
@@ -143,6 +154,7 @@ CODE_DEFAULTS: dict[str, Any] = {
     "allow_linux_uid_block_fallback": False,
     "sentinel": dict(SENTINEL_DEFAULTS),
     "event_store": dict(EVENT_STORE_DEFAULTS),
+    "enforcement": dict(ENFORCEMENT_DEFAULTS),
 }
 
 
@@ -384,6 +396,8 @@ def load_collector_config(config_path: Path | None = None) -> dict[str, Any]:
             merged["sentinel"] = {**merged.get("sentinel", SENTINEL_DEFAULTS), **v}
         if k == "event_store" and isinstance(v, dict):
             merged["event_store"] = {**merged.get("event_store", EVENT_STORE_DEFAULTS), **v}
+        if k == "enforcement" and isinstance(v, dict):
+            merged["enforcement"] = {**ENFORCEMENT_DEFAULTS, **v}
 
     if "gateway_host" not in file_cfg and file_cfg.get("tcp_host"):
         merged["gateway_host"] = str(file_cfg["tcp_host"]).strip()
@@ -412,6 +426,16 @@ def load_collector_config(config_path: Path | None = None) -> dict[str, Any]:
         elif key == "require_corroboration":
             sentinel[key] = _parse_bool(raw)
     merged["sentinel"] = sentinel
+
+    # Enforcement env overrides
+    enforcement = dict(merged.get("enforcement", ENFORCEMENT_DEFAULTS))
+    for key, env_var in ENFORCEMENT_ENV_MAP.items():
+        raw = os.environ.get(env_var)
+        if raw is None:
+            continue
+        if key in ("allow_persistent_disable", "require_corroboration"):
+            enforcement[key] = _parse_bool(raw)
+    merged["enforcement"] = enforcement
 
     # Server-pushed interval (persisted from last heartbeat) overrides file default.
     state = load_server_interval_state()

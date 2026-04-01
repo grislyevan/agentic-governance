@@ -42,6 +42,22 @@ logger = logging.getLogger(__name__)
 _RESURRECTION_WINDOW = 300.0
 _RESURRECTION_THRESHOLD = 3
 
+# Process names that must never be killed during resurrection escalation.
+# These represent shells, terminals, IDEs, window managers, and init systems
+# whose termination would destroy the user's working environment.
+PROTECTED_PARENTS = frozenset({
+    "bash", "zsh", "sh", "fish", "dash", "tcsh", "csh",
+    "Terminal", "iTerm2", "iTerm", "Hyper", "WezTerm",
+    "code", "Code", "Code - Insiders", "cursor", "Cursor",
+    "idea", "pycharm", "webstorm", "goland", "rubymine", "clion", "rider",
+    "gnome-terminal", "konsole", "alacritty", "kitty", "xterm",
+    "tmux", "screen",
+    "WindowServer", "Finder", "Dock", "loginwindow", "SystemUIServer",
+    "systemd", "launchd", "init", "sshd",
+    "gdm", "lightdm", "sddm",
+    "explorer.exe", "dwm.exe", "winlogon.exe",
+})
+
 
 @dataclass
 class EnforcementResult:
@@ -71,6 +87,9 @@ class Enforcer:
         proxy_http: str | None = None,
         proxy_https: str | None = None,
         proxy_no: str | None = None,
+        protected_parents: set[str] | None = None,
+        allow_persistent_disable: bool = False,
+        require_corroboration: bool = False,
     ) -> None:
         self._posture_mgr = posture_manager
         self._dry_run = dry_run
@@ -85,6 +104,15 @@ class Enforcer:
         self._proxy_http = proxy_http if proxy_http is not None else os.getenv("AGENTIC_GOV_PROXY_HTTP", "")
         self._proxy_https = proxy_https if proxy_https is not None else os.getenv("AGENTIC_GOV_PROXY_HTTPS", "")
         self._proxy_no = proxy_no if proxy_no is not None else os.getenv("AGENTIC_GOV_PROXY_NO", "localhost,127.0.0.1,::1")
+        # Resurrection escalation safety: protected parents, persistent disable gate,
+        # and corroboration requirement.
+        self._protected_parents: frozenset[str] = (
+            PROTECTED_PARENTS | frozenset(protected_parents)
+            if protected_parents
+            else PROTECTED_PARENTS
+        )
+        self._allow_persistent_disable = allow_persistent_disable
+        self._require_corroboration = require_corroboration
 
     @property
     def posture(self) -> str:
@@ -104,6 +132,7 @@ class Enforcer:
         pids: set[int] | None = None,
         network_elevated: bool = False,
         process_patterns: list[str] | None = None,
+        corroborating_scanners: set[str] | None = None,
     ) -> EnforcementResult:
         """Select and execute the appropriate enforcement tactic.
 
@@ -208,6 +237,7 @@ class Enforcer:
                     tool_name,
                     pids,
                     expected_patterns=process_patterns,
+                    corroborating_scanners=corroborating_scanners,
                 )
             if self._proxy_configured:
                 return self._proxy_inject(tool_name)
@@ -296,6 +326,7 @@ class Enforcer:
         tool_name: str,
         pids: set[int],
         expected_patterns: Iterable[str] | None = None,
+        corroborating_scanners: set[str] | None = None,
     ) -> EnforcementResult:
         from enforcement.process_kill import kill_process_tree
 
@@ -321,85 +352,119 @@ class Enforcer:
 
         self._rate_limiter.record()
 
-        escalated = self._check_resurrection(tool_name)
+        escalated = self._check_resurrection(
+            tool_name,
+            corroborating_scanners=corroborating_scanners,
+        )
         escalation_details: list[str] = []
 
         if escalated:
+            # Safety gate: check if parent process is protected before killing it.
+            parent_protected = False
+            parent_name: str | None = None
             if parent_ppid and parent_ppid > 1:
                 try:
-                    kr = kill_process_tree(parent_ppid, grace_period=5.0)
-                    if kr.success:
-                        escalation_details.append(f"killed parent {parent_ppid}")
-                        logger.info("Escalation: killed parent PID %d for %s", parent_ppid, tool_name)
-                    else:
-                        escalation_details.append(f"parent kill failed: {kr.detail}")
-                        logger.warning("Escalation: failed to kill parent %d: %s", parent_ppid, kr.detail)
-                except Exception as exc:
-                    escalation_details.append(f"parent kill error: {exc}")
-                    logger.warning("Escalation: error killing parent %d: %s", parent_ppid, exc)
+                    import psutil
+                    parent_name = psutil.Process(parent_ppid).name()
+                except Exception:
+                    parent_name = None
+
+                if parent_name and parent_name in self._protected_parents:
+                    parent_protected = True
+                    logger.warning(
+                        "Resurrection escalation skipped: parent '%s' (PID %d) is protected",
+                        parent_name, parent_ppid,
+                    )
+                    escalation_details.append(
+                        f"parent kill skipped: '{parent_name}' is protected"
+                    )
+                else:
+                    try:
+                        kr = kill_process_tree(parent_ppid, grace_period=5.0)
+                        if kr.success:
+                            escalation_details.append(f"killed parent {parent_ppid}")
+                            logger.info("Escalation: killed parent PID %d for %s", parent_ppid, tool_name)
+                        else:
+                            escalation_details.append(f"parent kill failed: {kr.detail}")
+                            logger.warning("Escalation: failed to kill parent %d: %s", parent_ppid, kr.detail)
+                    except Exception as exc:
+                        escalation_details.append(f"parent kill error: {exc}")
+                        logger.warning("Escalation: error killing parent %d: %s", parent_ppid, exc)
 
             if platform.system() == "Linux" and target_pid:
-                try:
-                    with open(f"/proc/{target_pid}/cgroup") as f:
-                        for line in f:
-                            if "::" in line and (".service" in line or ".slice" in line):
-                                cg_path = line.strip().split("::", 1)[-1].strip()
-                                for part in cg_path.split("/"):
-                                    if part.endswith(".service"):
-                                        disable = subprocess.run(
-                                            ["systemctl", "disable", "--now", part],
-                                            capture_output=True, text=True, timeout=10,
-                                        )
-                                        if disable.returncode == 0:
-                                            escalation_details.append(f"disabled unit {part}")
-                                            logger.info("Escalation: disabled systemd unit %s", part)
-                                            self._record_disabled_service(
-                                                service_type="systemd",
-                                                unit_name=part,
-                                                tool_name=tool_name,
+                if self._allow_persistent_disable:
+                    try:
+                        with open(f"/proc/{target_pid}/cgroup") as f:
+                            for line in f:
+                                if "::" in line and (".service" in line or ".slice" in line):
+                                    cg_path = line.strip().split("::", 1)[-1].strip()
+                                    for part in cg_path.split("/"):
+                                        if part.endswith(".service"):
+                                            disable = subprocess.run(
+                                                ["systemctl", "disable", "--now", part],
+                                                capture_output=True, text=True, timeout=10,
                                             )
-                                        break
-                                break
-                except Exception as exc:
-                    logger.debug("Escalation: systemd unit check failed: %s", exc)
+                                            if disable.returncode == 0:
+                                                escalation_details.append(f"disabled unit {part}")
+                                                logger.info("Escalation: disabled systemd unit %s", part)
+                                                self._record_disabled_service(
+                                                    service_type="systemd",
+                                                    unit_name=part,
+                                                    tool_name=tool_name,
+                                                )
+                                            break
+                                    break
+                    except Exception as exc:
+                        logger.debug("Escalation: systemd unit check failed: %s", exc)
+                else:
+                    logger.info(
+                        "Persistent service disable skipped (allow_persistent_disable=False)"
+                    )
+                    escalation_details.append("persistent disable skipped (disabled by config)")
 
             if platform.system() == "Darwin" and target_exe:
-                try:
-                    import glob
-                    from pathlib import Path as _Path
-                    for plist_dir in [
-                        "/Library/LaunchDaemons",
-                        "/Library/LaunchAgents",
-                        "/Users/*/Library/LaunchAgents",
-                    ]:
-                        for plist_path in glob.glob(plist_dir + "/*.plist"):
-                            try:
-                                with open(plist_path) as f:
-                                    if target_exe not in f.read():
-                                        continue
-                            except Exception:
-                                continue
+                if self._allow_persistent_disable:
+                    try:
+                        import glob
+                        from pathlib import Path as _Path
+                        for plist_dir in [
+                            "/Library/LaunchDaemons",
+                            "/Library/LaunchAgents",
+                            "/Users/*/Library/LaunchAgents",
+                        ]:
+                            for plist_path in glob.glob(plist_dir + "/*.plist"):
+                                try:
+                                    with open(plist_path) as f:
+                                        if target_exe not in f.read():
+                                            continue
+                                except Exception:
+                                    continue
 
-                            unload = subprocess.run(
-                                ["launchctl", "unload", "-w", plist_path],
-                                capture_output=True, text=True, timeout=10,
-                            )
-                            if unload.returncode == 0:
-                                label = _Path(plist_path).stem
-                                escalation_details.append(f"unloaded plist {plist_path}")
-                                logger.info("Escalation: unloaded launchd plist %s for %s", plist_path, target_exe)
-                                self._record_disabled_service(
-                                    service_type="launchd",
-                                    unit_name=label,
-                                    tool_name=tool_name,
-                                    plist_path=plist_path,
+                                unload = subprocess.run(
+                                    ["launchctl", "unload", "-w", plist_path],
+                                    capture_output=True, text=True, timeout=10,
                                 )
-                            else:
-                                escalation_details.append(f"plist unload failed {plist_path}")
-                                logger.warning("Escalation: launchctl unload %s failed: %s", plist_path, unload.stderr.strip())
-                            break
-                except Exception as exc:
-                    logger.debug("Escalation: launchd check failed: %s", exc)
+                                if unload.returncode == 0:
+                                    label = _Path(plist_path).stem
+                                    escalation_details.append(f"unloaded plist {plist_path}")
+                                    logger.info("Escalation: unloaded launchd plist %s for %s", plist_path, target_exe)
+                                    self._record_disabled_service(
+                                        service_type="launchd",
+                                        unit_name=label,
+                                        tool_name=tool_name,
+                                        plist_path=plist_path,
+                                    )
+                                else:
+                                    escalation_details.append(f"plist unload failed {plist_path}")
+                                    logger.warning("Escalation: launchctl unload %s failed: %s", plist_path, unload.stderr.strip())
+                                break
+                    except Exception as exc:
+                        logger.debug("Escalation: launchd check failed: %s", exc)
+                else:
+                    logger.info(
+                        "Persistent service disable skipped (allow_persistent_disable=False)"
+                    )
+                    escalation_details.append("persistent disable skipped (disabled by config)")
 
         detail = f"Killed PIDs {all_killed} for {tool_name}"
         if escalated:
@@ -440,8 +505,17 @@ class Enforcer:
             unit_name, service_type, tool_name,
         )
 
-    def _check_resurrection(self, tool_name: str) -> bool:
-        """Track kill history; return True if tool was killed 3+ times in 5 min."""
+    def _check_resurrection(
+        self,
+        tool_name: str,
+        corroborating_scanners: set[str] | None = None,
+    ) -> bool:
+        """Track kill history; return True if tool was killed 3+ times in 5 min.
+
+        When ``self._require_corroboration`` is True and *corroborating_scanners*
+        is provided, escalation only fires if at least 2 independent scanners
+        detected the tool.
+        """
         now = time.monotonic()
         with self._kill_history_lock:
             if tool_name not in self._kill_history:
@@ -451,7 +525,22 @@ class Enforcer:
             while hist and hist[0] < cutoff:
                 hist.popleft()
             hist.append(now)
-            return len(hist) >= _RESURRECTION_THRESHOLD
+
+            if len(hist) < _RESURRECTION_THRESHOLD:
+                return False
+
+            # Corroboration gate: require 2+ independent scanners to confirm.
+            if self._require_corroboration and corroborating_scanners is not None:
+                if len(corroborating_scanners) < 2:
+                    scanner_name = next(iter(corroborating_scanners)) if corroborating_scanners else "none"
+                    logger.info(
+                        "Resurrection detected but not corroborated "
+                        "(single scanner: %s)",
+                        scanner_name,
+                    )
+                    return False
+
+            return True
 
     def _proxy_inject(self, tool_name: str) -> EnforcementResult:
         from enforcement.proxy_inject import ProxyConfig, inject_proxy_env

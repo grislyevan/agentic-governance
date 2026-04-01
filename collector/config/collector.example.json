@@ -30,5 +30,11 @@
         "timeout_seconds": 300,
         "timeout_behavior": "deny",
         "offline_behavior": "deny"
+    },
+
+    "enforcement": {
+        "protected_parents": [],
+        "allow_persistent_disable": false,
+        "require_corroboration": true
     }
 }
