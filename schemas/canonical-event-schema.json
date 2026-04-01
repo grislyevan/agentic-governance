@@ -680,6 +680,11 @@
           "type": "string",
           "enum": ["local", "crowdstrike", "sentinelone", "webhook"],
           "description": "Which enforcement provider executed the action."
+        },
+        "hold_effective": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the tool's processes were suspended (SIGSTOP) during the approval hold period. False when the tool continued running (retrospective hold only). Only meaningful when tactic is hold_pending_approval."
         }
       },
       "required": ["tactic", "success", "detail"],

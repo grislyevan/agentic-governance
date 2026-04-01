@@ -1,0 +1,256 @@
+{
+  "_comment": "Baseline policy rules for the data-driven policy engine. Exported from collector/engine/policy.py RULE_VERSION 0.4.0. Conditions must match the procedural code exactly.",
+  "config_version": "0.4.0",
+  "rules": [
+    {
+      "rule_id": "ENFORCE-D01",
+      "rule_version": "0.4.0",
+      "category": "class_d",
+      "is_active": true,
+      "decision_state": "block",
+      "conditions": {
+        "tool_classes": ["D"],
+        "action_risk_min": "R3"
+      },
+      "reason_codes": [
+        "class_d_persistent_autonomous_agent",
+        "r3_or_higher_action_always_block_for_class_d"
+      ],
+      "precedence": 50
+    },
+    {
+      "rule_id": "ENFORCE-D02",
+      "rule_version": "0.4.0",
+      "category": "class_d",
+      "is_active": true,
+      "decision_state": "approval_required",
+      "conditions": {
+        "tool_classes": ["D"],
+        "confidence_band": ["Medium", "High"],
+        "action_risk_min": "R2"
+      },
+      "reason_codes": [
+        "class_d_persistent_autonomous_agent",
+        "medium_or_high_confidence_write_requires_approval"
+      ],
+      "precedence": 51
+    },
+    {
+      "rule_id": "ENFORCE-D03",
+      "rule_version": "0.4.0",
+      "category": "class_d",
+      "is_active": true,
+      "decision_state": "warn",
+      "conditions": {
+        "tool_classes": ["D"]
+      },
+      "reason_codes": [
+        "class_d_persistent_autonomous_agent",
+        "always_on_agent_no_safe_baseline"
+      ],
+      "precedence": 52
+    },
+    {
+      "rule_id": "ENFORCE-005",
+      "rule_version": "0.4.0",
+      "category": "enforcement",
+      "is_active": true,
+      "decision_state": "block",
+      "conditions": {
+        "explicit_deny": true,
+        "sensitivity_tier_min": "Tier3"
+      },
+      "reason_codes": [
+        "explicit_deny_tier3"
+      ],
+      "precedence": 100
+    },
+    {
+      "rule_id": "ENFORCE-004",
+      "rule_version": "0.4.0",
+      "category": "enforcement",
+      "is_active": true,
+      "decision_state": "block",
+      "conditions": {
+        "confidence_band": ["High"],
+        "action_risk_min": "R4"
+      },
+      "reason_codes": [
+        "high_confidence_disallowed_r4"
+      ],
+      "precedence": 200
+    },
+    {
+      "rule_id": "ENFORCE-006",
+      "rule_version": "0.4.0",
+      "category": "enforcement",
+      "is_active": true,
+      "decision_state": "approval_required",
+      "conditions": {
+        "tool_classes": ["C"],
+        "confidence_band": ["Medium", "High"],
+        "action_risk_min": "R3"
+      },
+      "reason_codes": [
+        "class_c_autonomous_executor",
+        "medium_or_high_confidence_r3"
+      ],
+      "precedence": 300
+    },
+    {
+      "rule_id": "ENFORCE-003",
+      "rule_version": "0.4.0",
+      "category": "enforcement",
+      "is_active": true,
+      "decision_state": "approval_required",
+      "conditions": {
+        "confidence_band": ["Medium"],
+        "sensitivity_tier_min": "Tier2",
+        "action_risk_min": "R3"
+      },
+      "reason_codes": [
+        "medium_confidence_sensitive_scope"
+      ],
+      "precedence": 400
+    },
+    {
+      "rule_id": "ENFORCE-002",
+      "rule_version": "0.4.0",
+      "category": "enforcement",
+      "is_active": true,
+      "decision_state": "warn",
+      "conditions": {
+        "confidence_band": ["Medium"],
+        "sensitivity_tier_min": "Tier1",
+        "action_risk_min": "R2"
+      },
+      "reason_codes": [
+        "medium_confidence_scoped_write"
+      ],
+      "precedence": 500
+    },
+    {
+      "rule_id": "ENFORCE-001",
+      "rule_version": "0.4.0",
+      "category": "enforcement",
+      "is_active": true,
+      "decision_state": "detect",
+      "conditions": {
+        "confidence_band": ["Low"],
+        "sensitivity_tier_max": "Tier1",
+        "action_risk_max": "R1"
+      },
+      "reason_codes": [
+        "low_confidence_low_risk"
+      ],
+      "precedence": 600
+    },
+    {
+      "rule_id": "ENFORCE-003-F",
+      "rule_version": "0.4.0",
+      "category": "fallback",
+      "is_active": true,
+      "is_fallback": true,
+      "decision_state": "approval_required",
+      "conditions": {
+        "confidence_band": ["High"],
+        "action_risk_min": "R3"
+      },
+      "reason_codes": [
+        "fallback_high_confidence_broad_action"
+      ],
+      "precedence": 700
+    },
+    {
+      "rule_id": "ENFORCE-002-F",
+      "rule_version": "0.4.0",
+      "category": "fallback",
+      "is_active": true,
+      "is_fallback": true,
+      "decision_state": "warn",
+      "conditions": {
+        "confidence_band": ["High"]
+      },
+      "reason_codes": [
+        "fallback_high_confidence_detected"
+      ],
+      "precedence": 800
+    },
+    {
+      "rule_id": "ENFORCE-002-F",
+      "rule_version": "0.4.0",
+      "category": "fallback",
+      "is_active": true,
+      "is_fallback": true,
+      "decision_state": "warn",
+      "conditions": {
+        "confidence_band": ["Medium"]
+      },
+      "reason_codes": [
+        "fallback_medium_confidence_no_rule_match"
+      ],
+      "precedence": 801
+    },
+    {
+      "rule_id": "ENFORCE-001-F",
+      "rule_version": "0.4.0",
+      "category": "fallback",
+      "is_active": true,
+      "is_fallback": true,
+      "decision_state": "detect",
+      "conditions": {},
+      "reason_codes": [
+        "fallback_low_confidence_default"
+      ],
+      "precedence": 900
+    }
+  ],
+  "overlay_rules": [
+    {
+      "rule_id": "NET-002",
+      "rule_version": "0.4.0",
+      "category": "overlay",
+      "is_active": true,
+      "decision_state": "block",
+      "conditions": {
+        "tool_classes": ["C", "D"],
+        "unknown_outbound_min": 3
+      },
+      "reason_codes": [
+        "high_volume_unknown_outbound_exfiltration_risk"
+      ],
+      "precedence": 600
+    },
+    {
+      "rule_id": "NET-001",
+      "rule_version": "0.4.0",
+      "category": "overlay",
+      "is_active": true,
+      "decision_state": "approval_required",
+      "conditions": {
+        "tool_classes": ["C", "D"],
+        "unknown_outbound_min": 1
+      },
+      "reason_codes": [
+        "autonomous_tool_unknown_outbound"
+      ],
+      "precedence": 601
+    },
+    {
+      "rule_id": "ISO-001",
+      "rule_version": "0.4.0",
+      "category": "overlay",
+      "is_active": true,
+      "decision_state": "block",
+      "conditions": {
+        "tool_classes": ["C", "D"],
+        "requires_container": true
+      },
+      "reason_codes": [
+        "container_isolation_required",
+        "process_not_child_of_docker"
+      ],
+      "precedence": 602
+    }
+  ]
+}

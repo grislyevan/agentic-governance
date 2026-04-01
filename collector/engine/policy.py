@@ -1,18 +1,26 @@
 """Policy evaluation engine implementing Playbook Section 6.3 deterministic escalation rules.
 
-Class D rules (ENFORCE-D01 through ENFORCE-D03) take precedence over general rules 1–7
+Class D rules (ENFORCE-D01 through ENFORCE-D03) take precedence over general rules 1-7
 and reflect the stricter governance posture required for Persistent Autonomous Agents.
 
 Network rules (NET-001 through NET-003) correlate active tool connections with an
 allowlist to detect data exfiltration risk.
 
 Container isolation rule (ISO-001) requires Class C agents to run inside containers.
+
+As of v0.4.0, base rule evaluation is delegated to the data-driven PolicyEngine
+(``collector/engine/policy_engine.py``).  The engine loads rules from JSON and
+evaluates them in precedence order.  This module remains the public facade.
 """
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 RULE_VERSION = "0.4.0"
 
@@ -37,6 +45,67 @@ class NetworkContext:
     total_connections: int = 0
 
 
+# ---------------------------------------------------------------------------
+# Module-level engine singleton (lazy-loaded on first evaluate_policy call)
+# ---------------------------------------------------------------------------
+
+_engine: Any = None  # PolicyEngine | None
+_engine_loaded: bool = False
+
+_POLICIES_JSON = Path(__file__).resolve().parent.parent / "config" / "policies.json"
+
+
+def _get_engine() -> Any:
+    """Return the module-level PolicyEngine, initializing on first call."""
+    global _engine, _engine_loaded
+    if not _engine_loaded:
+        try:
+            from engine.policy_engine import PolicyEngine, create_engine_from_file, PolicyContext
+
+            # Check for server-pushed rules first
+            server_rules = _load_server_pushed_rules()
+            if server_rules is not None:
+                _engine = PolicyEngine(server_rules)
+                logger.info("PolicyEngine initialized with server-pushed rules (%d rules)", len(server_rules))
+            else:
+                _engine = create_engine_from_file(_POLICIES_JSON)
+                logger.info("PolicyEngine initialized from %s", _POLICIES_JSON)
+        except Exception:
+            logger.exception("Failed to initialize PolicyEngine; falling back to hardcoded rules")
+            _engine = None
+        _engine_loaded = True
+    return _engine
+
+
+def _load_server_pushed_rules() -> list[dict] | None:
+    """Load server-pushed policy rules from agent state, if available."""
+    try:
+        from config_loader import load_server_interval_state
+        state = load_server_interval_state()
+        rules = state.get("policy_rules")
+        if isinstance(rules, list) and len(rules) > 0:
+            return rules
+    except Exception:
+        logger.debug("Could not load server-pushed policy rules", exc_info=True)
+    return None
+
+
+def set_engine_rules(rules: list[dict] | None) -> None:
+    """Replace the module-level PolicyEngine with one built from *rules*.
+
+    Pass ``None`` to reset to file-based defaults on next call.
+    Used by the heartbeat handler to apply server-pushed policy overrides.
+    """
+    global _engine, _engine_loaded
+    if rules is None:
+        _engine = None
+        _engine_loaded = False
+        return
+    from engine.policy_engine import PolicyEngine
+    _engine = PolicyEngine(rules)
+    _engine_loaded = True
+
+
 def evaluate_network_policy(
     tool_class: str,
     tool_name: str,
@@ -59,10 +128,10 @@ def evaluate_network_policy(
     for dest in net_ctx.unknown_destinations[:5]:
         reason_codes.append(f"unknown_dest_{dest}")
 
-    # NET-003: Any tool + known-malicious destination → block
-    # (Placeholder — requires threat-intel feed integration)
+    # NET-003: Any tool + known-malicious destination -> block
+    # (Placeholder -- requires threat-intel feed integration)
 
-    # NET-002: Class C/D + unknown outbound + high volume → block (exfiltration risk)
+    # NET-002: Class C/D + unknown outbound + high volume -> block (exfiltration risk)
     if tool_class in ("C", "D") and net_ctx.unknown_connections >= 3:
         reason_codes.append("high_volume_unknown_outbound_exfiltration_risk")
         return PolicyDecision(
@@ -73,7 +142,7 @@ def evaluate_network_policy(
             decision_confidence=confidence,
         )
 
-    # NET-001: Class C + unknown outbound → approval_required
+    # NET-001: Class C + unknown outbound -> approval_required
     if tool_class in ("C", "D"):
         reason_codes.append("autonomous_tool_unknown_outbound")
         return PolicyDecision(
@@ -135,10 +204,37 @@ def evaluate_policy(
     planned for M3; for now, repeat violations escalate warn to
     approval_required (Section 6.4).
     """
-    base = _evaluate_base_rules(
-        confidence, confidence_class, tool_class, sensitivity,
-        action_risk, explicit_deny,
-    )
+    engine = _get_engine()
+
+    if engine is not None:
+        # Data-driven path: delegate to PolicyEngine
+        from engine.policy_engine import PolicyContext
+        ctx = PolicyContext(
+            confidence=confidence,
+            confidence_class=confidence_class,
+            tool_class=tool_class,
+            sensitivity=sensitivity,
+            action_risk=action_risk,
+            explicit_deny=explicit_deny,
+            is_containerized=is_containerized,
+            network_context=net_ctx,
+            prior_violations=prior_violations,
+            actor_trust_tier=actor_trust_tier,
+        )
+        base = engine.evaluate(ctx)
+        if base is None:
+            # Should never happen with well-formed rules (last fallback catches all),
+            # but fall through to hardcoded logic as safety net
+            logger.warning("PolicyEngine returned None; falling back to hardcoded rules")
+            base = _evaluate_base_rules(
+                confidence, confidence_class, tool_class, sensitivity,
+                action_risk, explicit_deny,
+            )
+    else:
+        base = _evaluate_base_rules(
+            confidence, confidence_class, tool_class, sensitivity,
+            action_risk, explicit_deny,
+        )
 
     # Session-level escalation (Section 6.4): repeated violations step up
     if prior_violations > 2 and base.decision_state == "warn":
@@ -241,7 +337,10 @@ def _evaluate_base_rules(
     action_risk: str,
     explicit_deny: bool,
 ) -> PolicyDecision:
-    """Core deterministic escalation rules (unchanged from Playbook v0.3)."""
+    """Core deterministic escalation rules (unchanged from Playbook v0.3).
+
+    Retained as a fallback in case the data-driven PolicyEngine cannot load.
+    """
     tier_num = _tier_to_int(sensitivity)
     risk_num = _risk_to_int(action_risk)
     reason_codes: list[str] = []

@@ -122,11 +122,15 @@ ENFORCEMENT_DEFAULTS: dict[str, Any] = {
     "protected_parents": [],
     "allow_persistent_disable": False,
     "require_corroboration": True,
+    "suspend_on_hold": False,       # Opt-in: SIGSTOP processes during approval wait
+    "max_suspend_seconds": 60,      # Safety valve: max time to keep processes frozen
 }
 
 ENFORCEMENT_ENV_MAP: dict[str, str] = {
     "allow_persistent_disable": f"{ENV_PREFIX}ENFORCEMENT_ALLOW_PERSISTENT_DISABLE",
     "require_corroboration": f"{ENV_PREFIX}ENFORCEMENT_REQUIRE_CORROBORATION",
+    "suspend_on_hold": f"{ENV_PREFIX}ENFORCEMENT_SUSPEND_ON_HOLD",
+    "max_suspend_seconds": f"{ENV_PREFIX}ENFORCEMENT_MAX_SUSPEND_SECONDS",
 }
 
 CODE_DEFAULTS: dict[str, Any] = {
@@ -353,6 +357,72 @@ def load_server_behavioral_config() -> dict[str, Any] | None:
     return None
 
 
+# ---------------------------------------------------------------------------
+# Server-pushed policy rules
+# ---------------------------------------------------------------------------
+
+def save_server_policy_rules(rules: list[dict[str, Any]]) -> None:
+    """Persist server-pushed policy rules so they survive agent restart.
+
+    Call this when the heartbeat response includes ``policy_rules``.
+    The rules replace the file-based defaults in ``config/policies.json``
+    at next PolicyEngine initialization.
+    """
+    try:
+        AGENT_STATE_DIR.mkdir(parents=True, exist_ok=True)
+        data = load_server_interval_state()
+        data["policy_rules"] = rules
+        with open(AGENT_STATE_FILE, "w") as fh:
+            json.dump(data, fh, separators=(",", ":"))
+        logger.info(
+            "Persisted %d server-pushed policy rules to %s",
+            len(rules), AGENT_STATE_FILE,
+        )
+    except OSError as exc:
+        logger.warning("Could not persist policy rules to %s: %s", AGENT_STATE_FILE, exc)
+
+
+def load_server_policy_rules() -> list[dict[str, Any]] | None:
+    """Load persisted server-pushed policy rules.
+
+    Returns the policy_rules list, or None if not present.
+    """
+    state = load_server_interval_state()
+    rules = state.get("policy_rules")
+    if isinstance(rules, list) and len(rules) > 0:
+        return rules
+    return None
+
+
+def load_policy_rules_from_file(path: Path | None = None) -> list[dict[str, Any]]:
+    """Load policy rules from a JSON file.
+
+    When *path* is None, uses ``config/policies.json`` in the collector
+    config directory.  Returns a flat list of all rules (base + overlay)
+    suitable for passing to ``PolicyEngine``.
+    """
+    if path is None:
+        path = CONFIG_DIR / "policies.json"
+    if not path.exists():
+        logger.debug("Policy rules file not found: %s", path)
+        return []
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        if not isinstance(data, dict):
+            return []
+        rules = data.get("rules", [])
+        overlay = data.get("overlay_rules", [])
+        if not isinstance(rules, list):
+            rules = []
+        if not isinstance(overlay, list):
+            overlay = []
+        return rules + overlay
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Cannot read policy rules from %s: %s", path, exc)
+        return []
+
+
 def load_env_overrides() -> dict[str, Any]:
     """Read ``AGENTIC_GOV_*`` environment variables and coerce types."""
     overrides: dict[str, Any] = {}
@@ -433,8 +503,13 @@ def load_collector_config(config_path: Path | None = None) -> dict[str, Any]:
         raw = os.environ.get(env_var)
         if raw is None:
             continue
-        if key in ("allow_persistent_disable", "require_corroboration"):
+        if key in ("allow_persistent_disable", "require_corroboration", "suspend_on_hold"):
             enforcement[key] = _parse_bool(raw)
+        elif key == "max_suspend_seconds":
+            try:
+                enforcement[key] = int(raw)
+            except ValueError:
+                logger.warning("Ignoring non-integer value for %s: %s", env_var, repr(raw))
     merged["enforcement"] = enforcement
 
     # Server-pushed interval (persisted from last heartbeat) overrides file default.

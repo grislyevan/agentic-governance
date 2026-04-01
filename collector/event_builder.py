@@ -177,6 +177,7 @@ def build_event(
             "allow_listed": enforcement.allow_listed,
             "rate_limited": getattr(enforcement, "rate_limited", False),
             "escalated": getattr(enforcement, "escalated", False),
+            "hold_effective": getattr(enforcement, "hold_effective", False),
         }
         if enforcement.simulated or enforcement.allow_listed or getattr(enforcement, "rate_limited", False):
             outcome_result = "simulated"

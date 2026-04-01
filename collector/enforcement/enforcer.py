@@ -71,6 +71,7 @@ class EnforcementResult:
     escalated: bool = False
     rate_limited: bool = False
     escalation_details: list[str] = field(default_factory=list)
+    hold_effective: bool = False
 
 
 class Enforcer:
@@ -90,6 +91,8 @@ class Enforcer:
         protected_parents: set[str] | None = None,
         allow_persistent_disable: bool = False,
         require_corroboration: bool = False,
+        suspend_on_hold: bool = False,
+        max_suspend_seconds: int = 60,
     ) -> None:
         self._posture_mgr = posture_manager
         self._dry_run = dry_run
@@ -113,6 +116,9 @@ class Enforcer:
         )
         self._allow_persistent_disable = allow_persistent_disable
         self._require_corroboration = require_corroboration
+        # SIGSTOP-based process suspension during approval wait (P4b).
+        self._suspend_on_hold = suspend_on_hold
+        self._max_suspend_seconds = max(0, int(max_suspend_seconds))
 
     @property
     def posture(self) -> str:
@@ -253,10 +259,17 @@ class Enforcer:
         if decision.decision_state == "approval_required":
             if self._proxy_configured:
                 return self._proxy_inject(tool_name)
+            # Pass suspension config to the hold result so the caller
+            # (orchestrator / approval hold manager) can SIGSTOP target
+            # processes while waiting for the approval decision.
+            # NOTE: The actual SIGSTOP is performed by ApprovalHoldManager
+            # when it receives these parameters. The enforcer does NOT
+            # record this in kill_history — suspended != killed.
             result = EnforcementResult(
                 tactic="hold_pending_approval",
                 success=True,
-                detail=f"Holding {tool_name} pending approval",
+                detail=f"Holding {tool_name} pending approval"
+                       + (f" (suspend_on_hold=True, pids={pids})" if self._suspend_on_hold and pids else ""),
                 tool_name=tool_name,
             )
             self._results.append(result)

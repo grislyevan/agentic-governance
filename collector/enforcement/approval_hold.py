@@ -48,6 +48,7 @@ class HoldResult:
     decision: str           # "approved" | "denied"
     approval_id: str | None
     timed_out: bool = False
+    hold_effective: bool = False  # True when at least one PID was successfully SIGSTOP'd
 
 
 def _normalize_decision(behavior: str) -> str:
@@ -127,8 +128,44 @@ class ApprovalHoldManager:
         confidence_score: float,
         policy_rule_id: str,
         endpoint_id: str | None = None,
+        pids: set[int] | None = None,
+        suspend_on_hold: bool = False,
+        max_suspend_seconds: int = 60,
     ) -> HoldResult:
-        """Block until an approval decision arrives or timeout expires."""
+        """Block until an approval decision arrives or timeout expires.
+
+        When *suspend_on_hold* is True and *pids* is non-empty, the target
+        processes are SIGSTOP'd before polling begins and SIGCONT'd when a
+        decision arrives.  A safety valve resumes processes after
+        *max_suspend_seconds* even if no decision has been received.
+        """
+        from enforcement.process_suspend import resume_processes, suspend_processes
+
+        # --- Suspension bookkeeping ---
+        suspended_pids: set[int] = set()
+        suspend_deadline: float | None = None
+        _hold_effective = False
+
+        def _do_suspend() -> None:
+            nonlocal suspended_pids, suspend_deadline, _hold_effective
+            if suspend_on_hold and pids:
+                results = suspend_processes(pids)
+                suspended_pids = {pid for pid, ok in results.items() if ok}
+                if suspended_pids:
+                    _hold_effective = True
+                    suspend_deadline = time.monotonic() + max(0, max_suspend_seconds)
+                    logger.info(
+                        "Suspended %d/%d PIDs for approval hold (max %ds)",
+                        len(suspended_pids), len(pids), max_suspend_seconds,
+                    )
+
+        def _do_resume() -> None:
+            nonlocal suspended_pids
+            if suspended_pids:
+                resume_processes(suspended_pids)
+                logger.info("Resumed %d suspended PIDs", len(suspended_pids))
+                suspended_pids = set()
+
         try:
             approval_id = self._create_approval_request(
                 event_id=event_id,
@@ -152,37 +189,88 @@ class ApprovalHoldManager:
             approval_id, event_id, tool_name,
         )
 
-        deadline = time.monotonic() + self.config.timeout_seconds
-        attempt = 0
-        while True:
-            try:
-                status = self._poll_decision(approval_id)
-            except requests.exceptions.RequestException:
-                logger.warning("Poll failed for approval %s; retrying with backoff", approval_id)
+        # Suspend target processes before entering the polling loop.
+        _do_suspend()
+
+        try:
+            deadline = time.monotonic() + self.config.timeout_seconds
+            attempt = 0
+            while True:
+                # Safety valve: resume suspended processes if max_suspend_seconds exceeded.
+                if suspended_pids and suspend_deadline is not None:
+                    if time.monotonic() >= suspend_deadline:
+                        logger.warning(
+                            "Safety valve: resuming %d PIDs after max_suspend_seconds=%d",
+                            len(suspended_pids), max_suspend_seconds,
+                        )
+                        _do_resume()
+
+                try:
+                    status = self._poll_decision(approval_id)
+                except requests.exceptions.RequestException:
+                    logger.warning("Poll failed for approval %s; retrying with backoff", approval_id)
+                else:
+                    if status is None:
+                        # Non-transient HTTP error — fail fast, resume suspended PIDs
+                        _do_resume()
+                        return HoldResult(
+                            decision="denied",
+                            approval_id=approval_id,
+                            hold_effective=_hold_effective,
+                        )
+                    if status == "approved":
+                        logger.info("Approval decision: approved for approval_id=%s", approval_id)
+                        _do_resume()
+                        return HoldResult(
+                            decision="approved",
+                            approval_id=approval_id,
+                            hold_effective=_hold_effective,
+                        )
+                    if status == "denied":
+                        logger.info("Approval decision: denied for approval_id=%s", approval_id)
+                        # Do NOT resume on denial — let the enforcer kill them.
+                        # Clear suspended_pids so the finally block doesn't resume.
+                        suspended_pids = set()
+                        return HoldResult(
+                            decision="denied",
+                            approval_id=approval_id,
+                            hold_effective=_hold_effective,
+                        )
+
+                if time.monotonic() >= deadline:
+                    break
+
+                # Exponential backoff with jitter to avoid thundering herd
+                base = self.config.poll_interval_seconds
+                raw_delay = min(base * (2 ** attempt), self.config.max_poll_interval_seconds)
+                jittered_delay = raw_delay * (0.5 + random.random() * 0.5)
+                time.sleep(jittered_delay)
+                attempt += 1
+
+            # Timeout reached.
+            logger.warning(
+                "Approval hold timed out for approval_id=%s; applying timeout_behavior=%s",
+                approval_id, self.config.timeout_behavior,
+            )
+            timeout_decision = _normalize_decision(self.config.timeout_behavior)
+            if timeout_decision == "approved":
+                _do_resume()
             else:
-                if status is None:
-                    # Non-transient HTTP error — fail fast
-                    return HoldResult(decision="denied", approval_id=approval_id)
-                if status in ("approved", "denied"):
-                    logger.info("Approval decision: %s for approval_id=%s", status, approval_id)
-                    return HoldResult(decision=status, approval_id=approval_id)
-
-            if time.monotonic() >= deadline:
-                break
-
-            # Exponential backoff with jitter to avoid thundering herd
-            base = self.config.poll_interval_seconds
-            raw_delay = min(base * (2 ** attempt), self.config.max_poll_interval_seconds)
-            jittered_delay = raw_delay * (0.5 + random.random() * 0.5)
-            time.sleep(jittered_delay)
-            attempt += 1
-
-        logger.warning(
-            "Approval hold timed out for approval_id=%s; applying timeout_behavior=%s",
-            approval_id, self.config.timeout_behavior,
-        )
-        return HoldResult(
-            decision=_normalize_decision(self.config.timeout_behavior),
-            approval_id=approval_id,
-            timed_out=True,
-        )
+                # Denied: do NOT resume — enforcer will kill.
+                # Clear suspended_pids so the finally block doesn't resume.
+                suspended_pids = set()
+            return HoldResult(
+                decision=timeout_decision,
+                approval_id=approval_id,
+                timed_out=True,
+                hold_effective=_hold_effective,
+            )
+        finally:
+            # Safety net: if we exit due to an unexpected exception, always resume
+            # any still-suspended processes so they aren't left frozen indefinitely.
+            if suspended_pids:
+                logger.warning(
+                    "Exception path: resuming %d suspended PIDs in finally block",
+                    len(suspended_pids),
+                )
+                _do_resume()

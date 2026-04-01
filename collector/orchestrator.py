@@ -486,6 +486,12 @@ def _process_detection(
             network_elevated=network_elevated,
             process_patterns=scan.process_patterns,
         )
+        # Propagate hold_effective from the approval hold result so the
+        # enforcement event honestly reports whether processes were suspended
+        # (SIGSTOP) during the approval period.  P4a: always False because
+        # SIGSTOP is not yet implemented; P4b will set True on success.
+        if hold_result is not None:
+            enf_result.hold_effective = hold_result.hold_effective
         if verbose:
             tag = "AUDIT" if enf_result.simulated else "LIVE"
             print(f"  Enforcement [{tag}]: {enf_result.tactic} "

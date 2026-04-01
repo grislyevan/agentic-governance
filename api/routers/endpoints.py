@@ -27,6 +27,7 @@ from models.endpoint import (
     Endpoint,
 )
 from models.endpoint_profile import EndpointProfile
+from models.policy import Policy
 from schemas.endpoints import (
     DecommissionResponse,
     EndpointCreate,
@@ -174,6 +175,10 @@ class HeartbeatResponse(BaseModel):
         default=None,
         description="Per-profile behavioral threshold overrides; agent merges on top of file defaults",
     )
+    policy_rules: list[dict] | None = Field(
+        default=None,
+        description="Per-tenant policy rules; when present, agent replaces its baseline rules with these",
+    )
 
 
 @router.post("/heartbeat", response_model=HeartbeatResponse, tags=["heartbeat"])
@@ -253,6 +258,48 @@ def heartbeat(
         interval_seconds = endpoint.endpoint_profile.scan_interval_seconds
         behavioral_config = endpoint.endpoint_profile.behavioral_config
 
+    # Include custom policy rules for this tenant if any exist.
+    # Only non-baseline (custom) policies or tenants with modified baselines
+    # trigger inclusion.  When all policies are default baselines, policy_rules
+    # is omitted so the agent uses its local file.
+    policy_rules: list[dict] | None = None
+    try:
+        custom_policies = (
+            db.query(Policy)
+            .filter(
+                Policy.tenant_id == tenant_id,
+                Policy.is_baseline.is_(False),
+            )
+            .all()
+        )
+        if custom_policies:
+            # Tenant has custom rules: serialize ALL active policies for this tenant
+            all_policies = (
+                db.query(Policy)
+                .filter(
+                    Policy.tenant_id == tenant_id,
+                    Policy.is_active.is_(True),
+                )
+                .all()
+            )
+            policy_rules = [
+                {
+                    "rule_id": p.rule_id,
+                    "rule_version": p.rule_version,
+                    "category": p.category,
+                    "is_active": p.is_active,
+                    "decision_state": p.parameters.get("decision_state", "detect"),
+                    "conditions": p.parameters.get("conditions", {}),
+                    "reason_codes": p.parameters.get("reason_codes", []),
+                    "precedence": p.parameters.get("precedence", 999),
+                    "is_fallback": p.parameters.get("is_fallback", False),
+                    "is_overlay": p.parameters.get("overlay", False),
+                }
+                for p in all_policies
+            ]
+    except Exception:
+        logger.debug("Could not query tenant policy rules", exc_info=True)
+
     return HeartbeatResponse(
         status="ok",
         endpoint_id=endpoint.id,
@@ -265,6 +312,7 @@ def heartbeat(
         allow_list_updated_at=allow_list_updated_at,
         restore_services=restore_services,
         behavioral_config=behavioral_config,
+        policy_rules=policy_rules,
     )
 
 
