@@ -25,7 +25,7 @@ from .process_tree import ProcessNode
 # LLM API host registry
 # ---------------------------------------------------------------------------
 
-_LLM_API_HOSTS: set[str] = {
+_DEFAULT_LLM_HOSTS: frozenset[str] = frozenset({
     "api.openai.com",
     "api.anthropic.com",
     "generativelanguage.googleapis.com",
@@ -43,16 +43,29 @@ _LLM_API_HOSTS: set[str] = {
     "127.0.0.1:1234",
     "[::1]:11434",
     "[::1]:1234",
-}
+})
+
+# Mutable module-level set kept for backward compatibility only.
+# New code should pass llm_hosts explicitly to avoid cross-scan accumulation.
+_LLM_API_HOSTS: set[str] = set(_DEFAULT_LLM_HOSTS)
 
 
 def update_llm_hosts(hosts: set[str]) -> None:
-    """Add hosts to the LLM API host registry."""
+    """Add hosts to the module-level LLM API host registry (legacy).
+
+    Prefer passing llm_hosts to detect_all_patterns() / individual detectors
+    to avoid cross-scan host accumulation.
+    """
     _LLM_API_HOSTS.update(hosts)
 
 
 def get_llm_hosts() -> frozenset[str]:
     return frozenset(_LLM_API_HOSTS)
+
+
+def get_default_llm_hosts() -> frozenset[str]:
+    """Return the immutable default LLM host set (no accumulated additions)."""
+    return _DEFAULT_LLM_HOSTS
 
 
 # ---------------------------------------------------------------------------
@@ -215,6 +228,8 @@ def detect_shell_fanout(
     tree: ProcessNode,
     thresholds: dict[str, Any] | None = None,
     capabilities: TelemetryCapabilities | None = None,
+    *,
+    llm_hosts: set[str] | None = None,
 ) -> PatternMatch:
     """DETEC-BEH-CORE-01: Autonomous shell fan-out from a process tree.
 
@@ -264,7 +279,7 @@ def detect_shell_fanout(
 
     net_events = _collect_network_events(tree)
     net_in_window = [e for e in net_events if window_start <= e.timestamp <= window_end]
-    model_linked = any(_is_llm_host(e) for e in net_in_window)
+    model_linked = any(_is_llm_host(e, llm_hosts) for e in net_in_window)
     if model_linked:
         score = min(1.0, score + 0.05)
 
@@ -294,8 +309,11 @@ def detect_shell_fanout(
 # BEH-002: LLM API cadence
 # ---------------------------------------------------------------------------
 
-def _is_llm_host(event: NetworkConnectEvent) -> bool:
-    hosts = _LLM_API_HOSTS
+def _is_llm_host(
+    event: NetworkConnectEvent,
+    llm_hosts: set[str] | frozenset[str] | None = None,
+) -> bool:
+    hosts = llm_hosts if llm_hosts is not None else _LLM_API_HOSTS
     addr = event.remote_addr.split(":")[0] if ":" in event.remote_addr else event.remote_addr
     addr_with_port = f"{addr}:{event.remote_port}"
 
@@ -310,6 +328,8 @@ def detect_llm_cadence(
     tree: ProcessNode,
     thresholds: dict[str, Any] | None = None,
     capabilities: TelemetryCapabilities | None = None,
+    *,
+    llm_hosts: set[str] | None = None,
 ) -> PatternMatch:
     if capabilities is not None and not capabilities.has_network_events:
         return PatternMatch("BEH-002", "LLM API cadence", 0.0, layers=["network", "behavior"])
@@ -318,7 +338,7 @@ def detect_llm_cadence(
     min_connections = t.get("llm_cadence_min_connections", 3)
 
     net_events = _collect_network_events(tree)
-    llm_events = [e for e in net_events if _is_llm_host(e)]
+    llm_events = [e for e in net_events if _is_llm_host(e, llm_hosts)]
 
     if len(llm_events) < min_connections:
         return PatternMatch("BEH-002", "LLM API cadence", 0.0, layers=["network", "behavior"])
@@ -363,6 +383,8 @@ def detect_burst_write(
     tree: ProcessNode,
     thresholds: dict[str, Any] | None = None,
     capabilities: TelemetryCapabilities | None = None,
+    *,
+    llm_hosts: set[str] | None = None,
 ) -> PatternMatch:
     if capabilities is not None and not capabilities.has_file_change:
         return PatternMatch("BEH-003", "Multi-file burst write", 0.0, layers=["file", "behavior"])
@@ -418,6 +440,8 @@ def detect_rmw_loop(
     tree: ProcessNode,
     thresholds: dict[str, Any] | None = None,
     capabilities: TelemetryCapabilities | None = None,
+    *,
+    llm_hosts: set[str] | None = None,
 ) -> PatternMatch:
     """DETEC-BEH-CORE-02: Interleaved file + model-related network in short cycles.
 
@@ -437,7 +461,7 @@ def detect_rmw_loop(
 
     file_events = _collect_file_events(tree)
     all_net = _collect_network_events(tree)
-    net_events = [e for e in all_net if _is_llm_host(e)]
+    net_events = [e for e in all_net if _is_llm_host(e, llm_hosts)]
 
     if not file_events or not net_events:
         return PatternMatch("BEH-004", "Read-modify-write loop", 0.0,
@@ -516,6 +540,8 @@ def detect_session_duration(
     tree: ProcessNode,
     thresholds: dict[str, Any] | None = None,
     capabilities: TelemetryCapabilities | None = None,
+    *,
+    llm_hosts: set[str] | None = None,
 ) -> PatternMatch:
     t = thresholds or {}
     min_duration = t.get("session_min_duration_seconds", 600)
@@ -581,6 +607,7 @@ def _is_sensitive_path(path: str) -> bool:
 
 def _classify_network_destinations(
     net_events: list[NetworkConnectEvent],
+    llm_hosts: set[str] | None = None,
 ) -> tuple[list[str], str]:
     """Return (outbound_destinations, model_vs_unknown)."""
     destinations: list[str] = []
@@ -593,7 +620,7 @@ def _classify_network_destinations(
         if dest not in seen:
             seen.add(dest)
             destinations.append(dest)
-        if _is_llm_host(e):
+        if _is_llm_host(e, llm_hosts):
             has_model = True
         else:
             has_unknown = True
@@ -610,6 +637,8 @@ def detect_credential_access(
     tree: ProcessNode,
     thresholds: dict[str, Any] | None = None,
     capabilities: TelemetryCapabilities | None = None,
+    *,
+    llm_hosts: set[str] | None = None,
 ) -> PatternMatch:
     """DETEC-BEH-CORE-03: Sensitive path access followed by outbound activity.
 
@@ -671,7 +700,7 @@ def detect_credential_access(
         base_score = 0.0
 
     outbound_destinations, model_vs_unknown = _classify_network_destinations(
-        qualifying_net
+        qualifying_net, llm_hosts
     )
     confidence_reasons: list[str] = ["sensitive_access_then_outbound"]
     if model_vs_unknown == "unknown":
@@ -724,6 +753,8 @@ def detect_git_automation(
     tree: ProcessNode,
     thresholds: dict[str, Any] | None = None,
     capabilities: TelemetryCapabilities | None = None,
+    *,
+    llm_hosts: set[str] | None = None,
 ) -> PatternMatch:
     if capabilities is not None and not capabilities.has_file_change:
         return PatternMatch(
@@ -820,6 +851,8 @@ def detect_resurrection(
     tree: ProcessNode,
     thresholds: dict[str, Any] | None = None,
     capabilities: TelemetryCapabilities | None = None,
+    *,
+    llm_hosts: set[str] | None = None,
 ) -> PatternMatch:
     t = thresholds or {}
     window = t.get("resurrection_window_seconds", 30)
@@ -906,6 +939,8 @@ def detect_agent_execution_chain(
     tree: ProcessNode,
     thresholds: dict[str, Any] | None = None,
     capabilities: TelemetryCapabilities | None = None,
+    *,
+    llm_hosts: set[str] | None = None,
 ) -> PatternMatch:
     """DETEC-BEH-CORE-04: Detect LLM call then shell/interpreter then file/git mod within window.
 
@@ -920,7 +955,7 @@ def detect_agent_execution_chain(
     window = t.get("execution_chain_window_seconds", 120)
 
     net_events = _collect_network_events(tree)
-    llm_events = [(e.timestamp, _llm_host_from_event(e)) for e in net_events if _is_llm_host(e)]
+    llm_events = [(e.timestamp, _llm_host_from_event(e)) for e in net_events if _is_llm_host(e, llm_hosts)]
     if not llm_events:
         return PatternMatch(
             "BEH-009", "Agent Execution Chain", 0.0,
@@ -1080,16 +1115,20 @@ def detect_all_patterns(
     tree: ProcessNode,
     thresholds: dict[str, Any] | None = None,
     capabilities: TelemetryCapabilities | None = None,
+    *,
+    llm_hosts: set[str] | None = None,
 ) -> list[PatternMatch]:
     """Run all BEH-001 through BEH-009 pattern detectors.
 
     Returns only patterns with score > 0.0.
     When capabilities is provided, detectors that depend on missing telemetry
     return no match instead of assuming the data exists.
+    When llm_hosts is provided, it is used instead of the module-level
+    ``_LLM_API_HOSTS`` set, avoiding cross-scan host accumulation.
     """
     results: list[PatternMatch] = []
     for detector in _ALL_DETECTORS:
-        match = detector(tree, thresholds, capabilities)
+        match = detector(tree, thresholds, capabilities, llm_hosts=llm_hosts)
         if match.score > 0.0:
             results.append(match)
     return results

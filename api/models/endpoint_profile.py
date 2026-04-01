@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.config import settings
@@ -36,6 +36,7 @@ class EndpointProfile(Base):
     enforcement_posture: Mapped[str] = mapped_column(String(16), nullable=False, default="passive")
     auto_enforce_threshold: Mapped[float] = mapped_column(Float, nullable=False, default=0.75)
     policy_set_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    behavioral_config: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
 
     tenant: Mapped["Tenant"] = relationship("Tenant", back_populates="endpoint_profiles")  # noqa: F821
     endpoints: Mapped[list["Endpoint"]] = relationship(  # noqa: F821

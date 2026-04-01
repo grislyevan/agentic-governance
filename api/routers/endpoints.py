@@ -170,6 +170,10 @@ class HeartbeatResponse(BaseModel):
         default_factory=list,
         description="Service IDs that the agent should re-enable",
     )
+    behavioral_config: dict | None = Field(
+        default=None,
+        description="Per-profile behavioral threshold overrides; agent merges on top of file defaults",
+    )
 
 
 @router.post("/heartbeat", response_model=HeartbeatResponse, tags=["heartbeat"])
@@ -244,8 +248,10 @@ def heartbeat(
         db.commit()
 
     interval_seconds: int | None = None
+    behavioral_config: dict | None = None
     if endpoint.endpoint_profile is not None:
         interval_seconds = endpoint.endpoint_profile.scan_interval_seconds
+        behavioral_config = endpoint.endpoint_profile.behavioral_config
 
     return HeartbeatResponse(
         status="ok",
@@ -258,6 +264,7 @@ def heartbeat(
         allow_list=allow_list,
         allow_list_updated_at=allow_list_updated_at,
         restore_services=restore_services,
+        behavioral_config=behavioral_config,
     )
 
 

@@ -312,6 +312,35 @@ def save_server_interval(interval_seconds: int) -> None:
         logger.warning("Could not persist server interval to %s: %s", AGENT_STATE_FILE, exc)
 
 
+def save_server_behavioral_config(behavioral_config: dict[str, Any]) -> None:
+    """Persist server-pushed behavioral threshold overrides.
+
+    Call this when the heartbeat response includes behavioral_config.
+    The config is merged on top of file-based defaults at scan time.
+    """
+    try:
+        AGENT_STATE_DIR.mkdir(parents=True, exist_ok=True)
+        data = load_server_interval_state()
+        data["behavioral_config"] = behavioral_config
+        with open(AGENT_STATE_FILE, "w") as fh:
+            json.dump(data, fh, separators=(",", ":"))
+        logger.info("Persisted server behavioral_config to %s", AGENT_STATE_FILE)
+    except OSError as exc:
+        logger.warning("Could not persist behavioral_config to %s: %s", AGENT_STATE_FILE, exc)
+
+
+def load_server_behavioral_config() -> dict[str, Any] | None:
+    """Load persisted server-pushed behavioral config overrides.
+
+    Returns the behavioral_config dict, or None if not present.
+    """
+    state = load_server_interval_state()
+    cfg = state.get("behavioral_config")
+    if isinstance(cfg, dict):
+        return cfg
+    return None
+
+
 def load_env_overrides() -> dict[str, Any]:
     """Read ``AGENTIC_GOV_*`` environment variables and coerce types."""
     overrides: dict[str, Any] = {}

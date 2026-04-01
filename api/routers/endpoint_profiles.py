@@ -91,6 +91,7 @@ def create_profile(
         enforcement_posture=body.enforcement_posture,
         auto_enforce_threshold=body.auto_enforce_threshold,
         policy_set_id=body.policy_set_id,
+        behavioral_config=body.behavioral_config,
     )
     db.add(profile)
     db.flush()

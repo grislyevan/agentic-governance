@@ -17,6 +17,7 @@ from .base import BaseScanner, LayerSignals, ScanResult
 from .behavioral_patterns import (
     PatternMatch,
     detect_all_patterns,
+    get_default_llm_hosts,
     get_llm_hosts,
     update_llm_hosts,
 )
@@ -127,14 +128,26 @@ class BehavioralScanner(BaseScanner):
         event_store: EventStore | None = None,
         *,
         exclude_pids: set[int] | None = None,
+        config_override: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(event_store=event_store)
         self._exclude_pids = exclude_pids or set()
         self._config = _load_behavioral_config()
+
+        # Merge server-pushed overrides on top of file-based defaults.
+        # Override keys win; file-based keys are preserved when not overridden.
+        if config_override:
+            self._config = {**self._config, **config_override}
+
         self._thresholds = _flatten_thresholds(self._config)
 
+        # Build instance-level LLM hosts: default set + file config + override.
+        # Does NOT mutate the module-level set — keeps hosts scoped to this scanner.
         custom_hosts = self._config.get("custom_llm_hosts", [])
+        self._llm_hosts: set[str] = set(get_default_llm_hosts())
         if custom_hosts:
+            self._llm_hosts |= set(custom_hosts)
+            # Also update global for backward compat with code that reads module-level set
             update_llm_hosts(set(custom_hosts))
 
     @property
@@ -206,7 +219,7 @@ class BehavioralScanner(BaseScanner):
             else get_capabilities_from_store(self._event_store)
         )
         for tree in candidate_trees:
-            matches = detect_all_patterns(tree, self._thresholds, capabilities)
+            matches = detect_all_patterns(tree, self._thresholds, capabilities, llm_hosts=self._llm_hosts)
             if not matches:
                 continue
 
