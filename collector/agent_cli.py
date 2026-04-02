@@ -26,7 +26,9 @@ _IS_WINDOWS = sys.platform == "win32"
 
 def _data_dir() -> Path:
     if _IS_WINDOWS:
-        return Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "Detec" / "Agent"
+        return (
+            Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "Detec" / "Agent"
+        )
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Application Support" / "Detec"
     return Path.home() / ".local" / "share" / "detec"
@@ -49,6 +51,44 @@ def _env_path() -> Path:
 _CFG_MAGIC = b"DETEC_CFG_V1\x00"
 
 
+def _agent_env_is_valid(env_path: Path) -> bool:
+    """Check whether an existing agent.env has reachable/valid credentials.
+
+    Reads AGENTIC_GOV_API_URL and AGENTIC_GOV_API_KEY from the env file,
+    attempts GET <api_url>/health with a short timeout. Returns True only
+    if the server responds HTTP 200. Returns False on any error (connection
+    refused, timeout, 401, 403, missing fields, etc.).
+
+    Intent: on MSI upgrade into a new tenant/environment, the stale key will
+    return non-200 and we fall through to re-extract from the installer trailer.
+    """
+    import urllib.request
+    import urllib.error
+
+    try:
+        cfg: dict[str, str] = {}
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if "=" in line and not line.startswith("#"):
+                    k, _, v = line.partition("=")
+                    cfg[k.strip()] = v.strip()
+
+        api_url = cfg.get("AGENTIC_GOV_API_URL", "").rstrip("/")
+        api_key = cfg.get("AGENTIC_GOV_API_KEY", "")
+        if not api_url or not api_key:
+            return False
+
+        req = urllib.request.Request(
+            f"{api_url}/health",
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
 def _try_extract_installer_config() -> None:
     """Check if agent.env exists; if not, look for a DETEC_CFG_V1 config
     trailer appended to the MSI that installed us and write agent.env from it.
@@ -61,7 +101,13 @@ def _try_extract_installer_config() -> None:
 
     env = _env_path()
     if env.exists():
-        return  # already configured
+        if _agent_env_is_valid(env):
+            return
+        logger.warning(
+            "Existing agent.env at %s appears invalid or unreachable; "
+            "re-extracting config from installer trailer",
+            env,
+        )
 
     # Find the MSI: check Windows Installer registry for our product
     # or look for the MSI next to our exe (dev/manual installs)
@@ -107,6 +153,7 @@ def _try_extract_installer_config() -> None:
         _ensure_data_dir()
 
         from urllib.parse import urlparse
+
         gh = urlparse(api_url).hostname or "localhost"
 
         lines = [
@@ -153,6 +200,7 @@ def _find_source_msi() -> str | None:
     # Method 2: Check Windows Installer cache via registry
     try:
         import winreg
+
         key = winreg.OpenKey(
             winreg.HKEY_LOCAL_MACHINE,
             r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
@@ -178,6 +226,7 @@ def _find_source_msi() -> str | None:
 # -------------------------------------------------------------------
 # ``detec-agent setup``
 # -------------------------------------------------------------------
+
 
 def cmd_setup(args: argparse.Namespace) -> None:
     """Write an agent.env config file with API URL and key."""
@@ -225,6 +274,7 @@ def cmd_setup(args: argparse.Namespace) -> None:
 # ``detec-agent scan`` (one-shot)
 # -------------------------------------------------------------------
 
+
 def cmd_scan(args: argparse.Namespace) -> None:
     """Run a single scan and print results."""
     from config_loader import load_collector_config
@@ -260,6 +310,7 @@ def cmd_session_report(args: argparse.Namespace) -> None:
 # -------------------------------------------------------------------
 # ``detec-agent run`` (foreground daemon)
 # -------------------------------------------------------------------
+
 
 def cmd_run(args: argparse.Namespace) -> None:
     """Run the agent daemon in the foreground."""
@@ -305,10 +356,13 @@ def cmd_run(args: argparse.Namespace) -> None:
 # Windows Service commands
 # -------------------------------------------------------------------
 
+
 def cmd_install(args: argparse.Namespace) -> None:
     if not _IS_WINDOWS:
         print("Service install is only supported on Windows.")
-        print("Use 'detec-agent run' on macOS/Linux, or configure a LaunchAgent/systemd unit.")
+        print(
+            "Use 'detec-agent run' on macOS/Linux, or configure a LaunchAgent/systemd unit."
+        )
         sys.exit(1)
 
     _load_env()
@@ -392,7 +446,9 @@ def cmd_install_service(args: argparse.Namespace) -> None:
     for step in ("install", "start", "set-recovery"):
         result = subprocess.run([exe, step], cwd=cwd)
         if result.returncode != 0:
-            logger.error("install-service: %s failed with exit code %d", step, result.returncode)
+            logger.error(
+                "install-service: %s failed with exit code %d", step, result.returncode
+            )
             sys.exit(result.returncode)
     print("Service installed, started, and failure recovery configured.")
 
@@ -433,15 +489,27 @@ def cmd_write_env(args: argparse.Namespace) -> None:
             print(f"Warning: failed to read MSI trailer: {e}", file=sys.stderr)
 
     # Skip if values are still placeholders
-    if not api_url or api_url == "PLACEHOLDER" or not api_key or api_key == "PLACEHOLDER":
-        print("No valid config found (PLACEHOLDER or empty). Skipping write-env.", file=sys.stderr)
-        print("The agent will self-configure from the MSI trailer on first start.", file=sys.stderr)
+    if (
+        not api_url
+        or api_url == "PLACEHOLDER"
+        or not api_key
+        or api_key == "PLACEHOLDER"
+    ):
+        print(
+            "No valid config found (PLACEHOLDER or empty). Skipping write-env.",
+            file=sys.stderr,
+        )
+        print(
+            "The agent will self-configure from the MSI trailer on first start.",
+            file=sys.stderr,
+        )
         return
 
     _ensure_data_dir()
     env_file = _env_path()
 
     from urllib.parse import urlparse
+
     gh = urlparse(api_url).hostname or "localhost"
 
     lines = [
@@ -472,19 +540,27 @@ def cmd_install_task(args: argparse.Namespace) -> None:
     # Create the task: runs at startup, under SYSTEM, restarts on failure
     result = subprocess.run(
         [
-            "schtasks.exe", "/create",
-            "/tn", _TASK_NAME,
-            "/tr", f'"{exe}" run',
-            "/sc", "onstart",
-            "/ru", "SYSTEM",
-            "/rl", "HIGHEST",
+            "schtasks.exe",
+            "/create",
+            "/tn",
+            _TASK_NAME,
+            "/tr",
+            f'"{exe}" run',
+            "/sc",
+            "onstart",
+            "/ru",
+            "SYSTEM",
+            "/rl",
+            "HIGHEST",
             "/f",
         ],
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
-        print(f"Failed to create scheduled task: {result.stderr.strip()}", file=sys.stderr)
+        print(
+            f"Failed to create scheduled task: {result.stderr.strip()}", file=sys.stderr
+        )
         sys.exit(result.returncode)
     print(f"Scheduled task '{_TASK_NAME}' registered.")
 
@@ -497,7 +573,10 @@ def cmd_install_task(args: argparse.Namespace) -> None:
     if result.returncode == 0:
         print(f"Scheduled task '{_TASK_NAME}' started.")
     else:
-        print(f"Task registered but failed to start: {result.stderr.strip()}", file=sys.stderr)
+        print(
+            f"Task registered but failed to start: {result.stderr.strip()}",
+            file=sys.stderr,
+        )
 
 
 def cmd_remove_task(args: argparse.Namespace) -> None:
@@ -530,15 +609,18 @@ def cmd_remove_task(args: argparse.Namespace) -> None:
 # ``detec-agent watchdog``
 # -------------------------------------------------------------------
 
+
 def cmd_watchdog(args: argparse.Namespace) -> None:
     """Run the watchdog process — monitors the agent and restarts it if it dies."""
     from watchdog import run_watchdog
+
     run_watchdog()
 
 
 # -------------------------------------------------------------------
 # ``detec-agent validate-uninstall``
 # -------------------------------------------------------------------
+
 
 def cmd_validate_uninstall(args: argparse.Namespace) -> None:
     """Validate an uninstall token against the server."""
@@ -555,7 +637,10 @@ def cmd_validate_uninstall(args: argparse.Namespace) -> None:
     hostname = socket.gethostname()
 
     if not api_url or not api_key:
-        print("Error: api_url and api_key are required. Run 'detec-agent setup' first.", file=sys.stderr)
+        print(
+            "Error: api_url and api_key are required. Run 'detec-agent setup' first.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     headers = {"X-API-Key": api_key}
@@ -570,7 +655,10 @@ def cmd_validate_uninstall(args: argparse.Namespace) -> None:
         )
         resp.raise_for_status()
     except requests.exceptions.ConnectionError:
-        print("Error: Unable to connect to server. Cannot validate uninstall token.", file=sys.stderr)
+        print(
+            "Error: Unable to connect to server. Cannot validate uninstall token.",
+            file=sys.stderr,
+        )
         sys.exit(1)
     except requests.exceptions.RequestException as exc:
         print(f"Error: Request failed: {exc}", file=sys.stderr)
@@ -601,7 +689,10 @@ def cmd_validate_uninstall(args: argparse.Namespace) -> None:
         )
         resp.raise_for_status()
     except requests.exceptions.ConnectionError:
-        print("Error: Unable to connect to server. Cannot validate uninstall token.", file=sys.stderr)
+        print(
+            "Error: Unable to connect to server. Cannot validate uninstall token.",
+            file=sys.stderr,
+        )
         sys.exit(1)
     except requests.exceptions.RequestException as exc:
         print(f"Error: Request failed: {exc}", file=sys.stderr)
@@ -620,12 +711,15 @@ def cmd_validate_uninstall(args: argparse.Namespace) -> None:
 # ``detec-agent status``
 # -------------------------------------------------------------------
 
+
 def cmd_status(args: argparse.Namespace) -> None:
     env_file = _env_path()
     data_dir = _data_dir()
 
     print(f"Data directory : {data_dir}")
-    print(f"Config file    : {env_file} ({'exists' if env_file.exists() else 'NOT FOUND'})")
+    print(
+        f"Config file    : {env_file} ({'exists' if env_file.exists() else 'NOT FOUND'})"
+    )
 
     if env_file.exists():
         for line in env_file.read_text(encoding="utf-8").splitlines():
@@ -638,6 +732,7 @@ def cmd_status(args: argparse.Namespace) -> None:
 
     if _IS_WINDOWS:
         import subprocess
+
         result = subprocess.run(
             ["schtasks.exe", "/query", "/tn", _TASK_NAME, "/fo", "list"],
             capture_output=True,
@@ -655,6 +750,7 @@ def cmd_status(args: argparse.Namespace) -> None:
 # -------------------------------------------------------------------
 # Helpers
 # -------------------------------------------------------------------
+
 
 def _load_env() -> None:
     env_file = _env_path()
@@ -686,9 +782,19 @@ def _require_pywin32() -> None:
 # -------------------------------------------------------------------
 
 _LEGACY_FLAGS = {
-    "--output", "--endpoint-id", "--actor-id", "--sensitivity",
-    "--dry-run", "--verbose", "--interval", "--api-url", "--api-key",
-    "--report-all", "--enforce", "--protocol", "--gateway-host",
+    "--output",
+    "--endpoint-id",
+    "--actor-id",
+    "--sensitivity",
+    "--dry-run",
+    "--verbose",
+    "--interval",
+    "--api-url",
+    "--api-key",
+    "--report-all",
+    "--enforce",
+    "--protocol",
+    "--gateway-host",
     "--gateway-port",
 }
 
@@ -700,6 +806,7 @@ def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1].startswith("--"):
         if sys.argv[1].split("=")[0] in _LEGACY_FLAGS:
             from main import main as legacy_main
+
             legacy_main()
             return
 
@@ -710,60 +817,117 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command")
 
     # --- setup ---
-    p_setup = sub.add_parser("setup", help="Configure the agent (API URL, key, interval)")
-    p_setup.add_argument("--api-url", required=True, help="Central server API URL, e.g. http://server:8000/api")
+    p_setup = sub.add_parser(
+        "setup", help="Configure the agent (API URL, key, interval)"
+    )
+    p_setup.add_argument(
+        "--api-url",
+        required=True,
+        help="Central server API URL, e.g. http://server:8000/api",
+    )
     p_setup.add_argument("--api-key", required=True, help="API key for authentication")
-    p_setup.add_argument("--interval", type=int, default=300, help="Scan interval in seconds (default: 300)")
+    p_setup.add_argument(
+        "--interval",
+        type=int,
+        default=300,
+        help="Scan interval in seconds (default: 300)",
+    )
     p_setup.add_argument(
         "--protocol",
         choices=["auto", "http", "tcp"],
         default="auto",
         help="Transport: auto (TCP first, HTTP fallback), tcp, or http (default: auto)",
     )
-    p_setup.add_argument("--gateway-port", dest="gateway_port", type=int, default=8001, help="Gateway port for TCP protocol (default: 8001)")
-    p_setup.add_argument("--force", action="store_true", help="Overwrite existing config")
+    p_setup.add_argument(
+        "--gateway-port",
+        dest="gateway_port",
+        type=int,
+        default=8001,
+        help="Gateway port for TCP protocol (default: 8001)",
+    )
+    p_setup.add_argument(
+        "--force", action="store_true", help="Overwrite existing config"
+    )
     p_setup.set_defaults(func=cmd_setup)
 
     # --- scan ---
     p_scan = sub.add_parser("scan", help="Run a one-shot scan and print results")
-    p_scan.add_argument("--verbose", action="store_true", help="Show detailed scan output")
-    p_scan.add_argument("--session-report", action="store_true", dest="session_report", help="Also print agent session report(s)")
+    p_scan.add_argument(
+        "--verbose", action="store_true", help="Show detailed scan output"
+    )
+    p_scan.add_argument(
+        "--session-report",
+        action="store_true",
+        dest="session_report",
+        help="Also print agent session report(s)",
+    )
     p_scan.set_defaults(func=cmd_scan)
 
     # --- session-report ---
-    p_session_report = sub.add_parser("session-report", help="Run scan and print agent session report (tool, duration, actions, risk signals)")
-    p_session_report.add_argument("--verbose", action="store_true", help="Show detailed scan output")
+    p_session_report = sub.add_parser(
+        "session-report",
+        help="Run scan and print agent session report (tool, duration, actions, risk signals)",
+    )
+    p_session_report.add_argument(
+        "--verbose", action="store_true", help="Show detailed scan output"
+    )
     p_session_report.set_defaults(func=cmd_session_report)
 
     # --- run ---
     p_run = sub.add_parser("run", help="Run the agent daemon in the foreground")
     p_run.add_argument("--api-url", help="Central server API URL")
     p_run.add_argument("--api-key", help="API key for authentication")
-    p_run.add_argument("--interval", type=int, default=300, help="Scan interval in seconds (default: 300)")
+    p_run.add_argument(
+        "--interval",
+        type=int,
+        default=300,
+        help="Scan interval in seconds (default: 300)",
+    )
     p_run.add_argument(
         "--protocol",
         choices=["auto", "http", "tcp"],
         default="auto",
         help="Transport: auto, tcp, or http (default: auto)",
     )
-    p_run.add_argument("--report-all", action="store_true", default=False, help="Report all detections every cycle (default: changes only)")
-    p_run.add_argument("--enforce", action="store_true", default=False, help="Execute enforcement actions for block decisions")
-    p_run.add_argument("--verbose", action="store_true", help="Show detailed scan output")
+    p_run.add_argument(
+        "--report-all",
+        action="store_true",
+        default=False,
+        help="Report all detections every cycle (default: changes only)",
+    )
+    p_run.add_argument(
+        "--enforce",
+        action="store_true",
+        default=False,
+        help="Execute enforcement actions for block decisions",
+    )
+    p_run.add_argument(
+        "--verbose", action="store_true", help="Show detailed scan output"
+    )
     p_run.set_defaults(func=cmd_run)
 
     # --- Scheduled Task commands (Windows) ---
-    p_install_task = sub.add_parser("install-task", help="Register a Scheduled Task to run the agent at startup (Windows)")
+    p_install_task = sub.add_parser(
+        "install-task",
+        help="Register a Scheduled Task to run the agent at startup (Windows)",
+    )
     p_install_task.set_defaults(func=cmd_install_task)
 
-    p_remove_task = sub.add_parser("remove-task", help="Stop and unregister the Scheduled Task (Windows)")
+    p_remove_task = sub.add_parser(
+        "remove-task", help="Stop and unregister the Scheduled Task (Windows)"
+    )
     p_remove_task.set_defaults(func=cmd_remove_task)
 
     # --- write-env (used by MSI custom action) ---
-    p_write_env = sub.add_parser("write-env", help="Write agent.env config file (used by MSI installer)")
+    p_write_env = sub.add_parser(
+        "write-env", help="Write agent.env config file (used by MSI installer)"
+    )
     p_write_env.add_argument("--api-url", default="", help="Server API URL")
     p_write_env.add_argument("--api-key", default="", help="API key")
     p_write_env.add_argument("--tenant-id", default="", help="Tenant ID")
-    p_write_env.add_argument("--from-msi", default="", help="Path to MSI to extract config trailer from")
+    p_write_env.add_argument(
+        "--from-msi", default="", help="Path to MSI to extract config trailer from"
+    )
     p_write_env.set_defaults(func=cmd_write_env)
 
     # --- Legacy Windows Service commands (kept for backward compat) ---
@@ -791,8 +955,12 @@ def main() -> None:
     p_watchdog.set_defaults(func=cmd_watchdog)
 
     # --- validate-uninstall ---
-    p_validate_uninstall = sub.add_parser("validate-uninstall", help="Validate uninstall token against server")
-    p_validate_uninstall.add_argument("--token", required=True, help="Uninstall token from dashboard")
+    p_validate_uninstall = sub.add_parser(
+        "validate-uninstall", help="Validate uninstall token against server"
+    )
+    p_validate_uninstall.add_argument(
+        "--token", required=True, help="Uninstall token from dashboard"
+    )
     p_validate_uninstall.set_defaults(func=cmd_validate_uninstall)
 
     args = parser.parse_args()
@@ -838,11 +1006,7 @@ def _start_daemon_headless() -> None:
 
 
 if __name__ == "__main__":
-    if (
-        _IS_WINDOWS
-        and getattr(sys, "frozen", False)
-        and len(sys.argv) == 1
-    ):
+    if _IS_WINDOWS and getattr(sys, "frozen", False) and len(sys.argv) == 1:
         _start_daemon_headless()
     else:
         main()
