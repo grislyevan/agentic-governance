@@ -5,6 +5,7 @@ import {
   updateAllowListEntry,
   deleteAllowListEntry,
 } from '../lib/api';
+import ExceptionHistoryDrawer from '../components/dashboard/ExceptionHistoryDrawer';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -72,6 +73,15 @@ function TrashIcon() {
       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
       <path d="M10 11v6M14 11v6" />
       <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
     </svg>
   );
 }
@@ -475,6 +485,7 @@ export default function ExceptionsPage() {
   const [bulkExtendOpen, setBulkExtendOpen] = useState(false);
   const [newExpiry, setNewExpiry] = useState('');
   const [bulkExtendBusy, setBulkExtendBusy] = useState(false);
+  const [historyEntry, setHistoryEntry] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -791,6 +802,14 @@ export default function ExceptionsPage() {
                             </button>
                             <button
                               type="button"
+                              onClick={() => setHistoryEntry(entry)}
+                              title="View change history"
+                              className="p-1.5 rounded hover:bg-detec-slate-100 text-detec-ui-muted hover:text-detec-ui-accent transition-colors"
+                            >
+                              <ClockIcon />
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => setDeletingId(entry.id)}
                               title="Delete"
                               className="p-1.5 rounded hover:bg-red-50 text-detec-ui-muted hover:text-red-600 transition-colors"
@@ -816,6 +835,14 @@ export default function ExceptionsPage() {
           entry={editEntry}
           onClose={handleCloseDrawer}
           onSaved={handleSaved}
+        />
+      )}
+
+      {/* History drawer */}
+      {historyEntry && (
+        <ExceptionHistoryDrawer
+          entry={historyEntry}
+          onClose={() => setHistoryEntry(null)}
         />
       )}
 

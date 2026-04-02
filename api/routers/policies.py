@@ -37,6 +37,7 @@ _BASELINE_IDS = get_baseline_rule_ids()
 
 # ── Response / Request schemas ────────────────────────────────────────
 
+
 class PolicyResponse(BaseModel):
     id: str
     rule_id: str
@@ -103,6 +104,7 @@ class CreatePolicyFromEventBody(BaseModel):
 
 # ── Endpoints ─────────────────────────────────────────────────────────
 
+
 @router.get("", response_model=PolicyListResponse)
 def list_policies(
     page: int = Query(default=1, ge=1),
@@ -124,7 +126,9 @@ def list_policies(
         .all()
     )
     return PolicyListResponse(
-        total=total, page=page, page_size=page_size,
+        total=total,
+        page=page,
+        page_size=page_size,
         items=[PolicyResponse.model_validate(p) for p in items],
     )
 
@@ -145,7 +149,7 @@ def create_policy(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Rule ID '{body.rule_id}' is reserved for baseline policies. "
-                   "Use PATCH to modify or POST /policies/restore-defaults to reset.",
+            "Use PATCH to modify or POST /policies/restore-defaults to reset.",
         )
 
     policy = Policy(
@@ -175,7 +179,9 @@ def create_policy(
     return PolicyResponse.model_validate(policy)
 
 
-@router.post("/from-event", response_model=PolicyResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/from-event", response_model=PolicyResponse, status_code=status.HTTP_201_CREATED
+)
 @limiter.limit("20/minute")
 def create_policy_from_event(
     request: Request,
@@ -188,12 +194,18 @@ def create_policy_from_event(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
 
-    event = db.query(Event).filter(
-        Event.id == body.event_id,
-        Event.tenant_id == auth.tenant_id,
-    ).first()
+    event = (
+        db.query(Event)
+        .filter(
+            Event.id == body.event_id,
+            Event.tenant_id == auth.tenant_id,
+        )
+        .first()
+    )
     if not event:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
+        )
 
     tool_class = event.tool_class or "C"
     tool_name = event.tool_name or "Unknown"
@@ -268,12 +280,19 @@ def update_policy(
 ) -> PolicyResponse:
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
-    policy = db.query(Policy).filter(
-        Policy.id == policy_id, Policy.tenant_id == auth.tenant_id,
-    ).first()
+    policy = (
+        db.query(Policy)
+        .filter(
+            Policy.id == policy_id,
+            Policy.tenant_id == auth.tenant_id,
+        )
+        .first()
+    )
     if not policy:
         logger.warning("Policy %s not found for tenant %s", policy_id, auth.tenant_id)
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Policy not found"
+        )
 
     changes = body.model_dump(exclude_unset=True)
 
@@ -283,9 +302,26 @@ def update_policy(
             detail="Cannot change rule_id on a baseline policy.",
         )
 
-    old_rule_id = policy.rule_id
+    before_snapshot = {
+        "rule_id": policy.rule_id,
+        "rule_version": policy.rule_version,
+        "description": policy.description,
+        "is_active": policy.is_active,
+        "parameters": policy.parameters,
+        "category": policy.category,
+    }
+
     for field_name, value in changes.items():
         setattr(policy, field_name, value)
+
+    after_snapshot = {
+        "rule_id": policy.rule_id,
+        "rule_version": policy.rule_version,
+        "description": policy.description,
+        "is_active": policy.is_active,
+        "parameters": policy.parameters,
+        "category": policy.category,
+    }
 
     audit_record(
         db,
@@ -295,8 +331,9 @@ def update_policy(
         resource_type="policy",
         resource_id=policy_id,
         detail={
-            "old_rule_id": old_rule_id,
-            "changes": list(changes.keys()),
+            "before": before_snapshot,
+            "after": after_snapshot,
+            "fields_changed": list(changes.keys()),
             "is_baseline": policy.is_baseline,
         },
         ip_address=request.client.host if request.client else None,
@@ -317,17 +354,24 @@ def delete_policy(
 ) -> None:
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
-    policy = db.query(Policy).filter(
-        Policy.id == policy_id, Policy.tenant_id == auth.tenant_id,
-    ).first()
+    policy = (
+        db.query(Policy)
+        .filter(
+            Policy.id == policy_id,
+            Policy.tenant_id == auth.tenant_id,
+        )
+        .first()
+    )
     if not policy:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Policy not found"
+        )
 
     if policy.is_baseline:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Baseline policies cannot be deleted. Disable it instead, "
-                   "or use POST /policies/restore-defaults to reset all baseline rules.",
+            "or use POST /policies/restore-defaults to reset all baseline rules.",
         )
 
     audit_record(
@@ -373,6 +417,7 @@ def apply_preset(
         applied = apply_preset_to_tenant(db, auth.tenant_id, body.preset_id)
     except ValueError as e:
         from core.config import settings
+
         detail = str(e) if settings.debug else "Invalid preset or request."
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -6,6 +6,8 @@ import usePolling from '../hooks/usePolling';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
 import PollingStatus from '../components/PollingStatus';
 import PolicySimPacks from '../components/policy-studio/PolicySimPacks';
+import ApiErrorBanner from '../components/ui/ApiErrorBanner';
+import PolicyHistoryDrawer from '../components/dashboard/PolicyHistoryDrawer';
 
 const DECISION_BADGES = {
   block:             'bg-red-100 text-red-700 border-red-200',
@@ -118,6 +120,7 @@ export default function PoliciesPage() {
   const [applyingPreset, setApplyingPreset] = useState(false);
   const [explainerRuleId, setExplainerRuleId] = useState(null);
   const [simPacksOpen, setSimPacksOpen] = useState(false);
+  const [historyPolicy, setHistoryPolicy] = useState(null);
   const navigate = useNavigate();
 
   const canManage = user?.role === 'owner' || user?.role === 'admin';
@@ -333,11 +336,7 @@ export default function PoliciesPage() {
         </div>
       )}
 
-      {error && (
-        <div className="rounded-detec border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      <ApiErrorBanner error={error} onDismiss={() => setError(null)} />
 
       {policies.length === 0 && !loading && !error && (
         <div className="rounded-detec-lg border border-dashed border-detec-ui-border bg-detec-ui-surface px-8 py-20 text-center shadow-detec-sm">
@@ -421,6 +420,14 @@ export default function PoliciesPage() {
                             className="rounded px-2 py-1 text-xs text-detec-ui-muted hover:bg-detec-slate-100 hover:text-detec-ui-text"
                           >
                             Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setHistoryPolicy(policy)}
+                            className="rounded px-2 py-1 text-xs text-detec-ui-muted hover:bg-detec-slate-100 hover:text-detec-ui-accent"
+                            title="View change history"
+                          >
+                            History
                           </button>
                           <button
                             type="button"
@@ -515,6 +522,13 @@ export default function PoliciesPage() {
           confirmClass="bg-red-600 hover:bg-red-500"
           onConfirm={handleConfirmDelete}
           onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
+      {historyPolicy && (
+        <PolicyHistoryDrawer
+          policy={historyPolicy}
+          onClose={() => setHistoryPolicy(null)}
         />
       )}
     </div>

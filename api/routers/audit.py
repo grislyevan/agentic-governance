@@ -79,6 +79,7 @@ class AuditLogListResponse(BaseModel):
 def list_audit_logs(
     action: str | None = Query(default=None),
     resource_type: str | None = Query(default=None),
+    resource_id: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -93,6 +94,8 @@ def list_audit_logs(
     q = _action_filter(q, action)
     if resource_type:
         q = q.filter(AuditLog.resource_type == resource_type)
+    if resource_id:
+        q = q.filter(AuditLog.resource_id == resource_id)
 
     total = q.with_entities(func.count()).scalar() or 0
     items = (
