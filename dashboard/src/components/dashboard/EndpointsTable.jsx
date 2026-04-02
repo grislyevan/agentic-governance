@@ -1,6 +1,28 @@
 import { useState } from 'react';
-import { updateEndpoint, generateUninstallToken, decommissionEndpoint } from '../../lib/api';
+import { updateEndpoint, generateUninstallToken, decommissionEndpoint, rotateEndpointAgentKey } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
+
+const TELEMETRY_BADGE = {
+  ESF:     { label: 'Native (ESF)',  cls: 'bg-detec-teal-500/15 text-detec-teal-500 border-detec-teal-500/30' },
+  ETW:     { label: 'Native (ETW)',  cls: 'bg-detec-teal-500/15 text-detec-teal-500 border-detec-teal-500/30' },
+  eBPF:    { label: 'Native (eBPF)', cls: 'bg-detec-teal-500/15 text-detec-teal-500 border-detec-teal-500/30' },
+  polling: { label: 'Polling',       cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+};
+
+function TelemetryBadge({ provider }) {
+  if (!provider) return <span className="text-detec-ui-muted text-xs">—</span>;
+  const badge = TELEMETRY_BADGE[provider] ?? { label: provider, cls: 'bg-detec-ui-surface text-detec-ui-muted border-detec-ui-border' };
+  return (
+    <span
+      title={provider === 'polling'
+        ? 'psutil polling — higher latency, lower signal fidelity. Deploy ESF/ETW for native telemetry.'
+        : `Native OS telemetry active (${provider}) — full process/network/file event fidelity.`}
+      className={`inline-block rounded border px-1.5 py-0.5 text-[10px] font-medium ${badge.cls}`}
+    >
+      {badge.label}
+    </span>
+  );
+}
 
 function timeSince(date) {
   if (!date) return 'Never';
@@ -28,6 +50,12 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [uninstallToken, setUninstallToken] = useState('');
   const [tokenHostname, setTokenHostname] = useState('');
+
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [rotatedKey, setRotatedKey] = useState('');
+  const [rotatedKeyHostname, setRotatedKeyHostname] = useState('');
+  const [rotatingId, setRotatingId] = useState(null);
+  const [keyCopied, setKeyCopied] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const toggleSelect = (id) => {
@@ -113,6 +141,26 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
     }
   };
 
+  const handleRotateKey = async (ep) => {
+    if (!window.confirm(
+      `Rotate the agent key for "${ep.hostname}"?\n\nThe agent on this endpoint will need to be reconfigured with the new key.`
+    )) return;
+    setError(null);
+    setRotatingId(ep.id);
+    try {
+      const data = await rotateEndpointAgentKey(ep.id);
+      setRotatedKey(data.agent_key);
+      setRotatedKeyHostname(ep.hostname);
+      setKeyCopied(false);
+      setShowKeyModal(true);
+      onUpdate?.();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setRotatingId(null);
+    }
+  };
+
   const uninstallCommand = `msiexec /x DetecAgent.msi UNINSTALL_KEY=${uninstallToken}`;
 
   const handleCopyCommand = () => {
@@ -130,7 +178,7 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
           {error}
         </div>
       )}
-      <div className="rounded-lg border border-detec-ui-border/50 bg-detec-slate-50 overflow-hidden">
+      <div className="rounded-lg border border-detec-ui-border/50 bg-detec-slate-800 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-detec-ui-border/50 text-left text-detec-ui-muted">
@@ -149,6 +197,7 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
               <th className="px-3 py-2 font-medium hidden sm:table-cell">Host OS</th>
               <th className="px-3 py-2 font-medium">Profile</th>
               <th className="px-3 py-2 font-medium">Management</th>
+              <th className="px-3 py-2 font-medium hidden md:table-cell">Telemetry</th>
               <th className="px-3 py-2 font-medium">Last seen</th>
               {canManage && <th className="px-3 py-2 font-medium">Actions</th>}
             </tr>
@@ -192,6 +241,9 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
                 <td className="px-3 py-2 text-detec-ui-muted">
                   {ep.management_state === 'managed' ? 'Conformant' : 'Nonconformant'}
                 </td>
+                <td className="px-3 py-2 hidden md:table-cell">
+                  <TelemetryBadge provider={ep.telemetry_provider} />
+                </td>
                 <td className="px-3 py-2 text-detec-ui-muted text-xs">
                   {timeSince(ep.last_seen_at)}
                   {ep.computed_status === 'tamper_suspected' && (
@@ -209,6 +261,14 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
                           className="rounded border border-detec-ui-border bg-detec-ui-surface px-2 py-1 text-xs text-detec-ui-text hover:bg-detec-ui-surface/80 hover:border-detec-ui-accent transition-colors"
                         >
                           Get Uninstall Token
+                        </button>
+                        <button
+                          onClick={() => handleRotateKey(ep)}
+                          disabled={rotatingId === ep.id}
+                          title="Generate a new per-endpoint agent key"
+                          className="rounded border border-amber-700/50 bg-amber-950/20 px-2 py-1 text-xs text-amber-400 hover:bg-amber-950/40 disabled:opacity-50 transition-colors"
+                        >
+                          {rotatingId === ep.id ? 'Rotating…' : 'Rotate Key'}
                         </button>
                         <button
                           onClick={() => handleDecommission(ep)}
@@ -255,7 +315,7 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
 
       {showTokenModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="w-full max-w-lg rounded-lg border border-detec-ui-border bg-detec-slate-50 p-6 shadow-xl">
+          <div className="w-full max-w-lg rounded-lg border border-detec-ui-border bg-detec-slate-800 p-6 shadow-xl">
             <h3 className="mb-4 text-sm font-semibold text-detec-ui-text">
               Uninstall Token for {tokenHostname}
             </h3>
@@ -272,6 +332,42 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
               </button>
               <button
                 onClick={() => setShowTokenModal(false)}
+                className="rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-1.5 text-sm font-medium text-detec-ui-text hover:bg-detec-ui-surface/80 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-lg rounded-lg border border-amber-700/40 bg-detec-slate-800 p-6 shadow-xl">
+            <h3 className="mb-1 text-sm font-semibold text-detec-ui-text">
+              New Agent Key — {rotatedKeyHostname}
+            </h3>
+            <p className="mb-3 text-xs text-amber-400">
+              This key is shown once and cannot be retrieved again. Copy it now and reconfigure
+              the agent on this endpoint.
+            </p>
+            <div className="mb-4 rounded border border-amber-700/40 bg-detec-ui-surface px-3 py-2 font-mono text-xs text-detec-ui-text break-all select-all">
+              {rotatedKey}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(rotatedKey).then(() => {
+                    setKeyCopied(true);
+                    setTimeout(() => setKeyCopied(false), 2000);
+                  });
+                }}
+                className="rounded-lg bg-amber-700 hover:bg-amber-600 px-3 py-1.5 text-sm font-medium text-white transition-colors"
+              >
+                {keyCopied ? 'Copied!' : 'Copy Key'}
+              </button>
+              <button
+                onClick={() => { setShowKeyModal(false); setRotatedKey(''); }}
                 className="rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-1.5 text-sm font-medium text-detec-ui-text hover:bg-detec-ui-surface/80 transition-colors"
               >
                 Close

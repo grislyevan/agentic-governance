@@ -5,7 +5,16 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone as tz
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.types import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -26,22 +35,38 @@ class Endpoint(Base):
     enforcement_posture: How the agent acts on block decisions (passive/audit/active).
     Controlled centrally by admin.
     """
+
     __tablename__ = "endpoints"
     __table_args__ = (
         UniqueConstraint("tenant_id", "hostname", name="uq_endpoints_tenant_hostname"),
     )
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    tenant_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     endpoint_profile_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("endpoint_profiles.id"), nullable=True, index=True
     )
     hostname: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     os_info: Mapped[str | None] = mapped_column(String(512))
-    management_state: Mapped[str] = mapped_column(String(32), nullable=False, default="unmanaged")
-    enforcement_posture: Mapped[str] = mapped_column(String(16), nullable=False, default="passive")
-    auto_enforce_threshold: Mapped[float] = mapped_column(Float, nullable=False, default=0.75)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default=ENDPOINT_STATUS_ACTIVE)
+    management_state: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="unmanaged"
+    )
+    enforcement_posture: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="passive"
+    )
+    auto_enforce_threshold: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.75
+    )
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=ENDPOINT_STATUS_ACTIVE
+    )
     heartbeat_interval: Mapped[int] = mapped_column(
         Integer, nullable=False, default=settings.default_heartbeat_interval
     )
@@ -58,9 +83,13 @@ class Endpoint(Base):
     enforcement_provider: Mapped[str | None] = mapped_column(String(64))
 
     # Services disabled by anti-resurrection escalation, reported by agent
-    disabled_services: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
+    disabled_services: Mapped[list | None] = mapped_column(
+        JSON, nullable=True, default=None
+    )
     # Pending restore commands queued by admin, delivered to agent on next heartbeat
-    pending_restore_services: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
+    pending_restore_services: Mapped[list | None] = mapped_column(
+        JSON, nullable=True, default=None
+    )
 
     # Cryptographic enrollment (Feature 4)
     signing_public_key: Mapped[str | None] = mapped_column(Text)
@@ -68,13 +97,27 @@ class Endpoint(Base):
     enrolled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Tamper control — uninstall authorization token (Task 2)
-    uninstall_token_hash: Mapped[str | None] = mapped_column(String(128), nullable=True, default=None)
+    uninstall_token_hash: Mapped[str | None] = mapped_column(
+        String(128), nullable=True, default=None
+    )
+
+    # Per-endpoint agent key (optional, overrides tenant key when set).
+    # Allows rotating a single endpoint's key without affecting the whole fleet.
+    agent_key_prefix: Mapped[str | None] = mapped_column(
+        String(16), nullable=True, index=True
+    )
+    agent_key_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    agent_key_rotated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     tenant: Mapped["Tenant"] = relationship("Tenant", back_populates="endpoints")  # noqa: F821
     endpoint_profile: Mapped["EndpointProfile | None"] = relationship(  # noqa: F821
         "EndpointProfile", back_populates="endpoints", lazy="select"
     )
-    events: Mapped[list["Event"]] = relationship("Event", back_populates="endpoint", lazy="select", passive_deletes=True)  # noqa: F821
+    events: Mapped[list["Event"]] = relationship(
+        "Event", back_populates="endpoint", lazy="select", passive_deletes=True
+    )  # noqa: F821
 
     def compute_status(self) -> str:
         """Derive endpoint status from heartbeat timing."""

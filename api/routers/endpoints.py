@@ -20,7 +20,13 @@ from core.audit_logger import record as audit_record
 from core.config import settings
 from core.database import get_db
 from core.auth_cookies import get_authorization
-from core.tenant import get_tenant_id as _get_tenant_id, resolve_auth, require_role, get_tenant_filter, strict_tenant_filter
+from core.tenant import (
+    get_tenant_id as _get_tenant_id,
+    resolve_auth,
+    require_role,
+    get_tenant_filter,
+    strict_tenant_filter,
+)
 from models.allow_list import AllowListEntry
 from models.endpoint import (
     ENDPOINT_STATUS_ACTIVE,
@@ -59,12 +65,18 @@ def create_endpoint(
 ) -> EndpointResponse:
     tenant_id = _get_tenant_id(authorization, x_api_key, db)
 
-    existing = db.query(Endpoint).filter(
-        Endpoint.tenant_id == tenant_id, Endpoint.hostname == body.hostname
-    ).first()
+    existing = (
+        db.query(Endpoint)
+        .filter(Endpoint.tenant_id == tenant_id, Endpoint.hostname == body.hostname)
+        .first()
+    )
     if existing:
-        logger.warning("Duplicate endpoint registration: %s (tenant %s)", body.hostname, tenant_id)
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Endpoint already registered")
+        logger.warning(
+            "Duplicate endpoint registration: %s (tenant %s)", body.hostname, tenant_id
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Endpoint already registered"
+        )
 
     endpoint = Endpoint(
         id=str(uuid.uuid4()),
@@ -90,14 +102,21 @@ def list_endpoints(
     auth = resolve_auth(authorization, x_api_key, db)
     q = db.query(Endpoint).filter(get_tenant_filter(auth, Endpoint))
     total = q.with_entities(func.count()).scalar() or 0
-    items = q.order_by(Endpoint.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    items = (
+        q.order_by(Endpoint.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
     response_items = []
     for e in items:
         resp = EndpointResponse.model_validate(e)
         resp.computed_status = e.compute_status()
         response_items.append(resp)
     return EndpointListResponse(
-        total=total, page=page, page_size=page_size,
+        total=total,
+        page=page,
+        page_size=page_size,
         items=response_items,
     )
 
@@ -129,21 +148,27 @@ def endpoint_status(
         if last is not None and last.tzinfo is None:
             last = last.replace(tzinfo=timezone.utc)
         elapsed = (now - last).total_seconds() if last else None
-        results.append(EndpointStatusResponse(
-            id=ep.id,
-            hostname=ep.hostname,
-            status=computed,
-            last_seen_at=ep.last_seen_at,
-            heartbeat_interval=ep.heartbeat_interval,
-            seconds_since_heartbeat=round(elapsed, 1) if elapsed is not None else None,
-            is_stale=ep.is_stale,
-        ))
+        results.append(
+            EndpointStatusResponse(
+                id=ep.id,
+                hostname=ep.hostname,
+                status=computed,
+                last_seen_at=ep.last_seen_at,
+                heartbeat_interval=ep.heartbeat_interval,
+                seconds_since_heartbeat=round(elapsed, 1)
+                if elapsed is not None
+                else None,
+                is_stale=ep.is_stale,
+            )
+        )
     return results
 
 
 class HeartbeatRequest(BaseModel):
     hostname: str = Field(max_length=255)
-    interval_seconds: int = Field(default=settings.default_heartbeat_interval, ge=30, le=86400)
+    interval_seconds: int = Field(
+        default=settings.default_heartbeat_interval, ge=30, le=86400
+    )
     telemetry_provider: str | None = Field(default=None, max_length=32)
     disabled_services: list[dict] | None = Field(
         default=None,
@@ -201,10 +226,14 @@ def heartbeat(
     """
     tenant_id = _get_tenant_id(authorization, x_api_key, db)
 
-    endpoint = db.query(Endpoint).filter(
-        Endpoint.tenant_id == tenant_id,
-        Endpoint.hostname == body.hostname,
-    ).first()
+    endpoint = (
+        db.query(Endpoint)
+        .filter(
+            Endpoint.tenant_id == tenant_id,
+            Endpoint.hostname == body.hostname,
+        )
+        .first()
+    )
 
     now = datetime.now(timezone.utc)
 
@@ -224,10 +253,14 @@ def heartbeat(
             db.flush()
         except IntegrityError:
             db.rollback()
-            endpoint = db.query(Endpoint).filter(
-                Endpoint.tenant_id == tenant_id,
-                Endpoint.hostname == body.hostname,
-            ).first()
+            endpoint = (
+                db.query(Endpoint)
+                .filter(
+                    Endpoint.tenant_id == tenant_id,
+                    Endpoint.hostname == body.hostname,
+                )
+                .first()
+            )
     else:
         endpoint.last_seen_at = now
         endpoint.heartbeat_interval = body.interval_seconds
@@ -241,7 +274,11 @@ def heartbeat(
     db.commit()
     db.refresh(endpoint)
 
-    entries = db.query(AllowListEntry).filter(AllowListEntry.tenant_id == endpoint.tenant_id).all()
+    entries = (
+        db.query(AllowListEntry)
+        .filter(AllowListEntry.tenant_id == endpoint.tenant_id)
+        .all()
+    )
     allow_list = [e.pattern for e in entries]
     latest_ts = max((e.created_at for e in entries), default=None) if entries else None
     allow_list_updated_at = latest_ts.isoformat() if latest_ts else None
@@ -316,7 +353,11 @@ def heartbeat(
     )
 
 
-@router.get("/{endpoint_id}/session-reports", response_model=SessionReportListResponse, tags=["session-reports"])
+@router.get(
+    "/{endpoint_id}/session-reports",
+    response_model=SessionReportListResponse,
+    tags=["session-reports"],
+)
 def get_endpoint_session_reports(
     endpoint_id: str,
     since: datetime | None = Query(default=None),
@@ -335,15 +376,24 @@ def get_endpoint_session_reports(
     from models.event import Event
 
     auth = resolve_auth(authorization, x_api_key, db)
-    endpoint = db.query(Endpoint).filter(
-        Endpoint.id == endpoint_id, strict_tenant_filter(auth, Endpoint)
-    ).first()
+    endpoint = (
+        db.query(Endpoint)
+        .filter(Endpoint.id == endpoint_id, strict_tenant_filter(auth, Endpoint))
+        .first()
+    )
     if not endpoint:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found"
+        )
 
     tenant_filter = get_tenant_filter(auth, Event)
     events = fetch_events_for_sessions(
-        db, tenant_filter, endpoint_id=endpoint_id, observed_after=since, observed_before=before, limit=limit
+        db,
+        tenant_filter,
+        endpoint_id=endpoint_id,
+        observed_after=since,
+        observed_before=before,
+        limit=limit,
     )
     reports = aggregate_events_into_sessions(
         events,
@@ -361,12 +411,16 @@ def get_endpoint(
     x_api_key: str | None = Header(default=None),
 ) -> EndpointResponse:
     auth = resolve_auth(authorization, x_api_key, db)
-    endpoint = db.query(Endpoint).filter(
-        Endpoint.id == endpoint_id, get_tenant_filter(auth, Endpoint)
-    ).first()
+    endpoint = (
+        db.query(Endpoint)
+        .filter(Endpoint.id == endpoint_id, get_tenant_filter(auth, Endpoint))
+        .first()
+    )
     if not endpoint:
         logger.warning("Endpoint %s not found for user %s", endpoint_id, auth.user_id)
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found"
+        )
     return EndpointResponse.model_validate(endpoint)
 
 
@@ -381,21 +435,29 @@ def update_endpoint(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
     # Use strict_tenant_filter on mutation: prevents cross-tenant write (BOLA fix)
-    endpoint = db.query(Endpoint).filter(
-        Endpoint.id == endpoint_id, strict_tenant_filter(auth, Endpoint)
-    ).first()
+    endpoint = (
+        db.query(Endpoint)
+        .filter(Endpoint.id == endpoint_id, strict_tenant_filter(auth, Endpoint))
+        .first()
+    )
     if not endpoint:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found"
+        )
     if body.endpoint_profile_id is not None:
         if body.endpoint_profile_id == "":
             endpoint.endpoint_profile_id = None
             if endpoint.management_state == "managed":
                 endpoint.management_state = "unmanaged"
         else:
-            profile = db.query(EndpointProfile).filter(
-                EndpointProfile.id == body.endpoint_profile_id,
-                EndpointProfile.tenant_id == auth.tenant_id,
-            ).first()
+            profile = (
+                db.query(EndpointProfile)
+                .filter(
+                    EndpointProfile.id == body.endpoint_profile_id,
+                    EndpointProfile.tenant_id == auth.tenant_id,
+                )
+                .first()
+            )
             if not profile:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -416,6 +478,7 @@ def update_endpoint(
 # Cryptographic enrollment (Feature 4 — Signed Canonical Events)
 # ---------------------------------------------------------------------------
 
+
 class EnrollRequest(BaseModel):
     hostname: str = Field(max_length=255)
     public_key_pem: str = Field(max_length=2048)
@@ -427,7 +490,12 @@ class EnrollResponse(BaseModel):
     enrolled_at: str
 
 
-@router.post("/enroll", response_model=EnrollResponse, status_code=status.HTTP_201_CREATED, tags=["enrollment"])
+@router.post(
+    "/enroll",
+    response_model=EnrollResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["enrollment"],
+)
 @limiter.limit("10/minute")
 def enroll_endpoint(
     request: Request,
@@ -448,10 +516,14 @@ def enroll_endpoint(
 
     fingerprint = hashlib.sha256(body.public_key_pem.encode()).hexdigest()
 
-    endpoint = db.query(Endpoint).filter(
-        Endpoint.tenant_id == auth.tenant_id,
-        Endpoint.hostname == body.hostname,
-    ).first()
+    endpoint = (
+        db.query(Endpoint)
+        .filter(
+            Endpoint.tenant_id == auth.tenant_id,
+            Endpoint.hostname == body.hostname,
+        )
+        .first()
+    )
 
     is_rotation = endpoint is not None
     if endpoint is None:
@@ -471,10 +543,14 @@ def enroll_endpoint(
             db.flush()
         except IntegrityError:
             db.rollback()
-            endpoint = db.query(Endpoint).filter(
-                Endpoint.tenant_id == auth.tenant_id,
-                Endpoint.hostname == body.hostname,
-            ).first()
+            endpoint = (
+                db.query(Endpoint)
+                .filter(
+                    Endpoint.tenant_id == auth.tenant_id,
+                    Endpoint.hostname == body.hostname,
+                )
+                .first()
+            )
     else:
         endpoint.signing_public_key = body.public_key_pem
         endpoint.key_fingerprint = fingerprint
@@ -504,6 +580,7 @@ def enroll_endpoint(
 # Tamper control — uninstall token and decommission (Task 2)
 # ---------------------------------------------------------------------------
 
+
 @router.post("/{endpoint_id}/uninstall-token", response_model=UninstallTokenResponse)
 def generate_uninstall_token(
     request: Request,
@@ -519,11 +596,15 @@ def generate_uninstall_token(
     """
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
-    endpoint = db.query(Endpoint).filter(
-        Endpoint.id == endpoint_id, strict_tenant_filter(auth, Endpoint)
-    ).first()
+    endpoint = (
+        db.query(Endpoint)
+        .filter(Endpoint.id == endpoint_id, strict_tenant_filter(auth, Endpoint))
+        .first()
+    )
     if not endpoint:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found"
+        )
 
     token = secrets.token_hex(32)
     endpoint.uninstall_token_hash = hashlib.sha256(token.encode()).hexdigest()
@@ -543,7 +624,10 @@ def generate_uninstall_token(
     return UninstallTokenResponse(uninstall_token=token)
 
 
-@router.post("/{endpoint_id}/validate-uninstall-token", response_model=ValidateUninstallTokenResponse)
+@router.post(
+    "/{endpoint_id}/validate-uninstall-token",
+    response_model=ValidateUninstallTokenResponse,
+)
 def validate_uninstall_token(
     endpoint_id: str,
     body: ValidateUninstallTokenRequest,
@@ -553,11 +637,15 @@ def validate_uninstall_token(
 ) -> ValidateUninstallTokenResponse:
     """Validate an uninstall token against the stored hash."""
     auth = resolve_auth(authorization, x_api_key, db)
-    endpoint = db.query(Endpoint).filter(
-        Endpoint.id == endpoint_id, strict_tenant_filter(auth, Endpoint)
-    ).first()
+    endpoint = (
+        db.query(Endpoint)
+        .filter(Endpoint.id == endpoint_id, strict_tenant_filter(auth, Endpoint))
+        .first()
+    )
     if not endpoint:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found"
+        )
 
     if not endpoint.uninstall_token_hash:
         return ValidateUninstallTokenResponse(valid=False)
@@ -578,11 +666,15 @@ def decommission_endpoint(
     """Mark an endpoint as decommissioned and remove it from governance."""
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
-    endpoint = db.query(Endpoint).filter(
-        Endpoint.id == endpoint_id, strict_tenant_filter(auth, Endpoint)
-    ).first()
+    endpoint = (
+        db.query(Endpoint)
+        .filter(Endpoint.id == endpoint_id, strict_tenant_filter(auth, Endpoint))
+        .first()
+    )
     if not endpoint:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found"
+        )
 
     endpoint.status = "decommissioned"
     endpoint.management_state = "unmanaged"
@@ -603,4 +695,88 @@ def decommission_endpoint(
         id=endpoint.id,
         hostname=endpoint.hostname,
         status=endpoint.status,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Per-endpoint agent key rotation
+# ---------------------------------------------------------------------------
+
+
+class EndpointKeyRotateResponse(BaseModel):
+    endpoint_id: str
+    hostname: str
+    agent_key: str
+    agent_key_prefix: str
+    message: str
+
+
+@router.post(
+    "/{endpoint_id}/key/rotate",
+    response_model=EndpointKeyRotateResponse,
+    tags=["enrollment"],
+)
+@limiter.limit("5/minute")
+def rotate_endpoint_agent_key(
+    request: Request,
+    endpoint_id: str,
+    db: Session = Depends(get_db),
+    authorization: str | None = Depends(get_authorization),
+    x_api_key: str | None = Header(default=None),
+) -> EndpointKeyRotateResponse:
+    """Rotate the per-endpoint agent key for a single endpoint.
+
+    Generates a new agent key scoped to this endpoint only.  The plaintext
+    key is returned once — it is not stored.  The agent on that endpoint must
+    be reconfigured with the new key; its old key (whether a per-endpoint key
+    or the tenant fleet key) will no longer authenticate for this endpoint
+    once the next heartbeat is processed.
+
+    Requires admin or owner role.
+    """
+    from core.tenant import generate_agent_key
+
+    auth = resolve_auth(authorization, x_api_key, db)
+    require_role(auth, "owner", "admin")
+
+    endpoint = (
+        db.query(Endpoint)
+        .filter(
+            Endpoint.id == endpoint_id,
+            strict_tenant_filter(auth, Endpoint),
+        )
+        .first()
+    )
+    if not endpoint:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found"
+        )
+
+    full_key, prefix, key_hash = generate_agent_key()
+    endpoint.agent_key_prefix = prefix
+    endpoint.agent_key_hash = key_hash
+    endpoint.agent_key_rotated_at = datetime.now(timezone.utc)
+    db.commit()
+
+    audit_record(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="endpoint.agent_key_rotated",
+        resource_type="endpoint",
+        resource_id=endpoint.id,
+        detail={"hostname": endpoint.hostname, "new_key_prefix": prefix},
+        ip_address=request.client.host if request.client else None,
+    )
+
+    return EndpointKeyRotateResponse(
+        endpoint_id=endpoint.id,
+        hostname=endpoint.hostname,
+        agent_key=full_key,
+        agent_key_prefix=prefix,
+        message=(
+            "Per-endpoint agent key rotated. "
+            "Reconfigure the agent on this endpoint with the new key. "
+            "The previous key (tenant or per-endpoint) is now invalid for this endpoint."
+        ),
     )
