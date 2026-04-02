@@ -3,7 +3,7 @@
 # Quick start for new contributors: run `make smoke` to bootstrap and verify local sanity (no Postgres needed).
 
 .PHONY: bootstrap-dev test-collector test-api test-protocol test-all-safe build-dashboard \
-        test-collector-noinstall test-api-noinstall test-protocol-noinstall smoke help
+        test-collector-noinstall test-api-noinstall test-protocol-noinstall smoke dev help
 
 help:
 	@echo "Detec test targets"
@@ -23,8 +23,9 @@ help:
 	@echo "    make test-api-noinstall          API tests, no pip step (needs DATABASE_URL etc.)"
 	@echo "    make test-protocol-noinstall     Protocol tests, no pip step"
 	@echo ""
-	@echo "  Other:"
+  @echo "  Other:"
 	@echo "    make build-dashboard             npm ci + build dashboard"
+	@echo "    make dev                         Run API (hot-reload) + dashboard (Vite) concurrently"
 	@echo ""
 	@echo "See docs/local-test-profiles.md for profile-specific setup guidance."
 
@@ -70,3 +71,12 @@ test-api-noinstall:
 # Protocol async tests require pytest-asyncio already installed in the active env.
 test-protocol-noinstall:
 	python -m pytest protocol/tests/ -q
+
+# Run the full local stack: API (uvicorn --reload) + dashboard (Vite dev server) in one terminal.
+# Requires: pip deps installed (make bootstrap-dev) and npm deps installed (cd dashboard && npm ci).
+# API served at http://localhost:8000, dashboard at http://localhost:5173 (Vite proxies /api to :8000).
+dev:
+	@trap 'kill 0' INT; \
+	cd api && uvicorn main:app --reload --port 8000 & \
+	cd dashboard && npm run dev & \
+	wait
