@@ -1,0 +1,99 @@
+# Build ESF Helper — universal binary workflow
+#
+# On every push/PR to main:
+#   - Builds arm64 on macos-latest (Apple Silicon) and x86_64 on macos-13 (Intel) in parallel.
+#
+# On push to main (and workflow_dispatch) only:
+#   - Downloads both arch artifacts, combines them with lipo into a universal fat binary,
+#     optionally signs it, then commits it back to the repo with [skip ci].
+#
+# PRs: only the build matrix runs (verifies compilation); no commit step.
+#
+# To enable code signing: add a CODESIGN_IDENTITY repository secret with the value of
+# the Developer ID Application certificate name (e.g., "Developer ID Application: Your Company (TEAMID)").
+
+name: Build ESF Helper
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest  # arm64 (Apple Silicon)
+            arch: arm64
+          - os: macos-13      # x86_64 (Intel)
+            arch: x86_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # actions/checkout@v4
+
+      - name: Build
+        run: make -C collector/providers/esf_helper
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b  # actions/upload-artifact@v4
+        with:
+          name: esf-helper-${{ matrix.arch }}
+          path: collector/providers/esf_helper/esf_helper
+          retention-days: 7
+
+  combine:
+    name: Combine + Sign + Commit universal binary
+    needs: [build]
+    runs-on: macos-latest
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download arm64 artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444306234f5a23fba09e56a3  # actions/download-artifact@v4
+        with:
+          name: esf-helper-arm64
+          path: ./artifacts/arm64/
+
+      - name: Download x86_64 artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444306234f5a23fba09e56a3  # actions/download-artifact@v4
+        with:
+          name: esf-helper-x86_64
+          path: ./artifacts/x86_64/
+
+      - name: Create universal binary with lipo
+        run: |
+          lipo -create \
+            artifacts/arm64/esf_helper \
+            artifacts/x86_64/esf_helper \
+            -output collector/providers/esf_helper/esf_helper
+          chmod +x collector/providers/esf_helper/esf_helper
+          lipo -info collector/providers/esf_helper/esf_helper
+          file collector/providers/esf_helper/esf_helper
+
+      - name: Sign universal binary
+        if: ${{ secrets.CODESIGN_IDENTITY != '' }}
+        run: make -C collector/providers/esf_helper sign
+        env:
+          CODESIGN_IDENTITY: ${{ secrets.CODESIGN_IDENTITY }}
+
+      - name: Commit universal binary
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add collector/providers/esf_helper/esf_helper
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "ci: update esf_helper to universal binary (arm64+x86_64) [skip ci]"
+          git push

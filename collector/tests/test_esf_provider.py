@@ -22,7 +22,9 @@ from telemetry.event_store import EventStore
 
 def _recent_ts() -> str:
     """Timestamp within retention window so get_*_events() does not evict."""
-    return (datetime.now(timezone.utc) - timedelta(seconds=60)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return (datetime.now(timezone.utc) - timedelta(seconds=60)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -40,6 +42,7 @@ from providers.esf_provider import (
 
 # ---- _macos_version_ok ---------------------------------------------------
 
+
 class TestMacOSVersionOk:
     def test_returns_false_on_linux(self):
         with patch("providers.esf_provider.sys.platform", "linux"):
@@ -47,35 +50,54 @@ class TestMacOSVersionOk:
 
     def test_returns_false_on_catalina_predecessor(self):
         with patch("providers.esf_provider.sys.platform", "darwin"):
-            with patch("providers.esf_provider.platform.mac_ver", return_value=("10.14.6", ("", "", ""), "")):
+            with patch(
+                "providers.esf_provider.platform.mac_ver",
+                return_value=("10.14.6", ("", "", ""), ""),
+            ):
                 assert _macos_version_ok() is False
 
     def test_returns_true_on_catalina(self):
         with patch("providers.esf_provider.sys.platform", "darwin"):
-            with patch("providers.esf_provider.platform.mac_ver", return_value=("10.15.0", ("", "", ""), "")):
+            with patch(
+                "providers.esf_provider.platform.mac_ver",
+                return_value=("10.15.0", ("", "", ""), ""),
+            ):
                 assert _macos_version_ok() is True
 
     def test_returns_true_on_ventura(self):
         with patch("providers.esf_provider.sys.platform", "darwin"):
-            with patch("providers.esf_provider.platform.mac_ver", return_value=("13.0.0", ("", "", ""), "")):
+            with patch(
+                "providers.esf_provider.platform.mac_ver",
+                return_value=("13.0.0", ("", "", ""), ""),
+            ):
                 assert _macos_version_ok() is True
 
     def test_returns_true_on_sonoma(self):
         with patch("providers.esf_provider.sys.platform", "darwin"):
-            with patch("providers.esf_provider.platform.mac_ver", return_value=("14.2.1", ("", "", ""), "")):
+            with patch(
+                "providers.esf_provider.platform.mac_ver",
+                return_value=("14.2.1", ("", "", ""), ""),
+            ):
                 assert _macos_version_ok() is True
 
     def test_returns_false_on_empty_version(self):
         with patch("providers.esf_provider.sys.platform", "darwin"):
-            with patch("providers.esf_provider.platform.mac_ver", return_value=("", ("", "", ""), "")):
+            with patch(
+                "providers.esf_provider.platform.mac_ver",
+                return_value=("", ("", "", ""), ""),
+            ):
                 assert _macos_version_ok() is False
 
 
 # ---- _find_esf_helper ----------------------------------------------------
 
+
 class TestFindESFHelper:
     def test_finds_helper_on_path(self):
-        with patch("providers.esf_provider.shutil.which", return_value="/usr/local/bin/esf_helper"):
+        with patch(
+            "providers.esf_provider.shutil.which",
+            return_value="/usr/local/bin/esf_helper",
+        ):
             with patch("providers.esf_provider.os.access", return_value=True):
                 with patch("providers.esf_provider.Path.is_file", return_value=False):
                     result = _find_esf_helper()
@@ -90,6 +112,7 @@ class TestFindESFHelper:
 
 
 # ---- ESFProvider.available ------------------------------------------------
+
 
 class TestESFAvailable:
     def test_false_on_non_darwin(self):
@@ -108,7 +131,9 @@ class TestESFAvailable:
     def test_false_when_helper_missing(self):
         with patch("providers.esf_provider.sys.platform", "darwin"):
             with patch("providers.esf_provider._macos_version_ok", return_value=True):
-                with patch("providers.esf_provider._find_esf_helper", return_value=None):
+                with patch(
+                    "providers.esf_provider._find_esf_helper", return_value=None
+                ):
                     p = ESFProvider()
                     assert p.available() is False
                     assert "helper" in p.unavailable_reason.lower()
@@ -116,7 +141,10 @@ class TestESFAvailable:
     def test_true_when_all_conditions_met(self):
         with patch("providers.esf_provider.sys.platform", "darwin"):
             with patch("providers.esf_provider._macos_version_ok", return_value=True):
-                with patch("providers.esf_provider._find_esf_helper", return_value="/usr/bin/esf_helper"):
+                with patch(
+                    "providers.esf_provider._find_esf_helper",
+                    return_value="/usr/bin/esf_helper",
+                ):
                     with patch("providers.esf_provider.os.access", return_value=True):
                         p = ESFProvider()
                         assert p.available() is True
@@ -124,6 +152,7 @@ class TestESFAvailable:
 
 
 # ---- ESFProvider._process_line (JSON event parsing) -----------------------
+
 
 class TestESFProcessLine:
     """Test the _process_line method that parses JSON from esf_helper."""
@@ -136,16 +165,18 @@ class TestESFProcessLine:
 
     def test_exec_event_parsed(self):
         provider, store = self._make_provider_with_store()
-        line = json.dumps({
-            "type": "exec",
-            "pid": 1234,
-            "ppid": 100,
-            "name": "claude",
-            "cmdline": "claude chat --model opus",
-            "username": "dev",
-            "binary_path": "/usr/local/bin/claude",
-            "timestamp": _recent_ts(),
-        })
+        line = json.dumps(
+            {
+                "type": "exec",
+                "pid": 1234,
+                "ppid": 100,
+                "name": "claude",
+                "cmdline": "claude chat --model opus",
+                "username": "dev",
+                "binary_path": "/usr/local/bin/claude",
+                "timestamp": _recent_ts(),
+            }
+        )
         provider._process_line(line)
 
         events = store.get_process_events()
@@ -161,14 +192,16 @@ class TestESFProcessLine:
     def test_open_event_readonly_parsed_as_file_read(self):
         """Read-only open (flags=0) is pushed as FileReadEvent, not FileChangeEvent."""
         provider, store = self._make_provider_with_store()
-        line = json.dumps({
-            "type": "open",
-            "path": "/etc/hosts",
-            "flags": 0,
-            "pid": 42,
-            "process_name": "cat",
-            "timestamp": _recent_ts(),
-        })
+        line = json.dumps(
+            {
+                "type": "open",
+                "path": "/etc/hosts",
+                "flags": 0,
+                "pid": 42,
+                "process_name": "cat",
+                "timestamp": _recent_ts(),
+            }
+        )
         provider._process_line(line)
         provider._flush_read_batch()
 
@@ -183,14 +216,16 @@ class TestESFProcessLine:
     def test_open_event_writable_parsed_as_modified(self):
         """Writable open is pushed as FileChangeEvent (use path not filtered as temp)."""
         provider, store = self._make_provider_with_store()
-        line = json.dumps({
-            "type": "open",
-            "path": "/etc/output.log",
-            "flags": 0x3,
-            "pid": 99,
-            "process_name": "python",
-            "timestamp": _recent_ts(),
-        })
+        line = json.dumps(
+            {
+                "type": "open",
+                "path": "/etc/output.log",
+                "flags": 0x3,
+                "pid": 99,
+                "process_name": "python",
+                "timestamp": _recent_ts(),
+            }
+        )
         provider._process_line(line)
         provider._flush_file_batch()
 
@@ -198,27 +233,49 @@ class TestESFProcessLine:
         assert len(events) == 1
         assert events[0].action == "modified"
 
-    def test_connect_event_parsed(self):
+    def test_uipc_connect_event_parsed(self):
+        """uipc_connect events (Unix-domain IPC) are emitted with protocol=unix."""
         provider, store = self._make_provider_with_store()
-        line = json.dumps({
-            "type": "connect",
-            "pid": 555,
-            "process_name": "curl",
-            "remote_addr": "10.0.0.1",
-            "remote_port": 443,
-            "protocol": "tcp",
-            "timestamp": _recent_ts(),
-        })
+        line = json.dumps(
+            {
+                "type": "uipc_connect",
+                "pid": 555,
+                "process_name": "claude",
+                "socket_path": "/tmp/claude.sock",
+                "sock_type": "stream",
+                "timestamp": _recent_ts(),
+            }
+        )
         provider._process_line(line)
 
         events = store.get_network_events()
         assert len(events) == 1
         ev = events[0]
         assert ev.pid == 555
-        assert ev.process_name == "curl"
-        assert ev.remote_addr == "10.0.0.1"
-        assert ev.remote_port == 443
+        assert ev.process_name == "claude"
+        assert ev.remote_addr == "/tmp/claude.sock"
+        assert ev.protocol == "unix"
         assert ev.source == ESF_SOURCE
+
+    def test_legacy_connect_event_ignored(self):
+        """The old 'connect' event type is no longer emitted by esf_helper.
+        ESF does not expose TCP connect events; psutil handles TCP enumeration.
+        Legacy 'connect' lines should be silently ignored (no crash)."""
+        provider, store = self._make_provider_with_store()
+        line = json.dumps(
+            {
+                "type": "connect",
+                "pid": 555,
+                "process_name": "curl",
+                "remote_addr": "10.0.0.1",
+                "remote_port": 443,
+                "protocol": "tcp",
+                "timestamp": _recent_ts(),
+            }
+        )
+        provider._process_line(line)
+        # No events should be emitted — this type is no longer handled.
+        assert len(store.get_network_events()) == 0
 
     def test_malformed_json_is_ignored(self):
         provider, store = self._make_provider_with_store()
@@ -243,14 +300,16 @@ class TestESFProcessLine:
 
     def test_bad_timestamp_uses_utc_now(self):
         provider, store = self._make_provider_with_store()
-        line = json.dumps({
-            "type": "exec",
-            "pid": 1,
-            "ppid": 0,
-            "name": "test",
-            "cmdline": "test",
-            "timestamp": "not-a-timestamp",
-        })
+        line = json.dumps(
+            {
+                "type": "exec",
+                "pid": 1,
+                "ppid": 0,
+                "name": "test",
+                "cmdline": "test",
+                "timestamp": "not-a-timestamp",
+            }
+        )
         provider._process_line(line)
         events = store.get_process_events()
         assert len(events) == 1
@@ -258,6 +317,7 @@ class TestESFProcessLine:
 
 
 # ---- ESFProvider.start / stop lifecycle -----------------------------------
+
 
 class TestESFLifecycle:
     @pytest.mark.skipif(
@@ -274,11 +334,21 @@ class TestESFLifecycle:
 
         mock_socket = MagicMock()
 
-        with patch("providers.esf_provider._find_esf_helper", return_value="/usr/bin/esf_helper"):
-            with patch("providers.esf_provider.subprocess.Popen", return_value=mock_proc) as mock_popen:
+        with patch(
+            "providers.esf_provider._find_esf_helper",
+            return_value="/usr/bin/esf_helper",
+        ):
+            with patch(
+                "providers.esf_provider.subprocess.Popen", return_value=mock_proc
+            ) as mock_popen:
                 with patch("providers.esf_provider.os.path.exists", return_value=True):
-                    with patch("providers.esf_provider.socket.socket", return_value=mock_socket):
-                        with patch("providers.esf_provider.tempfile.mkstemp", return_value=(5, "/tmp/detec-esf-test.sock")):
+                    with patch(
+                        "providers.esf_provider.socket.socket", return_value=mock_socket
+                    ):
+                        with patch(
+                            "providers.esf_provider.tempfile.mkstemp",
+                            return_value=(5, "/tmp/detec-esf-test.sock"),
+                        ):
                             with patch("providers.esf_provider.os.close"):
                                 with patch("providers.esf_provider.os.unlink"):
                                     provider.start(store)

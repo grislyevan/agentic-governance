@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import sys
 import threading
@@ -38,27 +39,33 @@ def _is_admin() -> bool:
         return False
     try:
         import ctypes
+
         return ctypes.windll.shell32.IsUserAnAdmin() != 0
     except (AttributeError, OSError):
         return False
 
 
 def _check_ctypes_etw() -> bool:
-    """Verify ctypes can access ETW APIs (advapi32)."""
+    """Verify ctypes can access ETW APIs (advapi32) AND the ctypes backend module exists."""
     if sys.platform != "win32":
         return False
     try:
         import ctypes
+
         _ = ctypes.windll.advapi32
-        return True
     except (AttributeError, OSError):
         return False
+    # Also require the ctypes backend module to be importable.
+    if importlib.util.find_spec("collector.providers._etw_ctypes") is None:
+        return False
+    return True
 
 
 def _check_pywintrace() -> bool:
     """Check if pywintrace is importable."""
     try:
         import etw
+
         return hasattr(etw, "ETW") and hasattr(etw, "ProviderInfo")
     except ImportError:
         return False
@@ -216,6 +223,7 @@ class ETWProvider(TelemetryProvider):
             return
         try:
             from ._etw_ctypes import run_etw_session
+
             run_etw_session(
                 store=self._store,
                 stop_event=self._stop_event,

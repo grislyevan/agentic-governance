@@ -15,6 +15,9 @@ are needed, why, and how to grant them (both manually and via MDM).
 | Process Inspection | Implicit | `psutil` reads the process list to detect running AI tools | Covered by standard user permissions |
 | Keychain Access | Optional | Retrieve the API key from the macOS Keychain | Keychain prompt on first access (can be suppressed by MDM) |
 
+> **Note**: The macOS `.pkg` installer was removed. See [`docs/mdm-deployment.md`](mdm-deployment.md)
+> for the current MDM deployment path using Jamf Pro or Microsoft Intune.
+
 ## Full Disk Access (FDA)
 
 **Why it's needed**: The agent's scanners inspect files in locations that
@@ -43,15 +46,20 @@ Deploy a Privacy Preferences Policy Control (PPPC) profile that pre-authorizes
 FDA for your signed agent bundle. Author the profile in your MDM or using
 Apple's profile reference; the XML fragment below shows the TCC shape.
 
+> Replace `<YOUR_TEAM_ID>` with your 10-character Apple Team ID (visible at
+> developer.apple.com → Membership → Team ID).
+
 The key TCC entry:
 
 ```xml
 <key>Authorization</key>
 <string>AllowStandardUserToSetSystemService</string>
 <key>CodeRequirement</key>
-<string>identifier "com.detec.agent"</string>
+<string>anchor apple generic and identifier "com.detec.agent" and (certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ or certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.12] /* exists */ and certificate leaf[subject.OU] = "<YOUR_TEAM_ID>")</string>
 <key>IdentifierType</key>
 <string>bundleID</string>
+<key>Identifier</key>
+<string>com.detec.agent</string>
 <key>Services</key>
 <dict>
     <key>SystemPolicyAllFiles</key>
@@ -61,6 +69,11 @@ The key TCC entry:
     </dict>
 </dict>
 ```
+
+> **Note**: The `CodeRequirement` above is the standard Developer ID code requirement
+> pattern. It matches any binary signed by your Apple Developer team (identified by the
+> `subject.OU` = `<YOUR_TEAM_ID>` leaf certificate field) with the `com.detec.agent`
+> bundle identifier. Replace `<YOUR_TEAM_ID>` with your actual Team ID before deploying.
 
 **Important**: PPPC profiles require the app to be code-signed with a
 Developer ID certificate. Unsigned apps cannot be pre-authorized via MDM.
@@ -106,21 +119,21 @@ extension without user interaction. The profile payload:
 <string>com.apple.system-extension-policy</string>
 <key>AllowedSystemExtensions</key>
 <dict>
-    <key>TEAM_ID_HERE</key>
+    <key>&lt;YOUR_TEAM_ID&gt;</key>
     <array>
         <string>com.detec.agent.esf-helper</string>
     </array>
 </dict>
 <key>AllowedSystemExtensionTypes</key>
 <dict>
-    <key>TEAM_ID_HERE</key>
+    <key>&lt;YOUR_TEAM_ID&gt;</key>
     <array>
         <string>EndpointSecurityExtension</string>
     </array>
 </dict>
 ```
 
-Replace `TEAM_ID_HERE` with your Apple Developer Team ID. Combine this payload
+Replace `<YOUR_TEAM_ID>` with your Apple Developer Team ID. Combine this payload
 with your PPPC profile as needed for your MDM.
 
 ### Without System Extension Approval

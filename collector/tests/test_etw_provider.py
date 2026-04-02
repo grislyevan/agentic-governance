@@ -26,6 +26,7 @@ from providers.etw_provider import (
 
 # ---- Platform / admin checks ---------------------------------------------
 
+
 class TestPlatformChecks:
     def test_is_admin_returns_false_on_non_windows(self):
         with patch("providers.etw_provider.sys.platform", "darwin"):
@@ -42,6 +43,7 @@ class TestPlatformChecks:
 
 # ---- ETWProvider.available ------------------------------------------------
 
+
 class TestETWAvailable:
     def test_false_on_non_windows(self):
         with patch("providers.etw_provider.sys.platform", "linux"):
@@ -54,12 +56,17 @@ class TestETWAvailable:
             with patch("providers.etw_provider._is_admin", return_value=False):
                 p = ETWProvider()
                 assert p.available() is False
-                assert "admin" in p.unavailable_reason.lower() or "Administrator" in p.unavailable_reason
+                assert (
+                    "admin" in p.unavailable_reason.lower()
+                    or "Administrator" in p.unavailable_reason
+                )
 
     def test_true_with_pywintrace(self):
         with patch("providers.etw_provider.sys.platform", "win32"):
             with patch("providers.etw_provider._is_admin", return_value=True):
-                with patch("providers.etw_provider._check_pywintrace", return_value=True):
+                with patch(
+                    "providers.etw_provider._check_pywintrace", return_value=True
+                ):
                     p = ETWProvider()
                     assert p.available() is True
                     assert p.unavailable_reason == ""
@@ -67,25 +74,37 @@ class TestETWAvailable:
     def test_true_with_ctypes_fallback(self):
         with patch("providers.etw_provider.sys.platform", "win32"):
             with patch("providers.etw_provider._is_admin", return_value=True):
-                with patch("providers.etw_provider._check_pywintrace", return_value=False):
-                    with patch("providers.etw_provider._check_ctypes_etw", return_value=True):
+                with patch(
+                    "providers.etw_provider._check_pywintrace", return_value=False
+                ):
+                    with patch(
+                        "providers.etw_provider._check_ctypes_etw", return_value=True
+                    ):
                         p = ETWProvider()
                         assert p.available() is True
 
     def test_false_when_no_backend_available(self):
         with patch("providers.etw_provider.sys.platform", "win32"):
             with patch("providers.etw_provider._is_admin", return_value=True):
-                with patch("providers.etw_provider._check_pywintrace", return_value=False):
-                    with patch("providers.etw_provider._check_ctypes_etw", return_value=False):
+                with patch(
+                    "providers.etw_provider._check_pywintrace", return_value=False
+                ):
+                    with patch(
+                        "providers.etw_provider._check_ctypes_etw", return_value=False
+                    ):
                         p = ETWProvider()
                         assert p.available() is False
-                        assert "pywintrace" in p.unavailable_reason.lower() or "ctypes" in p.unavailable_reason.lower()
+                        assert (
+                            "pywintrace" in p.unavailable_reason.lower()
+                            or "ctypes" in p.unavailable_reason.lower()
+                        )
 
     def test_name_is_etw(self):
         assert ETWProvider().name == "etw"
 
 
 # ---- _parse_event_pywintrace (process events) ----------------------------
+
 
 class TestParseProcessEvents:
     def test_parses_process_creation_event(self):
@@ -130,6 +149,7 @@ class TestParseProcessEvents:
 
 
 # ---- _parse_event_pywintrace (network events) ----------------------------
+
 
 class TestParseNetworkEvents:
     def test_parses_network_event_with_daddr(self):
@@ -183,6 +203,7 @@ class TestParseNetworkEvents:
 
 # ---- _parse_event_pywintrace (file events) -------------------------------
 
+
 class TestParseFileEvents:
     def test_parses_file_create_event(self):
         store = EventStore(max_events=500, retention_seconds=60.0)
@@ -221,6 +242,7 @@ class TestParseFileEvents:
 
 
 # ---- ETWProvider.start / stop (pywintrace backend) -----------------------
+
 
 class TestETWLifecycle:
     def test_start_with_pywintrace(self):
@@ -270,6 +292,7 @@ class TestETWLifecycle:
 
 # ---- Disambiguation: events with overlapping keys -------------------------
 
+
 class TestEventDisambiguation:
     def test_process_event_takes_priority_over_network(self):
         """When ProcessId and ParentId are present, it's a process event."""
@@ -284,3 +307,45 @@ class TestEventDisambiguation:
 
         assert len(store.get_process_events()) == 1
         assert len(store.get_network_events()) == 0
+
+
+# ---- _check_ctypes_etw module-presence guard (B1/B2) ---------------------
+
+
+class TestCheckCtypesEtwModuleGuard:
+    def test_check_ctypes_etw_false_when_module_missing(self):
+        """_check_ctypes_etw() must return False when the ctypes backend module
+        cannot be found, even if advapi32 is otherwise accessible."""
+        with patch("providers.etw_provider.sys.platform", "win32"):
+            with patch(
+                "providers.etw_provider.importlib.util.find_spec", return_value=None
+            ):
+                assert _check_ctypes_etw() is False
+
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-only code path")
+    def test_check_ctypes_etw_true_when_module_present(self):
+        """_check_ctypes_etw() must return True when both advapi32 and the
+        ctypes backend module are available (Windows only)."""
+        mock_spec = MagicMock()
+        with patch(
+            "providers.etw_provider.importlib.util.find_spec", return_value=mock_spec
+        ):
+            assert _check_ctypes_etw() is True
+
+    def test_available_returns_false_when_ctypes_module_missing_on_windows(self):
+        """ETWProvider.available() must be False when platform is win32, admin
+        check passes, pywintrace is unavailable, and the ctypes backend module
+        is missing."""
+        with patch("providers.etw_provider.sys.platform", "win32"):
+            with patch("providers.etw_provider._is_admin", return_value=True):
+                with patch(
+                    "providers.etw_provider._check_pywintrace", return_value=False
+                ):
+                    with patch(
+                        "providers.etw_provider.importlib.util.find_spec",
+                        return_value=None,
+                    ):
+                        p = ETWProvider()
+                        assert p.available() is False
+                        reason = p.unavailable_reason.lower()
+                        assert "pywintrace" in reason or "ctypes" in reason

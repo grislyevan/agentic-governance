@@ -251,7 +251,10 @@ class ESFProvider(TelemetryProvider):
         while not self._stop_event.is_set() and self._sock and self._store:
             try:
                 if self._proc and self._proc.poll() is not None:
-                    logger.error("ESF helper exited unexpectedly (code=%s)", self._proc.returncode)
+                    logger.error(
+                        "ESF helper exited unexpectedly (code=%s)",
+                        self._proc.returncode,
+                    )
                     break
                 data = self._sock.recv(65536)
                 if not data:
@@ -339,16 +342,20 @@ class ESFProvider(TelemetryProvider):
                 )
                 if len(self._file_batch) >= _ESF_BATCH_SIZE:
                     self._flush_file_batch()
-        elif t == "connect":
+        elif t == "uipc_connect":
+            # Unix-domain socket IPC (ES_EVENT_TYPE_NOTIFY_UIPC_CONNECT).
+            # Emitted as a NetworkConnectEvent with the socket path as remote_addr
+            # and protocol="unix" so consumers can distinguish IPC from TCP/UDP.
+            socket_path = str(obj.get("socket_path", ""))
             self._store.push_network(
                 NetworkConnectEvent(
                     timestamp=ts,
                     pid=int(obj.get("pid", 0)),
                     process_name=str(obj.get("process_name", "")),
-                    remote_addr=str(obj.get("remote_addr", "")),
-                    remote_port=int(obj.get("remote_port", 0)),
+                    remote_addr=socket_path,
+                    remote_port=0,
                     local_port=0,
-                    protocol=str(obj.get("protocol", "tcp")),
+                    protocol="unix",
                     sni=None,
                     source=ESF_SOURCE,
                 )

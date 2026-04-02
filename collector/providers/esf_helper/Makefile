@@ -19,7 +19,7 @@ endif
 
 PREFIX ?= /usr/local
 
-.PHONY: clean install
+.PHONY: clean install sign universal sign-universal
 
 clean:
 	rm -f $(TARGET)
@@ -29,3 +29,20 @@ install: $(TARGET)
 		install -d $(DESTDIR)$(PREFIX)/bin 2>/dev/null || true; \
 		install -m 755 $(TARGET) $(DESTDIR)$(PREFIX)/bin/$(TARGET); \
 	fi
+
+sign: $(TARGET)
+	@if [ -z "$(CODESIGN_IDENTITY)" ]; then \
+		echo "CODESIGN_IDENTITY not set — skipping code signing"; \
+		exit 0; \
+	fi
+	codesign --entitlements esf_helper.entitlements --sign "$(CODESIGN_IDENTITY)" --timestamp --options runtime esf_helper
+
+# universal: build fat binary for CI matrix (arm64 + x86_64).
+# Local builds should use the default target.
+universal:
+	$(CC) $(CFLAGS) -arch arm64  -o esf_helper_arm64  $(SRC) $(LDFLAGS)
+	$(CC) $(CFLAGS) -arch x86_64 -o esf_helper_x86_64 $(SRC) $(LDFLAGS)
+	lipo -create -output esf_helper esf_helper_arm64 esf_helper_x86_64
+	rm -f esf_helper_arm64 esf_helper_x86_64
+
+sign-universal: universal sign

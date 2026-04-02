@@ -19,9 +19,9 @@ def _try_esf() -> TelemetryProvider | None:
         provider = ESFProvider()
         if provider.available():
             return provider
-        logger.debug("ESF provider not available: %s", provider.unavailable_reason)
+        logger.warning("ESF provider not available: %s", provider.unavailable_reason)
     except Exception as exc:
-        logger.debug("ESF provider import failed: %s", exc)
+        logger.warning("ESF provider import failed: %s", exc)
     return None
 
 
@@ -33,9 +33,9 @@ def _try_ebpf() -> TelemetryProvider | None:
         provider = EBPFProvider()
         if provider.available():
             return provider
-        logger.debug("eBPF provider not available: %s", provider.unavailable_reason)
+        logger.warning("eBPF provider not available: %s", provider.unavailable_reason)
     except Exception as exc:
-        logger.debug("eBPF provider import failed: %s", exc)
+        logger.warning("eBPF provider import failed: %s", exc)
     return None
 
 
@@ -47,9 +47,9 @@ def _try_etw() -> TelemetryProvider | None:
         provider = ETWProvider()
         if provider.available():
             return provider
-        logger.debug("ETW provider not available: %s", provider.unavailable_reason)
+        logger.warning("ETW provider not available: %s", provider.unavailable_reason)
     except Exception as exc:
-        logger.debug("ETW provider import failed: %s", exc)
+        logger.warning("ETW provider import failed: %s", exc)
     return None
 
 
@@ -95,5 +95,10 @@ def get_best_provider(preference: str = "auto") -> TelemetryProvider:
         logger.info("Using native telemetry provider: %s", native.name)
         return native
 
-    logger.debug("No native provider available; falling back to polling")
+    logger.warning(
+        "No native telemetry provider available on %s; falling back to psutil polling. "
+        "Detection latency and signal fidelity will be reduced. "
+        "Set AGENTIC_GOV_TELEMETRY_PROVIDER=native to require native telemetry.",
+        sys.platform,
+    )
     return PollingProvider()
