@@ -16,9 +16,9 @@ const NAV_ITEMS = [
 ];
 
 const TIER_BADGE_COLORS = {
-  free: 'bg-detec-slate-200 text-detec-ui-muted',
-  pro: 'bg-detec-ui-accent/15 text-detec-ui-accent',
-  enterprise: 'bg-amber-500/20 text-amber-600',
+  free: 'bg-detec-slate-700 text-detec-slate-400',
+  pro: 'bg-detec-primary-500/15 text-detec-primary-400',
+  enterprise: 'bg-amber-500/20 text-amber-400',
 };
 
 export default function Sidebar({
@@ -82,7 +82,7 @@ export default function Sidebar({
       <aside
         className={`
           fixed left-0 top-0 bottom-0 w-60 flex flex-col z-50
-          bg-white/95 backdrop-blur-md border-r border-slate-200/80 shadow-[4px_0_24px_-8px_rgba(15,23,42,0.08)]
+          bg-[#0a0f1e] border-r border-detec-slate-800
           transform transition-all duration-200 ease-out
           lg:translate-x-0 lg:z-30
           ${collapsed ? 'lg:w-16' : 'lg:w-60'}
@@ -91,19 +91,19 @@ export default function Sidebar({
         aria-expanded={collapsed ? undefined : true}
       >
       <div
-        className={`flex items-center gap-3 border-b border-slate-100 bg-gradient-to-b from-white to-slate-50/50 px-5 py-5 lg:px-3 ${
+        className={`flex items-center gap-3 border-b border-detec-slate-800 px-5 py-5 lg:px-3 ${
           collapsed ? 'lg:justify-center lg:px-2' : ''
         }`}
       >
-        <div className="rounded-xl bg-slate-50 p-1.5 ring-1 ring-slate-200/80 shadow-sm shrink-0">
+        <div className="shrink-0">
           <DetecLogo size="sm" markOnly />
         </div>
         <span
-          className={`text-sm font-bold font-display text-slate-800 leading-tight tracking-tight ${
+          className={`text-sm font-bold font-display text-detec-slate-100 leading-tight tracking-tight ${
             collapsed ? 'lg:sr-only' : ''
           }`}
         >
-          Agentic AI<br /><span className="text-slate-500 font-semibold text-[13px]">Governance</span>
+          Agentic AI<br /><span className="text-detec-slate-400 font-semibold text-[13px]">Governance</span>
         </span>
       </div>
 
@@ -113,15 +113,15 @@ export default function Sidebar({
             type="button"
             title={currentTenant?.name || user?.tenant_name || 'Organization'}
             onClick={() => setOrgMenuOpen(!orgMenuOpen)}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-detec bg-white border border-detec-ui-border text-left hover:border-detec-slate-300 transition-colors shadow-detec-sm ${
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-detec bg-detec-slate-800 border border-detec-slate-700 text-left hover:border-detec-slate-600 transition-colors ${
               collapsed ? 'lg:justify-center lg:px-1' : ''
             }`}
           >
-            <span className="w-6 h-6 rounded bg-detec-ui-accent/15 text-detec-ui-accent flex items-center justify-center text-xs font-bold flex-shrink-0">
+            <span className="w-6 h-6 rounded bg-detec-primary-500/15 text-detec-primary-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
               {(currentTenant?.name || 'O')[0].toUpperCase()}
             </span>
             <span
-              className={`text-xs font-medium text-detec-ui-text truncate flex-1 ${
+              className={`text-xs font-medium text-detec-slate-100 truncate flex-1 ${
                 collapsed ? 'lg:sr-only' : ''
               }`}
             >
@@ -134,36 +134,36 @@ export default function Sidebar({
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              className={`text-detec-ui-muted transition-transform shrink-0 ${orgMenuOpen ? 'rotate-180' : ''} ${collapsed ? 'lg:hidden' : ''}`}
+              className={`text-detec-slate-500 transition-transform shrink-0 ${orgMenuOpen ? 'rotate-180' : ''} ${collapsed ? 'lg:hidden' : ''}`}
               aria-hidden
             >
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </button>
           {orgMenuOpen && (
-            <div className="absolute left-3 right-3 top-full mt-1 bg-detec-ui-surface border border-detec-ui-border rounded-detec shadow-detec-card z-50 overflow-hidden">
+            <div className="absolute left-3 right-3 top-full mt-1 bg-detec-slate-800 border border-detec-slate-700 rounded-detec shadow-detec-card z-50 overflow-hidden">
               {otherTenants.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => handleSwitchTenant(t.id)}
                   disabled={switching}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-detec-slate-100 transition-colors disabled:opacity-50"
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-detec-slate-700 transition-colors disabled:opacity-50"
                 >
-                  <span className="w-5 h-5 rounded bg-detec-slate-200 text-detec-ui-text flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                  <span className="w-5 h-5 rounded bg-detec-slate-700 text-detec-slate-100 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
                     {t.name[0].toUpperCase()}
                   </span>
-                  <span className="text-xs text-detec-ui-text truncate">{t.name}</span>
-                  <span className="ml-auto text-[10px] text-detec-ui-muted">{t.role}</span>
+                  <span className="text-xs text-detec-slate-100 truncate">{t.name}</span>
+                  <span className="ml-auto text-[10px] text-detec-slate-400">{t.role}</span>
                 </button>
               ))}
               <button
                 onClick={() => { handleNav('org'); setOrgMenuOpen(false); }}
-                className="w-full flex items-center gap-2 px-3 py-2.5 text-left border-t border-detec-ui-border hover:bg-detec-slate-100 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-left border-t border-detec-slate-700 hover:bg-detec-slate-700 transition-colors"
               >
-                <span className="w-5 h-5 rounded border border-dashed border-detec-ui-border flex items-center justify-center text-detec-ui-muted">
+                <span className="w-5 h-5 rounded border border-dashed border-detec-slate-600 flex items-center justify-center text-detec-slate-400">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                 </span>
-                <span className="text-xs text-detec-ui-muted">Manage organizations</span>
+                <span className="text-xs text-detec-slate-400">Manage organizations</span>
               </button>
             </div>
           )}
@@ -182,12 +182,12 @@ export default function Sidebar({
               onClick={() => handleNav(item.id)}
               aria-current={active ? 'page' : undefined}
               className={`
-                w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold min-h-[44px]
+                w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-semibold min-h-[44px]
                 transition-all duration-150 text-left
                 ${collapsed ? 'lg:justify-center lg:px-2' : ''}
                 ${active
-                  ? 'bg-gradient-to-r from-blue-50 to-sky-50/80 text-detec-ui-accent shadow-sm ring-1 ring-blue-100/80'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+                  ? 'bg-detec-primary-500/15 text-detec-primary-400 border-l-2 border-detec-primary-500'
+                  : 'text-detec-slate-400 hover:text-detec-slate-100 hover:bg-detec-slate-800 border-l-2 border-transparent'
                 }
               `}
             >
@@ -203,11 +203,11 @@ export default function Sidebar({
         })}
       </nav>
 
-      <div className={`px-3 py-2 border-t border-detec-ui-border space-y-0.5 ${collapsed ? 'lg:px-1.5' : ''}`}>
+      <div className={`px-3 py-2 border-t border-detec-slate-800 space-y-0.5 ${collapsed ? 'lg:px-1.5' : ''}`}>
         <button
           type="button"
           onClick={() => onToggleCollapse?.()}
-          className="hidden lg:flex w-full items-center justify-center gap-2 px-2 py-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 text-xs font-medium"
+          className="hidden lg:flex w-full items-center justify-center gap-2 px-2 py-2 rounded-md text-detec-slate-500 hover:bg-detec-slate-800 hover:text-detec-slate-100 text-xs font-medium"
           aria-expanded={!collapsed}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
@@ -218,19 +218,19 @@ export default function Sidebar({
         </button>
       </div>
 
-      <div className={`px-3 py-3 border-t border-detec-ui-border space-y-0.5 ${collapsed ? 'lg:px-1.5' : ''}`}>
+      <div className={`px-3 py-3 border-t border-detec-slate-800 space-y-0.5 ${collapsed ? 'lg:px-1.5' : ''}`}>
         <button
           type="button"
           title="Billing"
           onClick={() => handleNav('billing')}
           aria-current={activePage === 'billing' ? 'page' : undefined}
           className={`
-            w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold min-h-[44px]
+            w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-semibold min-h-[44px]
             transition-all duration-150 text-left
             ${collapsed ? 'lg:justify-center lg:px-2' : ''}
             ${activePage === 'billing'
-              ? 'bg-gradient-to-r from-blue-50 to-sky-50/80 text-detec-ui-accent shadow-sm ring-1 ring-blue-100/80'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+              ? 'bg-detec-primary-500/15 text-detec-primary-400 border-l-2 border-detec-primary-500'
+              : 'text-detec-slate-400 hover:text-detec-slate-100 hover:bg-detec-slate-800 border-l-2 border-transparent'
             }
           `}
         >
@@ -248,12 +248,12 @@ export default function Sidebar({
           onClick={() => handleNav('admin')}
           aria-current={activePage === 'admin' ? 'page' : undefined}
           className={`
-            w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold min-h-[44px]
+            w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-semibold min-h-[44px]
             transition-all duration-150 text-left
             ${collapsed ? 'lg:justify-center lg:px-2' : ''}
             ${activePage === 'admin'
-              ? 'bg-gradient-to-r from-blue-50 to-sky-50/80 text-detec-ui-accent shadow-sm ring-1 ring-blue-100/80'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+              ? 'bg-detec-primary-500/15 text-detec-primary-400 border-l-2 border-detec-primary-500'
+              : 'text-detec-slate-400 hover:text-detec-slate-100 hover:bg-detec-slate-800 border-l-2 border-transparent'
             }
           `}
         >
@@ -267,12 +267,12 @@ export default function Sidebar({
             onClick={() => handleNav('members')}
             aria-current={activePage === 'members' ? 'page' : undefined}
             className={`
-              w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold min-h-[44px]
+              w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-semibold min-h-[44px]
               transition-all duration-150 text-left
               ${collapsed ? 'lg:justify-center lg:px-2' : ''}
               ${activePage === 'members'
-                ? 'bg-gradient-to-r from-blue-50 to-sky-50/80 text-detec-ui-accent shadow-sm ring-1 ring-blue-100/80'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+                ? 'bg-detec-primary-500/15 text-detec-primary-400 border-l-2 border-detec-primary-500'
+                : 'text-detec-slate-400 hover:text-detec-slate-100 hover:bg-detec-slate-800 border-l-2 border-transparent'
               }
             `}
           >
@@ -287,12 +287,12 @@ export default function Sidebar({
             onClick={() => handleNav('org-settings')}
             aria-current={activePage === 'org-settings' ? 'page' : undefined}
             className={`
-              w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold min-h-[44px]
+              w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-semibold min-h-[44px]
               transition-all duration-150 text-left
               ${collapsed ? 'lg:justify-center lg:px-2' : ''}
               ${activePage === 'org-settings'
-                ? 'bg-gradient-to-r from-blue-50 to-sky-50/80 text-detec-ui-accent shadow-sm ring-1 ring-blue-100/80'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+                ? 'bg-detec-primary-500/15 text-detec-primary-400 border-l-2 border-detec-primary-500'
+                : 'text-detec-slate-400 hover:text-detec-slate-100 hover:bg-detec-slate-800 border-l-2 border-transparent'
               }
             `}
           >

@@ -194,19 +194,19 @@ export default function ToolRow({ tool, onNavigate }) {
               <div className="absolute right-0 top-full mt-1 w-44 bg-detec-ui-surface border border-detec-ui-border rounded-lg shadow-lg py-1 z-50">
                 <button
                   onClick={(e) => { e.stopPropagation(); setExpanded(true); setMenuOpen(false); }}
-                  className="w-full text-left px-3 py-2 text-sm text-detec-ui-text hover:bg-detec-slate-100 transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm text-detec-ui-text hover:bg-detec-slate-700/50 transition-colors"
                 >
                   View details
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleCopyName(); }}
-                  className="w-full text-left px-3 py-2 text-sm text-detec-ui-text hover:bg-detec-slate-100 transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm text-detec-ui-text hover:bg-detec-slate-700/50 transition-colors"
                 >
                   Copy tool name
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleCopyDetails(); }}
-                  className="w-full text-left px-3 py-2 text-sm text-detec-ui-text hover:bg-detec-slate-100 transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm text-detec-ui-text hover:bg-detec-slate-700/50 transition-colors"
                 >
                   Copy full details
                 </button>
@@ -217,7 +217,7 @@ export default function ToolRow({ tool, onNavigate }) {
       </tr>
 
       {expanded && (
-        <tr className="bg-detec-slate-100">
+        <tr className="bg-detec-slate-800">
           <td colSpan={6} className="px-4 py-3">
             <div className="flex flex-wrap gap-6 text-sm">
               {tool.enforcement_applied && (

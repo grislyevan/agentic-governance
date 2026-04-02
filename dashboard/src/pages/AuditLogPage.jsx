@@ -3,6 +3,7 @@ import { fetchAuditLog, generateComplianceReport } from '../lib/api';
 import usePolling from '../hooks/usePolling';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
 import PollingStatus from '../components/PollingStatus';
+import ApiErrorBanner from '../components/ui/ApiErrorBanner';
 
 const ACTION_FILTERS = [
   { value: 'admin', label: 'Admin' },
@@ -295,11 +296,7 @@ export default function AuditLogPage({ onNavigate }) {
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-detec-enforce-block/30 bg-detec-enforce-block/10 px-4 py-3 text-sm text-detec-enforce-block">
-          {error}
-        </div>
-      )}
+      <ApiErrorBanner error={error} onDismiss={() => setError(null)} />
 
       {logs.length === 0 && !loading && !error && (
         <div className="rounded-xl border border-dashed border-detec-ui-border bg-detec-slate-50 px-8 py-20 text-center">

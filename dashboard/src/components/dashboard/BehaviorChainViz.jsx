@@ -36,7 +36,7 @@ export default function BehaviorChainViz({ chains }) {
         <div key={chainIdx} className="flex flex-wrap items-center gap-1">
           {steps.map((step, stepIdx) => (
             <span key={stepIdx} className="inline-flex items-center gap-1">
-              <span className="px-2 py-1 rounded bg-detec-slate-200/80 text-detec-ui-text text-xs font-medium">
+              <span className="px-2 py-1 rounded bg-detec-slate-700 text-detec-ui-text text-xs font-medium">
                 {stepLabel(step)}
               </span>
               {stepIdx < steps.length - 1 && (

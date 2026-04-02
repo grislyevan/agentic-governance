@@ -8,7 +8,7 @@
   }
 
   body {
-    @apply m-0 font-sans bg-detec-ui-page text-detec-ui-text leading-relaxed antialiased;
+    @apply m-0 font-sans bg-detec-slate-900 text-detec-slate-100 leading-relaxed antialiased;
     overflow-x: hidden;
   }
 

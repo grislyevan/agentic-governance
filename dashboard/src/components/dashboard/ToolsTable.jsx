@@ -12,7 +12,7 @@ const COLUMNS = [
 export default function ToolsTable({ tools, onNavigate }) {
   if (tools.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-detec-ui-border bg-detec-slate-50 px-8 py-16 text-center">
+      <div className="rounded-xl border border-dashed border-detec-slate-700 bg-detec-slate-800 px-8 py-16 text-center">
         <div className="mb-3 opacity-40">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="inline-block" aria-hidden="true">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -29,10 +29,10 @@ export default function ToolsTable({ tools, onNavigate }) {
   }
 
   return (
-    <div className="rounded-xl border border-detec-ui-border/50 overflow-x-auto overflow-hidden">
+    <div className="rounded-xl border border-detec-slate-700 overflow-x-auto overflow-hidden">
       <table className="w-full text-left min-w-[640px]" aria-label="Detected tools">
         <thead>
-          <tr className="bg-detec-ui-surface/80 border-b border-detec-ui-border/50">
+          <tr className="bg-detec-slate-900 border-b border-detec-slate-700">
             {COLUMNS.map((col, i) => (
               <th
                 key={i}

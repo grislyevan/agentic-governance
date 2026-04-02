@@ -18,8 +18,8 @@ module.exports = {
         mono: ['"IBM Plex Mono"', 'monospace'],
       },
       boxShadow: {
-        'detec-sm': '0 1px 3px rgba(0,0,0,.08)',
-        'detec-card': '0 4px 12px rgba(0,0,0,.06)',
+        'detec-sm': '0 1px 3px rgba(0,0,0,.24)',
+        'detec-card': '0 4px 12px rgba(0,0,0,.32)',
       },
       borderRadius: {
         'detec': '10px',

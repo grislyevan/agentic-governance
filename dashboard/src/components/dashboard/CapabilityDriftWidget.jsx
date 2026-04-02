@@ -31,9 +31,9 @@ function deriveSeverity(count) {
 }
 
 const SEVERITY_BADGE = {
-  Low:    'bg-blue-100 text-blue-700 border-blue-200',
-  Medium: 'bg-amber-100 text-amber-700 border-amber-200',
-  High:   'bg-red-100 text-red-700 border-red-200',
+  Low:    'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  Medium: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  High:   'bg-red-500/15 text-red-400 border-red-500/30',
 };
 
 function SeverityBadge({ level }) {
@@ -132,7 +132,7 @@ export default function CapabilityDriftWidget({ onNavigate }) {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/40 p-5 space-y-4">
+    <div className="rounded-xl border border-detec-slate-700 bg-detec-slate-800 p-5 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -173,9 +173,9 @@ export default function CapabilityDriftWidget({ onNavigate }) {
 
       {/* No drift */}
       {!loading && !error && driftRows.length === 0 && (
-        <div className="flex items-center gap-2.5 rounded-lg border border-teal-200 bg-teal-50 px-4 py-3">
+        <div className="flex items-center gap-2.5 rounded-lg border border-detec-teal-500/30 bg-detec-teal-500/10 px-4 py-3">
           <GreenCheckIcon />
-          <span className="text-sm font-medium text-teal-700">No drift detected</span>
+          <span className="text-sm font-medium text-detec-teal-500">No drift detected</span>
         </div>
       )}
 
@@ -185,7 +185,7 @@ export default function CapabilityDriftWidget({ onNavigate }) {
           {driftRows.map((row) => (
             <div
               key={row.endpointId}
-              className="rounded-lg border border-detec-ui-border bg-detec-ui-page px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3"
+              className="rounded-lg border border-detec-slate-700 bg-detec-slate-900 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3"
             >
               {/* Endpoint + tool info */}
               <div className="flex-1 min-w-0">
@@ -212,7 +212,7 @@ export default function CapabilityDriftWidget({ onNavigate }) {
                   href="https://github.com/grislyevan/agentic-governance/blob/main/docs/capability-drift-runbook.md"
                   target="_blank"
                   rel="noreferrer"
-                  className="text-xs text-blue-600 hover:underline"
+                  className="text-xs text-detec-primary-500 hover:underline"
                 >
                   View runbook
                 </a>
@@ -220,7 +220,7 @@ export default function CapabilityDriftWidget({ onNavigate }) {
                   <button
                     type="button"
                     onClick={() => onNavigate('sessions', { endpointId: row.endpointId })}
-                    className="rounded border border-detec-ui-border px-3 py-1 text-xs font-medium text-detec-ui-text hover:bg-detec-slate-100 transition-colors"
+                    className="rounded border border-detec-slate-700 px-3 py-1 text-xs font-medium text-detec-slate-200 bg-detec-slate-700 hover:bg-detec-slate-600 transition-colors"
                   >
                     View endpoint
                   </button>

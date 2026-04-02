@@ -78,16 +78,16 @@ module.exports = {
       medium: '#f59e0b',
       low:    '#94a3b8',
     },
-    /** Light enterprise UI (policy-studio-redesign spec) */
+    /** Dark EDR command-center UI */
     ui: {
-      page:     '#f8f9fb',
-      surface:  '#ffffff',
-      text:     '#111827',
-      muted:    '#6b7280',
-      textSecondary: '#6b7280',
-      border:   '#e5e7eb',
-      accent:   '#2563eb',
-      accentHover: '#1d4ed8',
+      page:     '#0f172a',     // slate-900
+      surface:  '#1e293b',     // slate-800
+      text:     '#f1f5f9',     // slate-100
+      muted:    '#94a3b8',     // slate-400
+      textSecondary: '#94a3b8',
+      border:   '#334155',     // slate-700
+      accent:   '#6366f1',     // primary-500
+      accentHover: '#818cf8',  // primary-400
     },
   },
 };

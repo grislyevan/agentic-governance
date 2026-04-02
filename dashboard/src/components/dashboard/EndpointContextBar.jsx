@@ -3,7 +3,7 @@ import { updateEndpointPosture, updateEndpoint } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
 
 const POSTURE_META = {
-  passive:  { label: 'Passive', color: 'bg-detec-slate-200/30 text-detec-ui-muted', dot: 'bg-detec-slate-500' },
+  passive:  { label: 'Passive', color: 'bg-detec-slate-600/30 text-detec-ui-muted', dot: 'bg-detec-slate-8000' },
   audit:    { label: 'Audit',   color: 'bg-detec-amber-500/15 text-detec-amber-500', dot: 'bg-detec-amber-500' },
   active:   { label: 'Active',  color: 'bg-detec-enforce-block/15 text-detec-enforce-block', dot: 'bg-detec-enforce-block' },
 };
@@ -139,13 +139,13 @@ export default function EndpointContextBar({
           canManage ? (
             <button
               onClick={(e) => { e.stopPropagation(); setProfileModalOpen(true); }}
-              className="font-mono text-xs px-2 py-0.5 rounded cursor-pointer transition-colors hover:ring-1 hover:ring-detec-slate-500 bg-detec-slate-100 text-detec-ui-text"
+              className="font-mono text-xs px-2 py-0.5 rounded cursor-pointer transition-colors hover:ring-1 hover:ring-detec-slate-500 bg-detec-slate-700 text-detec-ui-text"
               title="Endpoint profile (scan interval, posture). Click to change."
             >
               {profileLabel ?? 'No profile'}
             </button>
           ) : (
-            <span className="font-mono text-xs px-2 py-0.5 rounded bg-detec-slate-100 text-detec-ui-muted">
+            <span className="font-mono text-xs px-2 py-0.5 rounded bg-detec-slate-700 text-detec-ui-muted">
               {profileLabel ?? 'No profile'}
             </span>
           )
@@ -166,7 +166,7 @@ export default function EndpointContextBar({
           <span
             className={`font-mono text-xs px-2 py-0.5 rounded ${
               firstEp.telemetry_provider === 'polling'
-                ? 'bg-detec-slate-200/30 text-detec-ui-muted'
+                ? 'bg-detec-slate-600/30 text-detec-ui-muted'
                 : 'bg-detec-ui-accent/10 text-detec-ui-accent'
             }`}
             title="Telemetry from the OS (e.g. ETW on Windows). Polling means process-based checks."
@@ -229,7 +229,7 @@ export default function EndpointContextBar({
 
       {/* Expanded endpoint detail */}
       {showSingleEndpoint && expanded && firstEp && (
-        <div className="rounded-lg border border-detec-ui-border/50 bg-detec-slate-50 px-4 py-3 space-y-3 text-sm">
+        <div className="rounded-lg border border-detec-ui-border/50 bg-detec-slate-800 px-4 py-3 space-y-3 text-sm">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div>
               <span className="text-detec-ui-muted block mb-0.5">Enforcement posture</span>
@@ -356,13 +356,13 @@ function PosturePanel({ hostname, selectedPosture, selectedThreshold, onPostureC
                 selected
                   ? `border-detec-ui-accent/50 ${meta.color} ring-1 ring-detec-ui-accent/30`
                   : disabled
-                    ? 'border-detec-ui-border/50 bg-detec-slate-50 opacity-40 cursor-not-allowed'
+                    ? 'border-detec-ui-border/50 bg-detec-slate-800 opacity-40 cursor-not-allowed'
                     : 'border-detec-ui-border bg-detec-ui-surface/80 hover:border-detec-ui-border cursor-pointer'
               }`}
               title={disabled ? 'Owner role required for Active posture' : ''}
             >
               <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${selected ? meta.dot : 'bg-detec-slate-200'}`} />
+                <span className={`w-2 h-2 rounded-full ${selected ? meta.dot : 'bg-detec-slate-600'}`} />
                 <span className={`text-sm font-medium ${selected ? '' : 'text-detec-ui-muted'}`}>{opt.label}</span>
               </div>
               <p className="text-xs text-detec-ui-muted mt-1">{opt.desc}</p>
@@ -407,7 +407,7 @@ function PosturePanel({ hostname, selectedPosture, selectedThreshold, onPostureC
           className={`text-sm px-4 py-1.5 rounded-lg font-medium transition-colors ${
             hasChanges && !saving
               ? 'bg-detec-ui-accent text-white hover:bg-detec-ui-accent cursor-pointer'
-              : 'bg-detec-slate-200 text-detec-ui-muted cursor-not-allowed'
+              : 'bg-detec-slate-600 text-detec-ui-muted cursor-not-allowed'
           }`}
         >
           {saving ? 'Saving...' : 'Apply'}
@@ -542,7 +542,7 @@ function ConfirmActiveModal({ hostname, threshold, confirmInput, onInputChange, 
             className={`text-sm px-4 py-1.5 rounded-lg font-medium transition-colors ${
               confirmed && !saving
                 ? 'bg-detec-enforce-block text-white hover:bg-red-600 cursor-pointer'
-                : 'bg-detec-slate-200 text-detec-ui-muted cursor-not-allowed'
+                : 'bg-detec-slate-600 text-detec-ui-muted cursor-not-allowed'
             }`}
           >
             {saving ? 'Enabling...' : 'Enable Active Enforcement'}
@@ -580,15 +580,15 @@ function statusBars({ active, stale, ungoverned }) {
     { height: 12, color: 'bg-detec-amber-500' },
     { height: 10, color: 'bg-detec-amber-500' },
     { height: 8, color: 'bg-detec-amber-500' },
-    { height: 6, color: 'bg-detec-slate-200' },
-    { height: 4, color: 'bg-detec-slate-200' },
+    { height: 6, color: 'bg-detec-slate-600' },
+    { height: 4, color: 'bg-detec-slate-600' },
   ];
   return [
     { height: 12, color: 'bg-detec-enforce-block' },
     { height: 10, color: 'bg-detec-enforce-block' },
-    { height: 8, color: 'bg-detec-slate-200' },
-    { height: 6, color: 'bg-detec-slate-200' },
-    { height: 4, color: 'bg-detec-slate-200' },
+    { height: 8, color: 'bg-detec-slate-600' },
+    { height: 6, color: 'bg-detec-slate-600' },
+    { height: 4, color: 'bg-detec-slate-600' },
   ];
 }
 

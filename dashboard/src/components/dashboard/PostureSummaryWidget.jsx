@@ -7,7 +7,7 @@ const POSTURE_CARDS = [
     key: 'passive',
     label: 'Passive',
     desc: 'Detect only',
-    bg: 'bg-detec-slate-200/20',
+    bg: 'bg-detec-slate-600/20',
     border: 'border-detec-ui-border/30',
     text: 'text-detec-ui-muted',
     dot: 'bg-detec-slate-500',
@@ -80,7 +80,7 @@ export default function PostureSummaryWidget({ onPostureReset }) {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/40 p-5">
+      <div className="rounded-xl border border-detec-slate-700 bg-detec-slate-800 p-5">
         <div className="flex items-center gap-2 text-sm text-detec-ui-muted">
           <span className="inline-block w-3 h-3 border-2 border-detec-ui-border border-t-detec-ui-accent rounded-full animate-spin" />
           Loading posture data...
@@ -102,7 +102,7 @@ export default function PostureSummaryWidget({ onPostureReset }) {
 
   return (
     <div className="space-y-2">
-      <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/40 p-5 space-y-4">
+      <div className="rounded-xl border border-detec-slate-700 bg-detec-slate-800 p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <PostureIcon />
@@ -153,7 +153,7 @@ export default function PostureSummaryWidget({ onPostureReset }) {
 
         {/* Distribution bar */}
         {data?.total > 0 && (
-          <div className="flex h-1.5 rounded-full overflow-hidden bg-detec-slate-100">
+          <div className="flex h-1.5 rounded-full overflow-hidden bg-detec-slate-700">
             {data.passive > 0 && (
               <div
                 className="bg-detec-slate-500 transition-all"
@@ -231,7 +231,7 @@ function KillSwitchModal({ activeCount, onConfirm, onCancel, resetting }) {
             className={`text-sm px-4 py-1.5 rounded-lg font-medium transition-colors ${
               !resetting
                 ? 'bg-detec-enforce-approval text-white hover:bg-orange-600 cursor-pointer'
-                : 'bg-detec-slate-200 text-detec-ui-muted cursor-not-allowed'
+                : 'bg-detec-slate-600 text-detec-ui-muted cursor-not-allowed'
             }`}
           >
             {resetting ? 'Resetting...' : 'Confirm: Set All Passive'}

@@ -5,6 +5,7 @@ import useAuth from '../hooks/useAuth';
 import usePolling from '../hooks/usePolling';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
 import PollingStatus from '../components/PollingStatus';
+import ApiErrorBanner from '../components/ui/ApiErrorBanner';
 
 const PAGE_SIZE = 50;
 
@@ -23,7 +24,7 @@ const DECISION_COLORS = {
 
 function DecisionBadge({ state }) {
   if (!state) return <span className="text-detec-ui-muted text-xs">-</span>;
-  const colors = DECISION_COLORS[state] || 'bg-detec-slate-200 text-detec-ui-muted';
+  const colors = DECISION_COLORS[state] || 'bg-detec-slate-700 text-detec-slate-400';
   return (
     <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${colors}`}>
       {state}
@@ -40,7 +41,7 @@ function ConfidenceMeter({ value }) {
     'bg-detec-slate-500';
   return (
     <div className="flex items-center gap-2">
-      <div className="w-12 h-1.5 bg-detec-slate-200 rounded-full overflow-hidden">
+      <div className="w-12 h-1.5 bg-detec-slate-700 rounded-full overflow-hidden">
         <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
       </div>
       <span className="text-xs text-detec-ui-muted tabular-nums">{pct}%</span>
@@ -54,7 +55,7 @@ function MitreBadges({ techniques }) {
   return (
     <div className="flex flex-wrap gap-1">
       {ids.slice(0, 4).map(id => (
-        <span key={id} className="text-xs px-1.5 py-0.5 rounded font-mono bg-detec-slate-200 text-detec-ui-text">
+        <span key={id} className="text-xs px-1.5 py-0.5 rounded font-mono bg-detec-slate-700 text-detec-slate-200">
           {id}
         </span>
       ))}
@@ -373,10 +374,7 @@ export default function EventsPage({ searchQuery }) {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-detec-enforce-block/30 bg-detec-enforce-block/10 px-4 py-3 text-sm text-detec-enforce-block">
-          <p>{error}</p>
-          <p className="text-detec-ui-muted mt-1 text-xs">Check the connection and try again.</p>
-        </div>
+        <ApiErrorBanner error={error} onDismiss={() => setError(null)} />
       )}
 
       {!loading && !error && (

@@ -32,7 +32,7 @@ export default function ResponseTimelineWidget({ onNavigate }) {
 
   if (loading) {
     return (
-      <div className="rounded-lg border border-detec-ui-border/50 bg-detec-slate-50 p-4">
+      <div className="rounded-lg border border-detec-slate-700 bg-detec-slate-800 p-4">
         <h3 className="text-sm font-semibold text-detec-ui-text mb-2">Recent auto-responses</h3>
         <p className="text-xs text-detec-ui-muted">Loading…</p>
       </div>
@@ -40,7 +40,7 @@ export default function ResponseTimelineWidget({ onNavigate }) {
   }
 
   return (
-    <div className="rounded-lg border border-detec-ui-border/50 bg-detec-slate-50 p-4">
+    <div className="rounded-lg border border-detec-slate-700 bg-detec-slate-800 p-4">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-semibold text-detec-ui-text">Recent auto-responses</h3>
         {items.length > 0 && (

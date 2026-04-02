@@ -60,7 +60,7 @@ export default function FilterBar({ endpoints = [], selectedEndpoint, onEndpoint
             <div className="absolute top-full mt-1 left-0 w-56 bg-detec-ui-surface border border-detec-ui-border rounded-lg shadow-lg py-1 z-50 max-h-60 overflow-y-auto">
               <button
                 onClick={() => { onEndpointChange?.(null); setShowEpDropdown(false); }}
-                className={`w-full text-left px-3 py-2 text-sm transition-colors ${!selectedEndpoint ? 'text-detec-ui-accent bg-detec-ui-accent/10' : 'text-detec-ui-text hover:bg-detec-slate-100'}`}
+                className={`w-full text-left px-3 py-2 text-sm transition-colors ${!selectedEndpoint ? 'text-detec-ui-accent bg-detec-ui-accent/10' : 'text-detec-ui-text hover:bg-detec-slate-700/50'}`}
               >
                 All Endpoints
               </button>
@@ -68,7 +68,7 @@ export default function FilterBar({ endpoints = [], selectedEndpoint, onEndpoint
                 <button
                   key={ep.id}
                   onClick={() => { onEndpointChange?.(ep.id); setShowEpDropdown(false); }}
-                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${selectedEndpoint === ep.id ? 'text-detec-ui-accent bg-detec-ui-accent/10' : 'text-detec-ui-text hover:bg-detec-slate-100'}`}
+                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${selectedEndpoint === ep.id ? 'text-detec-ui-accent bg-detec-ui-accent/10' : 'text-detec-ui-text hover:bg-detec-slate-700/50'}`}
                 >
                   <div className="flex items-center gap-2">
                     <span>{ep.hostname}</span>
@@ -110,7 +110,7 @@ export default function FilterBar({ endpoints = [], selectedEndpoint, onEndpoint
                   <button
                     key={range.label}
                     onClick={() => { onTimeRangeChange?.(iso); setShowTimeDropdown(false); }}
-                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${isActive ? 'text-detec-ui-accent bg-detec-ui-accent/10' : 'text-detec-ui-text hover:bg-detec-slate-100'}`}
+                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${isActive ? 'text-detec-ui-accent bg-detec-ui-accent/10' : 'text-detec-ui-text hover:bg-detec-slate-700/50'}`}
                   >
                     {range.label}
                   </button>

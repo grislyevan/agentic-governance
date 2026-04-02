@@ -5,7 +5,7 @@ const FRESH_SEC = 120;
 const STALE_SEC = 900;
 
 function freshnessDotClass(secs) {
-  if (secs == null) return 'bg-detec-slate-500';
+  if (secs == null) return 'bg-detec-slate-8000';
   if (secs < FRESH_SEC) return 'bg-detec-teal-500';
   if (secs < STALE_SEC) return 'bg-detec-amber-500';
   return 'bg-detec-enforce-block';
@@ -50,7 +50,7 @@ export default function DataFlowWidget() {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-detec-ui-border/50 bg-detec-slate-50 p-4">
+      <div className="rounded-xl border border-detec-slate-700 bg-detec-slate-800 p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-detec-ui-text">AI Data Flow</h3>
         </div>
@@ -61,7 +61,7 @@ export default function DataFlowWidget() {
 
   if (!data || data.total_connections === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-detec-ui-border bg-detec-slate-50 p-4">
+      <div className="rounded-xl border border-dashed border-detec-ui-border bg-detec-slate-800 p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-detec-ui-text" title="LLM API destinations and request counts seen from your endpoints.">AI Data Flow</h3>
@@ -88,7 +88,7 @@ export default function DataFlowWidget() {
   })();
 
   return (
-    <div className="rounded-xl border border-detec-ui-border/50 bg-detec-slate-50 p-4">
+    <div className="rounded-xl border border-detec-slate-700 bg-detec-slate-800 p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-detec-ui-text" title="LLM API destinations and request counts seen from your endpoints.">AI Data Flow</h3>
@@ -123,13 +123,13 @@ export default function DataFlowWidget() {
   );
 }
 
-function StatCard({ label, value, color = 'text-detec-ui-text', className = '', valueTitle }) {
+function StatCard({ label, value, color = 'text-detec-slate-100', className = '', valueTitle }) {
   return (
-    <div className="rounded-lg bg-detec-ui-page/50 border border-detec-ui-border/30 px-3 py-2 text-center min-w-0">
+    <div className="rounded-lg bg-detec-slate-900 border border-detec-slate-700 px-3 py-2 text-center min-w-0">
       <div className={`text-lg font-bold tabular-nums ${color} ${className}`} title={valueTitle}>
         {value}
       </div>
-      <div className="text-[10px] text-detec-ui-muted uppercase tracking-wider">{label}</div>
+      <div className="text-[10px] text-detec-slate-400 uppercase tracking-wider">{label}</div>
     </div>
   );
 }
@@ -139,7 +139,7 @@ function DaySelector({ days, onChange }) {
     <select
       value={days}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="text-[10px] bg-detec-ui-page/50 border border-detec-ui-border/30 text-detec-ui-muted rounded px-1.5 py-0.5"
+      className="text-[10px] bg-detec-slate-900 border border-detec-slate-700 text-detec-slate-400 rounded px-1.5 py-0.5 focus:border-detec-primary-500 focus:outline-none"
     >
       <option value={1}>24h</option>
       <option value={7}>7d</option>

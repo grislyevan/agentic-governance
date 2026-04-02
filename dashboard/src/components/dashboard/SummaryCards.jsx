@@ -2,35 +2,38 @@ const CARDS = [
   {
     key: 'block',
     label: 'Blocked',
-    color: 'bg-detec-enforce-block/15 border-detec-enforce-block/30',
-    text: 'text-detec-enforce-block',
+    color: 'bg-detec-enforce-block border-detec-enforce-block',
+    text: 'text-white',
+    mutedColor: 'bg-detec-slate-800 border-detec-slate-700',
     icon: BlockIcon,
   },
   {
     key: 'approval_required',
     label: 'Approval Required',
-    color: 'bg-detec-enforce-approval/15 border-detec-enforce-approval/30',
-    text: 'text-detec-enforce-approval',
+    color: 'bg-detec-enforce-approval border-detec-enforce-approval',
+    text: 'text-white',
+    mutedColor: 'bg-detec-slate-800 border-detec-slate-700',
     icon: ApprovalIcon,
   },
   {
     key: 'warn',
     label: 'Warned',
-    color: 'bg-detec-enforce-warn/15 border-detec-enforce-warn/30',
-    text: 'text-detec-enforce-warn',
+    color: 'bg-detec-enforce-warn border-detec-enforce-warn',
+    text: 'text-detec-slate-900',
+    mutedColor: 'bg-detec-slate-800 border-detec-slate-700',
     icon: WarnIcon,
   },
   {
     key: 'detect',
     label: 'Detected',
-    color: 'bg-detec-enforce-detect/15 border-detec-enforce-detect/30',
-    text: 'text-detec-enforce-detect',
+    color: 'bg-detec-primary-500 border-detec-primary-500',
+    text: 'text-white',
+    mutedColor: 'bg-detec-slate-800 border-detec-slate-700',
     icon: DetectIcon,
   },
 ];
 
-const MUTED_CARD = 'bg-detec-ui-surface/80 border-detec-ui-border';
-const MUTED_TEXT = 'text-detec-ui-muted';
+const MUTED_TEXT = 'text-detec-slate-400';
 
 export default function SummaryCards({ counts, onCardClick }) {
   return (
@@ -38,11 +41,11 @@ export default function SummaryCards({ counts, onCardClick }) {
       {CARDS.map((card) => {
         const value = counts[card.key] ?? 0;
         const isZero = value === 0;
-        const cardColor = isZero ? MUTED_CARD : card.color;
+        const cardColor = isZero ? card.mutedColor : card.color;
         const labelClass = isZero ? `text-sm font-semibold ${MUTED_TEXT}` : `text-sm font-semibold ${card.text}`;
         const valueClass = isZero ? `text-2xl font-bold ${MUTED_TEXT}` : `text-3xl font-bold ${card.text}`;
         const clickable = !isZero && onCardClick;
-        const hoverClass = isZero ? '' : 'transition-colors duration-150 hover:border-opacity-50 hover:shadow-detec-card motion-reduce:transition-none cursor-pointer';
+        const hoverClass = isZero ? '' : 'transition-all duration-150 hover:brightness-110 motion-reduce:transition-none cursor-pointer';
         return (
           <div
             key={card.key}
@@ -65,7 +68,7 @@ export default function SummaryCards({ counts, onCardClick }) {
 }
 
 function BlockIcon({ muted }) {
-  const stroke = muted ? '#64748b' : '#ef4444';
+  const stroke = muted ? '#475569' : '#ffffff';
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="10" />
@@ -75,7 +78,7 @@ function BlockIcon({ muted }) {
 }
 
 function ApprovalIcon({ muted }) {
-  const stroke = muted ? '#64748b' : '#f97316';
+  const stroke = muted ? '#475569' : '#ffffff';
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -86,7 +89,7 @@ function ApprovalIcon({ muted }) {
 }
 
 function WarnIcon({ muted }) {
-  const stroke = muted ? '#64748b' : '#fbbf24';
+  const stroke = muted ? '#475569' : '#0f172a';
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="10" />
@@ -97,7 +100,7 @@ function WarnIcon({ muted }) {
 }
 
 function DetectIcon({ muted }) {
-  const stroke = muted ? '#64748b' : '#14b8a6';
+  const stroke = muted ? '#475569' : '#ffffff';
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />

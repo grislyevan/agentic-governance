@@ -72,11 +72,11 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
   const initials = [user?.first_name?.[0], user?.last_name?.[0]].filter(Boolean).join('').toUpperCase() || '?';
 
   return (
-    <header className="h-14 bg-detec-ui-surface border-b border-detec-ui-border flex items-center justify-between gap-3 px-4 sm:px-6 shrink-0 min-h-[44px] shadow-detec-sm">
+    <header className="h-14 bg-detec-slate-900 border-b border-detec-slate-800 flex items-center justify-between gap-3 px-4 sm:px-6 shrink-0 min-h-[44px]">
       <div className="flex items-center gap-2 min-w-0">
         <button
           onClick={onMenuClick}
-          className="lg:hidden p-2.5 -ml-1 text-detec-ui-muted hover:text-detec-ui-text rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+          className="lg:hidden p-2.5 -ml-1 text-detec-slate-400 hover:text-detec-slate-100 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
           aria-label="Open menu"
         >
           <MenuIcon />
@@ -88,7 +88,7 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
       {tenants.length > 0 && (
         <div className="hidden lg:flex items-center shrink-0 relative" ref={orgSwitcherRef}>
           {tenants.length === 1 ? (
-            <span className="px-3 py-1.5 text-sm font-medium text-detec-ui-muted border border-detec-ui-border rounded-detec bg-detec-ui-surface max-w-[160px] truncate" title={activeTenant?.name}>
+            <span className="px-3 py-1.5 text-sm font-medium text-detec-slate-400 border border-detec-slate-700 rounded-detec bg-detec-slate-800 max-w-[160px] truncate" title={activeTenant?.name}>
               {activeTenant?.name ?? ''}
             </span>
           ) : (
@@ -100,7 +100,7 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
                 aria-haspopup="listbox"
                 aria-label="Switch organisation"
                 disabled={switching}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border border-detec-ui-border bg-detec-ui-surface text-detec-ui-text hover:bg-detec-slate-100 disabled:opacity-60 max-w-[180px]"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border border-detec-slate-700 bg-detec-slate-800 text-detec-slate-100 hover:bg-detec-slate-700 disabled:opacity-60 max-w-[180px]"
               >
                 <BuildingIcon />
                 <span className="truncate max-w-[120px]">{activeTenant?.name ?? 'Select org'}</span>
@@ -110,10 +110,10 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
                 <div
                   role="listbox"
                   aria-label="Select organisation"
-                  className="absolute left-0 top-full mt-2 w-56 bg-detec-ui-surface border border-detec-ui-border rounded-detec shadow-detec-card py-1 z-50"
+                  className="absolute left-0 top-full mt-2 w-56 bg-detec-slate-800 border border-detec-slate-700 rounded-detec shadow-detec-card py-1 z-50"
                 >
-                  <div className="px-3 py-2 border-b border-detec-ui-border">
-                    <span className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Switch organisation</span>
+                  <div className="px-3 py-2 border-b border-detec-slate-700">
+                    <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">Switch organisation</span>
                   </div>
                   {tenants.map((t) => {
                     const isActive = String(t.id) === String(activeTenantId) || (!activeTenantId && t === tenants[0]);
@@ -124,12 +124,12 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
                         aria-selected={isActive}
                         type="button"
                         onClick={() => handleSwitchTenant(t.id)}
-                        className="w-full text-left px-3 py-2.5 text-sm text-detec-ui-text hover:bg-detec-slate-100 transition-colors flex items-center justify-between gap-2"
+                        className="w-full text-left px-3 py-2.5 text-sm text-detec-slate-100 hover:bg-detec-slate-700 transition-colors flex items-center justify-between gap-2"
                       >
                         <span className="flex flex-col min-w-0">
                           <span className="truncate font-medium">{t.name}</span>
                           {t.role && (
-                            <span className="text-xs text-detec-ui-muted capitalize">{t.role}</span>
+                            <span className="text-xs text-detec-slate-400 capitalize">{t.role}</span>
                           )}
                         </span>
                         {isActive && <CheckIcon />}
@@ -145,19 +145,19 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
 
       <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 max-w-2xl lg:mx-6">
         <div className="relative flex-1">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-detec-ui-muted" />
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-detec-slate-500" />
           <input
             type="text"
             value={searchValue}
             onChange={handleSearchChange}
             placeholder="Search tools..."
             aria-label="Search tools"
-            className="w-full bg-white border border-detec-ui-border rounded-detec pl-9 pr-3 py-1.5 text-sm text-detec-ui-text placeholder:text-detec-ui-muted focus:outline-none focus:ring-2 focus:ring-detec-ui-accent/30 focus:border-detec-ui-accent transition-colors shadow-detec-sm"
+            className="w-full bg-detec-slate-800 border border-detec-slate-700 rounded-detec pl-9 pr-3 py-1.5 text-sm text-detec-slate-100 placeholder:text-detec-slate-500 focus:outline-none focus:ring-2 focus:ring-detec-primary-500/30 focus:border-detec-primary-500 transition-colors"
           />
         </div>
         <button
           onClick={onRefresh}
-          className="p-2.5 sm:p-1.5 bg-white border border-detec-ui-border rounded-detec text-detec-ui-muted hover:text-detec-ui-text transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center shrink-0 shadow-detec-sm"
+          className="p-2.5 sm:p-1.5 bg-detec-slate-800 border border-detec-slate-700 rounded-detec text-detec-slate-400 hover:text-detec-slate-100 hover:bg-detec-slate-700 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center shrink-0"
           title="Refresh data"
         >
           <RefreshIcon />
@@ -173,7 +173,7 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
             aria-haspopup="true"
             aria-label={`Notifications${alertCount > 0 ? `, ${alertCount} alerts` : ''}`}
             title={alertCount > 0 ? `${alertCount} alerts requiring attention` : 'Notification settings'}
-            className="relative p-2.5 sm:p-1.5 text-detec-ui-muted hover:text-detec-ui-text transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
+            className="relative p-2.5 sm:p-1.5 text-detec-slate-400 hover:text-detec-slate-100 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
           >
             <BellIcon />
             {alertCount > 0 && (
@@ -183,40 +183,40 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
             )}
           </button>
           {showNotifications && (
-            <div className="absolute right-0 top-full mt-2 w-64 bg-detec-ui-surface border border-detec-ui-border rounded-detec shadow-detec-card py-1 z-50">
-              <div className="px-3 py-2 border-b border-detec-ui-border">
-                <span className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Notifications</span>
+            <div className="absolute right-0 top-full mt-2 w-64 bg-detec-slate-800 border border-detec-slate-700 rounded-detec shadow-detec-card py-1 z-50">
+              <div className="px-3 py-2 border-b border-detec-slate-700">
+                <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">Notifications</span>
               </div>
-              <label className="flex items-center gap-2 px-3 py-2.5 text-sm text-detec-ui-text hover:bg-detec-slate-100 cursor-pointer">
+              <label className="flex items-center gap-2 px-3 py-2.5 text-sm text-detec-slate-100 hover:bg-detec-slate-700 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={alertOnApproval}
                   onChange={(e) => setAlertOnApproval(e.target.checked)}
-                  className="rounded border-detec-ui-border bg-white text-detec-ui-accent focus:ring-detec-ui-accent/30"
+                  className="rounded border-detec-slate-600 bg-detec-slate-700 text-detec-primary-500 focus:ring-detec-primary-500/30"
                 />
                 <span>Alert me when tools need approval</span>
               </label>
-              <label className="flex items-center gap-2 px-3 py-2.5 text-sm text-detec-ui-text hover:bg-detec-slate-100 cursor-pointer">
+              <label className="flex items-center gap-2 px-3 py-2.5 text-sm text-detec-slate-100 hover:bg-detec-slate-700 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={emailDigest}
                   onChange={(e) => setEmailDigest(e.target.checked)}
-                  className="rounded border-detec-ui-border bg-white text-detec-ui-accent focus:ring-detec-ui-accent/30"
+                  className="rounded border-detec-slate-600 bg-detec-slate-700 text-detec-primary-500 focus:ring-detec-primary-500/30"
                 />
                 <span>Email digest</span>
               </label>
-              <div className="border-t border-detec-ui-border">
+              <div className="border-t border-detec-slate-700">
                 <button
                   type="button"
                   onClick={() => { onNavigate('events'); setShowNotifications(false); }}
-                  className="w-full text-left px-3 py-2 text-sm text-detec-ui-text hover:bg-detec-slate-100 transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm text-detec-slate-100 hover:bg-detec-slate-700 transition-colors"
                 >
                   View all events
                 </button>
                 <button
                   type="button"
                   onClick={() => { onNavigate('settings'); setShowNotifications(false); }}
-                  className="w-full text-left px-3 py-2 text-sm text-detec-ui-muted hover:bg-detec-slate-100 transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm text-detec-slate-400 hover:bg-detec-slate-700 transition-colors"
                 >
                   Notification settings
                 </button>
@@ -231,35 +231,35 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
             aria-expanded={showUserMenu}
             aria-haspopup="true"
             aria-label="User menu"
-            className="flex items-center gap-2 sm:gap-2.5 pl-2 sm:pl-3 border-l border-detec-ui-border cursor-pointer hover:opacity-80 transition-opacity min-h-[44px] py-1"
+            className="flex items-center gap-2 sm:gap-2.5 pl-2 sm:pl-3 border-l border-detec-slate-700 cursor-pointer hover:opacity-80 transition-opacity min-h-[44px] py-1"
           >
-            <div className="w-8 h-8 rounded-full bg-detec-ui-accent/15 border border-detec-ui-accent/30 flex items-center justify-center text-xs font-semibold text-detec-ui-accent shrink-0">
+            <div className="w-8 h-8 rounded-full bg-detec-primary-500/15 border border-detec-primary-500/30 flex items-center justify-center text-xs font-semibold text-detec-primary-400 shrink-0">
               {initials}
             </div>
             <div className="text-right hidden sm:block">
-              <div className="text-sm font-medium text-detec-ui-text leading-tight truncate max-w-[120px] lg:max-w-none">
+              <div className="text-sm font-medium text-detec-slate-100 leading-tight truncate max-w-[120px] lg:max-w-none">
                 {displayName}
               </div>
-              <div className="text-xs text-detec-ui-muted leading-tight">
+              <div className="text-xs text-detec-slate-400 leading-tight">
                 {user?.role || 'analyst'}
               </div>
             </div>
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 top-full mt-2 w-48 bg-detec-ui-surface border border-detec-ui-border rounded-detec shadow-detec-card py-1 z-50">
-              <div className="px-3 py-2 border-b border-detec-ui-border">
-                <div className="text-xs text-detec-ui-muted truncate">{user?.email}</div>
+            <div className="absolute right-0 top-full mt-2 w-48 bg-detec-slate-800 border border-detec-slate-700 rounded-detec shadow-detec-card py-1 z-50">
+              <div className="px-3 py-2 border-b border-detec-slate-700">
+                <div className="text-xs text-detec-slate-400 truncate">{user?.email}</div>
               </div>
               <button
                 onClick={() => { onNavigate('settings'); setShowUserMenu(false); }}
-                className="w-full text-left px-3 py-2 text-sm text-detec-ui-text hover:bg-detec-slate-100 transition-colors"
+                className="w-full text-left px-3 py-2 text-sm text-detec-slate-100 hover:bg-detec-slate-700 transition-colors"
               >
                 Settings
               </button>
               <button
                 onClick={logout}
-                className="w-full text-left px-3 py-2 text-sm text-detec-enforce-block hover:bg-red-50 transition-colors"
+                className="w-full text-left px-3 py-2 text-sm text-detec-enforce-block hover:bg-red-500/10 transition-colors"
               >
                 Sign out
               </button>

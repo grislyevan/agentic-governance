@@ -5,6 +5,7 @@ import { fetchEvents, getApiConfig } from '../lib/api';
 import { getUserRole } from '../lib/auth';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
 import PollingStatus from '../components/PollingStatus';
+import ApiErrorBanner from '../components/ui/ApiErrorBanner';
 import SummaryCards from '../components/dashboard/SummaryCards';
 import FilterBar from '../components/dashboard/FilterBar';
 import EndpointContextBar from '../components/dashboard/EndpointContextBar';
@@ -112,12 +113,7 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
         {loading && <ApertureSpinner size="sm" label="Scanning" />}
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-detec-enforce-block/30 bg-detec-enforce-block/10 px-4 py-3 text-sm text-detec-enforce-block">
-          <p>{error}</p>
-          <p className="text-detec-ui-muted mt-1 text-xs">Check the connection and try again.</p>
-        </div>
-      )}
+      <ApiErrorBanner error={error} />
 
       <FilterBar
         endpoints={endpoints}
@@ -170,7 +166,7 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
       />
 
       {!loading && !error && tools.length === 0 && (
-        <div className="rounded-lg border border-detec-ui-border/50 bg-detec-slate-50 px-6 py-10 text-center">
+        <div className="rounded-lg border border-detec-slate-700 bg-detec-slate-800 px-6 py-10 text-center">
           <p className="text-detec-ui-text font-medium">No AI tools detected yet</p>
           <p className="text-sm text-detec-ui-muted mt-1 max-w-md mx-auto">
             Run the Detec agent on your endpoints to send events. Detected tools and their policy status will appear here. This table is your AI tool and asset inventory.
