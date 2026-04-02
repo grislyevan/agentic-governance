@@ -1,8 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
-import { fetchApprovals, approveRequest, denyRequest } from '../lib/api';
-import usePolling from '../hooks/usePolling';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { fetchApprovals, approveRequest, denyRequest, getApprovalStreamUrl } from '../lib/api';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
-import PollingStatus from '../components/PollingStatus';
+import ApiErrorBanner from '../components/ui/ApiErrorBanner';
 
 const TABS = [
   { value: 'pending', label: 'Pending' },
@@ -292,6 +291,8 @@ export default function ApprovalsPage({ onNavigate }) {
   const [bulkDecision, setBulkDecision] = useState(null); // 'approve' | 'deny' | null
   const [bulkReason, setBulkReason] = useState('');
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [streamStatus, setStreamStatus] = useState('connecting'); // 'connecting' | 'live' | 'polling'
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => {
     function handleKey(e) {
@@ -319,7 +320,68 @@ export default function ApprovalsPage({ onNavigate }) {
     }
   }, [activeTab, page]);
 
-  const { lastUpdated, paused, togglePause } = usePolling(load, 30000);
+  // SSE for real-time updates; falls back to 30s polling on error
+  const fallbackTimerRef = useRef(null);
+  const esRef = useRef(null);
+
+  const startFallbackPolling = useCallback(() => {
+    if (fallbackTimerRef.current) return;
+    fallbackTimerRef.current = setInterval(() => load(), 30000);
+  }, [load]);
+
+  const stopFallbackPolling = useCallback(() => {
+    if (fallbackTimerRef.current) {
+      clearInterval(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    const url = getApprovalStreamUrl();
+    const es = new EventSource(url, { withCredentials: true });
+    esRef.current = es;
+    setStreamStatus('connecting');
+
+    es.addEventListener('connected', () => {
+      setStreamStatus('live');
+      stopFallbackPolling();
+    });
+
+    es.addEventListener('approval_update', () => {
+      load();
+      setLastUpdated(Date.now());
+    });
+
+    es.onerror = () => {
+      setStreamStatus('polling');
+      startFallbackPolling();
+    };
+
+    return () => {
+      es.close();
+      esRef.current = null;
+      stopFallbackPolling();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const togglePause = useCallback(() => {
+    if (esRef.current && esRef.current.readyState !== EventSource.CLOSED) {
+      esRef.current.close();
+      esRef.current = null;
+      setStreamStatus('polling');
+      startFallbackPolling();
+    } else {
+      // Reopen SSE
+      stopFallbackPolling();
+      const url = getApprovalStreamUrl();
+      const es = new EventSource(url, { withCredentials: true });
+      esRef.current = es;
+      setStreamStatus('connecting');
+      es.addEventListener('connected', () => setStreamStatus('live'));
+      es.addEventListener('approval_update', () => { load(); setLastUpdated(Date.now()); });
+      es.onerror = () => { setStreamStatus('polling'); startFallbackPolling(); };
+    }
+  }, [load, startFallbackPolling, stopFallbackPolling]);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -379,12 +441,36 @@ export default function ApprovalsPage({ onNavigate }) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-detec-ui-text">Approvals</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-detec-ui-text">Approvals</h1>
+              {/* Stream status badge */}
+              <span
+                title={streamStatus === 'live' ? 'Receiving real-time updates via SSE' : streamStatus === 'polling' ? 'SSE unavailable — polling every 30s' : 'Connecting to real-time stream...'}
+                className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium ${
+                  streamStatus === 'live'
+                    ? 'bg-detec-teal-500/15 text-detec-teal-500 border-detec-teal-500/30'
+                    : streamStatus === 'polling'
+                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                    : 'bg-detec-ui-surface text-detec-ui-muted border-detec-ui-border'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  streamStatus === 'live' ? 'bg-detec-teal-500' : streamStatus === 'polling' ? 'bg-amber-400' : 'bg-detec-ui-muted'
+                }`} />
+                {streamStatus === 'live' ? 'Live' : streamStatus === 'polling' ? 'Polling' : 'Connecting'}
+              </span>
+            </div>
             <p className="text-sm text-detec-ui-muted mt-0.5">
               Review and action tool execution requests that require human approval.
             </p>
           </div>
-          <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
+          <button
+            onClick={togglePause}
+            className="text-xs text-detec-ui-muted hover:text-detec-ui-text border border-detec-ui-border/50 rounded px-2 py-1 transition-colors"
+            title={streamStatus === 'polling' ? 'Reconnect SSE stream' : 'Pause live stream'}
+          >
+            {streamStatus === 'polling' ? 'Reconnect' : 'Pause'}
+          </button>
         </div>
         {loading && <ApertureSpinner size="sm" label="Loading approvals" />}
       </div>
@@ -407,16 +493,8 @@ export default function ApprovalsPage({ onNavigate }) {
       </div>
 
       {/* Errors */}
-      {error && (
-        <div className="rounded-lg border border-detec-enforce-block/30 bg-detec-enforce-block/10 px-4 py-3 text-sm text-detec-enforce-block">
-          {error}
-        </div>
-      )}
-      {actionError && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-          {actionError}
-        </div>
-      )}
+      <ApiErrorBanner error={error} onDismiss={() => setError(null)} />
+      <ApiErrorBanner error={actionError} onDismiss={() => setActionError(null)} />
 
       {/* Empty state */}
       {items.length === 0 && !loading && !error && <EmptyState tab={activeTab} />}

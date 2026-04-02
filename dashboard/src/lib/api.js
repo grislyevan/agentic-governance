@@ -201,10 +201,11 @@ export async function fetchAllEvents(config, { observedAfter, observedBefore, en
   return events;
 }
 
-export async function fetchAuditLog(config, { page = 1, pageSize = 50, action, resourceType } = {}) {
+export async function fetchAuditLog(config, { page = 1, pageSize = 50, action, resourceType, resourceId } = {}) {
   const params = new URLSearchParams({ page, page_size: pageSize });
   if (action) params.set('action', action);
   if (resourceType) params.set('resource_type', resourceType);
+  if (resourceId) params.set('resource_id', resourceId);
   return apiFetch(`/audit-log?${params}`, config);
 }
 
@@ -532,6 +533,17 @@ export async function fetchApprovals({ status, page = 1, pageSize = 50 } = {}) {
   return apiFetch(`/approvals?${params}`);
 }
 
+/**
+ * Returns the full URL for the approval SSE stream.
+ * EventSource needs a full URL (not a path) when the dashboard is on a
+ * different port from the API (e.g. dev mode on :3001 vs API on :8000).
+ */
+export function getApprovalStreamUrl() {
+  const config = getApiConfig();
+  const base = config.apiUrl.replace(/\/+$/, '');
+  return `${base}/approvals/stream`;
+}
+
 export async function approveRequest(id, reason) {
   return apiMutate('POST', `/approvals/${id}/approve`, { reason: reason || undefined });
 }
@@ -636,10 +648,18 @@ export async function switchTenant(tenantId) {
   return apiMutate('POST', '/tenants/switch', { tenant_id: tenantId });
 }
 
+export async function rotateAgentKey() {
+  return apiMutate('POST', '/tenants/agent-key/rotate', {});
+}
+
 export async function generateUninstallToken(endpointId) {
   return apiMutate('POST', `/endpoints/${endpointId}/uninstall-token`);
 }
 
 export async function decommissionEndpoint(endpointId) {
   return apiMutate('POST', `/endpoints/${endpointId}/decommission`);
+}
+
+export async function rotateEndpointAgentKey(endpointId) {
+  return apiMutate('POST', `/endpoints/${endpointId}/key/rotate`);
 }

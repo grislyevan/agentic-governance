@@ -1,20 +1,32 @@
 """Approvals router: manage approval_required decision lifecycle."""
 
+import asyncio
+import json
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
+from core import approval_bus
 from core.audit_logger import record as audit_record
 from core.auth_cookies import get_authorization
 from core.database import get_db
-from core.tenant import get_tenant_filter, require_role, resolve_auth, strict_tenant_filter
+from core.tenant import (
+    get_tenant_filter,
+    require_role,
+    resolve_auth,
+    strict_tenant_filter,
+)
 from models.approval_request import ApprovalRequest
+
+logger = logging.getLogger("agentic_governance")
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -22,6 +34,7 @@ router = APIRouter(prefix="/approvals", tags=["approvals"])
 
 
 # -- Schemas -----------------------------------------------------------------
+
 
 class ApprovalRequestResponse(BaseModel):
     id: str
@@ -64,6 +77,7 @@ class ApprovalCreate(BaseModel):
 
 # -- Helpers -----------------------------------------------------------------
 
+
 def _serialize(ar: ApprovalRequest) -> ApprovalRequestResponse:
     return ApprovalRequestResponse(
         id=ar.id,
@@ -85,6 +99,7 @@ def _serialize(ar: ApprovalRequest) -> ApprovalRequestResponse:
 
 
 # -- Endpoints ---------------------------------------------------------------
+
 
 @router.get("", response_model=ApprovalListResponse)
 @limiter.limit("60/minute")
@@ -118,6 +133,58 @@ def list_approvals(
     )
 
 
+@router.get("/stream")
+@limiter.limit("10/minute")
+async def stream_approvals(
+    request: Request,
+    db: Session = Depends(get_db),
+    authorization: str | None = Depends(get_authorization),
+    x_api_key: str | None = Header(default=None),
+) -> StreamingResponse:
+    """Server-Sent Events stream for real-time approval updates.
+
+    Emits:
+      event: connected   — on initial connection
+      event: ping        — every 25s keepalive (prevents proxy timeouts)
+      event: approval_update — when any approval is created, approved, or denied
+
+    Auth: JWT cookie (preferred) or X-Api-Key header.
+    EventSource in browsers sends cookies automatically with withCredentials=true.
+    """
+    auth = resolve_auth(authorization, x_api_key, db)
+    tenant_id = auth.tenant_id
+
+    async def event_generator():
+        q = await approval_bus.subscribe(tenant_id)
+        try:
+            # Initial connected event
+            yield "event: connected\ndata: {}\n\n"
+            while True:
+                try:
+                    payload = await asyncio.wait_for(q.get(), timeout=25.0)
+                    data = json.dumps(payload)
+                    yield f"event: approval_update\ndata: {data}\n\n"
+                except asyncio.TimeoutError:
+                    # Keepalive ping — prevents proxy/load balancer from closing idle connections
+                    yield "event: ping\ndata: {}\n\n"
+                except asyncio.CancelledError:
+                    break
+        except Exception as exc:
+            logger.warning("SSE stream error for tenant=%s: %s", tenant_id, exc)
+        finally:
+            await approval_bus.unsubscribe(tenant_id, q)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disable nginx buffering
+            "Connection": "keep-alive",
+        },
+    )
+
+
 @router.get("/{approval_id}", response_model=ApprovalRequestResponse)
 @limiter.limit("60/minute")
 def get_approval(
@@ -131,17 +198,23 @@ def get_approval(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin", "analyst")
 
-    ar = db.query(ApprovalRequest).filter(
-        ApprovalRequest.id == approval_id,
-        strict_tenant_filter(auth, ApprovalRequest),
-    ).first()
+    ar = (
+        db.query(ApprovalRequest)
+        .filter(
+            ApprovalRequest.id == approval_id,
+            strict_tenant_filter(auth, ApprovalRequest),
+        )
+        .first()
+    )
     if not ar:
         raise HTTPException(status_code=404, detail="Approval request not found")
 
     return _serialize(ar)
 
 
-@router.post("", response_model=ApprovalRequestResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=ApprovalRequestResponse, status_code=status.HTTP_201_CREATED
+)
 @limiter.limit("30/minute")
 def create_approval(
     request: Request,
@@ -179,6 +252,8 @@ def create_approval(
     db.commit()
     db.refresh(ar)
 
+    approval_bus.publish_sync(auth.tenant_id, {"type": "approval_update"})
+
     return _serialize(ar)
 
 
@@ -196,10 +271,15 @@ def approve_request(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
 
-    ar = db.query(ApprovalRequest).filter(
-        ApprovalRequest.id == approval_id,
-        strict_tenant_filter(auth, ApprovalRequest),
-    ).with_for_update().first()
+    ar = (
+        db.query(ApprovalRequest)
+        .filter(
+            ApprovalRequest.id == approval_id,
+            strict_tenant_filter(auth, ApprovalRequest),
+        )
+        .with_for_update()
+        .first()
+    )
     if not ar:
         raise HTTPException(status_code=404, detail="Approval request not found")
 
@@ -237,6 +317,8 @@ def approve_request(
     db.commit()
     db.refresh(ar)
 
+    approval_bus.publish_sync(auth.tenant_id, {"type": "approval_update"})
+
     return _serialize(ar)
 
 
@@ -254,10 +336,15 @@ def deny_request(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
 
-    ar = db.query(ApprovalRequest).filter(
-        ApprovalRequest.id == approval_id,
-        strict_tenant_filter(auth, ApprovalRequest),
-    ).with_for_update().first()
+    ar = (
+        db.query(ApprovalRequest)
+        .filter(
+            ApprovalRequest.id == approval_id,
+            strict_tenant_filter(auth, ApprovalRequest),
+        )
+        .with_for_update()
+        .first()
+    )
     if not ar:
         raise HTTPException(status_code=404, detail="Approval request not found")
 
@@ -294,5 +381,7 @@ def deny_request(
 
     db.commit()
     db.refresh(ar)
+
+    approval_bus.publish_sync(auth.tenant_id, {"type": "approval_update"})
 
     return _serialize(ar)
