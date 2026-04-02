@@ -16,8 +16,8 @@ This page tracks capability maturity across Detec's core components. Use it to u
 | Behavioral evasion detection | Available | Validated via EVASION-001 lab run |
 | MCP scanner | Available | |
 | CrowdStrike enrichment (confidence layer 5) | Experimental | Partial; not required for baseline operation |
-| Native macOS ESF telemetry | Experimental | Scaffolding exists; polling-based psutil is the production path |
-| Native Windows ETW telemetry | Experimental | Scaffolding exists; polling-based is the production path |
+| Native macOS ESF telemetry | Experimental | Code complete; entitlement + MDM deployment guide available (docs/mdm-deployment.md) |
+| Native Windows ETW telemetry | Experimental | Code complete; ctypes backend available (no pywintrace dependency) |
 | Native Linux eBPF telemetry | Roadmap | Scaffolding exists; lower fidelity than kernel provider |
 
 ---
@@ -108,10 +108,11 @@ This page tracks capability maturity across Detec's core components. Use it to u
 | macOS menu bar GUI + .app/.pkg packaging | Available | MDM deployment supported |
 | Windows scheduled task support | Available | Runs under user account, not system service |
 | Linux systemd support | Available | |
-| Approval flows UI | Roadmap | |
-| Exceptions / allow-list UI | Roadmap | |
+| Approval flows UI | Available | |
+| Exceptions / allow-list UI | Available | |
 | Tenant / org switcher | Roadmap | |
-| Richer policy editing UI | Roadmap | |
+| Policy change history / diff view | Available | Per-policy audit timeline with before/after diff |
+| Telemetry provider badge per endpoint (Native/Polling) | Available | |
 
 ---
 
@@ -127,4 +128,4 @@ For the full list of known limitations, see [docs/known-limitations.md](known-li
 
 ---
 
-_Last updated: 2026-03-26_
+_Last updated: 2026-04-01_

@@ -15,6 +15,45 @@ See the behavioral demo pack:
 
 ---
 
+## Try Detec in 90 Seconds
+
+The fastest way to evaluate the full stack (API + dashboard + pre-seeded sample data):
+
+```bash
+git clone https://github.com/anomalyco/agentic-governance
+cd agentic-governance
+docker compose -f docker-compose.demo.yml up
+```
+
+Then open **http://localhost:8000** — log in with `admin@example.com` / `detec-demo-2026`.
+
+The demo stack boots Postgres, the API, and the dashboard. On first start it seeds:
+- 3 demo endpoints (macOS/ESF, Windows/ETW, Linux/polling)
+- ~50 realistic events across detection, policy, enforcement, and approval scenarios
+- 15 baseline policy rules
+
+No `.env` file or manual configuration needed. All credentials are pre-filled and clearly marked as demo-only. See comments in [`docker-compose.demo.yml`](docker-compose.demo.yml).
+
+**Requirements:** Docker Desktop ≥ 4.x (or Docker Engine + Compose v2). ~2 GB disk for images.
+
+---
+
+## Why Detec Exists
+
+Security teams increasingly face AI coding tools, local LLM runtimes, and autonomous agents running on developer machines.
+
+Traditional endpoint tools can see processes, files, and network connections, but they cannot explain:
+
+- when an AI agent is acting autonomously
+- when an agent is modifying code in a model-driven loop
+- when sensitive material is accessed before outbound model or network activity
+
+Detec detects these behaviors and maps them to **deterministic policy outcomes**.
+
+We publish known limits, evasion findings, and telemetry blind spots alongside capabilities so teams can govern with evidence, not marketing claims. Detection confidence varies by tool and environment; high-risk tools such as Claude Code are often reported at Medium confidence without EDR or kernel telemetry.
+
+---
+
 ## Core Behavioral Detections
 
 ### DETEC-BEH-CORE-01 — Autonomous Shell Fan-Out
@@ -35,22 +74,6 @@ Demo artifacts:
 - [DETEC-BEH-CORE-02 demo](docs/demo-proof/DETEC-BEH-CORE-02-demo.md)
 - [DETEC-BEH-CORE-03 demo](docs/demo-proof/DETEC-BEH-CORE-03-demo.md)
 - [DETEC-BEH-CORE-04 demo](docs/demo-proof/DETEC-BEH-CORE-04-demo.md)
-
----
-
-## Why Detec Exists
-
-Security teams increasingly face AI coding tools, local LLM runtimes, and autonomous agents running on developer machines.
-
-Traditional endpoint tools can see processes, files, and network connections, but they cannot explain:
-
-- when an AI agent is acting autonomously
-- when an agent is modifying code in a model-driven loop
-- when sensitive material is accessed before outbound model or network activity
-
-Detec detects these behaviors and maps them to **deterministic policy outcomes**.
-
-We publish known limits, evasion findings, and telemetry blind spots alongside capabilities so teams can govern with evidence, not marketing claims. Detection confidence varies by tool and environment; high-risk tools such as Claude Code are often reported at Medium confidence without EDR or kernel telemetry.
 
 ---
 
@@ -125,7 +148,8 @@ Architecture overview:
 | Tamper controls (uninstall tokens, decommission) | Available |
 | Behavioral demo artifacts | Available |
 | CrowdStrike enrichment | Experimental |
-| Native ESF / ETW / eBPF telemetry | Experimental / Roadmap |
+| Native ESF / ETW telemetry | Experimental (code complete; MDM deployment docs available) |
+| Native eBPF telemetry (Linux) | Roadmap |
 | Dashboard and management workflows | Available |
 
 See [docs/product-status.md](docs/product-status.md) for details.
@@ -149,7 +173,7 @@ See [docs/product-status.md](docs/product-status.md) for details.
 
 ---
 
-## Quickstart
+## Quickstart (contributor / bare-metal)
 
 Bootstrap the repo (single command for contributors; installs project with dev extras including pytest), then run a local scan:
 
@@ -220,9 +244,11 @@ Its primary focus is behavioral detection and governance for AI agents and AI co
 
 ## Telemetry and Detection
 
-**Today:** Psutil-based polling (process, file, and network signals) powers detection. The collector runs on macOS, Windows, and Linux with a single code path.
+**Today:** Psutil-based polling (process, file, and network signals) is the default path. The dashboard shows a **Telemetry** badge per endpoint — `Native (ESF)`, `Native (ETW)`, or `Polling` — so operators can see which endpoints have elevated signal fidelity.
 
-**Roadmap:** Native telemetry (macOS ESF, Windows ETW, Linux eBPF) is on the roadmap for lower latency and stronger guarantees (status: ROADMAP). See [docs/esf-entitlement.md](docs/esf-entitlement.md) for ESF status.
+**macOS ESF / Windows ETW:** Native telemetry providers are code-complete and available as Experimental. ESF requires an Apple Developer ID with the `com.apple.developer.endpoint-security.client` entitlement; see [`docs/mdm-deployment.md`](docs/mdm-deployment.md) for the MDM deployment guide (Jamf + Intune). ETW works with or without pywintrace via a ctypes fallback path.
+
+**Linux eBPF:** On the roadmap. Requires BCC or eBPF CO-RE, which introduces a heavyweight runtime dependency not yet suitable for developer endpoints.
 
 ---
 

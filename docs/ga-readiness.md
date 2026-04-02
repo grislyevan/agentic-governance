@@ -1,7 +1,7 @@
 # GA Readiness: Detec v1.0
 
 **Prepared for:** Security reviewer / buyer due diligence
-**Date:** 2026-03-26
+**Date:** 2026-04-01
 **Version:** 0.4.0 (targeting v1.0 GA)
 
 This document is a standalone GA-readiness summary. All claims reference canonical source documents; reviewers should consult those files for full detail.
@@ -13,8 +13,8 @@ This document is a standalone GA-readiness summary. All claims reference canonic
 | Feature | Status | Notes | Reference |
 |---------|--------|-------|-----------|
 | Behavioral detection (4 core signatures + evasion) | Available | DETEC-BEH-CORE-01–04; evasion validated LAB-RUN-EVASION-001 | [docs/product-status.md](product-status.md) |
-| Approval workflow (create / approve / deny) | Available (backend); UI Roadmap | API endpoints shipped; hold label logged; enforcement gating not yet wired | [docs/product-status.md](product-status.md), [docs/enforcement-remaining-work.md](enforcement-remaining-work.md) |
-| Allow-list governance (tenant-scoped, expiring) | Available (backend); UI Roadmap | Full CRUD API shipped with audit trail; dashboard UI is Roadmap | [docs/product-status.md](product-status.md) |
+| Approval workflow (create / approve / deny) | Available | API endpoints and dashboard UI shipped; hold label logged; enforcement gating not yet wired | [docs/product-status.md](product-status.md), [docs/enforcement-remaining-work.md](enforcement-remaining-work.md) |
+| Allow-list governance (tenant-scoped, expiring) | Available | Full CRUD API and dashboard UI shipped with audit trail | [docs/product-status.md](product-status.md) |
 | Policy simulation | Available | Per-session policy simulation in session reports | [docs/product-status.md](product-status.md) |
 | Telemetry / observability | Available | Prometheus metrics, EventStore diagnostics, capability drift detection | [docs/telemetry-and-performance.md](telemetry-and-performance.md) |
 | Audit log | Available | Immutable, tenant-scoped, fail-open with metric; no delete endpoint | [docs/hardening-checklist.md](hardening-checklist.md) |
@@ -79,14 +79,14 @@ Full detail: [docs/known-limitations.md](known-limitations.md)
 
 ## 5. Test Coverage Snapshot
 
-Source: [PROGRESS.md](../PROGRESS.md) — snapshot as of 2026-03-26
+Source: [PROGRESS.md](../PROGRESS.md) — snapshot as of 2026-04-01
 
 | Suite | Tests |
 |-------|-------|
-| Collector | 849 |
-| API | 421 |
-| Protocol | 48 |
-| **Total** | **1,318** |
+| Collector | 1,026 |
+| API | 498 |
+| Protocol | 59 |
+| **Total** | **1,583** |
 
 **Lab validation runs:** 16 completed lab runs across 10 tools (8 live, 4 protocol-expected, 1 live/evasion). See [PROGRESS.md](../PROGRESS.md) for the full run table.
 
@@ -128,7 +128,7 @@ The following items are tracked as blocking or near-blocking for a v1.0 GA decla
 - **Approval Required enforcement wiring** — "Approval Required" decisions surface a hold label and create an approval record but do not currently block agent execution pending human review. Blocking execution is a Roadmap item. Operators must act manually on approval queue during this period. Tracked in [docs/enforcement-remaining-work.md](enforcement-remaining-work.md).
 - **Live soak run** — The formal 24h/72h soak test defined in [docs/soak-test-runbook.md](soak-test-runbook.md) has not been executed against a dedicated staging environment. The `PydanticUndefinedAnnotation` error in `api/routers/agent_download.py` that blocked the previous attempt (2026-03-24) has been resolved as part of the MSI stamper hardening work. A clean staging run is still needed before GA.
 - **Lighthouse performance baseline** — No Lighthouse/Web Vitals baseline has been captured for the dashboard. Requires a served build environment. Non-blocking for security reviewers; required for performance SLA commitments.
-- **G3 tenant / admin dashboard UX** — Tenant switcher, approval flow UI, and allow-list management UI are listed as Roadmap in [docs/product-status.md](product-status.md). The backend APIs are complete and tested; the frontend workflow is deferred to a separate sprint.
+- **G3 tenant / admin dashboard UX** — Tenant switcher is still Roadmap. Approval flow UI and allow-list management UI have shipped as of 2026-04-01 (see [docs/product-status.md](product-status.md)). Policy change history / diff view is also now Available.
 - **Agent key rotation** — Tracked as deferred post-sprint/remediation-1. API key rotation for user keys is available; per-agent key rotation lifecycle is not yet implemented.
 
 ---

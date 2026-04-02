@@ -35,14 +35,14 @@ This file tracks lab run validation progress and test coverage milestones. For e
 
 ## Test Coverage Snapshot
 
-As of 2026-03-21:
+As of 2026-04-01:
 
 | Suite | Tests |
 |-------|-------|
-| Collector | 849 |
-| API | 421 |
-| Protocol | 48 |
-| **Total** | **1,318** |
+| Collector | 1,026 |
+| API | 498 |
+| Protocol | 59 |
+| **Total** | **1,583** |
 
 Test count is a rolling point-in-time metric. When referencing this figure in external docs, include the date.
 

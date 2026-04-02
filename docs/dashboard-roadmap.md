@@ -12,14 +12,17 @@ Short product/UX roadmap for the Detec SOC dashboard. The stack is React/Vite wi
 - **User management:** Admin page for users (invite, edit, deactivate); roles: owner, admin, analyst, viewer
 - **Webhooks:** CRUD and test in Settings
 - **Layout:** Sidebar, top bar, responsive; dark theme and Detec branding
+- **Exceptions and allow lists:** UI to manage per-endpoint/per-tool exceptions + allow-list entries
+- **Approval flows:** Workflow for "approval required" decisions (request, approve/deny, audit trail)
+- **Policy change history:** Per-policy audit timeline with before/after diff view
+- **Exception change history:** Per-exception audit timeline with diff view
+- **Telemetry provider badge:** Per-endpoint Native (ESF/ETW/eBPF) vs Polling indicator in endpoints table
 
 ## Planned (roadmap)
 
-- **Policy editing UX:** Richer rule configuration (conditions, thresholds, exceptions) and bulk edit
+- **Policy editing UX:** Richer rule configuration (conditions, thresholds) and bulk edit
 - **Tenant/admin views:** Org switcher and tenant-scoped views; admin-only dashboards
-- **Exceptions and allow lists:** UI to manage per-endpoint or per-tool exceptions and allow-list entries
 - **Alerts and notifications:** In-app and external (e.g. webhook-triggered) alert configuration and history
-- **Approval flows:** Workflow for “approval required” decisions (request, approve/deny, audit trail)
 
 Dependencies (e.g. data grid, form library) will be added as we implement these; the current `package.json` is intentionally minimal.
 
