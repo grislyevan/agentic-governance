@@ -6,7 +6,15 @@ import time
 
 import pytest
 
-from protocol.wire import MessageType, encode_frame, decode_frame, HEADER_SIZE
+from protocol.wire import (
+    MessageType,
+    encode_frame,
+    decode_frame,
+    HEADER_SIZE,
+    PROTOCOL_VERSION,
+    negotiate_version,
+    ProtocolVersionError,
+)
 from protocol.messages import (
     auth_msg,
     auth_ok_msg,
@@ -56,7 +64,11 @@ class TestAuth:
 
 class TestEvents:
     def test_single_event(self) -> None:
-        event = {"event_id": "ev-1", "event_type": "tool.detected", "tool_name": "cursor"}
+        event = {
+            "event_id": "ev-1",
+            "event_type": "tool.detected",
+            "tool_name": "cursor",
+        }
         msg = event_msg(event, seq=10)
         decoded = _roundtrip(msg)
         assert decoded["t"] == MessageType.EVENT
@@ -65,8 +77,7 @@ class TestEvents:
 
     def test_event_batch(self) -> None:
         events = [
-            {"event_id": f"ev-{i}", "event_type": "tool.detected"}
-            for i in range(5)
+            {"event_id": f"ev-{i}", "event_type": "tool.detected"} for i in range(5)
         ]
         msg = event_batch_msg(events, seq=20)
         decoded = _roundtrip(msg)
@@ -210,3 +221,63 @@ class TestSequenceNumbers:
     def test_explicit_seq(self) -> None:
         msg = event_msg({"event_id": "x"}, seq=999)
         assert msg["id"] == 999
+
+
+class TestProtocolVersionNegotiation:
+    """Tests for PROTOCOL_VERSION constant, auth version fields, and negotiate_version."""
+
+    def test_protocol_version_constant_exists(self) -> None:
+        assert isinstance(PROTOCOL_VERSION, tuple)
+        assert len(PROTOCOL_VERSION) == 2
+        major, minor = PROTOCOL_VERSION
+        assert isinstance(major, int) and isinstance(minor, int)
+
+    def test_auth_msg_includes_proto_ver(self) -> None:
+        msg = auth_msg("key", "host", "1.0.0")
+        payload = msg["p"]
+        assert "proto_ver" in payload
+        assert payload["proto_ver"] == list(PROTOCOL_VERSION)
+
+    def test_auth_msg_custom_version(self) -> None:
+        msg = auth_msg("key", "host", "1.0.0", protocol_version=(2, 3))
+        assert msg["p"]["proto_ver"] == [2, 3]
+
+    def test_auth_ok_msg_includes_negotiated_ver(self) -> None:
+        msg = auth_ok_msg("sess-1", "ep-1", "1.0.0")
+        payload = msg["p"]
+        assert "negotiated_proto_ver" in payload
+        assert payload["negotiated_proto_ver"] == list(PROTOCOL_VERSION)
+
+    def test_auth_ok_msg_custom_negotiated_version(self) -> None:
+        msg = auth_ok_msg("sess-1", "ep-1", "1.0.0", negotiated_version=(1, 2))
+        assert msg["p"]["negotiated_proto_ver"] == [1, 2]
+
+    def test_negotiate_version_same(self) -> None:
+        result = negotiate_version((1, 0), (1, 0))
+        assert result == (1, 0)
+
+    def test_negotiate_version_takes_lower_minor(self) -> None:
+        # Client is older (lower minor); server must step down
+        result = negotiate_version((1, 0), (1, 5))
+        assert result == (1, 0)
+        # Server is older; result is server's minor
+        result = negotiate_version((1, 5), (1, 2))
+        assert result == (1, 2)
+
+    def test_negotiate_version_incompatible_major(self) -> None:
+        with pytest.raises(ProtocolVersionError, match="Major version must match"):
+            negotiate_version((1, 0), (2, 0))
+
+    def test_negotiate_version_major_zero_vs_one(self) -> None:
+        with pytest.raises(ProtocolVersionError):
+            negotiate_version((0, 9), (1, 0))
+
+    def test_auth_msg_roundtrips_proto_ver(self) -> None:
+        msg = auth_msg("k", "h", "v", protocol_version=(1, 0))
+        decoded = _roundtrip(msg)
+        assert decoded["p"]["proto_ver"] == [1, 0]
+
+    def test_auth_ok_msg_roundtrips_negotiated_ver(self) -> None:
+        msg = auth_ok_msg("s", "e", "v", negotiated_version=(1, 0))
+        decoded = _roundtrip(msg)
+        assert decoded["p"]["negotiated_proto_ver"] == [1, 0]

@@ -20,6 +20,34 @@ import msgpack
 HEADER_SIZE = 4
 MAX_FRAME_SIZE = 16 * 1024 * 1024  # 16 MiB safety limit
 
+# Protocol version (major, minor).  Bump MAJOR on breaking changes,
+# MINOR on backward-compatible additions.
+PROTOCOL_VERSION: tuple[int, int] = (1, 0)
+
+
+class ProtocolVersionError(ValueError):
+    """Raised when client and server protocol versions are incompatible."""
+
+
+def negotiate_version(
+    client_ver: tuple[int, int],
+    server_ver: tuple[int, int],
+) -> tuple[int, int]:
+    """Return the highest mutually-compatible protocol version.
+
+    Compatibility rule: major versions must match.  The negotiated minor
+    version is ``min(client_minor, server_minor)``.
+
+    Raises ``ProtocolVersionError`` if major versions differ.
+    """
+    if client_ver[0] != server_ver[0]:
+        raise ProtocolVersionError(
+            f"Incompatible protocol versions: client={client_ver[0]}.{client_ver[1]}, "
+            f"server={server_ver[0]}.{server_ver[1]}. "
+            "Major version must match."
+        )
+    return (client_ver[0], min(client_ver[1], server_ver[1]))
+
 
 class MessageType(enum.IntEnum):
     """Wire message type codes."""
@@ -62,7 +90,9 @@ def encode_frame(msg: dict[str, Any]) -> bytes:
 
     payload = msgpack.packb(envelope, use_bin_type=True)
     if len(payload) > MAX_FRAME_SIZE:
-        raise ValueError(f"Frame payload exceeds {MAX_FRAME_SIZE} bytes ({len(payload)})")
+        raise ValueError(
+            f"Frame payload exceeds {MAX_FRAME_SIZE} bytes ({len(payload)})"
+        )
     return struct.pack("!I", len(payload)) + payload
 
 
@@ -101,7 +131,9 @@ class FrameReader:
         while len(self._buf) >= HEADER_SIZE:
             payload_len = struct.unpack("!I", self._buf[:HEADER_SIZE])[0]
             if payload_len > MAX_FRAME_SIZE:
-                raise ValueError(f"Frame size {payload_len} exceeds limit {MAX_FRAME_SIZE}")
+                raise ValueError(
+                    f"Frame size {payload_len} exceeds limit {MAX_FRAME_SIZE}"
+                )
             total = HEADER_SIZE + payload_len
             if len(self._buf) < total:
                 break

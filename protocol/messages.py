@@ -9,7 +9,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from protocol.wire import MessageType
+from protocol.wire import MessageType, PROTOCOL_VERSION
 
 
 def _envelope(msg_type: MessageType, seq: int, payload: Any) -> dict[str, Any]:
@@ -18,19 +18,31 @@ def _envelope(msg_type: MessageType, seq: int, payload: Any) -> dict[str, Any]:
 
 # -- Authentication ----------------------------------------------------------
 
+
 def auth_msg(
     api_key: str,
     hostname: str,
     agent_version: str,
     *,
     seq: int = 0,
+    protocol_version: tuple[int, int] = PROTOCOL_VERSION,
 ) -> dict[str, Any]:
-    """Agent -> Server: authenticate this connection."""
-    return _envelope(MessageType.AUTH, seq, {
-        "api_key": api_key,
-        "hostname": hostname,
-        "agent_version": agent_version,
-    })
+    """Agent -> Server: authenticate this connection.
+
+    ``protocol_version`` is included so the server can negotiate the highest
+    mutually-compatible wire format.  Defaults to the current
+    ``PROTOCOL_VERSION`` constant from ``protocol.wire``.
+    """
+    return _envelope(
+        MessageType.AUTH,
+        seq,
+        {
+            "api_key": api_key,
+            "hostname": hostname,
+            "agent_version": agent_version,
+            "proto_ver": list(protocol_version),
+        },
+    )
 
 
 def auth_ok_msg(
@@ -39,13 +51,24 @@ def auth_ok_msg(
     server_version: str,
     *,
     seq: int = 0,
+    negotiated_version: tuple[int, int] = PROTOCOL_VERSION,
 ) -> dict[str, Any]:
-    """Server -> Agent: authentication succeeded."""
-    return _envelope(MessageType.AUTH_OK, seq, {
-        "session_id": session_id,
-        "endpoint_id": endpoint_id,
-        "server_version": server_version,
-    })
+    """Server -> Agent: authentication succeeded.
+
+    ``negotiated_version`` is the agreed protocol version after calling
+    ``negotiate_version(client_ver, server_ver)``.  Agents should store this
+    and use it to guard version-gated features.
+    """
+    return _envelope(
+        MessageType.AUTH_OK,
+        seq,
+        {
+            "session_id": session_id,
+            "endpoint_id": endpoint_id,
+            "server_version": server_version,
+            "negotiated_proto_ver": list(negotiated_version),
+        },
+    )
 
 
 def auth_fail_msg(reason: str, *, seq: int = 0) -> dict[str, Any]:
@@ -54,6 +77,7 @@ def auth_fail_msg(reason: str, *, seq: int = 0) -> dict[str, Any]:
 
 
 # -- Events ------------------------------------------------------------------
+
 
 def event_msg(event: dict[str, Any], *, seq: int = 0) -> dict[str, Any]:
     """Agent -> Server: a single canonical event."""
@@ -66,6 +90,7 @@ def event_batch_msg(events: list[dict[str, Any]], *, seq: int = 0) -> dict[str, 
 
 
 # -- Acknowledgement ---------------------------------------------------------
+
 
 def ack_msg(seq_ids: list[int], *, seq: int = 0) -> dict[str, Any]:
     """Server -> Agent: these sequence IDs were persisted."""
@@ -86,7 +111,10 @@ def nack_msg(
 
 # -- Heartbeat ---------------------------------------------------------------
 
-def heartbeat_msg(stats: dict[str, Any] | None = None, *, seq: int = 0) -> dict[str, Any]:
+
+def heartbeat_msg(
+    stats: dict[str, Any] | None = None, *, seq: int = 0
+) -> dict[str, Any]:
     """Agent -> Server: keepalive with optional agent stats."""
     return _envelope(MessageType.HEARTBEAT, seq, stats or {})
 
@@ -98,13 +126,18 @@ def heartbeat_ack_msg(
     seq: int = 0,
 ) -> dict[str, Any]:
     """Server -> Agent: heartbeat acknowledged."""
-    return _envelope(MessageType.HEARTBEAT_ACK, seq, {
-        "next_expected_in": next_expected_in,
-        "endpoint_status": endpoint_status,
-    })
+    return _envelope(
+        MessageType.HEARTBEAT_ACK,
+        seq,
+        {
+            "next_expected_in": next_expected_in,
+            "endpoint_status": endpoint_status,
+        },
+    )
 
 
 # -- Server push -------------------------------------------------------------
+
 
 def policy_push_msg(rules: list[dict[str, Any]], *, seq: int = 0) -> dict[str, Any]:
     """Server -> Agent: updated policy rules."""
@@ -138,11 +171,15 @@ def command_msg(
     seq: int = 0,
 ) -> dict[str, Any]:
     """Server -> Agent: execute a command (scan_now, update_config, shutdown)."""
-    return _envelope(MessageType.COMMAND, seq, {
-        "command": command,
-        "command_id": command_id,
-        "params": params or {},
-    })
+    return _envelope(
+        MessageType.COMMAND,
+        seq,
+        {
+            "command": command,
+            "command_id": command_id,
+            "params": params or {},
+        },
+    )
 
 
 def kill_process_msg(
@@ -170,14 +207,19 @@ def command_ack_msg(
     seq: int = 0,
 ) -> dict[str, Any]:
     """Agent -> Server: command execution result."""
-    return _envelope(MessageType.COMMAND_ACK, seq, {
-        "command_id": command_id,
-        "result": result,
-        "detail": detail or {},
-    })
+    return _envelope(
+        MessageType.COMMAND_ACK,
+        seq,
+        {
+            "command_id": command_id,
+            "result": result,
+            "detail": detail or {},
+        },
+    )
 
 
 # -- Error -------------------------------------------------------------------
+
 
 def error_msg(code: int, message: str, *, seq: int = 0) -> dict[str, Any]:
     """Either direction: protocol-level error."""
