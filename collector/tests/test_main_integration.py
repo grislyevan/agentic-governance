@@ -353,7 +353,7 @@ class TestRunScanCleanSystem:
             patch("orchestrator.AIExtensionScanner") as m12,
             patch("orchestrator.BehavioralScanner") as m_beh,
             patch("orchestrator.EvasionScanner") as m_ev,
-            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}),
+            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}, create=True),
         ):
             for m in [m1, m_cowork, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
                 inst = m.return_value
@@ -401,7 +401,7 @@ class TestRunScanSingleDetection:
             patch("orchestrator.AIExtensionScanner") as m12,
             patch("orchestrator.BehavioralScanner") as m_beh,
             patch("orchestrator.EvasionScanner") as m_ev,
-            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}),
+            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}, create=True),
         ):
             m1.return_value.tool_name = "Claude Code"
             m1.return_value.scan.return_value = cc_scan
@@ -457,7 +457,7 @@ class TestRunScanMultipleDetections:
             patch("orchestrator.AIExtensionScanner") as m12,
             patch("orchestrator.BehavioralScanner") as m_beh,
             patch("orchestrator.EvasionScanner") as m_ev,
-            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}),
+            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}, create=True),
         ):
             m1.return_value.tool_name = "Claude Code"
             m1.return_value.scan.return_value = cc_scan
@@ -520,7 +520,7 @@ class TestCredibilityGating:
             patch("orchestrator.BehavioralScanner") as m_beh,
             patch("orchestrator.EvasionScanner") as m_ev,
             patch("orchestrator.MCPScanner") as m_mcp,
-            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}),
+            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}, create=True),
         ):
             m1.return_value.tool_name = "Claude Code"
             m1.return_value.scan.return_value = strong_scan
@@ -587,7 +587,7 @@ class TestBehavioralScannerPidDedup:
             patch("orchestrator.AIExtensionScanner") as m12,
             patch("orchestrator.BehavioralScanner", side_effect=capture_behavioral),
             patch("orchestrator.EvasionScanner") as m_ev,
-            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}),
+            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}, create=True),
         ):
             m1.return_value.tool_name = "Claude Code"
             m1.return_value.scan.return_value = cc_scan
@@ -639,7 +639,7 @@ class TestEvasionBoost:
             patch("orchestrator.AIExtensionScanner") as m12,
             patch("orchestrator.BehavioralScanner") as m_beh,
             patch("orchestrator.EvasionScanner") as m_ev,
-            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}),
+            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}, create=True),
         ):
             for m in [m1, m_cowork, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
                 inst = m.return_value
@@ -692,7 +692,7 @@ class TestScannerFailureGraceful:
             patch("orchestrator.AIExtensionScanner") as m12,
             patch("orchestrator.BehavioralScanner") as m_beh,
             patch("orchestrator.EvasionScanner") as m_ev,
-            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}),
+            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}, create=True),
         ):
             # First scanner throws
             m1.return_value.tool_name = "Claude Code"
@@ -733,7 +733,7 @@ class TestScannerFailureGraceful:
             patch("orchestrator.AIExtensionScanner") as m12,
             patch("orchestrator.BehavioralScanner") as m_beh,
             patch("orchestrator.EvasionScanner") as m_ev,
-            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}),
+            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}, create=True),
         ):
             for m in [m1, m_cowork, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
                 inst = m.return_value
@@ -771,7 +771,7 @@ class TestScannerFailureGraceful:
             patch("orchestrator.AIExtensionScanner") as m12,
             patch("orchestrator.BehavioralScanner") as m_beh,
             patch("orchestrator.EvasionScanner") as m_ev,
-            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}),
+            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}, create=True),
         ):
             for m in [m1, m_cowork, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12]:
                 inst = m.return_value
@@ -1004,7 +1004,7 @@ class TestRunScanEventVersioning:
             patch("orchestrator.AIExtensionScanner") as m12,
             patch("orchestrator.BehavioralScanner") as m_beh,
             patch("orchestrator.EvasionScanner") as m_ev,
-            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}),
+            patch("orchestrator.get_scheduler_evidence_by_tool", return_value={}, create=True),
         ):
             m1.return_value.tool_name = "Claude Code"
             m1.return_value.scan.return_value = cc_scan

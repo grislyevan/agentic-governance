@@ -22,6 +22,7 @@ _PLATFORM = sys.platform
 
 # -- User existence --------------------------------------------------------
 
+
 def user_exists(username: str) -> bool:
     """Check whether an OS-level user account named *username* exists."""
     if _PLATFORM == "win32":
@@ -31,6 +32,7 @@ def user_exists(username: str) -> bool:
 
 def _user_exists_posix(username: str) -> bool:
     import pwd
+
     try:
         pwd.getpwnam(username)
         return True
@@ -42,7 +44,9 @@ def _user_exists_windows(username: str) -> bool:
     try:
         proc = subprocess.run(
             ["net", "user", username],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         return proc.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
@@ -50,6 +54,7 @@ def _user_exists_windows(username: str) -> bool:
 
 
 # -- Credential store ------------------------------------------------------
+
 
 def get_credential_store_entry(service: str) -> bool:
     """Return True if a credential for *service* exists in the OS keychain."""
@@ -64,7 +69,9 @@ def _credential_macos(service: str) -> bool:
     try:
         proc = subprocess.run(
             ["security", "find-generic-password", "-s", service],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         return proc.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
@@ -75,7 +82,9 @@ def _credential_windows(service: str) -> bool:
     try:
         proc = subprocess.run(
             ["cmdkey", "/list"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if proc.returncode == 0 and service.lower() in proc.stdout.lower():
             return True
@@ -89,7 +98,9 @@ def _credential_linux(service: str) -> bool:
     try:
         proc = subprocess.run(
             ["secret-tool", "lookup", "service", service],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         return proc.returncode == 0 and bool(proc.stdout.strip())
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
@@ -97,6 +108,7 @@ def _credential_linux(service: str) -> bool:
 
 
 # -- Code signature verification ------------------------------------------
+
 
 def verify_code_signature(path: str | Path) -> SignatureInfo | None:
     """Verify the code signature of an application bundle or executable.
@@ -115,7 +127,9 @@ def _codesign_macos(path: str) -> SignatureInfo | None:
     try:
         proc = subprocess.run(
             ["codesign", "-dv", path],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         output = (proc.stdout or "") + (proc.stderr or "")
         if proc.returncode != 0:
@@ -142,11 +156,17 @@ def _codesign_macos(path: str) -> SignatureInfo | None:
 def _codesign_windows(path: str) -> SignatureInfo | None:
     try:
         proc = subprocess.run(
-            ["powershell", "-NoProfile", "-Command",
-             f"(Get-AuthenticodeSignature '{path}').Status;"
-             f"(Get-AuthenticodeSignature '{path}').SignerCertificate.Subject;"
-             f"(Get-AuthenticodeSignature '{path}').SignerCertificate.Issuer"],
-            capture_output=True, text=True, timeout=15,
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                f"(Get-AuthenticodeSignature '{path}').Status;"
+                f"(Get-AuthenticodeSignature '{path}').SignerCertificate.Subject;"
+                f"(Get-AuthenticodeSignature '{path}').SignerCertificate.Issuer",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
         )
         if proc.returncode != 0:
             return None
@@ -164,18 +184,32 @@ def _codesign_windows(path: str) -> SignatureInfo | None:
 
 # -- Application version --------------------------------------------------
 
+# Module-level cache: path (str) → version (str | None).
+# Avoids repeated PowerShell invocations across scan cycles which take 10s+
+# on some Windows machines.  Cache is process-lifetime; a restart clears it.
+_version_cache: dict[str, str | None] = {}
+
+
 def get_app_version(path: str | Path) -> str | None:
     """Extract the version string for an installed application.
 
     macOS:   reads CFBundleShortVersionString from Info.plist
-    Windows: reads ProductVersion via PowerShell
+    Windows: reads ProductVersion via PowerShell (result cached per path)
     Linux:   returns None (callers should fall back to CLI --version)
     """
+    key = str(path)
+    if key in _version_cache:
+        return _version_cache[key]
+
     if _PLATFORM == "darwin":
-        return _version_macos(Path(path))
+        result = _version_macos(Path(path))
     elif _PLATFORM == "win32":
-        return _version_windows(str(path))
-    return None
+        result = _version_windows(key)
+    else:
+        result = None
+
+    _version_cache[key] = result
+    return result
 
 
 def _version_macos(app_path: Path) -> str | None:
@@ -185,23 +219,34 @@ def _version_macos(app_path: Path) -> str | None:
     try:
         with open(plist_path, "rb") as f:
             plist = plistlib.load(f)
-        return (
-            plist.get("CFBundleShortVersionString")
-            or plist.get("CFBundleVersion")
-        )
+        return plist.get("CFBundleShortVersionString") or plist.get("CFBundleVersion")
     except (OSError, plistlib.InvalidFileException):
         return None
 
 
 def _version_windows(path: str) -> str | None:
-    try:
-        proc = subprocess.run(
-            ["powershell", "-NoProfile", "-Command",
-             f"(Get-Item '{path}').VersionInfo.ProductVersion"],
-            capture_output=True, text=True, timeout=10,
-        )
-        if proc.returncode == 0 and proc.stdout.strip():
-            return proc.stdout.strip()
-    except (FileNotFoundError, subprocess.TimeoutExpired, OSError) as exc:
-        logger.debug("PowerShell version query for %s failed: %s", path, exc)
+    # Try pwsh (PowerShell 7) first — faster startup; fall back to powershell.exe.
+    for shell in ("pwsh", "powershell"):
+        try:
+            proc = subprocess.run(
+                [
+                    shell,
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    f"(Get-Item '{path}').VersionInfo.ProductVersion",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if proc.returncode == 0 and proc.stdout.strip():
+                return proc.stdout.strip()
+        except FileNotFoundError:
+            continue  # shell not installed, try next
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            logger.debug(
+                "PowerShell version query for %s via %s failed: %s", path, shell, exc
+            )
+            break  # shell exists but timed out; don't retry with the other
     return None

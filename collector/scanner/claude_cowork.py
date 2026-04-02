@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import re
+import sys
 from pathlib import Path
 
 from compat import find_processes, get_connections, get_process_info
@@ -103,42 +104,49 @@ class ClaudeCoworkScanner(BaseScanner):
         return None
 
     def _scan_process(self, result: ScanResult, verbose: bool) -> float:
+        """Detect Claude Desktop / Cowork processes.
+
+        Claude Cowork is macOS-only (Apple Virtualization framework). On
+        non-macOS platforms this layer returns 0.0 immediately.
+
+        Uses psutil-backed find_processes() instead of pgrep for
+        cross-platform correctness (pgrep is not available on Windows).
+        """
         self._log("Scanning process layer...", verbose)
         strength = 0.0
-        own_pid = str(os.getpid())
-        own_ppid = str(os.getppid())
 
-        proc = self._run_cmd(["pgrep", "-fl", "Claude"])
-        if proc and proc.returncode == 0 and proc.stdout.strip():
-            lines = proc.stdout.strip().splitlines()
-            claude_pids: list[str] = []
-            for line in lines:
-                parts = line.split(None, 1)
-                if len(parts) < 2:
-                    continue
-                pid, cmdline = parts
-                if pid in (own_pid, own_ppid):
-                    continue
-                if "pgrep" in cmdline.lower():
-                    continue
-                if "Claude.app" in cmdline and "collector" not in cmdline.lower():
-                    claude_pids.append(pid)
-                    result.evidence_details.setdefault("process_entries", []).append(
-                        {"pid": pid, "cmdline": cmdline}
-                    )
+        if sys.platform != "darwin":
+            self._log("  Skipping process layer (Claude Cowork is macOS-only)", verbose)
+            return strength
 
-            if claude_pids:
-                strength = 0.60
-                self._log(f"Found Claude Desktop process(es): {claude_pids}", verbose)
+        own_pid = os.getpid()
+        own_ppid = os.getppid()
 
-        vm_proc = self._run_cmd(["pgrep", "-fl", "Virtualization.VirtualMachine"])
-        if vm_proc and vm_proc.returncode == 0 and vm_proc.stdout.strip():
+        claude_procs = find_processes("Claude")
+        claude_pids: list[str] = []
+        for p in claude_procs:
+            if p.pid in (own_pid, own_ppid):
+                continue
+            if "collector" in p.cmdline.lower():
+                continue
+            if "Claude.app" in p.cmdline:
+                claude_pids.append(str(p.pid))
+                result.evidence_details.setdefault("process_entries", []).append(
+                    {"pid": p.pid, "cmdline": p.cmdline}
+                )
+
+        if claude_pids:
+            strength = 0.60
+            self._log(f"Found Claude Desktop process(es): {claude_pids}", verbose)
+
+        vm_procs = find_processes(r"Virtualization\.VirtualMachine")
+        if vm_procs:
             strength = max(strength, 0.85)
             result.evidence_details["vm_process"] = True
             self._log("Found Virtualization.VirtualMachine XPC service", verbose)
 
-        plugin_proc = self._run_cmd(["pgrep", "-fl", "Claude Helper (Plugin)"])
-        if plugin_proc and plugin_proc.returncode == 0 and plugin_proc.stdout.strip():
+        plugin_procs = find_processes(r"Claude Helper \(Plugin\)")
+        if plugin_procs:
             strength = max(strength, 0.70)
             result.evidence_details["plugin_helpers"] = True
             self._log("Found Claude Helper (Plugin) processes — DXT hosts", verbose)
@@ -163,7 +171,7 @@ class ClaudeCoworkScanner(BaseScanner):
             result.evidence_details["vm_bundles_present"] = True
             rootfs = self._VM_BUNDLES / "claudevm.bundle" / "rootfs.img"
             if rootfs.is_file():
-                size_gb = rootfs.stat().st_size / (1024 ** 3)
+                size_gb = rootfs.stat().st_size / (1024**3)
                 result.evidence_details["rootfs_size_gb"] = round(size_gb, 1)
                 self._log(f"VM rootfs.img: {size_gb:.1f} GB", verbose)
 
@@ -190,30 +198,44 @@ class ClaudeCoworkScanner(BaseScanner):
                     result.evidence_details["cowork_config"] = cowork_keys
                     self._log(f"Cowork config keys: {cowork_keys}", verbose)
             except (json.JSONDecodeError, PermissionError, OSError) as exc:
-                logger.debug("Could not read cowork config from %s: %s", self._CONFIG, exc)
+                logger.debug(
+                    "Could not read cowork config from %s: %s", self._CONFIG, exc
+                )
 
         if self._EXTENSIONS.is_dir():
-            extensions = [
-                d.name for d in self._EXTENSIONS.iterdir() if d.is_dir()
-            ]
+            extensions = [d.name for d in self._EXTENSIONS.iterdir() if d.is_dir()]
             if extensions:
                 result.evidence_details["dxt_extensions"] = extensions
                 self._log(f"DXT extensions: {extensions}", verbose)
             # Schedule-type skill: extension or skill dir with "schedule" in name (LAB-RUN-015)
             schedule_related = [
-                p.name for p in self._EXTENSIONS.rglob("*")
-                if "schedule" in p.name.lower() and (p.is_dir() or p.suffix in (".json", ".py", ".md", ".yaml", ".yml"))
+                p.name
+                for p in self._EXTENSIONS.rglob("*")
+                if "schedule" in p.name.lower()
+                and (p.is_dir() or p.suffix in (".json", ".py", ".md", ".yaml", ".yml"))
             ]
             if schedule_related:
-                result.evidence_details["schedule_skill_artifacts"] = schedule_related[:20]
+                result.evidence_details["schedule_skill_artifacts"] = schedule_related[
+                    :20
+                ]
                 strength = max(strength, 0.55)
-                self._log(f"Schedule-related artifacts: {schedule_related[:5]}", verbose)
+                self._log(
+                    f"Schedule-related artifacts: {schedule_related[:5]}", verbose
+                )
 
-        skills_dirs = list(self._SESSIONS.rglob("skills-plugin")) if self._SESSIONS.is_dir() else []
+        skills_dirs = (
+            list(self._SESSIONS.rglob("skills-plugin"))
+            if self._SESSIONS.is_dir()
+            else []
+        )
         if skills_dirs:
             result.evidence_details["skills_plugin_present"] = True
 
-        marketplace_dirs = list(self._SESSIONS.rglob("knowledge-work-plugins")) if self._SESSIONS.is_dir() else []
+        marketplace_dirs = (
+            list(self._SESSIONS.rglob("knowledge-work-plugins"))
+            if self._SESSIONS.is_dir()
+            else []
+        )
         if marketplace_dirs:
             result.evidence_details["marketplace_present"] = True
 
@@ -229,7 +251,9 @@ class ClaudeCoworkScanner(BaseScanner):
             line = f"{c.pid or ''} {proc.cmdline if proc else ''} {c.remote_addr or ''}:{c.remote_port or ''} {c.status}"
             if "claude" in line.lower():
                 strength = max(strength, 0.65)
-                result.evidence_details.setdefault("network_connections", []).append(line)
+                result.evidence_details.setdefault("network_connections", []).append(
+                    line
+                )
 
         vm_ip_path = self._VM_BUNDLES / "claudevm.bundle" / "vmIP"
         if vm_ip_path.is_file():
@@ -275,7 +299,9 @@ class ClaudeCoworkScanner(BaseScanner):
 
         if self._SESSIONS.is_dir():
             session_jsons = sorted(
-                self._SESSIONS.rglob("local_*.json"), key=lambda p: p.stat().st_mtime, reverse=True
+                self._SESSIONS.rglob("local_*.json"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
             )
             for sjson in session_jsons[:3]:
                 try:
@@ -320,9 +346,9 @@ class ClaudeCoworkScanner(BaseScanner):
                     ]
                     if tool_use_summaries:
                         strength = max(strength, 0.80)
-                        result.evidence_details.setdefault("tool_use_summaries", []).extend(
-                            tool_use_summaries[:10]
-                        )
+                        result.evidence_details.setdefault(
+                            "tool_use_summaries", []
+                        ).extend(tool_use_summaries[:10])
                         self._log(
                             f"Found {len(tool_use_summaries)} tool_use_summary events in {audit_path.name}",
                             verbose,
@@ -339,13 +365,19 @@ class ClaudeCoworkScanner(BaseScanner):
                     result.evidence_details["scheduled_tasks_enabled"] = True
                     self._log("Scheduled tasks enabled", verbose)
             except (json.JSONDecodeError, PermissionError, OSError) as exc:
-                logger.debug("Could not read config for scheduled tasks preference: %s", exc)
+                logger.debug(
+                    "Could not read config for scheduled tasks preference: %s", exc
+                )
 
-        session_jsons = sorted(
-            self._SESSIONS.rglob("local_*.json"),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        ) if self._SESSIONS.is_dir() else []
+        session_jsons = (
+            sorted(
+                self._SESSIONS.rglob("local_*.json"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
+            if self._SESSIONS.is_dir()
+            else []
+        )
         for sjson in session_jsons[:3]:
             try:
                 data = json.loads(sjson.read_text())
@@ -377,7 +409,9 @@ class ClaudeCoworkScanner(BaseScanner):
             result.action_summary += " Class D-adjacent: scheduled tasks or self-modification capability detected."
 
     def _apply_penalties(self, result: ScanResult) -> None:
-        if result.signals.process == 0.0 and (result.signals.file > 0.0 or result.signals.identity > 0.0):
+        if result.signals.process == 0.0 and (
+            result.signals.file > 0.0 or result.signals.identity > 0.0
+        ):
             result.penalties.append(("stale_artifact_only", 0.10))
 
     def _determine_action(self, result: ScanResult) -> None:
@@ -386,15 +420,18 @@ class ClaudeCoworkScanner(BaseScanner):
             result.action_summary = "No Claude Cowork signals detected."
             return
 
-        confidence = sum(
-            [
-                result.signals.process,
-                result.signals.file,
-                result.signals.network,
-                result.signals.identity,
-                result.signals.behavior,
-            ]
-        ) / 5.0
+        confidence = (
+            sum(
+                [
+                    result.signals.process,
+                    result.signals.file,
+                    result.signals.network,
+                    result.signals.identity,
+                    result.signals.behavior,
+                ]
+            )
+            / 5.0
+        )
 
         if confidence >= 0.75:
             result.action_type = "approval_required"

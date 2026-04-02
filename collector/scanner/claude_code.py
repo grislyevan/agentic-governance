@@ -49,8 +49,16 @@ class ClaudeCodeScanner(BaseScanner):
             behavior=behavior_strength,
         )
 
-        if any(s > 0.0 for s in [process_strength, file_strength, network_strength,
-                                   identity_strength, behavior_strength]):
+        if any(
+            s > 0.0
+            for s in [
+                process_strength,
+                file_strength,
+                network_strength,
+                identity_strength,
+                behavior_strength,
+            ]
+        ):
             result.detected = True
 
         self._apply_penalties(result)
@@ -70,7 +78,10 @@ class ClaudeCodeScanner(BaseScanner):
                 self._log(f"Version from CLI: {version}", verbose)
                 return version
         claude_dir = Path.home() / ".claude"
-        for candidate in (claude_dir / "settings.json", claude_dir / "settings.local.json"):
+        for candidate in (
+            claude_dir / "settings.json",
+            claude_dir / "settings.local.json",
+        ):
             if not candidate.is_file():
                 continue
             try:
@@ -93,10 +104,11 @@ class ClaudeCodeScanner(BaseScanner):
 
         procs = find_processes("claude")
         procs = [
-            p for p in procs
+            p
+            for p in procs
             if p.pid not in (own_pid, own_ppid)
             and "pgrep" not in p.cmdline.lower()
-            and re.search(r'\bclaude\b', p.cmdline, re.IGNORECASE)
+            and re.search(r"\bclaude\b", p.cmdline, re.IGNORECASE)
             and "collector" not in p.cmdline.lower()
             and "main.py" not in p.cmdline
         ]
@@ -104,9 +116,9 @@ class ClaudeCodeScanner(BaseScanner):
         if procs:
             claude_pids: list[int] = [p.pid for p in procs]
             for p in procs:
-                result.evidence_details.setdefault("process_entries", []).append({
-                    "pid": p.pid, "cmdline": p.cmdline
-                })
+                result.evidence_details.setdefault("process_entries", []).append(
+                    {"pid": p.pid, "cmdline": p.cmdline}
+                )
 
             strength = 0.7
             self._log(f"Found claude process(es): {claude_pids}", verbose)
@@ -126,11 +138,13 @@ class ClaudeCodeScanner(BaseScanner):
 
                     for cpid in child_pids[:5]:
                         child = get_process_info(cpid)
-                        if child and re.search(r'(zsh|bash|python|git|node)', child.cmdline):
+                        if child and re.search(
+                            r"(zsh|bash|python|git|node)", child.cmdline
+                        ):
                             strength = 0.90
-                            result.evidence_details.setdefault("agentic_children", []).append(
-                                child.cmdline
-                            )
+                            result.evidence_details.setdefault(
+                                "agentic_children", []
+                            ).append(child.cmdline)
         else:
             self._log("No claude process found", verbose)
 
@@ -148,10 +162,12 @@ class ClaudeCodeScanner(BaseScanner):
 
             try:
                 file_count = sum(1 for _ in claude_dir.rglob("*") if _.is_file())
-                total_size = sum(f.stat().st_size for f in claude_dir.rglob("*") if f.is_file())
+                total_size = sum(
+                    f.stat().st_size for f in claude_dir.rglob("*") if f.is_file()
+                )
                 most_recent = max(
                     (f.stat().st_mtime for f in claude_dir.rglob("*") if f.is_file()),
-                    default=0
+                    default=0,
                 )
                 result.evidence_details["claude_dir"] = {
                     "file_count": file_count,
@@ -169,27 +185,38 @@ class ClaudeCodeScanner(BaseScanner):
             for settings_name in ("settings.json", "settings.local.json"):
                 settings_path = claude_dir / settings_name
                 if settings_path.is_file():
-                    result.evidence_details.setdefault("settings_files", []).append(str(settings_path))
+                    result.evidence_details.setdefault("settings_files", []).append(
+                        str(settings_path)
+                    )
                     self._check_evasion_settings(settings_path, result, verbose)
 
             for project_settings in claude_dir.glob("projects/**/settings.json"):
                 self._check_evasion_settings(project_settings, result, verbose)
 
-        home_dirs = [Path.home() / "Documents", Path.home() / "Projects",
-                     Path.home() / "repos", Path.home() / "src", Path.home() / "code"]
+        home_dirs = [
+            Path.home() / "Documents",
+            Path.home() / "Projects",
+            Path.home() / "repos",
+            Path.home() / "src",
+            Path.home() / "code",
+        ]
         for parent in home_dirs:
             if parent.is_dir():
                 for d in parent.iterdir():
                     if d.is_dir():
                         local_claude = d / ".claude"
                         if local_claude.is_dir():
-                            result.evidence_details.setdefault("project_claude_dirs", []).append(str(local_claude))
+                            result.evidence_details.setdefault(
+                                "project_claude_dirs", []
+                            ).append(str(local_claude))
                             if strength < 0.7:
                                 strength = 0.7
 
         return strength
 
-    def _check_evasion_settings(self, path: Path, result: ScanResult, verbose: bool) -> None:
+    def _check_evasion_settings(
+        self, path: Path, result: ScanResult, verbose: bool
+    ) -> None:
         """Scan settings file for Co-Authored-By suppression (evasion indicator)."""
         try:
             content = path.read_text()
@@ -218,31 +245,37 @@ class ClaudeCodeScanner(BaseScanner):
             self._log(f"  EVASION: Co-Authored-By suppression in {path.name}", verbose)
 
     def _scan_network(self, result: ScanResult, verbose: bool) -> float:
-        """Check for connections to api.anthropic.com and npm registry."""
+        """Check for connections to api.anthropic.com and npm registry.
+
+        Uses the psutil-backed get_connections() compat layer (cross-platform).
+        lsof/netstat are not called directly — they are Unix-only and not
+        available on Windows.
+        """
         self._log("Scanning network layer...", verbose)
         strength = 0.0
 
-        lsof = self._run_cmd(["lsof", "-i", "-n", "-P"])
-        if lsof and lsof.returncode == 0:
-            for line in lsof.stdout.splitlines():
-                if "api.anthropic.com" in line or "anthropic" in line.lower():
-                    strength = max(strength, 0.5)
-                    result.evidence_details.setdefault("network_connections", []).append(line.strip())
-                    self._log("  Found anthropic connection", verbose)
+        conns = get_connections()
+        tls_count = 0
+        for conn in conns:
+            if conn.status == "ESTABLISHED":
+                tls_count += 1
+            remote = conn.remote_addr or ""
+            if "anthropic" in remote.lower():
+                strength = max(strength, 0.5)
+                entry = f"{conn.local_addr}:{conn.local_port} -> {remote}:{conn.remote_port}"
+                result.evidence_details.setdefault("network_connections", []).append(
+                    entry
+                )
+                self._log("  Found anthropic connection", verbose)
 
-                if "registry.npmjs.org" in line and "claude" in line.lower():
-                    strength = max(strength, 0.35)
-                    result.evidence_details.setdefault("npm_connections", []).append(line.strip())
-
-        netstat = self._run_cmd(["netstat", "-an"])
-        if netstat and netstat.returncode == 0:
-            for line in netstat.stdout.splitlines():
-                if "443" in line and "ESTABLISHED" in line:
-                    result.evidence_details.setdefault("active_tls_count", 0)
-                    result.evidence_details["active_tls_count"] += 1
+        if tls_count > 0:
+            result.evidence_details["active_tls_count"] = tls_count
 
         if strength == 0.0:
-            self._log("  No anthropic network connections found (expected without EDR)", verbose)
+            self._log(
+                "  No anthropic network connections found (expected without EDR)",
+                verbose,
+            )
 
         return strength
 
@@ -278,10 +311,17 @@ class ClaudeCodeScanner(BaseScanner):
         if git_trailers:
             strength = max(strength, 0.85)
             result.evidence_details["git_coauthored_trailers"] = git_trailers
-            self._log(f"  Co-Authored-By trailers found in {len(git_trailers)} repo(s)", verbose)
+            self._log(
+                f"  Co-Authored-By trailers found in {len(git_trailers)} repo(s)",
+                verbose,
+            )
 
         git_identity = self._run_cmd(["git", "config", "--global", "user.email"])
-        if git_identity and git_identity.returncode == 0 and git_identity.stdout.strip():
+        if (
+            git_identity
+            and git_identity.returncode == 0
+            and git_identity.stdout.strip()
+        ):
             result.evidence_details["git_user_email"] = git_identity.stdout.strip()
 
         return strength
@@ -294,8 +334,8 @@ class ClaudeCodeScanner(BaseScanner):
         """
         results: list[dict[str, str]] = []
         search_dirs = [
-            Path.home() / d for d in
-            ["Documents", "Projects", "repos", "src", "code", "claude-lab"]
+            Path.home() / d
+            for d in ["Documents", "Projects", "repos", "src", "code", "claude-lab"]
         ]
         repos_scanned = 0
 
@@ -314,17 +354,20 @@ class ClaudeCodeScanner(BaseScanner):
                     continue
                 repos_scanned += 1
                 log = self._run_cmd(
-                    ["git", "-C", str(candidate), "log", "--all",
-                     "--format=%b", "-50"],
-                    timeout=5
+                    ["git", "-C", str(candidate), "log", "--all", "--format=%b", "-50"],
+                    timeout=5,
                 )
                 if log and log.returncode == 0:
                     for line in log.stdout.splitlines():
-                        if re.search(r"Co-Authored-By:.*anthropic\.com", line, re.IGNORECASE):
-                            results.append({
-                                "repo": str(candidate),
-                                "trailer": line.strip(),
-                            })
+                        if re.search(
+                            r"Co-Authored-By:.*anthropic\.com", line, re.IGNORECASE
+                        ):
+                            results.append(
+                                {
+                                    "repo": str(candidate),
+                                    "trailer": line.strip(),
+                                }
+                            )
                             break
         return results
 
@@ -343,17 +386,23 @@ class ClaudeCodeScanner(BaseScanner):
             recent_threshold = 3600  # 1 hour
             try:
                 recent_files = [
-                    f for f in claude_dir.rglob("*")
+                    f
+                    for f in claude_dir.rglob("*")
                     if f.is_file() and (now - f.stat().st_mtime) < recent_threshold
                 ]
                 if recent_files:
                     strength = max(strength, 0.7)
                     result.evidence_details["recent_claude_files"] = len(recent_files)
-                    self._log(f"  {len(recent_files)} files modified in last hour", verbose)
+                    self._log(
+                        f"  {len(recent_files)} files modified in last hour", verbose
+                    )
                     if len(recent_files) > 20:
                         strength = max(strength, 0.9)
             except (PermissionError, OSError) as exc:
-                logger.debug("Could not list recent files in ~/.claude/ for behavior scan: %s", exc)
+                logger.debug(
+                    "Could not list recent files in ~/.claude/ for behavior scan: %s",
+                    exc,
+                )
 
         if result.evidence_details.get("git_coauthored_trailers"):
             strength = max(strength, 0.8)
@@ -413,8 +462,6 @@ class ClaudeCodeScanner(BaseScanner):
         if summaries:
             result.action_summary = "; ".join(summaries)
         elif result.signals.identity > 0:
-            result.action_summary = (
-                "Environment or artifact hint only; no running Claude Code process or strong artifact."
-            )
+            result.action_summary = "Environment or artifact hint only; no running Claude Code process or strong artifact."
         else:
             result.action_summary = "No Claude Code signals detected"

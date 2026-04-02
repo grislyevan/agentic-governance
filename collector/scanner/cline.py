@@ -67,8 +67,16 @@ class ClineScanner(BaseScanner):
             behavior=behavior_strength,
         )
 
-        if any(s > 0.0 for s in [process_strength, file_strength, network_strength,
-                                   identity_strength, behavior_strength]):
+        if any(
+            s > 0.0
+            for s in [
+                process_strength,
+                file_strength,
+                network_strength,
+                identity_strength,
+                behavior_strength,
+            ]
+        ):
             result.detected = True
 
         self._apply_penalties(result)
@@ -86,7 +94,9 @@ class ClineScanner(BaseScanner):
                 continue
             try:
                 for entry in ext_dir.iterdir():
-                    if not entry.is_dir() or not entry.name.startswith(EXTENSION_GLOB_PREFIX):
+                    if not entry.is_dir() or not entry.name.startswith(
+                        EXTENSION_GLOB_PREFIX
+                    ):
                         continue
                     pkg = entry / "package.json"
                     if pkg.is_file():
@@ -97,7 +107,9 @@ class ClineScanner(BaseScanner):
                                 self._log(f"Version from manifest: {version}", verbose)
                                 return str(version)
                         except (json.JSONDecodeError, OSError) as exc:
-                            logger.debug("Could not read Cline package.json %s: %s", pkg, exc)
+                            logger.debug(
+                                "Could not read Cline package.json %s: %s", pkg, exc
+                            )
             except (PermissionError, OSError):
                 continue
         return None
@@ -121,33 +133,38 @@ class ClineScanner(BaseScanner):
         cursor = get_tool_paths("cursor")
         result: list[tuple[str, Path]] = []
         if vscode.config_dir:
-            result.append(("VSCode", vscode.config_dir / "User" / "globalStorage" / EXTENSION_ID))
+            result.append(
+                ("VSCode", vscode.config_dir / "User" / "globalStorage" / EXTENSION_ID)
+            )
         if cursor.config_dir:
-            result.append(("Cursor", cursor.config_dir / "User" / "globalStorage" / EXTENSION_ID))
+            result.append(
+                ("Cursor", cursor.config_dir / "User" / "globalStorage" / EXTENSION_ID)
+            )
         return result
 
     def _scan_process(self, result: ScanResult, verbose: bool) -> float:
-        """Check for VS Code / Cursor extension host processes."""
+        """Check for VS Code / Cursor extension host processes.
+
+        Uses the psutil-backed find_processes() compat layer (cross-platform).
+        pgrep is not called directly — it is Unix-only and not available on Windows.
+        """
         self._log("Scanning process layer...", verbose)
         strength = 0.0
 
         for ide_name in ("Code", "Cursor"):
-            proc = self._run_cmd(["pgrep", "-fl", ide_name])
-            if not (proc and proc.returncode == 0 and proc.stdout.strip()):
-                continue
-            for line in proc.stdout.strip().splitlines():
-                parts = line.split(None, 1)
-                if len(parts) < 2:
+            procs = find_processes(ide_name)
+            for p in procs:
+                if "collector" in p.cmdline.lower():
                     continue
-                pid, cmdline = parts
-                if "pgrep" in cmdline.lower() or "collector" in cmdline.lower():
-                    continue
-                if "extensionHost" in cmdline or "extension-host" in cmdline:
-                    result.evidence_details.setdefault("extension_hosts", []).append({
-                        "ide": ide_name, "pid": pid,
-                    })
+                if "extensionHost" in p.cmdline or "extension-host" in p.cmdline:
+                    result.evidence_details.setdefault("extension_hosts", []).append(
+                        {
+                            "ide": ide_name,
+                            "pid": str(p.pid),
+                        }
+                    )
                     strength = max(strength, 0.30)
-                    self._log(f"  {ide_name} extension host PID {pid}", verbose)
+                    self._log(f"  {ide_name} extension host PID {p.pid}", verbose)
 
         if strength > 0:
             self._log(
@@ -186,9 +203,12 @@ class ClineScanner(BaseScanner):
         for ide_label, storage_dir in self._all_storage_dirs():
             if not storage_dir.is_dir():
                 continue
-            result.evidence_details.setdefault("global_storage_dirs", []).append({
-                "ide": ide_label, "path": str(storage_dir),
-            })
+            result.evidence_details.setdefault("global_storage_dirs", []).append(
+                {
+                    "ide": ide_label,
+                    "path": str(storage_dir),
+                }
+            )
             strength = max(strength, 0.75)
             self._log(f"  GlobalStorage found ({ide_label}): {storage_dir}", verbose)
 
@@ -209,7 +229,9 @@ class ClineScanner(BaseScanner):
             try:
                 task_dirs = [d for d in tasks_dir.iterdir() if d.is_dir()]
                 result.evidence_details["task_count"] = len(task_dirs)
-                self._log(f"  {len(task_dirs)} task(s) in {ide_label} task history", verbose)
+                self._log(
+                    f"  {len(task_dirs)} task(s) in {ide_label} task history", verbose
+                )
 
                 # Check most recent task for tool-call evidence
                 if task_dirs:
@@ -231,7 +253,11 @@ class ClineScanner(BaseScanner):
                     self._log(f"  API conversation log: {len(data)} messages", verbose)
                 break
             except (json.JSONDecodeError, OSError) as exc:
-                logger.debug("Could not read Cline api_conversation_history.json %s: %s", api_log, exc)
+                logger.debug(
+                    "Could not read Cline api_conversation_history.json %s: %s",
+                    api_log,
+                    exc,
+                )
 
     def _inspect_task(self, task_dir: Path, result: ScanResult, verbose: bool) -> None:
         """Examine a Cline task directory for tool-call activity."""
@@ -241,13 +267,21 @@ class ClineScanner(BaseScanner):
                 data = json.loads(ui_messages.read_text())
                 if isinstance(data, list):
                     tool_calls = [
-                        m for m in data
-                        if isinstance(m, dict) and m.get("type") in (
-                            "tool_use", "tool", "tool_call", "ask",
+                        m
+                        for m in data
+                        if isinstance(m, dict)
+                        and m.get("type")
+                        in (
+                            "tool_use",
+                            "tool",
+                            "tool_call",
+                            "ask",
                         )
                     ]
                     if tool_calls:
-                        result.evidence_details["tool_calls_in_last_task"] = len(tool_calls)
+                        result.evidence_details["tool_calls_in_last_task"] = len(
+                            tool_calls
+                        )
                         self._dynamic_tool_class = "C"
                         self._log(
                             f"  {len(tool_calls)} tool call(s) in latest task → Class C",
@@ -255,15 +289,21 @@ class ClineScanner(BaseScanner):
                         )
                     # Check for file writes and shell executions
                     write_ops = [
-                        m for m in data
-                        if isinstance(m, dict) and str(m.get("type", "")).lower()
+                        m
+                        for m in data
+                        if isinstance(m, dict)
+                        and str(m.get("type", "")).lower()
                         in ("write_to_file", "execute_command", "browser_action")
                     ]
                     if write_ops:
-                        result.evidence_details["write_ops_in_last_task"] = len(write_ops)
+                        result.evidence_details["write_ops_in_last_task"] = len(
+                            write_ops
+                        )
                         self._dynamic_tool_class = "C"
         except (json.JSONDecodeError, OSError) as exc:
-            logger.debug("Could not read Cline ui_messages.json %s: %s", ui_messages, exc)
+            logger.debug(
+                "Could not read Cline ui_messages.json %s: %s", ui_messages, exc
+            )
 
     def _scan_network(self, result: ScanResult, verbose: bool) -> float:
         """Check for API traffic from extension host PIDs."""
@@ -288,18 +328,28 @@ class ClineScanner(BaseScanner):
             if c.remote_port == 443:
                 tls_conns.append(c)
             remote = (c.remote_addr or "").lower()
-            if any(addr in remote for addr in llm_remote_addrs) or c.remote_port in llm_ports:
+            if (
+                any(addr in remote for addr in llm_remote_addrs)
+                or c.remote_port in llm_ports
+            ):
                 pid_str = str(c.pid) if c.pid is not None else "?"
-                llm_conns.append(f"{pid_str} {c.remote_addr}:{c.remote_port} {c.status}")
+                llm_conns.append(
+                    f"{pid_str} {c.remote_addr}:{c.remote_port} {c.status}"
+                )
 
         if llm_conns:
             strength = 0.55
             result.evidence_details["llm_connections"] = llm_conns[:5]
-            self._log(f"  {len(llm_conns)} LLM endpoint connection(s) from extension host", verbose)
+            self._log(
+                f"  {len(llm_conns)} LLM endpoint connection(s) from extension host",
+                verbose,
+            )
         elif tls_conns:
             strength = 0.35
             result.evidence_details["tls_connection_count"] = len(tls_conns)
-            self._log(f"  {len(tls_conns)} TLS connection(s) from extension host", verbose)
+            self._log(
+                f"  {len(tls_conns)} TLS connection(s) from extension host", verbose
+            )
 
         return strength
 
@@ -309,12 +359,15 @@ class ClineScanner(BaseScanner):
         strength = 0.0
 
         import getpass
+
         result.evidence_details["identity_user"] = getpass.getuser()
         strength = 0.25
 
         for key_name in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY"):
             if os.environ.get(key_name):
-                result.evidence_details.setdefault("api_keys_present", []).append(key_name)
+                result.evidence_details.setdefault("api_keys_present", []).append(
+                    key_name
+                )
                 strength = max(strength, 0.45)
                 self._log(f"  API key in env: {key_name}", verbose)
 
@@ -337,14 +390,19 @@ class ClineScanner(BaseScanner):
         if write_ops > 0:
             strength = 0.85
             self._dynamic_tool_class = "C"
-            self._log(f"  {write_ops} file write / shell exec / browser op(s) in last task → Class C", verbose)
+            self._log(
+                f"  {write_ops} file write / shell exec / browser op(s) in last task → Class C",
+                verbose,
+            )
         elif tool_calls > 0:
             strength = 0.75
             self._dynamic_tool_class = "C"
             self._log(f"  {tool_calls} tool call(s) in last task → Class C", verbose)
         elif task_count > 0:
             strength = 0.55
-            self._log(f"  {task_count} task(s) in history (no active tool calls)", verbose)
+            self._log(
+                f"  {task_count} task(s) in history (no active tool calls)", verbose
+            )
 
         # Check recency of task files
         now = time.time()
@@ -354,13 +412,18 @@ class ClineScanner(BaseScanner):
                 continue
             try:
                 for task_dir in (storage_dir / "tasks").iterdir():
-                    if task_dir.is_dir() and (now - task_dir.stat().st_mtime) < recent_threshold:
+                    if (
+                        task_dir.is_dir()
+                        and (now - task_dir.stat().st_mtime) < recent_threshold
+                    ):
                         result.evidence_details["recent_task"] = True
                         strength = max(strength, 0.70)
                         self._log("  Recent Cline task (modified within 1h)", verbose)
                         break
             except (PermissionError, OSError) as exc:
-                logger.debug("Could not iterate Cline task dirs for recency check: %s", exc)
+                logger.debug(
+                    "Could not iterate Cline task dirs for recency check: %s", exc
+                )
 
         if result.evidence_details.get("api_conversation_count", 0) > 10:
             strength = max(strength, 0.65)
@@ -379,7 +442,9 @@ class ClineScanner(BaseScanner):
 
         if result.evidence_details.get("write_ops_in_last_task"):
             count = result.evidence_details["write_ops_in_last_task"]
-            summaries.append(f"Cline Class C: {count} write/exec/browser op(s) in last task")
+            summaries.append(
+                f"Cline Class C: {count} write/exec/browser op(s) in last task"
+            )
             result.action_type = "exec"
             result.action_risk = "R3"
         elif result.evidence_details.get("tool_calls_in_last_task"):
@@ -409,4 +474,6 @@ class ClineScanner(BaseScanner):
         if result.evidence_details.get("llm_connections"):
             summaries.append("active LLM API connection from extension host")
 
-        result.action_summary = "; ".join(summaries) if summaries else "No Cline signals detected"
+        result.action_summary = (
+            "; ".join(summaries) if summaries else "No Cline signals detected"
+        )
