@@ -10,7 +10,17 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException, Query, Request, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    status,
+)
 from pydantic import BaseModel
 from sqlalchemy import desc, func, text
 from sqlalchemy.exc import IntegrityError
@@ -35,7 +45,13 @@ from core.database import get_db
 from core.event_validator import validate_event_payload
 from core.retention import purge_tenant_events
 from core.auth_cookies import get_authorization
-from core.tenant import get_tenant_id as _get_tenant_id, resolve_auth, get_tenant_filter, strict_tenant_filter, require_role
+from core.tenant import (
+    get_tenant_id as _get_tenant_id,
+    resolve_auth,
+    get_tenant_filter,
+    strict_tenant_filter,
+    require_role,
+)
 from models.endpoint import Endpoint
 from models.event import Event
 from schemas.events import EventIngest, EventListResponse, EventResponse
@@ -46,6 +62,7 @@ logger = logging.getLogger(__name__)
 try:
     from cryptography.hazmat.primitives.serialization import load_pem_public_key
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
     _HAS_CRYPTO = True
 except ImportError:
     _HAS_CRYPTO = False
@@ -59,27 +76,33 @@ def _get_or_create_endpoint(
     if not endpoint_data:
         return None
     hostname = endpoint_data.get("id") or endpoint_data.get("hostname", "unknown")
-    ep = db.query(Endpoint).filter(
-        Endpoint.tenant_id == tenant_id, Endpoint.hostname == hostname
-    ).first()
+    ep = (
+        db.query(Endpoint)
+        .filter(Endpoint.tenant_id == tenant_id, Endpoint.hostname == hostname)
+        .first()
+    )
     if not ep:
         ep = Endpoint(
             id=str(uuid.uuid4()),
             tenant_id=tenant_id,
             hostname=hostname,
             os_info=endpoint_data.get("os"),
-            management_state=endpoint_data.get("management_state", endpoint_data.get("posture", "unmanaged")),
+            management_state=endpoint_data.get(
+                "management_state", endpoint_data.get("posture", "unmanaged")
+            ),
         )
         db.add(ep)
         try:
             db.flush()
         except IntegrityError:
             db.rollback()
-            ep = db.query(Endpoint).filter(
-                Endpoint.tenant_id == tenant_id, Endpoint.hostname == hostname
-            ).first()
+            ep = (
+                db.query(Endpoint)
+                .filter(Endpoint.tenant_id == tenant_id, Endpoint.hostname == hostname)
+                .first()
+            )
             if ep is None:
-                return None   # caller handles None
+                return None  # caller handles None
     ep.last_seen_at = datetime.now(timezone.utc)
     return ep.id
 
@@ -95,10 +118,14 @@ def _verify_signature(body: EventIngest, db: Session, tenant_id: str) -> bool | 
     if not sig_hex or not fingerprint or not _HAS_CRYPTO:
         return None
 
-    ep = db.query(Endpoint).filter(
-        Endpoint.tenant_id == tenant_id,
-        Endpoint.key_fingerprint == fingerprint,
-    ).first()
+    ep = (
+        db.query(Endpoint)
+        .filter(
+            Endpoint.tenant_id == tenant_id,
+            Endpoint.key_fingerprint == fingerprint,
+        )
+        .first()
+    )
     if ep is None or ep.signing_public_key is None:
         logger.warning("Signature from unknown fingerprint %s", fingerprint)
         return False
@@ -110,15 +137,22 @@ def _verify_signature(body: EventIngest, db: Session, tenant_id: str) -> bool | 
 
         event_dict = body.model_dump(exclude={"signature", "key_fingerprint"})
         filtered = {k: v for k, v in event_dict.items() if v is not None}
-        canonical = json.dumps(filtered, sort_keys=True, separators=(",", ":"), default=str).encode()
+        canonical = json.dumps(
+            filtered, sort_keys=True, separators=(",", ":"), default=str
+        ).encode()
         sig_bytes = bytes.fromhex(sig_hex)
         pub_key.verify(sig_bytes, canonical)
         return True
     except (ValueError, TypeError) as exc:
-        logger.warning("Signature verification failed for fingerprint %s: %s", fingerprint, exc)
+        logger.warning(
+            "Signature verification failed for fingerprint %s: %s", fingerprint, exc
+        )
         return False
     except Exception:
-        logger.exception("Unexpected error during signature verification for fingerprint %s", fingerprint)
+        logger.exception(
+            "Unexpected error during signature verification for fingerprint %s",
+            fingerprint,
+        )
         return False
 
 
@@ -148,7 +182,9 @@ def _record_beh009_metrics(event_payload: dict[str, Any]) -> None:
         logger.exception("Unexpected error in BEH-009 metric recording")
 
 
-def _record_agent_telemetry_metrics(event_payload: dict[str, Any], endpoint_id: str | None) -> None:
+def _record_agent_telemetry_metrics(
+    event_payload: dict[str, Any], endpoint_id: str | None
+) -> None:
     """Update Prometheus gauges from agent_status in event payload (additive, fail-open)."""
     try:
         agent_status = event_payload.get("agent_status")
@@ -171,7 +207,9 @@ def _record_agent_telemetry_metrics(event_payload: dict[str, Any], endpoint_id: 
 
         capability_drift = agent_status.get("capability_drift") or []
         for cap in capability_drift:
-            detec_agent_capability_drift_total.labels(endpoint_id=eid, capability=str(cap)).inc()
+            detec_agent_capability_drift_total.labels(
+                endpoint_id=eid, capability=str(cap)
+            ).inc()
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
         logger.warning("Agent telemetry metric recording failed: %s", exc)
     except Exception:
@@ -233,7 +271,12 @@ async def _run_edr_enforcement(
 
 
 async def _run_edr_enrichment(event_payload: dict[str, object]) -> None:
-    """Background task: run EDR enrichment."""
+    """Background task: run EDR enrichment and persist confidence updates.
+
+    When enrichment raises the confidence band (e.g. Medium → High), the
+    ``Event.attribution_confidence`` column is updated in-place and an
+    ``enrichment.applied`` audit record is written so the change is auditable.
+    """
     from core.config import settings as _settings
 
     if not _settings.edr_enrichment_enabled or not _settings.edr_configured:
@@ -257,13 +300,67 @@ async def _run_edr_enrichment(event_payload: dict[str, object]) -> None:
             provider=provider,
             settings=_settings,
         )
-        if result and result.band_changed:
-            logger.info(
-                "EDR enrichment changed band for event %s: %.4f -> %.4f",
-                event_payload.get("event_id"),
-                result.original_confidence,
-                result.enriched_confidence,
-            )
+        if result is None:
+            return
+
+        logger.info(
+            "EDR enrichment for event %s: %.4f -> %.4f (band_changed=%s, penalties_removed=%s)",
+            event_payload.get("event_id"),
+            result.original_confidence,
+            result.enriched_confidence,
+            result.band_changed,
+            result.penalties_removed,
+        )
+
+        # Always persist the enriched confidence score; write an audit record
+        # when the band changes so analysts can see the EDR-driven rescore.
+        from core.database import SessionLocal
+
+        db = SessionLocal()
+        try:
+            event_id_val = event_payload.get("event_id")
+            ev_row = db.query(Event).filter(Event.event_id == event_id_val).first()
+            if ev_row is not None:
+                ev_row.attribution_confidence = result.enriched_confidence
+                # Embed enrichment metadata into the payload JSON for future reads
+                payload_copy = dict(ev_row.payload or {})
+                payload_copy["edr_enrichment"] = {
+                    "provider": result.provider,
+                    "original_confidence": result.original_confidence,
+                    "enriched_confidence": result.enriched_confidence,
+                    "band_changed": result.band_changed,
+                    "penalties_removed": result.penalties_removed,
+                    "process_events_matched": result.process_events_matched,
+                    "network_events_matched": result.network_events_matched,
+                    "file_events_matched": result.file_events_matched,
+                }
+                ev_row.payload = payload_copy
+                db.commit()
+
+                if result.band_changed:
+                    audit_record(
+                        db,
+                        tenant_id=ev_row.tenant_id,
+                        actor_id=None,
+                        actor_type="system",
+                        action="enrichment.applied",
+                        resource_type="event",
+                        resource_id=str(ev_row.id),
+                        detail={
+                            "provider": result.provider,
+                            "original_confidence": result.original_confidence,
+                            "enriched_confidence": result.enriched_confidence,
+                            "penalties_removed": result.penalties_removed,
+                        },
+                    )
+                    db.commit()
+                    logger.info(
+                        "EDR enrichment applied: confidence band changed for event %s",
+                        event_id_val,
+                    )
+        finally:
+            db.close()
+
     except (ConnectionError, OSError, TimeoutError) as exc:
         logger.warning(
             "EDR enrichment network error for event %s: %s",
@@ -300,23 +397,31 @@ def ingest_event(
     """
     tenant_id = _get_tenant_id(authorization, x_api_key, db)
 
-    validation_errors = validate_event_payload(body.model_dump(mode="json", exclude_none=True))
+    validation_errors = validate_event_payload(
+        body.model_dump(mode="json", exclude_none=True)
+    )
     if validation_errors:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Event validation failed: {'; '.join(validation_errors)}",
         )
 
-    existing = db.query(Event).filter(
-        Event.event_id == body.event_id,
-        Event.tenant_id == tenant_id,
-    ).first()
+    existing = (
+        db.query(Event)
+        .filter(
+            Event.event_id == body.event_id,
+            Event.tenant_id == tenant_id,
+        )
+        .first()
+    )
     if existing:
         return EventResponse.model_validate(existing)
 
     sig_verified = _verify_signature(body, db, tenant_id)
     if sig_verified is False:
-        logger.warning("Rejected event %s: signature verification failed", body.event_id)
+        logger.warning(
+            "Rejected event %s: signature verification failed", body.event_id
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Event signature verification failed",
@@ -326,15 +431,20 @@ def ingest_event(
     ep_data = body.endpoint or {}
     ep_hostname = ep_data.get("id") or ep_data.get("hostname")
     if sig_verified is None and ep_hostname and _HAS_CRYPTO:
-        enrolled_ep = db.query(Endpoint).filter(
-            Endpoint.tenant_id == tenant_id,
-            Endpoint.hostname == ep_hostname,
-            Endpoint.signing_public_key.isnot(None),
-        ).first()
+        enrolled_ep = (
+            db.query(Endpoint)
+            .filter(
+                Endpoint.tenant_id == tenant_id,
+                Endpoint.hostname == ep_hostname,
+                Endpoint.signing_public_key.isnot(None),
+            )
+            .first()
+        )
         if enrolled_ep is not None:
             logger.warning(
                 "Rejected unsigned event %s from enrolled endpoint %s",
-                body.event_id, ep_hostname,
+                body.event_id,
+                ep_hostname,
             )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -343,7 +453,9 @@ def ingest_event(
 
     endpoint_id = _get_or_create_endpoint(tenant_id, body.endpoint, db)
     if endpoint_id is None and body.endpoint:
-        raise HTTPException(status_code=503, detail="Endpoint registration conflict, retry")
+        raise HTTPException(
+            status_code=503, detail="Endpoint registration conflict, retry"
+        )
 
     tool = body.tool or {}
     policy = body.policy or {}
@@ -381,13 +493,19 @@ def ingest_event(
         db.commit()
     except IntegrityError:
         db.rollback()
-        existing = db.query(Event).filter(
-            Event.event_id == body.event_id,
-            Event.tenant_id == tenant_id,
-        ).first()
+        existing = (
+            db.query(Event)
+            .filter(
+                Event.event_id == body.event_id,
+                Event.tenant_id == tenant_id,
+            )
+            .first()
+        )
         if existing:
             return EventResponse.model_validate(existing)
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Duplicate event_id")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Duplicate event_id"
+        )
     db.refresh(event)
 
     event_type_val = body.event_type
@@ -418,13 +536,16 @@ def ingest_event(
         _dispatch_webhooks(db, tenant_id, event_payload)
     except (ConnectionError, OSError, TimeoutError) as exc:
         detec_http_webhook_errors_total.inc()
-        logger.warning("Webhook dispatch network error for event %s: %s", body.event_id, exc)
+        logger.warning(
+            "Webhook dispatch network error for event %s: %s", body.event_id, exc
+        )
     except Exception:
         detec_http_webhook_errors_total.inc()
         logger.exception("Webhook dispatch failed for event %s", body.event_id)
 
     try:
         from core.config import settings as _cfg
+
         if _cfg.edr_enrichment_enabled and _cfg.edr_configured:
             background_tasks.add_task(
                 _run_edr_enrichment,
@@ -436,7 +557,8 @@ def ingest_event(
         logger.exception("EDR enrichment hook failed to queue")
 
     if event_type_val and event_type_val in (
-        "enforcement.applied", "enforcement.simulated"
+        "enforcement.applied",
+        "enforcement.simulated",
     ):
         background_tasks.add_task(
             _run_edr_enforcement,
@@ -490,7 +612,9 @@ def _run_playbooks_background(
             db.close()
     except ImportError:
         detec_playbook_run_outcomes_total.labels(result="failure").inc()
-        logger.warning("Playbook background task setup failed: missing import", exc_info=True)
+        logger.warning(
+            "Playbook background task setup failed: missing import", exc_info=True
+        )
     except Exception:
         detec_playbook_run_outcomes_total.labels(result="failure").inc()
         logger.exception("Playbook background task setup failed")
@@ -615,12 +739,18 @@ def get_event(
 ) -> EventResponse:
     """Get a single event by id. Tenant-scoped."""
     auth = resolve_auth(authorization, x_api_key, db)
-    event = db.query(Event).filter(
-        Event.id == event_id,
-        strict_tenant_filter(auth, Event),
-    ).first()
+    event = (
+        db.query(Event)
+        .filter(
+            Event.id == event_id,
+            strict_tenant_filter(auth, Event),
+        )
+        .first()
+    )
     if not event:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
+        )
     return EventResponse.model_validate(event)
 
 
@@ -648,7 +778,9 @@ async def _push_kill_to_agent(
         if sent:
             logger.info(
                 "Pushed kill_process command to endpoint %s via TCP (pid=%d, process=%s)",
-                endpoint_id, pid, process_name,
+                endpoint_id,
+                pid,
+                process_name,
             )
         else:
             logger.warning(
@@ -656,9 +788,13 @@ async def _push_kill_to_agent(
                 endpoint_id,
             )
     except (ConnectionError, OSError, asyncio.TimeoutError) as exc:
-        logger.warning("Could not push kill_process to endpoint %s: %s", endpoint_id, exc)
+        logger.warning(
+            "Could not push kill_process to endpoint %s: %s", endpoint_id, exc
+        )
     except Exception:
-        logger.exception("Unexpected error pushing kill_process to endpoint %s", endpoint_id)
+        logger.exception(
+            "Unexpected error pushing kill_process to endpoint %s", endpoint_id
+        )
 
 
 @router.post("/{event_id}/block", response_model=BlockResponse)
@@ -675,12 +811,18 @@ def block_event(
     require_role(auth, "owner", "admin")
 
     # Mutation path must use strict tenant scoping (BOLA guard).
-    event = db.query(Event).filter(
-        Event.id == event_id,
-        strict_tenant_filter(auth, Event),
-    ).first()
+    event = (
+        db.query(Event)
+        .filter(
+            Event.id == event_id,
+            strict_tenant_filter(auth, Event),
+        )
+        .first()
+    )
     if not event:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
+        )
 
     payload = dict(event.payload) if event.payload else {}
     policy = payload.get("policy") or {}
@@ -689,7 +831,7 @@ def block_event(
     policy["rule_id"] = "ADMIN-BLOCK-ONCE"
     payload["policy"] = policy
     if not payload.get("enforcement") and event.payload:
-        payload["enforcement"] = (event.payload.get("enforcement") or {})
+        payload["enforcement"] = event.payload.get("enforcement") or {}
 
     admin_block_id = str(uuid.uuid4())
     admin_block_event = Event(
@@ -734,7 +876,9 @@ def block_event(
             )
             enforcement_triggered = True
         except Exception:
-            logger.warning("EDR enforcement task not queued for admin block", exc_info=True)
+            logger.warning(
+                "EDR enforcement task not queued for admin block", exc_info=True
+            )
 
         # Also push kill command directly to agent via TCP gateway if connected.
         gateway = getattr(request.app.state, "gateway", None)
@@ -754,7 +898,10 @@ def block_event(
                         tool_name,
                     )
                 except Exception:
-                    logger.warning("Gateway kill push task not queued for admin block", exc_info=True)
+                    logger.warning(
+                        "Gateway kill push task not queued for admin block",
+                        exc_info=True,
+                    )
 
     return BlockResponse(
         event_id=event_id,

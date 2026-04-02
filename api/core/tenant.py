@@ -42,12 +42,15 @@ AGENT_ROLE = "agent"
 @dataclass(frozen=True)
 class AuthContext:
     """Authentication result carrying tenant, user, and role info."""
+
     tenant_id: str
     user_id: str | None = None
     role: str | None = None
 
 
-def resolve_auth(authorization: str | None, x_api_key: str | None, db: Session) -> AuthContext:
+def resolve_auth(
+    authorization: str | None, x_api_key: str | None, db: Session
+) -> AuthContext:
     """Resolve full auth context from JWT, user API key, or tenant agent key.
 
     Lookup order:
@@ -85,15 +88,46 @@ def resolve_auth(authorization: str | None, x_api_key: str | None, db: Session) 
                 )
 
         from models.tenant import Tenant
+
         _INACTIVE_SUBSCRIPTION_STATUSES = {"canceled", "past_due", "unpaid"}
 
-        # New path: prefix lookup + constant-time hash verification
+        # Per-endpoint key lookup (takes priority over tenant key).
+        # Agents configured with a per-endpoint key will match here; the
+        # tenant context is derived from the endpoint's tenant_id.
+        ep_prefix = x_api_key[:AGENT_KEY_PREFIX_LEN]
+        from models.endpoint import Endpoint
+
+        ep_candidates = (
+            db.query(Endpoint).filter(Endpoint.agent_key_prefix == ep_prefix).all()
+        )
+        for ep in ep_candidates:
+            if ep.agent_key_hash and verify_agent_key(x_api_key, ep.agent_key_hash):
+                # Validate the parent tenant is still active
+                tenant = db.query(Tenant).filter(Tenant.id == ep.tenant_id).first()
+                if (
+                    tenant
+                    and getattr(tenant, "subscription_status", None)
+                    in _INACTIVE_SUBSCRIPTION_STATUSES
+                ):
+                    return None
+                return AuthContext(
+                    tenant_id=ep.tenant_id,
+                    user_id=None,
+                    role=AGENT_ROLE,
+                )
+
+        # Tenant-level agent key lookup (fleet-wide key)
         prefix = x_api_key[:AGENT_KEY_PREFIX_LEN]
         candidates = db.query(Tenant).filter(Tenant.agent_key_prefix == prefix).all()
         for candidate in candidates:
-            if candidate.agent_key_hash and verify_agent_key(x_api_key, candidate.agent_key_hash):
+            if candidate.agent_key_hash and verify_agent_key(
+                x_api_key, candidate.agent_key_hash
+            ):
                 # Don't authenticate tenants with inactive subscriptions
-                if getattr(candidate, "subscription_status", None) in _INACTIVE_SUBSCRIPTION_STATUSES:
+                if (
+                    getattr(candidate, "subscription_status", None)
+                    in _INACTIVE_SUBSCRIPTION_STATUSES
+                ):
                     return None  # treat as unauthenticated
                 return AuthContext(
                     tenant_id=candidate.id,
@@ -101,7 +135,9 @@ def resolve_auth(authorization: str | None, x_api_key: str | None, db: Session) 
                     role=AGENT_ROLE,
                 )
     logger.warning("Authentication failed: no valid JWT or API key provided")
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+    )
 
 
 def get_tenant_id(authorization: str | None, x_api_key: str | None, db: Session) -> str:
@@ -153,7 +189,9 @@ def require_role(
     if auth.role not in allowed_roles:
         logger.warning(
             "Access denied: user %s has role '%s', required one of %s",
-            auth.user_id, auth.role, allowed_roles,
+            auth.user_id,
+            auth.role,
+            allowed_roles,
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
