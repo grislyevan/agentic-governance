@@ -4,7 +4,7 @@ const CARDS = [
     label: 'Blocked',
     color: 'bg-detec-enforce-block border-detec-enforce-block',
     text: 'text-white',
-    mutedColor: 'bg-detec-slate-800 border-detec-slate-700',
+    mutedColor: 'bg-detec-surface border-detec-edge',
     icon: BlockIcon,
   },
   {
@@ -12,28 +12,28 @@ const CARDS = [
     label: 'Approval Required',
     color: 'bg-detec-enforce-approval border-detec-enforce-approval',
     text: 'text-white',
-    mutedColor: 'bg-detec-slate-800 border-detec-slate-700',
+    mutedColor: 'bg-detec-surface border-detec-edge',
     icon: ApprovalIcon,
   },
   {
     key: 'warn',
     label: 'Warned',
     color: 'bg-detec-enforce-warn border-detec-enforce-warn',
-    text: 'text-detec-slate-900',
-    mutedColor: 'bg-detec-slate-800 border-detec-slate-700',
+    text: 'text-detec-void',
+    mutedColor: 'bg-detec-surface border-detec-edge',
     icon: WarnIcon,
   },
   {
     key: 'detect',
     label: 'Detected',
-    color: 'bg-detec-primary-500 border-detec-primary-500',
+    color: 'bg-detec-brand border-detec-brand',
     text: 'text-white',
-    mutedColor: 'bg-detec-slate-800 border-detec-slate-700',
+    mutedColor: 'bg-detec-surface border-detec-edge',
     icon: DetectIcon,
   },
 ];
 
-const MUTED_TEXT = 'text-detec-slate-400';
+const MUTED_TEXT = 'text-detec-ink-secondary';
 
 export default function SummaryCards({ counts, onCardClick }) {
   return (
@@ -53,7 +53,7 @@ export default function SummaryCards({ counts, onCardClick }) {
             tabIndex={clickable ? 0 : undefined}
             onClick={clickable ? () => onCardClick(card.key) : undefined}
             onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCardClick(card.key); } } : undefined}
-            className={`rounded-xl border px-5 py-4 flex items-center justify-between ${cardColor} ${hoverClass}`}
+            className={`rounded-detec-md border px-5 py-4 flex items-center justify-between ${cardColor} ${hoverClass}`}
           >
             <div className="flex items-center gap-3">
               <card.icon muted={isZero} />

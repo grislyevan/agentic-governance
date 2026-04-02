@@ -132,16 +132,16 @@ export default function CapabilityDriftWidget({ onNavigate }) {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <div className="rounded-xl border border-detec-slate-700 bg-detec-slate-800 p-5 space-y-4">
+    <div className="rounded-detec-md border border-detec-edge bg-detec-surface p-5 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <DriftIcon />
-          <h2 className="text-sm font-semibold text-detec-ui-text">Capability Drift</h2>
+          <h2 className="text-sm font-semibold text-detec-ink-primary">Capability Drift</h2>
         </div>
         <div className="flex items-center gap-3">
           {checkedAt && (
-            <span className="text-xs text-detec-ui-muted" title={checkedAt}>
+            <span className="text-xs text-detec-ink-secondary" title={checkedAt}>
               Checked {relativeTime(checkedAt)}
             </span>
           )}
@@ -149,7 +149,7 @@ export default function CapabilityDriftWidget({ onNavigate }) {
             type="button"
             onClick={load}
             disabled={loading}
-            className="text-xs text-detec-ui-accent hover:underline disabled:opacity-40 transition-opacity"
+            className="text-xs text-detec-brand hover:underline disabled:opacity-40 transition-opacity"
           >
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
@@ -158,22 +158,22 @@ export default function CapabilityDriftWidget({ onNavigate }) {
 
       {/* Loading */}
       {loading && (
-        <div className="flex items-center gap-2 text-sm text-detec-ui-muted">
-          <span className="inline-block w-3 h-3 border-2 border-detec-ui-border border-t-detec-ui-accent rounded-full animate-spin" />
+        <div className="flex items-center gap-2 text-sm text-detec-ink-secondary">
+          <span className="inline-block w-3 h-3 border-2 border-detec-ui-border border-t-detec-brand rounded-full animate-spin" />
           Loading drift data…
         </div>
       )}
 
       {/* Error */}
       {!loading && error && (
-        <div className="rounded-lg border border-detec-enforce-block/20 bg-detec-enforce-block/5 px-4 py-3 text-sm text-detec-enforce-block">
+        <div className="rounded-detec-md border border-detec-enforce-block/20 bg-detec-enforce-block/5 px-4 py-3 text-sm text-detec-enforce-block">
           {error}
         </div>
       )}
 
       {/* No drift */}
       {!loading && !error && driftRows.length === 0 && (
-        <div className="flex items-center gap-2.5 rounded-lg border border-detec-teal-500/30 bg-detec-teal-500/10 px-4 py-3">
+        <div className="flex items-center gap-2.5 rounded-detec-md border border-detec-teal-500/30 bg-detec-teal-500/10 px-4 py-3">
           <GreenCheckIcon />
           <span className="text-sm font-medium text-detec-teal-500">No drift detected</span>
         </div>
@@ -185,23 +185,23 @@ export default function CapabilityDriftWidget({ onNavigate }) {
           {driftRows.map((row) => (
             <div
               key={row.endpointId}
-              className="rounded-lg border border-detec-slate-700 bg-detec-slate-900 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3"
+              className="rounded-detec-md border border-detec-edge bg-detec-void px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3"
             >
               {/* Endpoint + tool info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono text-xs text-detec-ui-text truncate max-w-[200px]" title={row.endpointId}>
+                  <span className="font-mono text-xs text-detec-ink-primary truncate max-w-[200px]" title={row.endpointId}>
                     {row.endpointId}
                   </span>
                   <SeverityBadge level={row.severity} />
                 </div>
-                <p className="text-xs text-detec-ui-muted mt-0.5">
-                  Tool: <span className="text-detec-ui-text">{row.tool}</span>
+                <p className="text-xs text-detec-ink-secondary mt-0.5">
+                  Tool: <span className="text-detec-ink-primary">{row.tool}</span>
                   {' · '}
                   {row.sessionCount} session{row.sessionCount !== 1 ? 's' : ''} with drift
                   {row.latestAt && ` · last ${relativeTime(row.latestAt)}`}
                 </p>
-                <p className="text-xs text-detec-ui-muted mt-0.5">
+                <p className="text-xs text-detec-ink-secondary mt-0.5">
                   Capability disappeared from agent telemetry (capability_drift vector)
                 </p>
               </div>
@@ -212,7 +212,7 @@ export default function CapabilityDriftWidget({ onNavigate }) {
                   href="https://github.com/grislyevan/agentic-governance/blob/main/docs/capability-drift-runbook.md"
                   target="_blank"
                   rel="noreferrer"
-                  className="text-xs text-detec-primary-500 hover:underline"
+                  className="text-xs text-detec-brand hover:underline"
                 >
                   View runbook
                 </a>
@@ -220,7 +220,7 @@ export default function CapabilityDriftWidget({ onNavigate }) {
                   <button
                     type="button"
                     onClick={() => onNavigate('sessions', { endpointId: row.endpointId })}
-                    className="rounded border border-detec-slate-700 px-3 py-1 text-xs font-medium text-detec-slate-200 bg-detec-slate-700 hover:bg-detec-slate-600 transition-colors"
+                    className="rounded border border-detec-edge px-3 py-1 text-xs font-medium text-detec-ink-primary bg-detec-raised hover:bg-detec-raised transition-colors"
                   >
                     View endpoint
                   </button>

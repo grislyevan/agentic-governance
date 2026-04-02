@@ -13,7 +13,7 @@ export default function AdminServerPage() {
 
   if (!canView) {
     return (
-      <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/80 p-5 text-sm text-detec-ui-muted">
+      <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface/80 p-5 text-sm text-detec-ink-secondary">
         You do not have access to server settings.
       </div>
     );
@@ -83,18 +83,18 @@ function ServerGatewaySection() {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/80 p-5">
-        <p className="text-xs text-detec-ui-muted">Loading server settings...</p>
+      <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface/80 p-5">
+        <p className="text-xs text-detec-ink-secondary">Loading server settings...</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/80 p-5 space-y-4">
-      <h2 className="text-sm font-semibold text-detec-ui-text uppercase tracking-wider">
+    <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface/80 p-5 space-y-4">
+      <h2 className="text-sm font-semibold text-detec-ink-primary uppercase tracking-wider">
         TCP gateway
       </h2>
-      <p className="text-xs text-detec-ui-muted">
+      <p className="text-xs text-detec-ink-secondary">
         New agent packages default to <strong>HTTP</strong> so they work when only API port 8000 is exposed.
         Choose <strong>auto</strong> or <strong>TCP</strong> in Deploy Agent when gateway port 8001 is reachable.
         Gateway host and port apply for TCP (auto or tcp).
@@ -106,12 +106,12 @@ function ServerGatewaySection() {
             type="checkbox"
             checked={gatewayEnabled}
             onChange={(e) => setGatewayEnabled(e.target.checked)}
-            className="rounded border-detec-ui-border bg-detec-ui-surface text-detec-ui-accent focus:ring-detec-ui-accent"
+            className="rounded border-detec-ui-border bg-detec-surface text-detec-brand focus:ring-detec-brand"
           />
-          <span className="text-sm text-detec-ui-text">Gateway enabled</span>
+          <span className="text-sm text-detec-ink-primary">Gateway enabled</span>
         </label>
         <label className="block space-y-1.5">
-          <span className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider">
+          <span className="text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">
             Host
           </span>
           <input
@@ -119,11 +119,11 @@ function ServerGatewaySection() {
             value={gatewayHost}
             onChange={(e) => setGatewayHost(e.target.value)}
             placeholder="0.0.0.0"
-            className="w-full bg-detec-ui-page border border-detec-ui-border rounded-lg px-3 py-2 text-sm text-detec-ui-text font-mono placeholder:text-detec-ui-muted focus:outline-none focus:border-detec-ui-accent/50 transition-colors"
+            className="w-full bg-detec-void border border-detec-ui-border rounded-detec-md px-3 py-2 text-sm text-detec-ink-primary font-mono placeholder:text-detec-ink-secondary focus:outline-none focus:border-detec-brand/50 transition-colors"
           />
         </label>
         <label className="block space-y-1.5">
-          <span className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider">
+          <span className="text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">
             Port
           </span>
           <input
@@ -132,13 +132,13 @@ function ServerGatewaySection() {
             max="65535"
             value={gatewayPort}
             onChange={(e) => setGatewayPort(e.target.value)}
-            className="w-full bg-detec-ui-page border border-detec-ui-border rounded-lg px-3 py-2 text-sm text-detec-ui-text font-mono placeholder:text-detec-ui-muted focus:outline-none focus:border-detec-ui-accent/50 transition-colors"
+            className="w-full bg-detec-void border border-detec-ui-border rounded-detec-md px-3 py-2 text-sm text-detec-ink-primary font-mono placeholder:text-detec-ink-secondary focus:outline-none focus:border-detec-brand/50 transition-colors"
           />
         </label>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">
+        <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">
           {error}
         </div>
       )}
@@ -149,7 +149,7 @@ function ServerGatewaySection() {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 bg-detec-ui-accent hover:bg-detec-ui-accent text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+            className="px-4 py-2 bg-detec-brand hover:bg-detec-brand text-white text-sm font-medium rounded-detec-md transition-colors disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Save'}
           </button>
@@ -164,7 +164,7 @@ function ServerGatewaySection() {
         </div>
       )}
       {user?.role === 'admin' && (
-        <p className="text-xs text-detec-ui-muted">Only owners can change gateway settings.</p>
+        <p className="text-xs text-detec-ink-secondary">Only owners can change gateway settings.</p>
       )}
     </div>
   );
@@ -206,41 +206,41 @@ function ProgrammaticApiKeySection() {
   };
 
   return (
-    <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/80 p-5 space-y-4">
-      <h2 className="text-sm font-semibold text-detec-ui-text uppercase tracking-wider">
+    <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface/80 p-5 space-y-4">
+      <h2 className="text-sm font-semibold text-detec-ink-primary uppercase tracking-wider">
         Programmatic API access
       </h2>
-      <p className="text-xs text-detec-ui-muted">
-        Use this key as the <code className="text-detec-ui-text">X-Api-Key</code> header for scripts and
+      <p className="text-xs text-detec-ink-secondary">
+        Use this key as the <code className="text-detec-ink-primary">X-Api-Key</code> header for scripts and
         automation. Endpoint agents use the tenant agent key from Deploy Agent, not this key. Session
         login uses cookies and does not need this key.
       </p>
-      {loading && <p className="text-xs text-detec-ui-muted">Loading...</p>}
+      {loading && <p className="text-xs text-detec-ink-secondary">Loading...</p>}
       {error && (
-        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">
+        <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">
           {error}
         </div>
       )}
       {!loading && status && (
         <>
-          <div className="text-sm text-detec-ui-text">
-            <span className="text-detec-ui-muted">Key prefix: </span>
+          <div className="text-sm text-detec-ink-primary">
+            <span className="text-detec-ink-secondary">Key prefix: </span>
             <span className="font-mono">{status.prefix_display || 'Not set'}</span>
           </div>
           <button
             type="button"
             onClick={handleRotate}
             disabled={rotating}
-            className="px-4 py-2 bg-detec-slate-200 hover:bg-detec-slate-300 text-detec-ui-text text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+            className="px-4 py-2 bg-detec-slate-200 hover:bg-detec-slate-300 text-detec-ink-primary text-sm font-medium rounded-detec-md transition-colors disabled:opacity-50"
           >
             {rotating ? 'Rotating…' : 'Regenerate API key'}
           </button>
         </>
       )}
       {newKey && (
-        <div className="rounded-lg border border-detec-teal-500/40 bg-detec-teal-500/10 p-4 space-y-2">
+        <div className="rounded-detec-md border border-detec-teal-500/40 bg-detec-teal-500/10 p-4 space-y-2">
           <p className="text-sm font-medium text-detec-teal-600">Copy this key now. It will not be shown again.</p>
-          <code className="block text-xs break-all font-mono bg-detec-ui-page p-2 rounded border border-detec-ui-border">
+          <code className="block text-xs break-all font-mono bg-detec-void p-2 rounded border border-detec-ui-border">
             {newKey}
           </code>
           <button
@@ -248,7 +248,7 @@ function ProgrammaticApiKeySection() {
             onClick={() => {
               navigator.clipboard.writeText(newKey);
             }}
-            className="text-sm text-detec-ui-accent font-medium"
+            className="text-sm text-detec-brand font-medium"
           >
             Copy to clipboard
           </button>

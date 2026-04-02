@@ -42,7 +42,7 @@ function getStatus(counts, endpoints = [], connectedCount) {
       summary: nonConformant > 0
         ? `${nonConformant} endpoint${nonConformant !== 1 ? 's' : ''} nonconformant • Enforcement: ${postureLabel}`
         : `${approvalRequired} approval required • Enforcement: ${postureLabel}`,
-      className: 'border-detec-amber-500/40 bg-detec-ui-surface/80 text-detec-amber-500',
+      className: 'border-detec-amber-500/40 bg-detec-surface/80 text-detec-amber-500',
       pulse: true,
     };
   }
@@ -50,7 +50,7 @@ function getStatus(counts, endpoints = [], connectedCount) {
     state: 'healthy',
     title: 'System Status: Healthy',
     summary: `${nConnected} endpoint${nConnected !== 1 ? 's' : ''} connected • Enforcement: ${postureLabel} • No policy violations`,
-    className: 'border-detec-teal-500/30 bg-detec-ui-surface/80 text-detec-teal-500',
+    className: 'border-detec-teal-500/30 bg-detec-surface/80 text-detec-teal-500',
     pulse: false,
   };
 }
@@ -63,12 +63,12 @@ export default function SystemStatusBanner({ counts = {}, endpoints = [], endpoi
 
   return (
     <div
-      className={`rounded-lg border px-4 py-2.5 text-sm ${status.className} ${status.pulse ? 'detec-status-pulse' : ''}`}
+      className={`rounded-detec-md border px-4 py-2.5 text-sm ${status.className} ${status.pulse ? 'detec-status-pulse' : ''}`}
       role="status"
       aria-live="polite"
     >
       <span className="font-semibold">{status.title}</span>
-      <span className="text-detec-ui-muted ml-2">{status.summary}</span>
+      <span className="text-detec-ink-secondary ml-2">{status.summary}</span>
     </div>
   );
 }

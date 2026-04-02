@@ -8,8 +8,8 @@ import {
 
 const TIER_LABELS = { free: 'Free', pro: 'Pro', enterprise: 'Enterprise' };
 const TIER_COLORS = {
-  free: 'bg-detec-slate-200 text-detec-ui-text',
-  pro: 'bg-detec-ui-accent/15 text-detec-ui-accent border border-detec-ui-accent/30',
+  free: 'bg-detec-slate-200 text-detec-ink-primary',
+  pro: 'bg-detec-brand-muted text-detec-brand border border-detec-brand/30',
   enterprise: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
 };
 const STATUS_LABELS = {
@@ -75,14 +75,14 @@ export default function BillingPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-detec-ui-accent border-t-transparent" />
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-detec-brand border-t-transparent" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-4 text-red-400 text-sm">
+      <div className="rounded-detec-md bg-red-500/10 border border-red-500/30 p-4 text-red-400 text-sm">
         {error}
       </div>
     );
@@ -94,18 +94,18 @@ export default function BillingPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h2 className="text-lg font-semibold text-detec-ui-text">Billing & Plan</h2>
-        <p className="text-sm text-detec-ui-muted mt-1">
+        <h2 className="text-lg font-semibold text-detec-ink-primary">Billing & Plan</h2>
+        <p className="text-sm text-detec-ink-secondary mt-1">
           Manage your subscription and view usage limits.
         </p>
       </div>
 
       {/* Current Plan */}
-      <div className="rounded-lg border border-detec-ui-border/50 bg-detec-ui-surface/80 p-6">
+      <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface/80 p-6">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <h3 className="text-base font-medium text-detec-ui-text">Current Plan</h3>
+              <h3 className="text-base font-medium text-detec-ink-primary">Current Plan</h3>
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${TIER_COLORS[currentTier]}`}>
                 {TIER_LABELS[currentTier] || currentTier}
               </span>
@@ -125,7 +125,7 @@ export default function BillingPage() {
             <button
               onClick={handleManage}
               disabled={actionLoading === 'portal'}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-detec-ui-text bg-detec-slate-200 hover:bg-detec-slate-200 transition-colors disabled:opacity-50"
+              className="px-4 py-2 rounded-detec-md text-sm font-medium text-detec-ink-primary bg-detec-slate-200 hover:bg-detec-slate-200 transition-colors disabled:opacity-50"
             >
               {actionLoading === 'portal' ? 'Loading...' : 'Manage Subscription'}
             </button>
@@ -158,7 +158,7 @@ export default function BillingPage() {
       {/* Tier Comparison */}
       {tiers && (
         <div>
-          <h3 className="text-base font-medium text-detec-ui-text mb-4">Available Plans</h3>
+          <h3 className="text-base font-medium text-detec-ink-primary mb-4">Available Plans</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {Object.entries(tiers).map(([tierName, limits]) => {
               const isCurrent = tierName === currentTier;
@@ -166,10 +166,10 @@ export default function BillingPage() {
               return (
                 <div
                   key={tierName}
-                  className={`rounded-lg border p-5 ${
+                  className={`rounded-detec-md border p-5 ${
                     isCurrent
-                      ? 'border-detec-ui-accent/50 bg-detec-ui-accent/5'
-                      : 'border-detec-ui-border/50 bg-detec-ui-surface/80'
+                      ? 'border-detec-brand/50 bg-detec-brand/5'
+                      : 'border-detec-ui-border/50 bg-detec-surface/80'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-4">
@@ -177,11 +177,11 @@ export default function BillingPage() {
                       {TIER_LABELS[tierName]}
                     </span>
                     {isCurrent && (
-                      <span className="text-xs text-detec-ui-accent">Current</span>
+                      <span className="text-xs text-detec-brand">Current</span>
                     )}
                   </div>
 
-                  <ul className="space-y-2 text-sm text-detec-ui-text">
+                  <ul className="space-y-2 text-sm text-detec-ink-primary">
                     <LimitItem label="Endpoints" value={limits.max_endpoints} />
                     <LimitItem label="Events/day" value={limits.max_events_per_day} />
                     <LimitItem label="Users" value={limits.max_users} />
@@ -195,13 +195,13 @@ export default function BillingPage() {
                     <button
                       onClick={() => handleUpgrade(tierName)}
                       disabled={!!actionLoading}
-                      className="mt-4 w-full px-4 py-2 rounded-lg text-sm font-medium bg-detec-ui-accent text-white hover:bg-detec-ui-accent transition-colors disabled:opacity-50"
+                      className="mt-4 w-full px-4 py-2 rounded-detec-md text-sm font-medium bg-detec-brand text-white hover:bg-detec-brand transition-colors disabled:opacity-50"
                     >
                       {actionLoading === tierName ? 'Loading...' : `Upgrade to ${TIER_LABELS[tierName]}`}
                     </button>
                   )}
                   {!isStripeConfigured && isUpgrade && (
-                    <p className="mt-4 text-xs text-detec-ui-muted text-center">
+                    <p className="mt-4 text-xs text-detec-ink-secondary text-center">
                       Contact sales to upgrade
                     </p>
                   )}
@@ -213,9 +213,9 @@ export default function BillingPage() {
       )}
 
       {!isStripeConfigured && (
-        <div className="rounded-lg bg-detec-ui-surface/80 border border-detec-ui-border/50 p-4 text-sm text-detec-ui-muted">
-          Stripe billing is not configured. Set <code className="text-detec-ui-text">STRIPE_SECRET_KEY</code> and{' '}
-          <code className="text-detec-ui-text">STRIPE_WEBHOOK_SECRET</code> to enable self-service upgrades.
+        <div className="rounded-detec-md bg-detec-surface/80 border border-detec-ui-border/50 p-4 text-sm text-detec-ink-secondary">
+          Stripe billing is not configured. Set <code className="text-detec-ink-primary">STRIPE_SECRET_KEY</code> and{' '}
+          <code className="text-detec-ink-primary">STRIPE_WEBHOOK_SECRET</code> to enable self-service upgrades.
         </div>
       )}
     </div>
@@ -224,9 +224,9 @@ export default function BillingPage() {
 
 function UsageStat({ label, value }) {
   return (
-    <div className="bg-detec-ui-page/50 rounded-lg p-3 text-center">
-      <div className="text-lg font-semibold text-detec-ui-text">{value}</div>
-      <div className="text-xs text-detec-ui-muted mt-0.5">{label}</div>
+    <div className="bg-detec-void/50 rounded-detec-md p-3 text-center">
+      <div className="text-lg font-semibold text-detec-ink-primary">{value}</div>
+      <div className="text-xs text-detec-ink-secondary mt-0.5">{label}</div>
     </div>
   );
 }
@@ -235,8 +235,8 @@ function LimitItem({ label, value }) {
   const display = value == null ? '∞' : typeof value === 'number' ? value.toLocaleString() : value;
   return (
     <li className="flex justify-between">
-      <span className="text-detec-ui-muted">{label}</span>
-      <span className="text-detec-ui-text font-medium">{display}</span>
+      <span className="text-detec-ink-secondary">{label}</span>
+      <span className="text-detec-ink-primary font-medium">{display}</span>
     </li>
   );
 }
@@ -244,8 +244,8 @@ function LimitItem({ label, value }) {
 function FeatureItem({ label, enabled }) {
   return (
     <li className="flex justify-between">
-      <span className="text-detec-ui-muted">{label}</span>
-      <span className={enabled ? 'text-green-400' : 'text-detec-ui-muted'}>
+      <span className="text-detec-ink-secondary">{label}</span>
+      <span className={enabled ? 'text-green-400' : 'text-detec-ink-secondary'}>
         {enabled ? '✓' : '—'}
       </span>
     </li>

@@ -50,18 +50,18 @@ export default function SetPasswordPage({ onComplete }) {
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-detec-ui-page flex items-center justify-center p-4">
+      <div className="min-h-screen bg-detec-void flex items-center justify-center p-4">
         <div className="w-full max-w-sm text-center space-y-4">
           <DetecLogo size="lg" className="justify-center" />
-          <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/80 p-6">
-            <p className="text-sm text-detec-ui-muted">
+          <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface/80 p-6">
+            <p className="text-sm text-detec-ink-secondary">
               Invalid or missing token. Please use the link from your invitation or reset email.
             </p>
           </div>
           {onComplete && (
             <button
               onClick={onComplete}
-              className="text-sm text-detec-ui-accent hover:text-detec-ui-accent transition-colors"
+              className="text-sm text-detec-brand hover:text-detec-brand transition-colors"
             >
               Go to sign in
             </button>
@@ -72,27 +72,27 @@ export default function SetPasswordPage({ onComplete }) {
   }
 
   return (
-    <div className="min-h-screen bg-detec-ui-page flex items-center justify-center p-4">
+    <div className="min-h-screen bg-detec-void flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center space-y-3">
           <DetecLogo size="lg" className="justify-center" />
-          <p className="text-sm text-detec-ui-muted">Agentic AI Governance</p>
+          <p className="text-sm text-detec-ink-secondary">Agentic AI Governance</p>
         </div>
 
-        <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/80 p-6 space-y-4">
+        <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface/80 p-6 space-y-4">
           {!success ? (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <h2 className="text-lg font-semibold text-detec-ui-text text-center">{title}</h2>
-              <p className="text-sm text-detec-ui-muted text-center">{subtitle}</p>
+              <h2 className="text-lg font-semibold text-detec-ink-primary text-center">{title}</h2>
+              <p className="text-sm text-detec-ink-secondary text-center">{subtitle}</p>
 
               {error && (
-                <div className="rounded-lg border border-detec-enforce-block/30 bg-detec-enforce-block/10 px-3 py-2 text-sm text-detec-enforce-block">
+                <div className="rounded-detec-md border border-detec-enforce-block/30 bg-detec-enforce-block/10 px-3 py-2 text-sm text-detec-enforce-block">
                   {error}
                 </div>
               )}
 
               <label className="block space-y-1.5">
-                <span className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider">New password</span>
+                <span className="text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">New password</span>
                 <input
                   type="password"
                   value={password}
@@ -100,12 +100,12 @@ export default function SetPasswordPage({ onComplete }) {
                   placeholder="Min. 8 characters"
                   required
                   minLength={8}
-                  className="w-full bg-detec-ui-page border border-detec-ui-border rounded-lg px-3 py-2 text-sm text-detec-ui-text placeholder:text-detec-ui-muted focus:outline-none focus:border-detec-ui-accent/50 transition-colors"
+                  className="w-full bg-detec-void border border-detec-ui-border rounded-detec-md px-3 py-2 text-sm text-detec-ink-primary placeholder:text-detec-ink-secondary focus:outline-none focus:border-detec-brand/50 transition-colors"
                 />
               </label>
 
               <label className="block space-y-1.5">
-                <span className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Confirm password</span>
+                <span className="text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">Confirm password</span>
                 <input
                   type="password"
                   value={confirm}
@@ -113,14 +113,14 @@ export default function SetPasswordPage({ onComplete }) {
                   placeholder="Re-enter password"
                   required
                   minLength={8}
-                  className="w-full bg-detec-ui-page border border-detec-ui-border rounded-lg px-3 py-2 text-sm text-detec-ui-text placeholder:text-detec-ui-muted focus:outline-none focus:border-detec-ui-accent/50 transition-colors"
+                  className="w-full bg-detec-void border border-detec-ui-border rounded-detec-md px-3 py-2 text-sm text-detec-ink-primary placeholder:text-detec-ink-secondary focus:outline-none focus:border-detec-brand/50 transition-colors"
                 />
               </label>
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full px-4 py-2.5 bg-detec-ui-accent hover:bg-detec-ui-accent disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+                className="w-full px-4 py-2.5 bg-detec-brand hover:bg-detec-brand disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-detec-md transition-colors"
               >
                 {submitting ? 'Please wait...' : isReset ? 'Reset password' : 'Activate account'}
               </button>
@@ -132,10 +132,10 @@ export default function SetPasswordPage({ onComplete }) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="text-lg font-semibold text-detec-ui-text">
+              <h2 className="text-lg font-semibold text-detec-ink-primary">
                 {isReset ? 'Password updated' : 'Account activated'}
               </h2>
-              <p className="text-sm text-detec-ui-muted">
+              <p className="text-sm text-detec-ink-secondary">
                 {isReset
                   ? 'Your password has been reset. You can now sign in.'
                   : 'Your account is ready. You can now sign in.'}
@@ -143,7 +143,7 @@ export default function SetPasswordPage({ onComplete }) {
               {onComplete && (
                 <button
                   onClick={onComplete}
-                  className="mt-2 px-4 py-2 bg-detec-ui-accent hover:bg-detec-ui-accent text-white text-sm font-medium rounded-lg transition-colors"
+                  className="mt-2 px-4 py-2 bg-detec-brand hover:bg-detec-brand text-white text-sm font-medium rounded-detec-md transition-colors"
                 >
                   Go to sign in
                 </button>

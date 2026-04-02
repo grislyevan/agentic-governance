@@ -12,7 +12,7 @@ const COLUMNS = [
 export default function ToolsTable({ tools, onNavigate }) {
   if (tools.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-detec-slate-700 bg-detec-slate-800 px-8 py-16 text-center">
+      <div className="rounded-detec-md border border-dashed border-detec-edge bg-detec-surface px-8 py-16 text-center">
         <div className="mb-3 opacity-40">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="inline-block" aria-hidden="true">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -20,7 +20,7 @@ export default function ToolsTable({ tools, onNavigate }) {
           </svg>
         </div>
         <div className="text-detec-teal-500/80 text-sm font-medium mb-1">All clear</div>
-        <div className="text-detec-ui-muted text-sm max-w-xs mx-auto">
+        <div className="text-detec-ink-secondary text-sm max-w-xs mx-auto">
           No agentic tools detected in this view.
           Adjust your filters, or connect an endpoint agent to start scanning.
         </div>
@@ -29,14 +29,14 @@ export default function ToolsTable({ tools, onNavigate }) {
   }
 
   return (
-    <div className="rounded-xl border border-detec-slate-700 overflow-x-auto overflow-hidden">
+    <div className="rounded-detec-md border border-detec-edge overflow-x-auto overflow-hidden">
       <table className="w-full text-left min-w-[640px]" aria-label="Detected tools">
         <thead>
-          <tr className="bg-detec-slate-900 border-b border-detec-slate-700">
+          <tr className="bg-detec-void border-b border-detec-edge">
             {COLUMNS.map((col, i) => (
               <th
                 key={i}
-                className={`px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider ${col.className}`}
+                className={`px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider ${col.className}`}
               >
                 {col.label}
               </th>

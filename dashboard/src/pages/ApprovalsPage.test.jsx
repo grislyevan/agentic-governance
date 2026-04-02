@@ -7,6 +7,7 @@ vi.mock('../lib/api', () => ({
   fetchApprovals: vi.fn(),
   approveRequest: vi.fn(),
   denyRequest: vi.fn(),
+  getApprovalStreamUrl: vi.fn(() => 'http://localhost/api/approvals/stream'),
 }));
 
 // ── Hook mocks ────────────────────────────────────────────────────────────────
@@ -18,19 +19,9 @@ vi.mock('../hooks/useAuth', () => ({
   }),
 }));
 
-// Mock usePolling — call callback immediately on mount AND whenever it changes
-// (ApprovalsPage recreates load() whenever activeTab or page changes)
-vi.mock('../hooks/usePolling', () => {
-  const { useEffect } = require('react');
-  return {
-    default: (callback) => {
-      useEffect(() => {
-        callback();
-      }, [callback]); // eslint-disable-line react-hooks/exhaustive-deps
-      return { lastUpdated: Date.now(), paused: false, togglePause: vi.fn() };
-    },
-  };
-});
+// ApprovalsPage uses SSE (EventSource) instead of usePolling.
+// The global EventSource stub (test-setup.js) prevents SSE errors.
+// No additional mock needed — the component now has an explicit initial load useEffect.
 
 // Mock sub-components that are not under test
 vi.mock('../components/branding/ApertureSpinner', () => ({

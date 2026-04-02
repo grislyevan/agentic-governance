@@ -50,17 +50,17 @@ export default function FilterBar({ endpoints = [], selectedEndpoint, onEndpoint
             aria-expanded={showEpDropdown}
             aria-haspopup="listbox"
             aria-label="Select endpoint"
-            className="flex items-center gap-2 px-3 py-1.5 bg-detec-ui-surface border border-detec-ui-border rounded-lg text-sm text-detec-ui-text hover:border-detec-ui-border transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 bg-detec-surface border border-detec-ui-border rounded-detec-md text-sm text-detec-ink-primary hover:border-detec-ui-border transition-colors"
           >
-            <span className="text-detec-ui-muted text-xs">View:</span>
+            <span className="text-detec-ink-secondary text-xs">View:</span>
             {selectedEpLabel}
             <ChevronDown />
           </button>
           {showEpDropdown && (
-            <div className="absolute top-full mt-1 left-0 w-56 bg-detec-ui-surface border border-detec-ui-border rounded-lg shadow-lg py-1 z-50 max-h-60 overflow-y-auto">
+            <div className="absolute top-full mt-1 left-0 w-56 bg-detec-surface border border-detec-ui-border rounded-detec-md shadow-lg py-1 z-50 max-h-60 overflow-y-auto">
               <button
                 onClick={() => { onEndpointChange?.(null); setShowEpDropdown(false); }}
-                className={`w-full text-left px-3 py-2 text-sm transition-colors ${!selectedEndpoint ? 'text-detec-ui-accent bg-detec-ui-accent/10' : 'text-detec-ui-text hover:bg-detec-slate-700/50'}`}
+                className={`w-full text-left px-3 py-2 text-sm transition-colors ${!selectedEndpoint ? 'text-detec-brand bg-detec-brand/10' : 'text-detec-ink-primary hover:bg-detec-raised/50'}`}
               >
                 All Endpoints
               </button>
@@ -68,21 +68,21 @@ export default function FilterBar({ endpoints = [], selectedEndpoint, onEndpoint
                 <button
                   key={ep.id}
                   onClick={() => { onEndpointChange?.(ep.id); setShowEpDropdown(false); }}
-                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${selectedEndpoint === ep.id ? 'text-detec-ui-accent bg-detec-ui-accent/10' : 'text-detec-ui-text hover:bg-detec-slate-700/50'}`}
+                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${selectedEndpoint === ep.id ? 'text-detec-brand bg-detec-brand/10' : 'text-detec-ink-primary hover:bg-detec-raised/50'}`}
                 >
                   <div className="flex items-center gap-2">
                     <span>{ep.hostname}</span>
                     {ep.telemetry_provider && ep.telemetry_provider !== 'polling' && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-detec-ui-accent/10 text-detec-ui-accent">
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-detec-brand/10 text-detec-brand">
                         {ep.telemetry_provider.toUpperCase()}
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-detec-ui-muted">{ep.os_info || 'Unknown OS'}</div>
+                  <div className="text-xs text-detec-ink-secondary">{ep.os_info || 'Unknown OS'}</div>
                 </button>
               ))}
               {endpoints.length === 0 && (
-                <div className="px-3 py-2 text-xs text-detec-ui-muted">No endpoints registered</div>
+                <div className="px-3 py-2 text-xs text-detec-ink-secondary">No endpoints registered</div>
               )}
             </div>
           )}
@@ -95,14 +95,14 @@ export default function FilterBar({ endpoints = [], selectedEndpoint, onEndpoint
             aria-expanded={showTimeDropdown}
             aria-haspopup="listbox"
             aria-label="Select time range"
-            className="flex items-center gap-2 px-3 py-1.5 bg-detec-ui-surface border border-detec-ui-border rounded-lg text-sm text-detec-ui-text hover:border-detec-ui-border transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 bg-detec-surface border border-detec-ui-border rounded-detec-md text-sm text-detec-ink-primary hover:border-detec-ui-border transition-colors"
           >
             <CalendarIcon />
             {labelForTimeRange(timeRange)}
             <ChevronDown />
           </button>
           {showTimeDropdown && (
-            <div className="absolute top-full mt-1 left-0 w-44 bg-detec-ui-surface border border-detec-ui-border rounded-lg shadow-lg py-1 z-50">
+            <div className="absolute top-full mt-1 left-0 w-44 bg-detec-surface border border-detec-ui-border rounded-detec-md shadow-lg py-1 z-50">
               {TIME_RANGES.map(range => {
                 const iso = hoursToIso(range.value);
                 const isActive = (timeRange || null) === iso || (!timeRange && !range.value);
@@ -110,7 +110,7 @@ export default function FilterBar({ endpoints = [], selectedEndpoint, onEndpoint
                   <button
                     key={range.label}
                     onClick={() => { onTimeRangeChange?.(iso); setShowTimeDropdown(false); }}
-                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${isActive ? 'text-detec-ui-accent bg-detec-ui-accent/10' : 'text-detec-ui-text hover:bg-detec-slate-700/50'}`}
+                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${isActive ? 'text-detec-brand bg-detec-brand/10' : 'text-detec-ink-primary hover:bg-detec-raised/50'}`}
                   >
                     {range.label}
                   </button>
@@ -122,7 +122,7 @@ export default function FilterBar({ endpoints = [], selectedEndpoint, onEndpoint
       </div>
 
       <button
-        className="flex items-center justify-center gap-2 px-4 py-3 sm:py-1.5 bg-detec-ui-accent/10 border border-detec-ui-accent/30 rounded-lg text-sm font-medium text-detec-ui-accent hover:bg-detec-ui-accent/25 transition-colors opacity-50 cursor-not-allowed min-h-[44px] sm:min-h-0 w-full sm:w-auto"
+        className="flex items-center justify-center gap-2 px-4 py-3 sm:py-1.5 bg-detec-brand/10 border border-detec-brand/30 rounded-detec-md text-sm font-medium text-detec-brand hover:bg-detec-brand/25 transition-colors opacity-50 cursor-not-allowed min-h-[44px] sm:min-h-0 w-full sm:w-auto"
         title="Acknowledge functionality coming soon"
         disabled
       >

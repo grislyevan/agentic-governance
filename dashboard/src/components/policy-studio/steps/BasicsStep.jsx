@@ -19,8 +19,8 @@ export default function BasicsStep({ data, onChange }) {
   return (
     <div className="space-y-5">
       <div>
-        <label className="block text-sm font-medium text-detec-ui-text mb-1">Policy name</label>
-        <p className="text-xs text-detec-ui-muted mb-2">Give this policy a clear, searchable name.</p>
+        <label className="block text-sm font-medium text-detec-ink-primary mb-1">Policy name</label>
+        <p className="text-xs text-detec-ink-secondary mb-2">Give this policy a clear, searchable name.</p>
         <Input
           type="text"
           value={b.name || ''}
@@ -30,8 +30,8 @@ export default function BasicsStep({ data, onChange }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-detec-ui-text mb-1">Short description</label>
-        <p className="text-xs text-detec-ui-muted mb-2">One line describing what this policy does.</p>
+        <label className="block text-sm font-medium text-detec-ink-primary mb-1">Short description</label>
+        <p className="text-xs text-detec-ink-secondary mb-2">One line describing what this policy does.</p>
         <Input
           type="text"
           value={b.description || ''}
@@ -41,8 +41,8 @@ export default function BasicsStep({ data, onChange }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-detec-ui-text mb-1">Policy goal</label>
-        <p className="text-xs text-detec-ui-muted mb-2">What is this policy for?</p>
+        <label className="block text-sm font-medium text-detec-ink-primary mb-1">Policy goal</label>
+        <p className="text-xs text-detec-ink-secondary mb-2">What is this policy for?</p>
         <Input
           type="text"
           value={b.goal || ''}
@@ -53,8 +53,8 @@ export default function BasicsStep({ data, onChange }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-detec-ui-text mb-1">Severity</label>
-          <p className="text-xs text-detec-ui-muted mb-2">How important is a match from this policy?</p>
+          <label className="block text-sm font-medium text-detec-ink-primary mb-1">Severity</label>
+          <p className="text-xs text-detec-ink-secondary mb-2">How important is a match from this policy?</p>
           <Select
             value={b.severity || 'medium'}
             onChange={(e) => onChange({ severity: e.target.value })}
@@ -65,8 +65,8 @@ export default function BasicsStep({ data, onChange }) {
           </Select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-detec-ui-text mb-1">Outcome</label>
-          <p className="text-xs text-detec-ui-muted mb-2">What should happen when the policy matches?</p>
+          <label className="block text-sm font-medium text-detec-ink-primary mb-1">Outcome</label>
+          <p className="text-xs text-detec-ink-secondary mb-2">What should happen when the policy matches?</p>
           <Select
             value={b.outcome || 'warn'}
             onChange={(e) => onChange({ outcome: e.target.value })}
@@ -79,8 +79,8 @@ export default function BasicsStep({ data, onChange }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-detec-ui-text mb-1">Why this matters</label>
-        <p className="text-xs text-detec-ui-muted mb-2">Business or compliance reason.</p>
+        <label className="block text-sm font-medium text-detec-ink-primary mb-1">Why this matters</label>
+        <p className="text-xs text-detec-ink-secondary mb-2">Business or compliance reason.</p>
         <Input
           type="text"
           value={b.whyThisMatters || ''}
@@ -90,8 +90,8 @@ export default function BasicsStep({ data, onChange }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-detec-ui-text mb-1">Recommended response</label>
-        <p className="text-xs text-detec-ui-muted mb-2">What the operator should do when notified.</p>
+        <label className="block text-sm font-medium text-detec-ink-primary mb-1">Recommended response</label>
+        <p className="text-xs text-detec-ink-secondary mb-2">What the operator should do when notified.</p>
         <Input
           type="text"
           value={b.recommendedResponse || ''}
@@ -101,8 +101,8 @@ export default function BasicsStep({ data, onChange }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-detec-ui-text mb-1">Status</label>
-        <p className="text-xs text-detec-ui-muted mb-2">Draft until you publish.</p>
+        <label className="block text-sm font-medium text-detec-ink-primary mb-1">Status</label>
+        <p className="text-xs text-detec-ink-secondary mb-2">Draft until you publish.</p>
         <Select
           value={b.status || 'draft'}
           onChange={(e) => onChange({ status: e.target.value })}

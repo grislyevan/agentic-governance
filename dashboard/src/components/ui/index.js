@@ -5,3 +5,4 @@ export { default as Button } from './Button';
 export { default as Toggle } from './Toggle';
 export { default as ApiErrorBanner } from './ApiErrorBanner';
 export { default as LoadingState } from './LoadingState';
+export { default as DataGrid } from './DataGrid';

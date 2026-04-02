@@ -5,7 +5,7 @@ const FRESH_SEC = 120;
 const STALE_SEC = 900;
 
 function freshnessDotClass(secs) {
-  if (secs == null) return 'bg-detec-slate-8000';
+  if (secs == null) return 'bg-detec-surface0';
   if (secs < FRESH_SEC) return 'bg-detec-teal-500';
   if (secs < STALE_SEC) return 'bg-detec-amber-500';
   return 'bg-detec-enforce-block';
@@ -27,7 +27,7 @@ function DataFlowFreshness({ lastUpdated }) {
   }, [lastUpdated]);
   if (!lastUpdated) return null;
   return (
-    <span className="flex items-center gap-1.5 text-xs text-detec-ui-muted">
+    <span className="flex items-center gap-1.5 text-xs text-detec-ink-secondary">
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${freshnessDotClass(secs)}`} aria-hidden="true" />
       {label}
     </span>
@@ -50,21 +50,21 @@ export default function DataFlowWidget() {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-detec-slate-700 bg-detec-slate-800 p-4">
+      <div className="rounded-detec-md border border-detec-edge bg-detec-surface p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-detec-ui-text">AI Data Flow</h3>
+          <h3 className="text-sm font-semibold text-detec-ink-primary">AI Data Flow</h3>
         </div>
-        <div className="text-xs text-detec-ui-muted animate-pulse" aria-label="Loading data flow">Loading...</div>
+        <div className="text-xs text-detec-ink-secondary animate-pulse" aria-label="Loading data flow">Loading...</div>
       </div>
     );
   }
 
   if (!data || data.total_connections === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-detec-ui-border bg-detec-slate-800 p-4">
+      <div className="rounded-detec-md border border-dashed border-detec-ui-border bg-detec-surface p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-detec-ui-text" title="LLM API destinations and request counts seen from your endpoints.">AI Data Flow</h3>
+            <h3 className="text-sm font-semibold text-detec-ink-primary" title="LLM API destinations and request counts seen from your endpoints.">AI Data Flow</h3>
             <DataFlowFreshness lastUpdated={lastUpdated} />
           </div>
           <DaySelector days={days} onChange={setDays} />
@@ -74,8 +74,8 @@ export default function DataFlowWidget() {
           <StatCard label="Unique tools" value={0} />
           <StatCard label="Top destination" value="-" />
         </div>
-        <p className="text-xs text-detec-ui-muted">No LLM API traffic detected in the last {days} days.</p>
-        <p className="text-xs text-detec-ui-muted mt-1.5">When your endpoints talk to LLM APIs, destinations and request counts will show here.</p>
+        <p className="text-xs text-detec-ink-secondary">No LLM API traffic detected in the last {days} days.</p>
+        <p className="text-xs text-detec-ink-secondary mt-1.5">When your endpoints talk to LLM APIs, destinations and request counts will show here.</p>
       </div>
     );
   }
@@ -88,10 +88,10 @@ export default function DataFlowWidget() {
   })();
 
   return (
-    <div className="rounded-xl border border-detec-slate-700 bg-detec-slate-800 p-4">
+    <div className="rounded-detec-md border border-detec-edge bg-detec-surface p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-detec-ui-text" title="LLM API destinations and request counts seen from your endpoints.">AI Data Flow</h3>
+          <h3 className="text-sm font-semibold text-detec-ink-primary" title="LLM API destinations and request counts seen from your endpoints.">AI Data Flow</h3>
           <DataFlowFreshness lastUpdated={lastUpdated} />
         </div>
         <DaySelector days={days} onChange={setDays} />
@@ -112,9 +112,9 @@ export default function DataFlowWidget() {
                   ? 'bg-emerald-400'
                   : 'bg-blue-400'
               }`} />
-              <span className="text-detec-ui-text truncate flex-1 font-medium">{d.provider}</span>
-              <span className="text-detec-ui-muted tabular-nums">{d.request_count} req</span>
-              <span className="text-detec-ui-muted tabular-nums">{d.endpoint_count} ep</span>
+              <span className="text-detec-ink-primary truncate flex-1 font-medium">{d.provider}</span>
+              <span className="text-detec-ink-secondary tabular-nums">{d.request_count} req</span>
+              <span className="text-detec-ink-secondary tabular-nums">{d.endpoint_count} ep</span>
             </div>
           ))}
         </div>
@@ -123,13 +123,13 @@ export default function DataFlowWidget() {
   );
 }
 
-function StatCard({ label, value, color = 'text-detec-slate-100', className = '', valueTitle }) {
+function StatCard({ label, value, color = 'text-detec-ink-primary', className = '', valueTitle }) {
   return (
-    <div className="rounded-lg bg-detec-slate-900 border border-detec-slate-700 px-3 py-2 text-center min-w-0">
+    <div className="rounded-detec-md bg-detec-void border border-detec-edge px-3 py-2 text-center min-w-0">
       <div className={`text-lg font-bold tabular-nums ${color} ${className}`} title={valueTitle}>
         {value}
       </div>
-      <div className="text-[10px] text-detec-slate-400 uppercase tracking-wider">{label}</div>
+      <div className="text-[10px] text-detec-ink-secondary uppercase tracking-wider">{label}</div>
     </div>
   );
 }
@@ -139,7 +139,7 @@ function DaySelector({ days, onChange }) {
     <select
       value={days}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="text-[10px] bg-detec-slate-900 border border-detec-slate-700 text-detec-slate-400 rounded px-1.5 py-0.5 focus:border-detec-primary-500 focus:outline-none"
+      className="text-[10px] bg-detec-void border border-detec-edge text-detec-ink-secondary rounded px-1.5 py-0.5 focus:border-detec-brand focus:outline-none"
     >
       <option value={1}>24h</option>
       <option value={7}>7d</option>

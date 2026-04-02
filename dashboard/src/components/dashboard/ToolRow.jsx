@@ -48,7 +48,7 @@ export default function ToolRow({ tool, onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const ds = DECISION_STYLES[tool.decision_state] || DECISION_STYLES.detect;
-  const confStyle = CONFIDENCE_STYLES[tool.confidenceBand] || 'text-detec-ui-muted';
+  const confStyle = CONFIDENCE_STYLES[tool.confidenceBand] || 'text-detec-ink-secondary';
   const icon = TOOL_ICONS[tool.name] || '🔧';
 
   const policyTime = tool.observed_at
@@ -102,22 +102,22 @@ export default function ToolRow({ tool, onNavigate }) {
         aria-expanded={expanded}
         className={`
           border-b border-detec-ui-border/40 cursor-pointer transition-colors
-          ${expanded ? 'bg-detec-ui-surface/80' : 'hover:bg-detec-ui-surface/40'}
-          focus:outline-none focus:ring-1 focus:ring-detec-ui-accent/50 focus:ring-inset
+          ${expanded ? 'bg-detec-surface/80' : 'hover:bg-detec-surface/40'}
+          focus:outline-none focus:ring-1 focus:ring-detec-brand/50 focus:ring-inset
         `}
       >
         <td className="px-3 sm:px-4 py-3">
           <div className="flex items-center gap-2 sm:gap-2.5">
-            <span className="w-8 h-8 rounded-lg bg-detec-ui-surface border border-detec-ui-border flex items-center justify-center text-sm">
+            <span className="w-8 h-8 rounded-detec-md bg-detec-surface border border-detec-ui-border flex items-center justify-center text-sm">
               {icon}
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-detec-ui-text">{tool.name}</span>
+                <span className="text-sm font-medium text-detec-ink-primary">{tool.name}</span>
                 {copied && <CopyToast />}
               </div>
               {tool.version && (
-                <div className="text-xs text-detec-ui-muted font-mono">{tool.version}</div>
+                <div className="text-xs text-detec-ink-secondary font-mono">{tool.version}</div>
               )}
             </div>
           </div>
@@ -133,10 +133,10 @@ export default function ToolRow({ tool, onNavigate }) {
         </td>
 
         <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
-          <div className="text-sm text-detec-ui-text">
+          <div className="text-sm text-detec-ink-primary">
             {tool.rule_id || tool.policyLabel}
             {policyTime && (
-              <span className="text-detec-ui-muted"> at {policyTime}</span>
+              <span className="text-detec-ink-secondary"> at {policyTime}</span>
             )}
           </div>
           {tool.severity_level && (
@@ -147,11 +147,11 @@ export default function ToolRow({ tool, onNavigate }) {
         </td>
 
         <td className="px-3 sm:px-4 py-3 hidden lg:table-cell">
-          <div className="text-sm text-detec-ui-muted">
+          <div className="text-sm text-detec-ink-secondary">
             {tool.summary || (tool.reason_codes?.length ? tool.reason_codes[0] : 'N/A')}
           </div>
           {tool.observed_at && (
-            <div className="text-xs text-detec-ui-muted">
+            <div className="text-xs text-detec-ink-secondary">
               at {new Date(tool.observed_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
             </div>
           )}
@@ -170,7 +170,7 @@ export default function ToolRow({ tool, onNavigate }) {
             >
               {ds.label}
             </button>
-            <span className="text-xs text-detec-ui-muted max-w-[180px] truncate">
+            <span className="text-xs text-detec-ink-secondary max-w-[180px] truncate">
               {tool.summary || ''}
             </span>
           </div>
@@ -180,7 +180,7 @@ export default function ToolRow({ tool, onNavigate }) {
           <div className="relative" ref={menuRef}>
             <button
               onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
-              className="p-1 text-detec-ui-muted hover:text-detec-ui-text rounded transition-colors"
+              className="p-1 text-detec-ink-secondary hover:text-detec-ink-primary rounded transition-colors"
               aria-label="Row actions"
               aria-haspopup="true"
             >
@@ -191,22 +191,22 @@ export default function ToolRow({ tool, onNavigate }) {
               </svg>
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-44 bg-detec-ui-surface border border-detec-ui-border rounded-lg shadow-lg py-1 z-50">
+              <div className="absolute right-0 top-full mt-1 w-44 bg-detec-surface border border-detec-ui-border rounded-detec-md shadow-lg py-1 z-50">
                 <button
                   onClick={(e) => { e.stopPropagation(); setExpanded(true); setMenuOpen(false); }}
-                  className="w-full text-left px-3 py-2 text-sm text-detec-ui-text hover:bg-detec-slate-700/50 transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm text-detec-ink-primary hover:bg-detec-raised/50 transition-colors"
                 >
                   View details
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleCopyName(); }}
-                  className="w-full text-left px-3 py-2 text-sm text-detec-ui-text hover:bg-detec-slate-700/50 transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm text-detec-ink-primary hover:bg-detec-raised/50 transition-colors"
                 >
                   Copy tool name
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleCopyDetails(); }}
-                  className="w-full text-left px-3 py-2 text-sm text-detec-ui-text hover:bg-detec-slate-700/50 transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm text-detec-ink-primary hover:bg-detec-raised/50 transition-colors"
                 >
                   Copy full details
                 </button>
@@ -217,7 +217,7 @@ export default function ToolRow({ tool, onNavigate }) {
       </tr>
 
       {expanded && (
-        <tr className="bg-detec-slate-800">
+        <tr className="bg-detec-surface">
           <td colSpan={6} className="px-4 py-3">
             <div className="flex flex-wrap gap-6 text-sm">
               {tool.enforcement_applied && (
@@ -229,7 +229,7 @@ export default function ToolRow({ tool, onNavigate }) {
               )}
               {tool.reason_codes?.length > 0 && (
                 <DetailItem label="Reason codes">
-                  <span className="font-mono text-xs text-detec-ui-muted">
+                  <span className="font-mono text-xs text-detec-ink-secondary">
                     {tool.reason_codes.join(' · ')}
                   </span>
                 </DetailItem>
@@ -263,21 +263,21 @@ export default function ToolRow({ tool, onNavigate }) {
 function DetailItem({ label, children }) {
   return (
     <div className="min-w-[140px]">
-      <div className="text-xs text-detec-ui-muted uppercase tracking-wider font-medium mb-0.5">
+      <div className="text-xs text-detec-ink-secondary uppercase tracking-wider font-medium mb-0.5">
         {label}
       </div>
-      <div className="text-detec-ui-text">{children}</div>
+      <div className="text-detec-ink-primary">{children}</div>
     </div>
   );
 }
 
 function severityColor(level) {
   const map = {
-    S0: 'text-detec-ui-muted',
+    S0: 'text-detec-ink-secondary',
     S1: 'text-detec-enforce-warn',
     S2: 'text-detec-enforce-approval',
     S3: 'text-detec-enforce-block',
     S4: 'text-detec-enforce-block font-bold',
   };
-  return map[level] || 'text-detec-ui-muted';
+  return map[level] || 'text-detec-ink-secondary';
 }

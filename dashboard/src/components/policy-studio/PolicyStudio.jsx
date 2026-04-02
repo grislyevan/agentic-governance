@@ -3,15 +3,15 @@
  * Supports modal and full-page (asPage). Uses nested state model; compiles to current API (rule_id, description, is_active, parameters).
  */
 
-import { useState, useCallback } from 'react';
-import { createPolicy } from '../../lib/api';
+import { useState, useCallback, useMemo } from 'react';
+import { createPolicy, updatePolicy } from '../../lib/api';
 import BasicsStep from './steps/BasicsStep';
 import SourceStep from './steps/SourceStep';
 import ScopeStep from './steps/ScopeStep';
 import RulesStep from './steps/RulesStep';
 import ReviewStep from './steps/ReviewStep';
 import PolicyStudioSidebar from './PolicyStudioSidebar';
-import { INITIAL_DRAFT, draftToApiPayload, validateStep } from './policyStudioState';
+import { INITIAL_DRAFT, draftToApiPayload, apiPolicyToDraft, validateStep } from './policyStudioState';
 
 const STEPS = [
   { id: 'basics', label: 'Basics' },
@@ -21,12 +21,22 @@ const STEPS = [
   { id: 'review', label: 'Review' },
 ];
 
-export default function PolicyStudio({ onClose, onSaved, onError, asPage = false }) {
+export default function PolicyStudio({ onClose, onSaved, onError, asPage = false, initialPolicy = null }) {
+  const isEdit = !!initialPolicy;
+  const policyId = initialPolicy?.id ?? null;
+  const isBaseline = initialPolicy?.is_baseline ?? false;
+
+  const seedDraft = useMemo(
+    () => (initialPolicy ? apiPolicyToDraft(initialPolicy) : INITIAL_DRAFT),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [initialPolicy?.id],
+  );
+
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState(null);
 
-  const [draft, setDraft] = useState(INITIAL_DRAFT);
+  const [draft, setDraft] = useState(seedDraft);
 
   const stepId = STEPS[stepIndex].id;
   const stepErrors = validateStep(stepId, draft);
@@ -62,7 +72,21 @@ export default function PolicyStudio({ onClose, onSaved, onError, asPage = false
     setSaving(true);
     try {
       const payload = draftToApiPayload(draft, isPublish);
-      await createPolicy(payload);
+      if (isEdit) {
+        // In edit mode: PATCH the existing policy. Baseline rules cannot change rule_id.
+        const update = {
+          rule_version: payload.rule_version,
+          description: payload.description,
+          is_active: payload.is_active,
+          parameters: payload.parameters,
+        };
+        if (!isBaseline) {
+          update.rule_id = payload.rule_id;
+        }
+        await updatePolicy(policyId, update);
+      } else {
+        await createPolicy(payload);
+      }
       onSaved();
     } catch (err) {
       setFormError(err.message);
@@ -79,7 +103,7 @@ export default function PolicyStudio({ onClose, onSaved, onError, asPage = false
   };
 
   const stepperRow = (
-    <div className="flex items-center gap-2 px-5 py-0 h-16 rounded-detec-md border border-detec-ui-border bg-detec-ui-surface shadow-detec-sm">
+    <div className="flex items-center gap-2 px-5 py-0 h-16 rounded-detec-md border border-detec-ui-border bg-detec-surface">
       {STEPS.map((step, i) => (
         <span key={step.id} className="flex items-center gap-2">
           {i > 0 && <span className="w-6 h-px bg-detec-ui-border" aria-hidden />}
@@ -87,7 +111,7 @@ export default function PolicyStudio({ onClose, onSaved, onError, asPage = false
             type="button"
             onClick={() => setStepIndex(i)}
             className={`text-sm font-medium transition-colors ${
-              i === stepIndex ? 'text-detec-ui-accent' : i < stepIndex ? 'text-detec-ui-text' : 'text-detec-ui-muted'
+              i === stepIndex ? 'text-detec-brand' : i < stepIndex ? 'text-detec-ink-primary' : 'text-detec-ink-secondary'
             }`}
           >
             {step.label}
@@ -98,7 +122,7 @@ export default function PolicyStudio({ onClose, onSaved, onError, asPage = false
   );
 
   const mainCardContent = (
-    <div className="min-h-[560px] rounded-detec-md border border-detec-ui-border bg-detec-ui-surface shadow-detec-sm p-6 overflow-y-auto">
+    <div className="min-h-[560px] rounded-detec-md border border-detec-ui-border bg-detec-surface p-6 overflow-y-auto">
       {stepId === 'basics' && (
         <BasicsStep
           data={draft.basics}
@@ -129,6 +153,7 @@ export default function PolicyStudio({ onClose, onSaved, onError, asPage = false
       {stepId === 'review' && (
         <ReviewStep
           draft={draft}
+          isEdit={isEdit}
           onSaveDraft={handleSaveDraft}
           onPublish={handlePublish}
           onPreviewMatches={handlePreviewMatches}
@@ -147,7 +172,7 @@ export default function PolicyStudio({ onClose, onSaved, onError, asPage = false
           <button
             type="button"
             onClick={stepIndex === 0 ? onClose : handleBack}
-            className="h-10 px-4 rounded-detec border border-detec-ui-border text-sm text-detec-ui-muted hover:bg-detec-slate-100"
+            className="h-10 px-4 rounded-detec border border-detec-ui-border text-sm text-detec-ink-secondary hover:bg-detec-slate-100"
           >
             {stepIndex === 0 ? 'Cancel' : 'Back'}
           </button>
@@ -155,7 +180,7 @@ export default function PolicyStudio({ onClose, onSaved, onError, asPage = false
             type="button"
             onClick={handleNext}
             disabled={!canContinue()}
-            className="h-10 px-4 rounded-detec bg-detec-ui-accent text-sm font-medium text-white hover:bg-detec-ui-accentHover disabled:opacity-50"
+            className="h-10 px-4 rounded-detec bg-detec-brand text-sm font-medium text-white hover:bg-detec-brandHover disabled:opacity-50"
           >
             Continue
           </button>
@@ -169,14 +194,25 @@ export default function PolicyStudio({ onClose, onSaved, onError, asPage = false
       <div className="flex flex-col gap-5 pb-6">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-detec-ui-text">New Policy</h1>
-            <p className="text-sm text-detec-ui-muted mt-1">Create a policy in a few steps: basics, source, scope, rules, and review.</p>
+            <h1 className="text-2xl font-semibold text-detec-ink-primary">
+              {isEdit ? 'Edit Policy' : 'New Policy'}
+              {isEdit && isBaseline && (
+                <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-detec-brand-muted text-detec-brand border border-detec-brand/20 align-middle">
+                  Baseline
+                </span>
+              )}
+            </h1>
+            <p className="text-sm text-detec-ink-secondary mt-1">
+              {isEdit
+                ? `Editing ${initialPolicy.rule_id}. Walk through each step to review and update.`
+                : 'Create a policy in a few steps: basics, source, scope, rules, and review.'}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="h-10 px-4 rounded-detec border border-detec-ui-border text-sm text-detec-ui-text hover:bg-detec-slate-100"
+              className="h-10 px-4 rounded-detec border border-detec-ui-border text-sm text-detec-ink-primary hover:bg-detec-slate-100"
             >
               Cancel
             </button>
@@ -184,9 +220,9 @@ export default function PolicyStudio({ onClose, onSaved, onError, asPage = false
               type="button"
               onClick={handleSaveDraft}
               disabled={saving}
-              className="h-10 px-4 rounded-detec bg-detec-ui-accent text-sm font-medium text-white hover:bg-detec-ui-accentHover disabled:opacity-50"
+              className="h-10 px-4 rounded-detec bg-detec-brand text-sm font-medium text-white hover:bg-detec-brandHover disabled:opacity-50"
             >
-              Save draft
+              {isEdit ? 'Save changes' : 'Save draft'}
             </button>
           </div>
         </header>
@@ -196,25 +232,25 @@ export default function PolicyStudio({ onClose, onSaved, onError, asPage = false
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 min-h-0">
           <div className="min-w-0">{mainCardContent}</div>
           <div className="hidden lg:block min-w-0">
-            <div className="rounded-detec-md border border-detec-ui-border bg-detec-ui-surface shadow-detec-sm p-4 overflow-y-auto">
+            <div className="rounded-detec-md border border-detec-ui-border bg-detec-surface p-4 overflow-y-auto">
               <PolicyStudioSidebar stepId={stepId} draft={draft} />
             </div>
           </div>
         </div>
 
         {stepId === 'review' && (
-          <footer className="sticky bottom-0 border-t border-detec-ui-border bg-detec-ui-surface shadow-detec-sm py-4 px-6 flex justify-between items-center">
-            <button type="button" onClick={onClose} className="h-10 px-4 rounded-detec text-sm text-detec-ui-muted hover:text-detec-ui-text">
+          <footer className="sticky bottom-0 border-t border-detec-ui-border bg-detec-surface py-4 px-6 flex justify-between items-center">
+            <button type="button" onClick={onClose} className="h-10 px-4 rounded-detec text-sm text-detec-ink-secondary hover:text-detec-ink-primary">
               Cancel
             </button>
             <div className="flex gap-2">
-              <button type="button" onClick={handlePreviewMatches} className="h-10 px-4 rounded-detec border border-detec-ui-border text-sm text-detec-ui-text hover:bg-detec-slate-50">
+              <button type="button" onClick={handlePreviewMatches} className="h-10 px-4 rounded-detec border border-detec-ui-border text-sm text-detec-ink-primary hover:bg-detec-slate-50">
                 Preview matches
               </button>
-              <button type="button" onClick={() => handlePublish(false)} disabled={saving} className="h-10 px-4 rounded-detec border border-detec-ui-border text-sm text-detec-ui-text hover:bg-detec-slate-50 disabled:opacity-50">
+              <button type="button" onClick={() => handlePublish(false)} disabled={saving} className="h-10 px-4 rounded-detec border border-detec-ui-border text-sm text-detec-ink-primary hover:bg-detec-slate-50 disabled:opacity-50">
                 Submit for review
               </button>
-              <button type="button" onClick={() => handlePublish(true)} disabled={saving} className="h-10 px-4 rounded-detec bg-detec-ui-accent text-sm font-medium text-white hover:bg-detec-ui-accentHover disabled:opacity-50">
+              <button type="button" onClick={() => handlePublish(true)} disabled={saving} className="h-10 px-4 rounded-detec bg-detec-brand text-sm font-medium text-white hover:bg-detec-brandHover disabled:opacity-50">
                 Publish
               </button>
             </div>
@@ -227,10 +263,10 @@ export default function PolicyStudio({ onClose, onSaved, onError, asPage = false
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-detec-lg border border-detec-ui-border bg-detec-ui-surface shadow-detec-card overflow-hidden"
+        className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-detec-lg border border-detec-ui-border bg-detec-surface overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 px-6 py-4 border-b border-detec-ui-border bg-detec-ui-surface shrink-0">
+        <div className="flex items-center gap-2 px-6 py-4 border-b border-detec-ui-border bg-detec-surface shrink-0">
           {STEPS.map((step, i) => (
             <span key={step.id} className="flex items-center gap-2">
               {i > 0 && <span className="text-detec-ui-border">/</span>}
@@ -238,7 +274,7 @@ export default function PolicyStudio({ onClose, onSaved, onError, asPage = false
                 type="button"
                 onClick={() => setStepIndex(i)}
                 className={`text-sm font-medium transition-colors ${
-                  i === stepIndex ? 'text-detec-ui-accent' : i < stepIndex ? 'text-detec-ui-text' : 'text-detec-ui-muted'
+                  i === stepIndex ? 'text-detec-brand' : i < stepIndex ? 'text-detec-ink-primary' : 'text-detec-ink-secondary'
                 }`}
               >
                 {step.label}
@@ -279,6 +315,7 @@ export default function PolicyStudio({ onClose, onSaved, onError, asPage = false
             {stepId === 'review' && (
               <ReviewStep
                 draft={draft}
+                isEdit={isEdit}
                 onSaveDraft={handleSaveDraft}
                 onPublish={handlePublish}
                 onPreviewMatches={handlePreviewMatches}
@@ -297,7 +334,7 @@ export default function PolicyStudio({ onClose, onSaved, onError, asPage = false
                 <button
                   type="button"
                   onClick={stepIndex === 0 ? onClose : handleBack}
-                  className="rounded-detec border border-detec-ui-border px-4 py-2 text-sm text-detec-ui-muted hover:bg-detec-slate-100"
+                  className="rounded-detec border border-detec-ui-border px-4 py-2 text-sm text-detec-ink-secondary hover:bg-detec-slate-100"
                 >
                   {stepIndex === 0 ? 'Cancel' : 'Back'}
                 </button>
@@ -305,7 +342,7 @@ export default function PolicyStudio({ onClose, onSaved, onError, asPage = false
                   type="button"
                   onClick={handleNext}
                   disabled={!canContinue()}
-                  className="rounded-detec bg-detec-ui-accent px-4 py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover disabled:opacity-50"
+                  className="rounded-detec bg-detec-brand px-4 py-2 text-sm font-medium text-white hover:bg-detec-brandHover disabled:opacity-50"
                 >
                   Continue
                 </button>

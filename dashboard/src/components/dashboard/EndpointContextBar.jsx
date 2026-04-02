@@ -3,7 +3,7 @@ import { updateEndpointPosture, updateEndpoint } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
 
 const POSTURE_META = {
-  passive:  { label: 'Passive', color: 'bg-detec-slate-600/30 text-detec-ui-muted', dot: 'bg-detec-slate-8000' },
+  passive:  { label: 'Passive', color: 'bg-detec-raised/30 text-detec-ink-secondary', dot: 'bg-detec-surface0' },
   audit:    { label: 'Audit',   color: 'bg-detec-amber-500/15 text-detec-amber-500', dot: 'bg-detec-amber-500' },
   active:   { label: 'Active',  color: 'bg-detec-enforce-block/15 text-detec-enforce-block', dot: 'bg-detec-enforce-block' },
 };
@@ -109,8 +109,8 @@ export default function EndpointContextBar({
     <div className="space-y-2">
       {/* Context bar: hostname prominent, then tag-style badges; click to expand */}
       <div
-        className={`flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-detec-ui-muted flex-wrap rounded-lg border border-transparent transition-colors ${
-          showSingleEndpoint ? 'cursor-pointer hover:bg-detec-ui-surface/80 py-1 -mx-1 px-1' : ''
+        className={`flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-detec-ink-secondary flex-wrap rounded-detec-md border border-transparent transition-colors ${
+          showSingleEndpoint ? 'cursor-pointer hover:bg-detec-surface/80 py-1 -mx-1 px-1' : ''
         }`}
         onClick={showSingleEndpoint ? () => setExpanded((e) => !e) : undefined}
         role={showSingleEndpoint ? 'button' : undefined}
@@ -118,14 +118,14 @@ export default function EndpointContextBar({
         aria-label={showSingleEndpoint ? (expanded ? 'Collapse endpoint details' : 'Expand endpoint details') : undefined}
       >
         <span className="flex items-center gap-1.5">
-          <span className="text-detec-ui-text font-semibold">{endpointCount}</span>
+          <span className="text-detec-ink-primary font-semibold">{endpointCount}</span>
           Endpoint{endpointCount !== 1 ? 's' : ''} Connected
           <span className="w-1.5 h-1.5 rounded-full bg-detec-teal-500 ml-0.5" />
         </span>
 
         <Sep />
 
-        <span className="text-base font-semibold text-detec-ui-text">{hostname}</span>
+        <span className="text-base font-semibold text-detec-ink-primary">{hostname}</span>
 
         {managementState && (
           <>
@@ -139,13 +139,13 @@ export default function EndpointContextBar({
           canManage ? (
             <button
               onClick={(e) => { e.stopPropagation(); setProfileModalOpen(true); }}
-              className="font-mono text-xs px-2 py-0.5 rounded cursor-pointer transition-colors hover:ring-1 hover:ring-detec-slate-500 bg-detec-slate-700 text-detec-ui-text"
+              className="font-mono text-xs px-2 py-0.5 rounded cursor-pointer transition-colors hover:ring-1 hover:ring-detec-ink-tertiary bg-detec-raised text-detec-ink-primary"
               title="Endpoint profile (scan interval, posture). Click to change."
             >
               {profileLabel ?? 'No profile'}
             </button>
           ) : (
-            <span className="font-mono text-xs px-2 py-0.5 rounded bg-detec-slate-700 text-detec-ui-muted">
+            <span className="font-mono text-xs px-2 py-0.5 rounded bg-detec-raised text-detec-ink-secondary">
               {profileLabel ?? 'No profile'}
             </span>
           )
@@ -154,7 +154,7 @@ export default function EndpointContextBar({
         {showSingleEndpoint && (
           <button
             onClick={(e) => { e.stopPropagation(); setPanelOpen(!panelOpen); }}
-            className={`font-mono text-xs px-2 py-0.5 rounded cursor-pointer transition-colors hover:ring-1 hover:ring-detec-slate-500 ${postureMeta.color}`}
+            className={`font-mono text-xs px-2 py-0.5 rounded cursor-pointer transition-colors hover:ring-1 hover:ring-detec-ink-tertiary ${postureMeta.color}`}
             title="How endpoints respond to policy: Passive (report only), Audit (log decisions), Active (auto-enforce). Click to change."
           >
             <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${postureMeta.dot}`} />
@@ -166,8 +166,8 @@ export default function EndpointContextBar({
           <span
             className={`font-mono text-xs px-2 py-0.5 rounded ${
               firstEp.telemetry_provider === 'polling'
-                ? 'bg-detec-slate-600/30 text-detec-ui-muted'
-                : 'bg-detec-ui-accent/10 text-detec-ui-accent'
+                ? 'bg-detec-raised/30 text-detec-ink-secondary'
+                : 'bg-detec-brand/10 text-detec-brand'
             }`}
             title="Telemetry from the OS (e.g. ETW on Windows). Polling means process-based checks."
           >
@@ -179,14 +179,14 @@ export default function EndpointContextBar({
 
         <span className="flex items-center gap-1.5">
           Last Scan:
-          <span className="text-detec-ui-accent">{lastSeen}</span>
+          <span className="text-detec-brand">{lastSeen}</span>
         </span>
 
         <Sep />
 
         <span className="flex items-center gap-1.5">
           Last Event:
-          <span className="text-detec-ui-text">
+          <span className="text-detec-ink-primary">
             {lastEventAt ? timeSince(new Date(lastEventAt)) : 'none'}
           </span>
         </span>
@@ -200,7 +200,7 @@ export default function EndpointContextBar({
           onClick={(e) => { e.stopPropagation(); onNavigate?.('endpoints'); }}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onNavigate?.('endpoints'); } }}
         >
-          <span className="text-[10px] uppercase tracking-wider text-detec-ui-muted">Endpoint health</span>
+          <span className="text-[10px] uppercase tracking-wider text-detec-ink-secondary">Endpoint health</span>
           {statusBars(statusCounts).map((h, i) => (
             <span
               key={i}
@@ -211,7 +211,7 @@ export default function EndpointContextBar({
         </span>
 
         {showSingleEndpoint && (
-          <span className="ml-0.5 text-detec-ui-muted" aria-hidden="true">
+          <span className="ml-0.5 text-detec-ink-secondary" aria-hidden="true">
             <svg
               width="14"
               height="14"
@@ -229,32 +229,32 @@ export default function EndpointContextBar({
 
       {/* Expanded endpoint detail */}
       {showSingleEndpoint && expanded && firstEp && (
-        <div className="rounded-lg border border-detec-ui-border/50 bg-detec-slate-800 px-4 py-3 space-y-3 text-sm">
+        <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface px-4 py-3 space-y-3 text-sm">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div>
-              <span className="text-detec-ui-muted block mb-0.5">Enforcement posture</span>
+              <span className="text-detec-ink-secondary block mb-0.5">Enforcement posture</span>
               <span className={postureMeta.color}>{postureMeta.label}</span>
             </div>
             <div>
-              <span className="text-detec-ui-muted block mb-0.5">Telemetry</span>
-              <span className="text-detec-ui-text">{telemetryLabel || 'N/A'}</span>
+              <span className="text-detec-ink-secondary block mb-0.5">Telemetry</span>
+              <span className="text-detec-ink-primary">{telemetryLabel || 'N/A'}</span>
             </div>
             <div>
-              <span className="text-detec-ui-muted block mb-0.5">Management state</span>
-              <span className="text-detec-ui-text">{managementState === 'managed' ? 'Conformant' : 'Nonconformant'}</span>
+              <span className="text-detec-ink-secondary block mb-0.5">Management state</span>
+              <span className="text-detec-ink-primary">{managementState === 'managed' ? 'Conformant' : 'Nonconformant'}</span>
             </div>
           </div>
           <div>
-            <span className="text-detec-ui-muted text-xs block mb-1">Recent Activity</span>
-            <p className="text-detec-ui-muted text-xs">No events yet</p>
+            <span className="text-detec-ink-secondary text-xs block mb-1">Recent Activity</span>
+            <p className="text-detec-ink-secondary text-xs">No events yet</p>
           </div>
           <div>
-            <span className="text-detec-ui-muted text-xs block mb-1">Policy Status</span>
-            <p className="text-detec-ui-muted text-xs">No policies evaluated yet</p>
+            <span className="text-detec-ink-secondary text-xs block mb-1">Policy Status</span>
+            <p className="text-detec-ink-secondary text-xs">No policies evaluated yet</p>
           </div>
           <div>
-            <span className="text-detec-ui-muted text-xs block mb-1">Agent</span>
-            <p className="text-detec-ui-muted text-xs">
+            <span className="text-detec-ink-secondary text-xs block mb-1">Agent</span>
+            <p className="text-detec-ink-secondary text-xs">
               Last heartbeat: {lastSeen}
             </p>
           </div>
@@ -330,13 +330,13 @@ function PosturePanel({ hostname, selectedPosture, selectedThreshold, onPostureC
   const showThreshold = selectedPosture === 'audit' || selectedPosture === 'active';
 
   return (
-    <div className="rounded-lg border border-detec-ui-border bg-detec-ui-surface/80 p-4 space-y-4">
+    <div className="rounded-detec-md border border-detec-ui-border bg-detec-surface/80 p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-detec-ui-text">
+        <h3 className="text-sm font-semibold text-detec-ink-primary">
           Enforcement Posture
-          <span className="ml-2 text-detec-ui-muted font-normal">{hostname}</span>
+          <span className="ml-2 text-detec-ink-secondary font-normal">{hostname}</span>
         </h3>
-        <button onClick={onCancel} className="text-detec-ui-muted hover:text-detec-ui-text text-xs">
+        <button onClick={onCancel} className="text-detec-ink-secondary hover:text-detec-ink-primary text-xs">
           Cancel
         </button>
       </div>
@@ -352,20 +352,20 @@ function PosturePanel({ hostname, selectedPosture, selectedThreshold, onPostureC
               key={opt.value}
               disabled={disabled}
               onClick={() => !disabled && onPostureChange(opt.value)}
-              className={`flex-1 rounded-lg border px-3 py-2 text-left transition-all ${
+              className={`flex-1 rounded-detec-md border px-3 py-2 text-left transition-all ${
                 selected
-                  ? `border-detec-ui-accent/50 ${meta.color} ring-1 ring-detec-ui-accent/30`
+                  ? `border-detec-brand/50 ${meta.color} ring-1 ring-detec-brand/30`
                   : disabled
-                    ? 'border-detec-ui-border/50 bg-detec-slate-800 opacity-40 cursor-not-allowed'
-                    : 'border-detec-ui-border bg-detec-ui-surface/80 hover:border-detec-ui-border cursor-pointer'
+                    ? 'border-detec-ui-border/50 bg-detec-surface opacity-40 cursor-not-allowed'
+                    : 'border-detec-ui-border bg-detec-surface/80 hover:border-detec-ui-border cursor-pointer'
               }`}
               title={disabled ? 'Owner role required for Active posture' : ''}
             >
               <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${selected ? meta.dot : 'bg-detec-slate-600'}`} />
-                <span className={`text-sm font-medium ${selected ? '' : 'text-detec-ui-muted'}`}>{opt.label}</span>
+                <span className={`w-2 h-2 rounded-full ${selected ? meta.dot : 'bg-detec-raised'}`} />
+                <span className={`text-sm font-medium ${selected ? '' : 'text-detec-ink-secondary'}`}>{opt.label}</span>
               </div>
-              <p className="text-xs text-detec-ui-muted mt-1">{opt.desc}</p>
+              <p className="text-xs text-detec-ink-secondary mt-1">{opt.desc}</p>
               {disabled && (
                 <p className="text-xs text-detec-enforce-warn mt-1">Owner only</p>
               )}
@@ -378,10 +378,10 @@ function PosturePanel({ hostname, selectedPosture, selectedThreshold, onPostureC
       {showThreshold && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs text-detec-ui-muted">
+            <label className="text-xs text-detec-ink-secondary">
               Auto-enforce threshold
             </label>
-            <span className="text-sm font-mono text-detec-ui-text">{selectedThreshold.toFixed(2)}</span>
+            <span className="text-sm font-mono text-detec-ink-primary">{selectedThreshold.toFixed(2)}</span>
           </div>
           <input
             type="range"
@@ -390,9 +390,9 @@ function PosturePanel({ hostname, selectedPosture, selectedThreshold, onPostureC
             step="0.05"
             value={selectedThreshold}
             onChange={(e) => onThresholdChange(parseFloat(e.target.value))}
-            className="w-full accent-detec-ui-accent cursor-pointer"
+            className="w-full accent-detec-brand cursor-pointer"
           />
-          <div className="flex justify-between text-xs text-detec-ui-muted">
+          <div className="flex justify-between text-xs text-detec-ink-secondary">
             <span>0.50 (aggressive)</span>
             <span>1.00 (conservative)</span>
           </div>
@@ -404,10 +404,10 @@ function PosturePanel({ hostname, selectedPosture, selectedThreshold, onPostureC
         <button
           disabled={!hasChanges || saving}
           onClick={onApply}
-          className={`text-sm px-4 py-1.5 rounded-lg font-medium transition-colors ${
+          className={`text-sm px-4 py-1.5 rounded-detec-md font-medium transition-colors ${
             hasChanges && !saving
-              ? 'bg-detec-ui-accent text-white hover:bg-detec-ui-accent cursor-pointer'
-              : 'bg-detec-slate-600 text-detec-ui-muted cursor-not-allowed'
+              ? 'bg-detec-brand text-white hover:bg-detec-brand cursor-pointer'
+              : 'bg-detec-raised text-detec-ink-secondary cursor-not-allowed'
           }`}
         >
           {saving ? 'Saving...' : 'Apply'}
@@ -441,19 +441,19 @@ function ProfileAssignModal({ endpoint, profiles, currentProfileId, onClose, onS
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl border border-detec-ui-border bg-detec-ui-page p-4 sm:p-6 shadow-2xl"
+        className="w-full max-w-md rounded-detec-md border border-detec-ui-border bg-detec-void p-4 sm:p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-bold text-detec-ui-text mb-2">Assign profile</h2>
-        <p className="text-sm text-detec-ui-muted mb-4">
+        <h2 className="text-lg font-bold text-detec-ink-primary mb-2">Assign profile</h2>
+        <p className="text-sm text-detec-ink-secondary mb-4">
           {endpoint.hostname}
         </p>
         <div className="space-y-3">
-          <label className="block text-xs font-medium text-detec-ui-muted">Profile</label>
+          <label className="block text-xs font-medium text-detec-ink-secondary">Profile</label>
           <select
             value={selectedProfileId}
             onChange={(e) => setSelectedProfileId(e.target.value)}
-            className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text focus:border-detec-ui-accent focus:outline-none"
+            className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary focus:border-detec-brand focus:outline-none"
           >
             <option value="">No profile</option>
             {(profiles || []).map((p) => (
@@ -464,14 +464,14 @@ function ProfileAssignModal({ endpoint, profiles, currentProfileId, onClose, onS
         <div className="flex justify-end gap-3 mt-5">
           <button
             onClick={onClose}
-            className="rounded-lg border border-detec-ui-border px-4 py-2 text-sm text-detec-ui-muted hover:bg-detec-ui-surface"
+            className="rounded-detec-md border border-detec-ui-border px-4 py-2 text-sm text-detec-ink-secondary hover:bg-detec-surface"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={!hasChange || saving}
-            className="rounded-lg bg-detec-ui-accent px-4 py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover disabled:opacity-50"
+            className="rounded-detec-md bg-detec-brand px-4 py-2 text-sm font-medium text-white hover:bg-detec-brandHover disabled:opacity-50"
           >
             {saving ? 'Saving...' : 'Save'}
           </button>
@@ -487,12 +487,12 @@ function ConfirmActiveModal({ hostname, threshold, confirmInput, onInputChange, 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onCancel}>
       <div
-        className="w-full max-w-lg rounded-xl border border-detec-ui-border bg-detec-ui-page p-4 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-lg rounded-detec-md border border-detec-ui-border bg-detec-void p-4 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-bold text-detec-ui-text">Enable Active Enforcement</h2>
+        <h2 className="text-lg font-bold text-detec-ink-primary">Enable Active Enforcement</h2>
 
-        <div className="rounded-lg border border-detec-enforce-block/30 bg-detec-enforce-block/10 p-4 text-sm text-detec-enforce-block space-y-2">
+        <div className="rounded-detec-md border border-detec-enforce-block/30 bg-detec-enforce-block/10 p-4 text-sm text-detec-enforce-block space-y-2">
           <p className="font-semibold">This is a destructive action.</p>
           <p>
             Active enforcement enables <strong>autonomous process termination</strong>.
@@ -505,18 +505,18 @@ function ConfirmActiveModal({ hostname, threshold, confirmInput, onInputChange, 
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
-              <span className="text-detec-ui-muted">Hostname</span>
-              <p className="text-detec-ui-text font-mono">{hostname}</p>
+              <span className="text-detec-ink-secondary">Hostname</span>
+              <p className="text-detec-ink-primary font-mono">{hostname}</p>
             </div>
             <div>
-              <span className="text-detec-ui-muted">Threshold</span>
-              <p className="text-detec-ui-text font-mono">{threshold.toFixed(2)}</p>
+              <span className="text-detec-ink-secondary">Threshold</span>
+              <p className="text-detec-ink-primary font-mono">{threshold.toFixed(2)}</p>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm text-detec-ui-muted mb-1.5">
-              Type <span className="font-mono text-detec-ui-text">{hostname}</span> to confirm
+            <label className="block text-sm text-detec-ink-secondary mb-1.5">
+              Type <span className="font-mono text-detec-ink-primary">{hostname}</span> to confirm
             </label>
             <input
               type="text"
@@ -524,7 +524,7 @@ function ConfirmActiveModal({ hostname, threshold, confirmInput, onInputChange, 
               onChange={(e) => onInputChange(e.target.value)}
               placeholder={hostname}
               autoFocus
-              className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text placeholder:text-detec-ui-muted focus:outline-none focus:ring-1 focus:ring-detec-enforce-block/50"
+              className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary placeholder:text-detec-ink-secondary focus:outline-none focus:ring-1 focus:ring-detec-enforce-block/50"
             />
           </div>
         </div>
@@ -532,17 +532,17 @@ function ConfirmActiveModal({ hostname, threshold, confirmInput, onInputChange, 
         <div className="flex justify-end gap-3">
           <button
             onClick={onCancel}
-            className="text-sm px-4 py-1.5 rounded-lg text-detec-ui-muted hover:text-detec-ui-text transition-colors"
+            className="text-sm px-4 py-1.5 rounded-detec-md text-detec-ink-secondary hover:text-detec-ink-primary transition-colors"
           >
             Cancel
           </button>
           <button
             disabled={!confirmed || saving}
             onClick={onConfirm}
-            className={`text-sm px-4 py-1.5 rounded-lg font-medium transition-colors ${
+            className={`text-sm px-4 py-1.5 rounded-detec-md font-medium transition-colors ${
               confirmed && !saving
                 ? 'bg-detec-enforce-block text-white hover:bg-red-600 cursor-pointer'
-                : 'bg-detec-slate-600 text-detec-ui-muted cursor-not-allowed'
+                : 'bg-detec-raised text-detec-ink-secondary cursor-not-allowed'
             }`}
           >
             {saving ? 'Enabling...' : 'Enable Active Enforcement'}
@@ -580,20 +580,20 @@ function statusBars({ active, stale, ungoverned }) {
     { height: 12, color: 'bg-detec-amber-500' },
     { height: 10, color: 'bg-detec-amber-500' },
     { height: 8, color: 'bg-detec-amber-500' },
-    { height: 6, color: 'bg-detec-slate-600' },
-    { height: 4, color: 'bg-detec-slate-600' },
+    { height: 6, color: 'bg-detec-raised' },
+    { height: 4, color: 'bg-detec-raised' },
   ];
   return [
     { height: 12, color: 'bg-detec-enforce-block' },
     { height: 10, color: 'bg-detec-enforce-block' },
-    { height: 8, color: 'bg-detec-slate-600' },
-    { height: 6, color: 'bg-detec-slate-600' },
-    { height: 4, color: 'bg-detec-slate-600' },
+    { height: 8, color: 'bg-detec-raised' },
+    { height: 6, color: 'bg-detec-raised' },
+    { height: 4, color: 'bg-detec-raised' },
   ];
 }
 
 function Sep() {
-  return <span className="text-detec-slate-700 select-none" aria-hidden="true">·</span>;
+  return <span className="text-detec-raised select-none" aria-hidden="true">·</span>;
 }
 
 function timeSince(date) {

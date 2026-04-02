@@ -128,7 +128,7 @@ const DECISION_CLASSES = {
 };
 
 function DecisionBadge({ value }) {
-  const cls = DECISION_CLASSES[value] || 'bg-detec-slate-100 text-detec-ui-muted border-detec-ui-border';
+  const cls = DECISION_CLASSES[value] || 'bg-detec-slate-100 text-detec-ink-secondary border-detec-ui-border';
   return (
     <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium border ${cls}`}>
       {value}
@@ -138,7 +138,7 @@ function DecisionBadge({ value }) {
 
 function PhaseBadge({ phase }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-detec-ui-accent/10 px-2.5 py-0.5 text-xs font-medium text-detec-ui-accent">
+    <span className="inline-flex items-center rounded-full bg-detec-brand/10 px-2.5 py-0.5 text-xs font-medium text-detec-brand">
       {phase}
     </span>
   );
@@ -172,18 +172,18 @@ function PreviewModal({ pack, currentPolicies, onClose, onApply, applying, apply
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl rounded-xl border border-detec-ui-border bg-detec-ui-page p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-2xl rounded-detec-md border border-detec-ui-border bg-detec-void p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold text-detec-ui-text">{pack.name}</h2>
-            <p className="text-sm text-detec-ui-muted mt-0.5">{pack.subtitle}</p>
+            <h2 className="text-lg font-bold text-detec-ink-primary">{pack.name}</h2>
+            <p className="text-sm text-detec-ink-secondary mt-0.5">{pack.subtitle}</p>
           </div>
           <button
             onClick={onClose}
-            className="text-detec-ui-muted hover:text-detec-ui-text transition-colors shrink-0"
+            className="text-detec-ink-secondary hover:text-detec-ink-primary transition-colors shrink-0"
             aria-label="Close preview"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -194,23 +194,23 @@ function PreviewModal({ pack, currentPolicies, onClose, onApply, applying, apply
         </div>
 
         {/* Posture row */}
-        <div className="flex items-center gap-3 rounded-lg border border-detec-ui-border/60 bg-detec-slate-100/40 px-4 py-3 text-sm">
-          <span className="font-medium text-detec-ui-text">Posture:</span>
-          <span className="text-detec-ui-muted">current</span>
-          <span className="text-detec-ui-muted">→</span>
-          <span className="font-semibold text-detec-ui-text capitalize">{pack.posture}</span>
+        <div className="flex items-center gap-3 rounded-detec-md border border-detec-ui-border/60 bg-detec-slate-100/40 px-4 py-3 text-sm">
+          <span className="font-medium text-detec-ink-primary">Posture:</span>
+          <span className="text-detec-ink-secondary">current</span>
+          <span className="text-detec-ink-secondary">→</span>
+          <span className="font-semibold text-detec-ink-primary capitalize">{pack.posture}</span>
         </div>
 
         {/* Diff table */}
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-detec-ui-muted mb-2">Rule overrides</h3>
-          <div className="rounded-lg border border-detec-ui-border overflow-hidden">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-detec-ink-secondary mb-2">Rule overrides</h3>
+          <div className="rounded-detec-md border border-detec-ui-border overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-detec-ui-border bg-detec-slate-100/40">
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-detec-ui-muted">Rule</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-detec-ui-muted">Current</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-detec-ui-muted">Pack sets</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-detec-ink-secondary">Rule</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-detec-ink-secondary">Current</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-detec-ink-secondary">Pack sets</th>
                 </tr>
               </thead>
               <tbody>
@@ -219,11 +219,11 @@ function PreviewModal({ pack, currentPolicies, onClose, onApply, applying, apply
                     key={row.rule_id}
                     className={`border-b border-detec-ui-border/50 last:border-0 ${
                       row.changed ? 'bg-amber-50' : ''
-                    } ${i % 2 === 0 && !row.changed ? 'bg-detec-ui-surface/20' : ''}`}
+                    } ${i % 2 === 0 && !row.changed ? 'bg-detec-surface/20' : ''}`}
                   >
                     <td className="px-4 py-2.5">
-                      <span className="font-mono text-xs text-detec-ui-text">{row.rule_id}</span>
-                      <span className="ml-2 text-xs text-detec-ui-muted">{row.label}</span>
+                      <span className="font-mono text-xs text-detec-ink-primary">{row.rule_id}</span>
+                      <span className="ml-2 text-xs text-detec-ink-secondary">{row.label}</span>
                     </td>
                     <td className="px-4 py-2.5">
                       <DecisionBadge value={row.currentDecision} />
@@ -240,13 +240,13 @@ function PreviewModal({ pack, currentPolicies, onClose, onApply, applying, apply
             </table>
           </div>
           {!hasChanges && (
-            <p className="text-xs text-detec-ui-muted mt-2">No rule changes — current policies already match this pack.</p>
+            <p className="text-xs text-detec-ink-secondary mt-2">No rule changes — current policies already match this pack.</p>
           )}
         </div>
 
         {/* Baseline warning banner */}
         {pack.requiresBaseline && (
-          <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 space-y-2">
+          <div className="rounded-detec-md border border-amber-300 bg-amber-50 px-4 py-3 space-y-2">
             <p className="text-sm font-semibold text-amber-800">
               You must run visibility-only for at least 7 days before applying this profile.
             </p>
@@ -269,7 +269,7 @@ function PreviewModal({ pack, currentPolicies, onClose, onApply, applying, apply
         )}
 
         {applyError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-detec-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {applyError}
           </div>
         )}
@@ -278,17 +278,17 @@ function PreviewModal({ pack, currentPolicies, onClose, onApply, applying, apply
         <div className="flex justify-end gap-3 pt-1">
           <button
             onClick={onClose}
-            className="text-sm px-4 py-1.5 rounded-lg text-detec-ui-muted hover:text-detec-ui-text transition-colors"
+            className="text-sm px-4 py-1.5 rounded-detec-md text-detec-ink-secondary hover:text-detec-ink-primary transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={onApply}
             disabled={applying || (pack.requiresBaseline && !acknowledged)}
-            className={`text-sm px-5 py-1.5 rounded-lg font-medium transition-colors ${
+            className={`text-sm px-5 py-1.5 rounded-detec-md font-medium transition-colors ${
               applying || (pack.requiresBaseline && !acknowledged)
-                ? 'bg-detec-slate-200 text-detec-ui-muted cursor-not-allowed'
-                : 'bg-detec-ui-accent text-white hover:bg-detec-ui-accentHover cursor-pointer'
+                ? 'bg-detec-slate-200 text-detec-ink-secondary cursor-not-allowed'
+                : 'bg-detec-brand text-white hover:bg-detec-brandHover cursor-pointer'
             }`}
           >
             {applying ? 'Applying…' : `Apply ${pack.name}`}
@@ -308,17 +308,17 @@ function ConfirmDialog({ pack, onConfirm, onCancel, applying, applyError }) {
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-md rounded-xl border border-detec-ui-border bg-detec-ui-page p-6 shadow-2xl space-y-4"
+        className="w-full max-w-md rounded-detec-md border border-detec-ui-border bg-detec-void p-6 shadow-2xl space-y-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-bold text-detec-ui-text">Apply {pack.name}?</h2>
-        <p className="text-sm text-detec-ui-muted">
+        <h2 className="text-lg font-bold text-detec-ink-primary">Apply {pack.name}?</h2>
+        <p className="text-sm text-detec-ink-secondary">
           All rules will be set to <strong>detect</strong>. Posture will be set to{' '}
           <strong>passive</strong>. No enforcement actions will fire.
         </p>
 
         {applyError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-detec-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {applyError}
           </div>
         )}
@@ -326,17 +326,17 @@ function ConfirmDialog({ pack, onConfirm, onCancel, applying, applyError }) {
         <div className="flex justify-end gap-3">
           <button
             onClick={onCancel}
-            className="text-sm px-4 py-1.5 rounded-lg text-detec-ui-muted hover:text-detec-ui-text transition-colors"
+            className="text-sm px-4 py-1.5 rounded-detec-md text-detec-ink-secondary hover:text-detec-ink-primary transition-colors"
           >
             Cancel
           </button>
           <button
             disabled={applying}
             onClick={onConfirm}
-            className={`text-sm px-5 py-1.5 rounded-lg font-medium transition-colors ${
+            className={`text-sm px-5 py-1.5 rounded-detec-md font-medium transition-colors ${
               applying
-                ? 'bg-detec-slate-200 text-detec-ui-muted cursor-not-allowed'
-                : 'bg-detec-ui-accent text-white hover:bg-detec-ui-accentHover cursor-pointer'
+                ? 'bg-detec-slate-200 text-detec-ink-secondary cursor-not-allowed'
+                : 'bg-detec-brand text-white hover:bg-detec-brandHover cursor-pointer'
             }`}
           >
             {applying ? 'Applying…' : 'Confirm'}
@@ -351,24 +351,24 @@ function ConfirmDialog({ pack, onConfirm, onCancel, applying, applyError }) {
 
 function PackCard({ pack, onPreview }) {
   return (
-    <div className="rounded-xl border border-detec-ui-border bg-detec-ui-surface/60 p-5 flex flex-col gap-3 shadow-detec-sm hover:shadow-detec-card transition-shadow">
+    <div className="rounded-detec-md border border-detec-ui-border bg-detec-surface/60 p-5 flex flex-col gap-3 transition-shadow">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="text-sm font-semibold text-detec-ui-text">{pack.name}</h3>
-          <p className="text-xs text-detec-ui-muted mt-0.5">{pack.subtitle}</p>
+          <h3 className="text-sm font-semibold text-detec-ink-primary">{pack.name}</h3>
+          <p className="text-xs text-detec-ink-secondary mt-0.5">{pack.subtitle}</p>
         </div>
         <PhaseBadge phase={pack.phase} />
       </div>
 
-      <p className="text-xs text-detec-ui-muted leading-relaxed">{pack.phaseDesc}</p>
-      <p className="text-xs text-detec-ui-text leading-relaxed">{pack.description}</p>
-      <p className="text-xs text-detec-ui-muted leading-relaxed italic">{pack.tradeoff}</p>
+      <p className="text-xs text-detec-ink-secondary leading-relaxed">{pack.phaseDesc}</p>
+      <p className="text-xs text-detec-ink-primary leading-relaxed">{pack.description}</p>
+      <p className="text-xs text-detec-ink-secondary leading-relaxed italic">{pack.tradeoff}</p>
 
       <div className="mt-auto pt-1">
         <button
           type="button"
           onClick={() => onPreview(pack)}
-          className="rounded-detec border border-detec-ui-border px-4 py-1.5 text-xs font-medium text-detec-ui-text hover:bg-detec-slate-100 transition-colors"
+          className="rounded-detec border border-detec-ui-border px-4 py-1.5 text-xs font-medium text-detec-ink-primary hover:bg-detec-slate-100 transition-colors"
         >
           Preview
         </button>
@@ -449,7 +449,7 @@ export default function PolicySimPacks({ onApplied }) {
     <>
       {/* Success toast */}
       {successMsg && (
-        <div className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-2.5 text-sm text-teal-700 flex items-center justify-between">
+        <div className="rounded-detec-md border border-teal-200 bg-teal-50 px-4 py-2.5 text-sm text-teal-700 flex items-center justify-between">
           <span>{successMsg}</span>
           <button
             onClick={() => setSuccessMsg(null)}
@@ -462,7 +462,7 @@ export default function PolicySimPacks({ onApplied }) {
       )}
 
       {loadingPolicies && (
-        <div className="text-xs text-detec-ui-muted py-1">Loading policy data…</div>
+        <div className="text-xs text-detec-ink-secondary py-1">Loading policy data…</div>
       )}
 
       {/* Cards */}

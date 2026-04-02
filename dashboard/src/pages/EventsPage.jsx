@@ -19,12 +19,12 @@ const DECISION_COLORS = {
   allow: 'bg-detec-teal-500/15 text-detec-teal-500',
   block: 'bg-detec-enforce-block/15 text-detec-enforce-block',
   approval_required: 'bg-amber-500/15 text-amber-400',
-  detect: 'bg-detec-ui-accent/10 text-detec-ui-accent',
+  detect: 'bg-detec-brand/10 text-detec-brand',
 };
 
 function DecisionBadge({ state }) {
-  if (!state) return <span className="text-detec-ui-muted text-xs">-</span>;
-  const colors = DECISION_COLORS[state] || 'bg-detec-slate-700 text-detec-slate-400';
+  if (!state) return <span className="text-detec-ink-secondary text-xs">-</span>;
+  const colors = DECISION_COLORS[state] || 'bg-detec-raised text-detec-ink-secondary';
   return (
     <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${colors}`}>
       {state}
@@ -33,34 +33,34 @@ function DecisionBadge({ state }) {
 }
 
 function ConfidenceMeter({ value }) {
-  if (value == null) return <span className="text-detec-ui-muted text-xs">-</span>;
+  if (value == null) return <span className="text-detec-ink-secondary text-xs">-</span>;
   const pct = Math.round(value * 100);
   const color =
     pct >= 80 ? 'bg-detec-teal-500' :
     pct >= 50 ? 'bg-amber-400' :
-    'bg-detec-slate-500';
+    'bg-detec-ink-tertiary';
   return (
     <div className="flex items-center gap-2">
-      <div className="w-12 h-1.5 bg-detec-slate-700 rounded-full overflow-hidden">
+      <div className="w-12 h-1.5 bg-detec-raised rounded-full overflow-hidden">
         <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-xs text-detec-ui-muted tabular-nums">{pct}%</span>
+      <span className="text-xs text-detec-ink-secondary tabular-nums">{pct}%</span>
     </div>
   );
 }
 
 function MitreBadges({ techniques }) {
-  if (!techniques || techniques.length === 0) return <span className="text-detec-ui-muted text-xs">-</span>;
+  if (!techniques || techniques.length === 0) return <span className="text-detec-ink-secondary text-xs">-</span>;
   const ids = techniques.map(t => t.subtechnique || t.technique_id);
   return (
     <div className="flex flex-wrap gap-1">
       {ids.slice(0, 4).map(id => (
-        <span key={id} className="text-xs px-1.5 py-0.5 rounded font-mono bg-detec-slate-700 text-detec-slate-200">
+        <span key={id} className="text-xs px-1.5 py-0.5 rounded font-mono bg-detec-raised text-detec-ink-primary">
           {id}
         </span>
       ))}
       {ids.length > 4 && (
-        <span className="text-xs text-detec-ui-muted">+{ids.length - 4}</span>
+        <span className="text-xs text-detec-ink-secondary">+{ids.length - 4}</span>
       )}
     </div>
   );
@@ -72,11 +72,11 @@ function SeverityBadge({ level }) {
     critical: 'text-red-400',
     high: 'text-orange-400',
     medium: 'text-amber-400',
-    low: 'text-detec-ui-muted',
-    info: 'text-detec-ui-muted',
+    low: 'text-detec-ink-secondary',
+    info: 'text-detec-ink-secondary',
   };
   return (
-    <span className={`text-xs font-medium ${colors[level] || 'text-detec-ui-muted'}`}>
+    <span className={`text-xs font-medium ${colors[level] || 'text-detec-ink-secondary'}`}>
       {level}
     </span>
   );
@@ -115,13 +115,13 @@ function BlockModal({ event, onClose, onBlockOneTime, onCreatePolicy }) {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative bg-detec-ui-surface border border-detec-ui-border rounded-xl shadow-xl max-w-md w-full p-5">
-        <h3 className="text-lg font-semibold text-detec-ui-text mb-2">Block this detection</h3>
-        <p className="text-sm text-detec-ui-muted mb-4">
+      <div className="relative bg-detec-surface border border-detec-ui-border rounded-detec-md shadow-xl max-w-md w-full p-5">
+        <h3 className="text-lg font-semibold text-detec-ink-primary mb-2">Block this detection</h3>
+        <p className="text-sm text-detec-ink-secondary mb-4">
           Choose how to block: one time only for this event, or create a policy so similar detections are blocked from now on.
         </p>
         {error && (
-          <div className="mb-4 rounded-lg bg-red-900/30 border border-red-700/50 px-3 py-2 text-sm text-red-300">
+          <div className="mb-4 rounded-detec-md bg-red-900/30 border border-red-700/50 px-3 py-2 text-sm text-red-300">
             {error}
           </div>
         )}
@@ -130,7 +130,7 @@ function BlockModal({ event, onClose, onBlockOneTime, onCreatePolicy }) {
             type="button"
             onClick={handleOneTime}
             disabled={!!loading}
-            className="w-full rounded-lg bg-detec-slate-200 hover:bg-detec-slate-200 text-detec-ui-text px-4 py-3 text-sm font-medium disabled:opacity-50 transition-colors"
+            className="w-full rounded-detec-md bg-detec-slate-200 hover:bg-detec-slate-200 text-detec-ink-primary px-4 py-3 text-sm font-medium disabled:opacity-50 transition-colors"
           >
             {loading === 'one_time' ? 'Blocking...' : 'Block one time only'}
           </button>
@@ -138,7 +138,7 @@ function BlockModal({ event, onClose, onBlockOneTime, onCreatePolicy }) {
             type="button"
             onClick={handleCreatePolicy}
             disabled={!!loading}
-            className="w-full rounded-lg bg-detec-enforce-block/20 hover:bg-detec-enforce-block/30 text-detec-enforce-block border border-detec-enforce-block/40 px-4 py-3 text-sm font-medium disabled:opacity-50 transition-colors"
+            className="w-full rounded-detec-md bg-detec-enforce-block/20 hover:bg-detec-enforce-block/30 text-detec-enforce-block border border-detec-enforce-block/40 px-4 py-3 text-sm font-medium disabled:opacity-50 transition-colors"
           >
             {loading === 'policy' ? 'Creating policy...' : 'Create policy (block moving forward)'}
           </button>
@@ -146,7 +146,7 @@ function BlockModal({ event, onClose, onBlockOneTime, onCreatePolicy }) {
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 w-full text-sm text-detec-ui-muted hover:text-detec-ui-text"
+          className="mt-4 w-full text-sm text-detec-ink-secondary hover:text-detec-ink-primary"
         >
           Cancel
         </button>
@@ -174,20 +174,20 @@ function EventDetailPanel({ event, onClose, canManage, onBlockSuccess }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md lg:max-w-lg h-full bg-detec-ui-page border-l border-detec-ui-border overflow-y-auto">
-        <div className="sticky top-0 bg-detec-ui-page border-b border-detec-ui-border px-5 py-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-detec-ui-text">Event Detail</h2>
+      <div className="relative w-full sm:max-w-md lg:max-w-lg h-full bg-detec-void border-l border-detec-ui-border overflow-y-auto">
+        <div className="sticky top-0 bg-detec-void border-b border-detec-ui-border px-5 py-4 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-detec-ink-primary">Event Detail</h2>
           <div className="flex items-center gap-2">
             {canManage && event.decision_state !== 'block' && (
               <button
                 type="button"
                 onClick={() => setShowBlockModal(true)}
-                className="rounded-lg bg-detec-enforce-block/20 hover:bg-detec-enforce-block/30 text-detec-enforce-block border border-detec-enforce-block/40 px-3 py-1.5 text-xs font-medium transition-colors"
+                className="rounded-detec-md bg-detec-enforce-block/20 hover:bg-detec-enforce-block/30 text-detec-enforce-block border border-detec-enforce-block/40 px-3 py-1.5 text-xs font-medium transition-colors"
               >
                 Block
               </button>
             )}
-            <button onClick={onClose} className="text-detec-ui-muted hover:text-detec-ui-text">
+            <button onClick={onClose} className="text-detec-ink-secondary hover:text-detec-ink-primary">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
               </svg>
@@ -215,29 +215,29 @@ function EventDetailPanel({ event, onClose, canManage, onBlockSuccess }) {
           )}
           {event.payload?.agent_status && (
             <div>
-              <div className="text-xs text-detec-ui-muted uppercase tracking-wider font-medium mb-2">Agent status</div>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs bg-detec-ui-surface/80 border border-detec-ui-border/50 rounded-lg p-3">
+              <div className="text-xs text-detec-ink-secondary uppercase tracking-wider font-medium mb-2">Agent status</div>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs bg-detec-surface/80 border border-detec-ui-border/50 rounded-detec-md p-3">
                 {event.payload.agent_status.uptime_seconds != null && (
-                  <><dt className="text-detec-ui-muted">Uptime (s)</dt><dd className="text-detec-ui-text font-mono">{event.payload.agent_status.uptime_seconds}</dd></>
+                  <><dt className="text-detec-ink-secondary">Uptime (s)</dt><dd className="text-detec-ink-primary font-mono">{event.payload.agent_status.uptime_seconds}</dd></>
                 )}
                 {event.payload.agent_status.scans_per_minute != null && (
-                  <><dt className="text-detec-ui-muted">Scans/min</dt><dd className="text-detec-ui-text font-mono">{event.payload.agent_status.scans_per_minute}</dd></>
+                  <><dt className="text-detec-ink-secondary">Scans/min</dt><dd className="text-detec-ink-primary font-mono">{event.payload.agent_status.scans_per_minute}</dd></>
                 )}
                 {event.payload.agent_status.avg_scan_ms != null && (
-                  <><dt className="text-detec-ui-muted">Avg scan (ms)</dt><dd className="text-detec-ui-text font-mono">{event.payload.agent_status.avg_scan_ms}</dd></>
+                  <><dt className="text-detec-ink-secondary">Avg scan (ms)</dt><dd className="text-detec-ink-primary font-mono">{event.payload.agent_status.avg_scan_ms}</dd></>
                 )}
                 {event.payload.agent_status.trees_per_scan != null && (
-                  <><dt className="text-detec-ui-muted">Trees/scan</dt><dd className="text-detec-ui-text font-mono">{event.payload.agent_status.trees_per_scan}</dd></>
+                  <><dt className="text-detec-ink-secondary">Trees/scan</dt><dd className="text-detec-ink-primary font-mono">{event.payload.agent_status.trees_per_scan}</dd></>
                 )}
                 {event.payload.agent_status.provider != null && (
-                  <><dt className="text-detec-ui-muted">Provider</dt><dd className="text-detec-ui-text">{event.payload.agent_status.provider}</dd></>
+                  <><dt className="text-detec-ink-secondary">Provider</dt><dd className="text-detec-ink-primary">{event.payload.agent_status.provider}</dd></>
                 )}
               </dl>
             </div>
           )}
           <div>
-            <div className="text-xs text-detec-ui-muted uppercase tracking-wider font-medium mb-2">Full Payload</div>
-            <pre className="text-xs text-detec-ui-muted font-mono bg-detec-ui-surface/80 border border-detec-ui-border/50 rounded-lg p-3 overflow-x-auto max-h-96">
+            <div className="text-xs text-detec-ink-secondary uppercase tracking-wider font-medium mb-2">Full Payload</div>
+            <pre className="text-xs text-detec-ink-secondary font-mono bg-detec-surface/80 border border-detec-ui-border/50 rounded-detec-md p-3 overflow-x-auto max-h-96">
               {JSON.stringify(event.payload, null, 2)}
             </pre>
           </div>
@@ -258,17 +258,17 @@ function EventDetailPanel({ event, onClose, canManage, onBlockSuccess }) {
 function Row({ label, value, mono, children }) {
   return (
     <div className="flex items-start gap-3">
-      <span className="text-xs text-detec-ui-muted w-24 shrink-0 pt-0.5">{label}</span>
+      <span className="text-xs text-detec-ink-secondary w-24 shrink-0 pt-0.5">{label}</span>
       {children || (
-        <span className={`text-sm text-detec-ui-text ${mono ? 'font-mono text-xs' : ''}`}>
-          {value || <span className="text-detec-ui-muted">-</span>}
+        <span className={`text-sm text-detec-ink-primary ${mono ? 'font-mono text-xs' : ''}`}>
+          {value || <span className="text-detec-ink-secondary">-</span>}
         </span>
       )}
     </div>
   );
 }
 
-export default function EventsPage({ searchQuery }) {
+export default function EventsPage({ searchQuery, embedded }) {
   const { user } = useAuth();
   const canManage = user?.role === 'owner' || user?.role === 'admin';
 
@@ -318,20 +318,23 @@ export default function EventsPage({ searchQuery }) {
 
   return (
     <div className="space-y-4 min-w-0">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-          <h1 className="text-xl sm:text-2xl font-bold text-detec-ui-text">Events</h1>
-          <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
+      {!embedded && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <h1 className="text-lg font-bold text-detec-ink-primary tracking-tight">Events</h1>
+            <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
+          </div>
+          {loading && <ApertureSpinner size="sm" label="Loading events" />}
         </div>
-        {loading && <ApertureSpinner size="sm" label="Loading events" />}
-      </div>
+      )}
+      {embedded && loading && <ApertureSpinner size="sm" label="Loading events" />}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={decisionFilter}
           onChange={e => { setDecisionFilter(e.target.value); setPage(1); }}
-          className="bg-detec-ui-surface border border-detec-ui-border rounded-lg px-3 py-3 sm:py-1.5 text-xs text-detec-ui-text focus:outline-none focus:border-detec-ui-accent/50 min-h-[44px] sm:min-h-0"
+          className="bg-detec-surface border border-detec-ui-border rounded-detec-md px-3 py-3 sm:py-1.5 text-xs text-detec-ink-primary focus:outline-none focus:border-detec-brand/50 min-h-[44px] sm:min-h-0"
         >
           <option value="">All decisions</option>
           <option value="allow">Allow</option>
@@ -345,13 +348,13 @@ export default function EventsPage({ searchQuery }) {
           value={toolFilter}
           onChange={e => { setToolFilter(e.target.value); setPage(1); }}
           placeholder="Filter by tool name"
-          className="bg-detec-ui-surface border border-detec-ui-border rounded-lg px-3 py-3 sm:py-1.5 text-xs text-detec-ui-text placeholder:text-detec-ui-muted focus:outline-none focus:border-detec-ui-accent/50 w-full sm:w-44 min-h-[44px] sm:min-h-0"
+          className="bg-detec-surface border border-detec-ui-border rounded-detec-md px-3 py-3 sm:py-1.5 text-xs text-detec-ink-primary placeholder:text-detec-ink-secondary focus:outline-none focus:border-detec-brand/50 w-full sm:w-44 min-h-[44px] sm:min-h-0"
         />
 
         <select
           value={mitreFilter}
           onChange={e => { setMitreFilter(e.target.value); setPage(1); }}
-          className="bg-detec-ui-surface border border-detec-ui-border rounded-lg px-3 py-3 sm:py-1.5 text-xs text-detec-ui-text focus:outline-none focus:border-detec-ui-accent/50 min-h-[44px] sm:min-h-0"
+          className="bg-detec-surface border border-detec-ui-border rounded-detec-md px-3 py-3 sm:py-1.5 text-xs text-detec-ink-primary focus:outline-none focus:border-detec-brand/50 min-h-[44px] sm:min-h-0"
         >
           <option value="">All MITRE techniques</option>
           {MITRE_TECHNIQUES.map(tid => (
@@ -362,13 +365,13 @@ export default function EventsPage({ searchQuery }) {
         {(decisionFilter || toolFilter || mitreFilter) && (
           <button
             onClick={() => { setDecisionFilter(''); setToolFilter(''); setMitreFilter(''); setPage(1); }}
-            className="text-xs text-detec-ui-muted hover:text-detec-ui-text"
+            className="text-xs text-detec-ink-secondary hover:text-detec-ink-primary"
           >
             Clear filters
           </button>
         )}
 
-        <span className="ml-auto text-xs text-detec-ui-muted tabular-nums">
+        <span className="ml-auto text-xs text-detec-ink-secondary tabular-nums">
           {total.toLocaleString()} event{total !== 1 ? 's' : ''}
         </span>
       </div>
@@ -378,28 +381,28 @@ export default function EventsPage({ searchQuery }) {
       )}
 
       {!loading && !error && (
-        <div className="rounded-xl border border-detec-ui-border/50 overflow-x-auto overflow-hidden">
+        <div className="rounded-detec-md border border-detec-ui-border/50 overflow-x-auto overflow-hidden">
           <table className="w-full text-left min-w-[640px]" aria-label="Detection events">
             <thead>
-              <tr className="bg-detec-ui-surface/80 border-b border-detec-ui-border/50">
-                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Time</th>
-                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Type</th>
-                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider hidden md:table-cell">Tool</th>
-                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider hidden lg:table-cell">Class</th>
-                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Decision</th>
-                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Confidence</th>
-                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider hidden lg:table-cell">MITRE ATT&amp;CK</th>
-                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider hidden md:table-cell">Severity</th>
+              <tr className="bg-detec-surface/80 border-b border-detec-ui-border/50">
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">Time</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">Type</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider hidden md:table-cell">Tool</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider hidden lg:table-cell">Class</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">Decision</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">Confidence</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider hidden lg:table-cell">MITRE ATT&amp;CK</th>
+                <th className="px-3 sm:px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider hidden md:table-cell">Severity</th>
               </tr>
             </thead>
             <tbody>
               {events.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center">
-                    <p className="text-detec-ui-muted text-sm font-medium">
+                    <p className="text-detec-ink-secondary text-sm font-medium">
                       {decisionFilter || toolFilter || mitreFilter || searchQuery ? 'No matching events' : 'No events yet'}
                     </p>
-                    <p className="text-detec-ui-muted text-xs mt-1 max-w-sm mx-auto">
+                    <p className="text-detec-ink-secondary text-xs mt-1 max-w-sm mx-auto">
                       {decisionFilter || toolFilter || mitreFilter || searchQuery
                         ? 'Try adjusting your filters or search query.'
                         : 'Agent activity will appear here once endpoints are sending events.'}
@@ -410,19 +413,19 @@ export default function EventsPage({ searchQuery }) {
                 <tr
                   key={ev.id}
                   onClick={() => setSelectedEvent(ev)}
-                  className="border-b border-detec-ui-border/40 hover:bg-detec-ui-surface/40 cursor-pointer"
+                  className="border-b border-detec-ui-border/40 hover:bg-detec-surface/40 cursor-pointer"
                 >
-                  <td className="px-3 sm:px-4 py-3 text-sm text-detec-ui-muted whitespace-nowrap tabular-nums">
+                  <td className="px-3 sm:px-4 py-3 text-sm text-detec-ink-secondary whitespace-nowrap tabular-nums">
                     {new Date(ev.observed_at).toLocaleString()}
                   </td>
                   <td className="px-3 sm:px-4 py-3">
-                    <span className="text-xs font-mono text-detec-ui-text">{ev.event_type}</span>
+                    <span className="text-xs font-mono text-detec-ink-primary">{ev.event_type}</span>
                   </td>
-                  <td className="px-3 sm:px-4 py-3 text-sm text-detec-ui-text font-medium hidden md:table-cell">
-                    {ev.tool_name || <span className="text-detec-ui-muted">-</span>}
+                  <td className="px-3 sm:px-4 py-3 text-sm text-detec-ink-primary font-medium hidden md:table-cell">
+                    {ev.tool_name || <span className="text-detec-ink-secondary">-</span>}
                   </td>
                   <td className="px-3 sm:px-4 py-3 hidden lg:table-cell">
-                    <span className="text-xs font-mono text-detec-ui-muted">{ev.tool_class || '-'}</span>
+                    <span className="text-xs font-mono text-detec-ink-secondary">{ev.tool_class || '-'}</span>
                   </td>
                   <td className="px-3 sm:px-4 py-3">
                     <DecisionBadge state={ev.decision_state} />
@@ -448,17 +451,17 @@ export default function EventsPage({ searchQuery }) {
           <button
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="px-4 py-3 sm:py-1.5 text-sm text-detec-ui-muted hover:text-detec-ui-text disabled:opacity-30 disabled:cursor-not-allowed min-h-[44px] sm:min-h-0"
+            className="px-4 py-3 sm:py-1.5 text-sm text-detec-ink-secondary hover:text-detec-ink-primary disabled:opacity-30 disabled:cursor-not-allowed min-h-[44px] sm:min-h-0"
           >
             Previous
           </button>
-          <span className="text-sm text-detec-ui-muted tabular-nums">
+          <span className="text-sm text-detec-ink-secondary tabular-nums">
             Page {page} of {totalPages}
           </span>
           <button
             onClick={() => setPage(p => p + 1)}
             disabled={page >= totalPages}
-            className="px-4 py-3 sm:py-1.5 text-sm text-detec-ui-muted hover:text-detec-ui-text disabled:opacity-30 disabled:cursor-not-allowed min-h-[44px] sm:min-h-0"
+            className="px-4 py-3 sm:py-1.5 text-sm text-detec-ink-secondary hover:text-detec-ink-primary disabled:opacity-30 disabled:cursor-not-allowed min-h-[44px] sm:min-h-0"
           >
             Next
           </button>

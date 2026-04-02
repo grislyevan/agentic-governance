@@ -32,29 +32,29 @@ export default function ResponseTimelineWidget({ onNavigate }) {
 
   if (loading) {
     return (
-      <div className="rounded-lg border border-detec-slate-700 bg-detec-slate-800 p-4">
-        <h3 className="text-sm font-semibold text-detec-ui-text mb-2">Recent auto-responses</h3>
-        <p className="text-xs text-detec-ui-muted">Loading…</p>
+      <div className="rounded-detec-md border border-detec-edge bg-detec-surface p-4">
+        <h3 className="text-sm font-semibold text-detec-ink-primary mb-2">Recent auto-responses</h3>
+        <p className="text-xs text-detec-ink-secondary">Loading…</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-detec-slate-700 bg-detec-slate-800 p-4">
+    <div className="rounded-detec-md border border-detec-edge bg-detec-surface p-4">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-detec-ui-text">Recent auto-responses</h3>
+        <h3 className="text-sm font-semibold text-detec-ink-primary">Recent auto-responses</h3>
         {items.length > 0 && (
           <button
             type="button"
             onClick={() => onNavigate?.('playbooks')}
-            className="text-xs text-detec-ui-accent hover:text-detec-ui-accent"
+            className="text-xs text-detec-brand hover:text-detec-brand"
           >
             View all
           </button>
         )}
       </div>
       {items.length === 0 ? (
-        <p className="text-xs text-detec-ui-muted">No playbook responses yet.</p>
+        <p className="text-xs text-detec-ink-secondary">No playbook responses yet.</p>
       ) : (
         <ul className="space-y-2">
           {items.slice(0, 5).map((entry) => {
@@ -62,11 +62,11 @@ export default function ResponseTimelineWidget({ onNavigate }) {
             const endpoint = entry.detail?.endpoint_name || entry.resource_id || 'unknown endpoint';
             const time = formatTime(entry.occurred_at);
             return (
-              <li key={entry.id} className="text-xs text-detec-ui-text leading-relaxed">
+              <li key={entry.id} className="text-xs text-detec-ink-primary leading-relaxed">
                 <span className="font-medium">{action}</span>
                 {' on '}
                 <span className="font-medium">{endpoint}</span>
-                <span className="text-detec-ui-muted"> — {time}</span>
+                <span className="text-detec-ink-secondary"> — {time}</span>
               </li>
             );
           })}

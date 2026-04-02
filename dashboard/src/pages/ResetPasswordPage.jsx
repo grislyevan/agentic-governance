@@ -40,45 +40,45 @@ export default function ResetPasswordPage({ onBack }) {
   };
 
   return (
-    <div className="min-h-screen bg-detec-ui-page flex items-center justify-center p-4">
+    <div className="min-h-screen bg-detec-void flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center space-y-3">
           <DetecLogo size="lg" className="justify-center" />
-          <p className="text-sm text-detec-ui-muted">Password Reset</p>
+          <p className="text-sm text-detec-ink-secondary">Password Reset</p>
         </div>
 
-        <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/80 p-6 space-y-4">
+        <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface/80 p-6 space-y-4">
           {!submitted ? (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <h2 className="text-lg font-semibold text-detec-ui-text text-center">
+              <h2 className="text-lg font-semibold text-detec-ink-primary text-center">
                 Forgot your password?
               </h2>
-              <p className="text-sm text-detec-ui-muted text-center">
+              <p className="text-sm text-detec-ink-secondary text-center">
                 Enter your email and we'll create a reset link.
               </p>
 
               {error && (
-                <div className="rounded-lg border border-detec-enforce-block/30 bg-detec-enforce-block/10 px-3 py-2 text-sm text-detec-enforce-block">
+                <div className="rounded-detec-md border border-detec-enforce-block/30 bg-detec-enforce-block/10 px-3 py-2 text-sm text-detec-enforce-block">
                   {error}
                 </div>
               )}
 
               <label className="block space-y-1.5">
-                <span className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Email</span>
+                <span className="text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">Email</span>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@company.com"
                   required
-                  className="w-full bg-detec-ui-page border border-detec-ui-border rounded-lg px-3 py-2 text-sm text-detec-ui-text placeholder:text-detec-ui-muted focus:outline-none focus:border-detec-ui-accent/50 transition-colors"
+                  className="w-full bg-detec-void border border-detec-ui-border rounded-detec-md px-3 py-2 text-sm text-detec-ink-primary placeholder:text-detec-ink-secondary focus:outline-none focus:border-detec-brand/50 transition-colors"
                 />
               </label>
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full px-4 py-2.5 bg-detec-ui-accent hover:bg-detec-ui-accent disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+                className="w-full px-4 py-2.5 bg-detec-brand hover:bg-detec-brand disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-detec-md transition-colors"
               >
                 {submitting ? 'Please wait...' : 'Send reset link'}
               </button>
@@ -91,24 +91,24 @@ export default function ResetPasswordPage({ onBack }) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h2 className="text-lg font-semibold text-detec-ui-text">Check your email</h2>
-                <p className="text-sm text-detec-ui-muted mt-1">
+                <h2 className="text-lg font-semibold text-detec-ink-primary">Check your email</h2>
+                <p className="text-sm text-detec-ink-secondary mt-1">
                   If that email is registered, a reset link has been created.
                 </p>
               </div>
 
               {token && (
                 <div className="space-y-2">
-                  <p className="text-xs text-detec-ui-muted">
+                  <p className="text-xs text-detec-ink-secondary">
                     Reset link (until email delivery is configured):
                   </p>
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 rounded-lg bg-detec-ui-page border border-detec-ui-border px-3 py-2 text-xs text-detec-ui-text break-all">
+                    <code className="flex-1 rounded-detec-md bg-detec-void border border-detec-ui-border px-3 py-2 text-xs text-detec-ink-primary break-all">
                       {`${window.location.origin}/set-password?token=${token}&purpose=reset`}
                     </code>
                     <button
                       onClick={handleCopy}
-                      className="shrink-0 rounded-lg border border-detec-ui-border px-3 py-2 text-xs text-detec-ui-muted hover:bg-detec-ui-surface transition-colors"
+                      className="shrink-0 rounded-detec-md border border-detec-ui-border px-3 py-2 text-xs text-detec-ink-secondary hover:bg-detec-surface transition-colors"
                     >
                       {copied ? 'Copied' : 'Copy'}
                     </button>
@@ -119,11 +119,11 @@ export default function ResetPasswordPage({ onBack }) {
           )}
         </div>
 
-        <p className="text-center text-sm text-detec-ui-muted">
+        <p className="text-center text-sm text-detec-ink-secondary">
           <button
             type="button"
             onClick={onBack}
-            className="text-detec-ui-accent hover:text-detec-ui-accent transition-colors"
+            className="text-detec-brand hover:text-detec-brand transition-colors"
           >
             Back to sign in
           </button>

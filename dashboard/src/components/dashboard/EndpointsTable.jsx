@@ -10,8 +10,8 @@ const TELEMETRY_BADGE = {
 };
 
 function TelemetryBadge({ provider }) {
-  if (!provider) return <span className="text-detec-ui-muted text-xs">—</span>;
-  const badge = TELEMETRY_BADGE[provider] ?? { label: provider, cls: 'bg-detec-ui-surface text-detec-ui-muted border-detec-ui-border' };
+  if (!provider) return <span className="text-detec-ink-secondary text-xs">—</span>;
+  const badge = TELEMETRY_BADGE[provider] ?? { label: provider, cls: 'bg-detec-surface text-detec-ink-secondary border-detec-ui-border' };
   return (
     <span
       title={provider === 'polling'
@@ -172,16 +172,16 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
 
   return (
     <div className="space-y-2">
-      <h2 className="text-sm font-semibold text-detec-ui-text">Endpoints</h2>
+      <h2 className="text-sm font-semibold text-detec-ink-primary">Endpoints</h2>
       {error && (
-        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">
+        <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">
           {error}
         </div>
       )}
-      <div className="rounded-lg border border-detec-ui-border/50 bg-detec-slate-800 overflow-hidden">
+      <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-detec-ui-border/50 text-left text-detec-ui-muted">
+            <tr className="border-b border-detec-ui-border/50 text-left text-detec-ink-secondary">
               {canManage && (
                 <th className="px-3 py-2 w-10">
                   <input
@@ -189,7 +189,7 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
                     checked={endpoints.length > 0 && selectedIds.size === endpoints.length}
                     onChange={toggleSelectAll}
                     aria-label="Select all"
-                    className="rounded border-detec-ui-border bg-detec-ui-surface text-detec-ui-accent focus:ring-detec-ui-accent"
+                    className="rounded border-detec-ui-border bg-detec-surface text-detec-brand focus:ring-detec-brand"
                   />
                 </th>
               )}
@@ -206,7 +206,7 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
             {endpoints.map((ep) => (
               <tr
                 key={ep.id}
-                className="border-b border-detec-ui-border/30 hover:bg-detec-ui-surface/80"
+                className="border-b border-detec-ui-border/30 hover:bg-detec-surface/80"
               >
                 {canManage && (
                   <td className="px-3 py-2">
@@ -215,19 +215,19 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
                       checked={selectedIds.has(ep.id)}
                       onChange={() => toggleSelect(ep.id)}
                       aria-label={`Select ${ep.hostname}`}
-                      className="rounded border-detec-ui-border bg-detec-ui-surface text-detec-ui-accent focus:ring-detec-ui-accent"
+                      className="rounded border-detec-ui-border bg-detec-surface text-detec-brand focus:ring-detec-brand"
                     />
                   </td>
                 )}
-                <td className="px-3 py-2 font-medium text-detec-ui-text">{ep.hostname}</td>
-                <td className="px-3 py-2 text-detec-ui-muted text-xs hidden sm:table-cell">{ep.os_info || '—'}</td>
+                <td className="px-3 py-2 font-medium text-detec-ink-primary">{ep.hostname}</td>
+                <td className="px-3 py-2 text-detec-ink-secondary text-xs hidden sm:table-cell">{ep.os_info || '—'}</td>
                 <td className="px-3 py-2">
                   {canManage ? (
                     <select
                       value={ep.endpoint_profile_id ?? ''}
                       onChange={(e) => handleRowProfileChange(ep.id, e.target.value)}
                       disabled={updatingId === ep.id}
-                      className="rounded border border-detec-ui-border bg-detec-ui-surface px-2 py-1 text-xs text-detec-ui-text focus:border-detec-ui-accent focus:outline-none disabled:opacity-50"
+                      className="rounded border border-detec-ui-border bg-detec-surface px-2 py-1 text-xs text-detec-ink-primary focus:border-detec-brand focus:outline-none disabled:opacity-50"
                     >
                       <option value="">No profile</option>
                       {(profiles || []).map((p) => (
@@ -235,16 +235,16 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
                       ))}
                     </select>
                   ) : (
-                    <span className="text-detec-ui-muted">{profileName(ep.endpoint_profile_id)}</span>
+                    <span className="text-detec-ink-secondary">{profileName(ep.endpoint_profile_id)}</span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-detec-ui-muted">
+                <td className="px-3 py-2 text-detec-ink-secondary">
                   {ep.management_state === 'managed' ? 'Conformant' : 'Nonconformant'}
                 </td>
                 <td className="px-3 py-2 hidden md:table-cell">
                   <TelemetryBadge provider={ep.telemetry_provider} />
                 </td>
-                <td className="px-3 py-2 text-detec-ui-muted text-xs">
+                <td className="px-3 py-2 text-detec-ink-secondary text-xs">
                   {timeSince(ep.last_seen_at)}
                   {ep.computed_status === 'tamper_suspected' && (
                     <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold bg-red-950/60 text-red-400 border border-red-800/50">
@@ -258,7 +258,7 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
                       <div className="flex flex-wrap gap-1">
                         <button
                           onClick={() => handleGetUninstallToken(ep)}
-                          className="rounded border border-detec-ui-border bg-detec-ui-surface px-2 py-1 text-xs text-detec-ui-text hover:bg-detec-ui-surface/80 hover:border-detec-ui-accent transition-colors"
+                          className="rounded border border-detec-ui-border bg-detec-surface px-2 py-1 text-xs text-detec-ink-primary hover:bg-detec-surface/80 hover:border-detec-brand transition-colors"
                         >
                           Get Uninstall Token
                         </button>
@@ -278,7 +278,7 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
                         </button>
                       </div>
                     ) : (
-                      <span className="text-xs text-detec-ui-muted italic">Decommissioned</span>
+                      <span className="text-xs text-detec-ink-secondary italic">Decommissioned</span>
                     )}
                   </td>
                 )}
@@ -290,13 +290,13 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
 
       {canManage && selectedIds.size > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-detec-ui-muted">
+          <span className="text-xs text-detec-ink-secondary">
             {selectedIds.size} selected
           </span>
           <select
             value={bulkProfileId}
             onChange={(e) => setBulkProfileId(e.target.value)}
-            className="rounded border border-detec-ui-border bg-detec-ui-surface px-3 py-1.5 text-sm text-detec-ui-text focus:border-detec-ui-accent focus:outline-none"
+            className="rounded border border-detec-ui-border bg-detec-surface px-3 py-1.5 text-sm text-detec-ink-primary focus:border-detec-brand focus:outline-none"
           >
             <option value="">No profile</option>
             {(profiles || []).map((p) => (
@@ -306,7 +306,7 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
           <button
             onClick={handleBulkAssign}
             disabled={bulkUpdating}
-            className="rounded-lg bg-detec-ui-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-detec-ui-accentHover disabled:opacity-50"
+            className="rounded-detec-md bg-detec-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-detec-brandHover disabled:opacity-50"
           >
             {bulkUpdating ? 'Updating...' : 'Assign selected'}
           </button>
@@ -315,24 +315,24 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
 
       {showTokenModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="w-full max-w-lg rounded-lg border border-detec-ui-border bg-detec-slate-800 p-6 shadow-xl">
-            <h3 className="mb-4 text-sm font-semibold text-detec-ui-text">
+          <div className="w-full max-w-lg rounded-detec-md border border-detec-ui-border bg-detec-surface p-6 shadow-xl">
+            <h3 className="mb-4 text-sm font-semibold text-detec-ink-primary">
               Uninstall Token for {tokenHostname}
             </h3>
-            <p className="mb-2 text-xs text-detec-ui-muted">Run the following command on the endpoint to uninstall the agent:</p>
-            <div className="mb-4 rounded border border-detec-ui-border bg-detec-ui-surface px-3 py-2 font-mono text-xs text-detec-ui-text break-all select-all">
+            <p className="mb-2 text-xs text-detec-ink-secondary">Run the following command on the endpoint to uninstall the agent:</p>
+            <div className="mb-4 rounded border border-detec-ui-border bg-detec-surface px-3 py-2 font-mono text-xs text-detec-ink-primary break-all select-all">
               {uninstallCommand}
             </div>
             <div className="flex gap-2">
               <button
                 onClick={handleCopyCommand}
-                className="rounded-lg bg-detec-ui-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-detec-ui-accentHover transition-colors"
+                className="rounded-detec-md bg-detec-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-detec-brandHover transition-colors"
               >
                 {copied ? 'Copied!' : 'Copy Command'}
               </button>
               <button
                 onClick={() => setShowTokenModal(false)}
-                className="rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-1.5 text-sm font-medium text-detec-ui-text hover:bg-detec-ui-surface/80 transition-colors"
+                className="rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-1.5 text-sm font-medium text-detec-ink-primary hover:bg-detec-surface/80 transition-colors"
               >
                 Close
               </button>
@@ -343,15 +343,15 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
 
       {showKeyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="w-full max-w-lg rounded-lg border border-amber-700/40 bg-detec-slate-800 p-6 shadow-xl">
-            <h3 className="mb-1 text-sm font-semibold text-detec-ui-text">
+          <div className="w-full max-w-lg rounded-detec-md border border-amber-700/40 bg-detec-surface p-6 shadow-xl">
+            <h3 className="mb-1 text-sm font-semibold text-detec-ink-primary">
               New Agent Key — {rotatedKeyHostname}
             </h3>
             <p className="mb-3 text-xs text-amber-400">
               This key is shown once and cannot be retrieved again. Copy it now and reconfigure
               the agent on this endpoint.
             </p>
-            <div className="mb-4 rounded border border-amber-700/40 bg-detec-ui-surface px-3 py-2 font-mono text-xs text-detec-ui-text break-all select-all">
+            <div className="mb-4 rounded border border-amber-700/40 bg-detec-surface px-3 py-2 font-mono text-xs text-detec-ink-primary break-all select-all">
               {rotatedKey}
             </div>
             <div className="flex gap-2">
@@ -362,13 +362,13 @@ export default function EndpointsTable({ endpoints, profiles, onUpdate }) {
                     setTimeout(() => setKeyCopied(false), 2000);
                   });
                 }}
-                className="rounded-lg bg-amber-700 hover:bg-amber-600 px-3 py-1.5 text-sm font-medium text-white transition-colors"
+                className="rounded-detec-md bg-amber-700 hover:bg-amber-600 px-3 py-1.5 text-sm font-medium text-white transition-colors"
               >
                 {keyCopied ? 'Copied!' : 'Copy Key'}
               </button>
               <button
                 onClick={() => { setShowKeyModal(false); setRotatedKey(''); }}
-                className="rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-1.5 text-sm font-medium text-detec-ui-text hover:bg-detec-ui-surface/80 transition-colors"
+                className="rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-1.5 text-sm font-medium text-detec-ink-primary hover:bg-detec-surface/80 transition-colors"
               >
                 Close
               </button>

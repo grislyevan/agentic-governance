@@ -13,7 +13,7 @@ const DECISION_BADGES = {
   block:             'bg-red-100 text-red-700 border-red-200',
   approval_required: 'bg-amber-100 text-amber-700 border-amber-200',
   warn:              'bg-yellow-100 text-yellow-700 border-yellow-200',
-  detect:            'bg-blue-100 text-detec-ui-accent border-blue-200',
+  detect:            'bg-blue-100 text-detec-brand border-blue-200',
 };
 
 const CATEGORY_LABELS = {
@@ -229,7 +229,7 @@ export default function PoliciesPage() {
   return (
     <div className="space-y-4 min-w-0">
       {/* Policy Simulation Packs — collapsible section */}
-      <div className="rounded-detec-lg border border-detec-ui-border bg-detec-ui-surface shadow-detec-sm">
+      <div className="rounded-detec-lg border border-detec-ui-border bg-detec-surface">
         <button
           type="button"
           onClick={() => setSimPacksOpen((o) => !o)}
@@ -240,13 +240,13 @@ export default function PoliciesPage() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
-            <span className="text-sm font-semibold text-detec-ui-text">Policy Simulation Packs</span>
-            <span className="text-xs text-detec-ui-muted font-normal">guided deployment profiles</span>
+            <span className="text-sm font-semibold text-detec-ink-primary">Policy Simulation Packs</span>
+            <span className="text-xs text-detec-ink-secondary font-normal">guided deployment profiles</span>
           </div>
           <svg
             width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
             strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
-            className={`text-detec-ui-muted transition-transform duration-200 ${simPacksOpen ? 'rotate-180' : ''}`}
+            className={`text-detec-ink-secondary transition-transform duration-200 ${simPacksOpen ? 'rotate-180' : ''}`}
           >
             <polyline points="6 9 12 15 18 9" />
           </svg>
@@ -261,7 +261,7 @@ export default function PoliciesPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-          <h1 className="text-xl sm:text-2xl font-bold text-detec-ui-text">Policies</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-detec-ink-primary">Policies</h1>
           <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
         </div>
         <div className="flex items-center gap-3">
@@ -271,20 +271,20 @@ export default function PoliciesPage() {
               <button
                 onClick={handleRestoreDefaults}
                 disabled={restoring}
-                className="rounded-detec border border-detec-ui-border px-4 py-2 text-sm font-medium text-detec-ui-text hover:bg-detec-slate-100 transition-colors disabled:opacity-50"
+                className="rounded-detec border border-detec-ui-border px-4 py-2 text-sm font-medium text-detec-ink-primary hover:bg-detec-slate-100 transition-colors disabled:opacity-50"
               >
                 {restoring ? 'Restoring...' : 'Restore defaults'}
               </button>
               <button
                 onClick={() => navigate('/policies/new')}
-                className="rounded-detec bg-detec-ui-accent px-4 py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover transition-colors"
+                className="rounded-detec bg-detec-brand px-4 py-2 text-sm font-medium text-white hover:bg-detec-brandHover transition-colors"
               >
                 Create policy
               </button>
               <button
                 type="button"
                 onClick={() => { setEditingPolicy(null); setShowForm(true); }}
-                className="rounded-detec border border-detec-ui-border px-4 py-2 text-sm font-medium text-detec-ui-muted hover:bg-detec-slate-100 transition-colors"
+                className="rounded-detec border border-detec-ui-border px-4 py-2 text-sm font-medium text-detec-ink-secondary hover:bg-detec-slate-100 transition-colors"
               >
                 Advanced / legacy editor
               </button>
@@ -294,20 +294,20 @@ export default function PoliciesPage() {
       </div>
 
       {presets.length > 0 && (
-        <div className="rounded-detec-lg border border-detec-ui-border bg-detec-ui-surface p-4 space-y-3 shadow-detec-card">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-detec-ui-muted">
+        <div className="rounded-detec-lg border border-detec-ui-border bg-detec-surface p-4 space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-detec-ink-secondary">
             Policy preset
           </h2>
           <div className="flex flex-col sm:flex-row sm:items-end gap-3">
             <div className="flex-1 min-w-0">
-              <label htmlFor="preset-select" className="block text-xs font-medium text-detec-ui-muted mb-1">
+              <label htmlFor="preset-select" className="block text-xs font-medium text-detec-ink-secondary mb-1">
                 Predefined policy
               </label>
               <select
                 id="preset-select"
                 value={selectedPresetId}
                 onChange={(e) => setSelectedPresetId(e.target.value)}
-                className="w-full rounded-detec border border-detec-ui-border bg-white px-3 py-2 text-sm text-detec-ui-text focus:ring-2 focus:ring-detec-ui-accent/30 focus:border-detec-ui-accent focus:outline-none shadow-detec-sm"
+                className="w-full rounded-detec border border-detec-ui-border bg-white px-3 py-2 text-sm text-detec-ink-primary focus:ring-2 focus:ring-detec-brand/30 focus:border-detec-brand focus:outline-none"
               >
                 <option value="">Select a preset</option>
                 {presets.map((p) => (
@@ -317,7 +317,7 @@ export default function PoliciesPage() {
                 ))}
               </select>
               {selectedPresetId && (
-                <p className="text-xs text-detec-ui-muted mt-1.5">
+                <p className="text-xs text-detec-ink-secondary mt-1.5">
                   {presets.find((p) => p.id === selectedPresetId)?.description}
                 </p>
               )}
@@ -327,7 +327,7 @@ export default function PoliciesPage() {
                 type="button"
                 onClick={handleApplyPreset}
                 disabled={!selectedPresetId || applyingPreset}
-                className="rounded-detec bg-detec-ui-accent px-4 py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover transition-colors disabled:opacity-50 shrink-0"
+                className="rounded-detec bg-detec-brand px-4 py-2 text-sm font-medium text-white hover:bg-detec-brandHover transition-colors disabled:opacity-50 shrink-0"
               >
                 {applyingPreset ? 'Applying...' : 'Apply this policy'}
               </button>
@@ -339,21 +339,21 @@ export default function PoliciesPage() {
       <ApiErrorBanner error={error} onDismiss={() => setError(null)} />
 
       {policies.length === 0 && !loading && !error && (
-        <div className="rounded-detec-lg border border-dashed border-detec-ui-border bg-detec-ui-surface px-8 py-20 text-center shadow-detec-sm">
+        <div className="rounded-detec-lg border border-dashed border-detec-ui-border bg-detec-surface px-8 py-20 text-center">
           <div className="mb-3 opacity-40">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="inline-block" aria-hidden="true">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
           </div>
-          <div className="text-detec-ui-muted text-sm font-medium mb-1">No policies configured yet</div>
-          <div className="text-detec-ui-muted text-sm max-w-sm mx-auto mb-4">
+          <div className="text-detec-ink-secondary text-sm font-medium mb-1">No policies configured yet</div>
+          <div className="text-detec-ink-secondary text-sm max-w-sm mx-auto mb-4">
             Restore baseline policies to get started with Detec's default enforcement ladder.
           </div>
           {canManage && (
             <button
               onClick={handleRestoreDefaults}
               disabled={restoring}
-              className="rounded-detec bg-detec-ui-accent px-4 py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover transition-colors disabled:opacity-50"
+              className="rounded-detec bg-detec-brand px-4 py-2 text-sm font-medium text-white hover:bg-detec-brandHover transition-colors disabled:opacity-50"
             >
               {restoring ? 'Restoring...' : 'Restore baseline policies'}
             </button>
@@ -362,18 +362,18 @@ export default function PoliciesPage() {
       )}
 
       {policies.length > 0 && (
-        <div className="rounded-detec-md border border-detec-ui-border bg-detec-ui-surface shadow-detec-sm overflow-hidden">
+        <div className="rounded-detec-md border border-detec-ui-border bg-detec-surface overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-detec-ui-border bg-detec-slate-50/80">
-                  <th className="text-left py-3 px-4 font-semibold text-detec-ui-text">Name</th>
-                  <th className="text-left py-3 px-4 font-semibold text-detec-ui-text">Severity</th>
-                  <th className="text-left py-3 px-4 font-semibold text-detec-ui-text">Outcome</th>
-                  <th className="text-left py-3 px-4 font-semibold text-detec-ui-text">Source</th>
-                  <th className="text-left py-3 px-4 font-semibold text-detec-ui-text">Status</th>
-                  <th className="text-left py-3 px-4 font-semibold text-detec-ui-text">Category</th>
-                  {canManage && <th className="text-right py-3 px-4 font-semibold text-detec-ui-text">Actions</th>}
+                  <th className="text-left py-3 px-4 font-semibold text-detec-ink-primary">Name</th>
+                  <th className="text-left py-3 px-4 font-semibold text-detec-ink-primary">Severity</th>
+                  <th className="text-left py-3 px-4 font-semibold text-detec-ink-primary">Outcome</th>
+                  <th className="text-left py-3 px-4 font-semibold text-detec-ink-primary">Source</th>
+                  <th className="text-left py-3 px-4 font-semibold text-detec-ink-primary">Status</th>
+                  <th className="text-left py-3 px-4 font-semibold text-detec-ink-primary">Category</th>
+                  {canManage && <th className="text-right py-3 px-4 font-semibold text-detec-ink-primary">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -381,13 +381,13 @@ export default function PoliciesPage() {
                   <tr key={policy.id} className="border-b border-detec-ui-border last:border-b-0 hover:bg-detec-slate-50/50">
                     <td className="py-3 px-4">
                       <div className="flex items-start gap-2 max-w-md">
-                        <span className="font-medium text-detec-ui-text shrink-0">{policy.rule_id}</span>
+                        <span className="font-medium text-detec-ink-primary shrink-0">{policy.rule_id}</span>
                         {policy.is_baseline && BASELINE_EXPLAINERS[policy.rule_id] && (
                           <button
                             type="button"
                             title={BASELINE_EXPLAINERS[policy.rule_id]}
                             onClick={() => setExplainerRuleId(policy.rule_id)}
-                            className="shrink-0 w-6 h-6 rounded-full border border-detec-ui-border text-detec-ui-muted hover:text-detec-ui-accent hover:border-detec-ui-accent/50 text-xs font-semibold leading-none flex items-center justify-center"
+                            className="shrink-0 w-6 h-6 rounded-full border border-detec-ui-border text-detec-ink-secondary hover:text-detec-brand hover:border-detec-brand/50 text-xs font-semibold leading-none flex items-center justify-center"
                             aria-label={`Plain-language summary for ${policy.rule_id}`}
                           >
                             ?
@@ -395,36 +395,36 @@ export default function PoliciesPage() {
                         )}
                       </div>
                       {policy.description && (
-                        <p className="text-xs text-detec-ui-muted mt-1 line-clamp-2">{policy.description}</p>
+                        <p className="text-xs text-detec-ink-secondary mt-1 line-clamp-2">{policy.description}</p>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-detec-ui-text">{policy.parameters?.severity ?? '—'}</td>
+                    <td className="py-3 px-4 text-detec-ink-primary">{policy.parameters?.severity ?? '—'}</td>
                     <td className="py-3 px-4">
-                      <span className={`inline-block rounded border px-2 py-0.5 text-xs font-medium ${DECISION_BADGES[policy.parameters?.decision_state] || 'bg-detec-slate-100 text-detec-ui-muted border-detec-ui-border'}`}>
+                      <span className={`inline-block rounded border px-2 py-0.5 text-xs font-medium ${DECISION_BADGES[policy.parameters?.decision_state] || 'bg-detec-slate-100 text-detec-ink-secondary border-detec-ui-border'}`}>
                         {(policy.parameters?.decision_state || '—').replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-detec-ui-muted">{policy.parameters?.source_type ?? '—'}</td>
+                    <td className="py-3 px-4 text-detec-ink-secondary">{policy.parameters?.source_type ?? '—'}</td>
                     <td className="py-3 px-4">
-                      <span className={policy.is_active ? 'text-detec-teal-600 font-medium' : 'text-detec-ui-muted'}>
+                      <span className={policy.is_active ? 'text-detec-teal-600 font-medium' : 'text-detec-ink-secondary'}>
                         {policy.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-detec-ui-muted">{CATEGORY_LABELS[policy.category] || policy.category || '—'}</td>
+                    <td className="py-3 px-4 text-detec-ink-secondary">{CATEGORY_LABELS[policy.category] || policy.category || '—'}</td>
                     {canManage && (
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
-                            onClick={() => { setEditingPolicy(policy); setShowForm(true); }}
-                            className="rounded px-2 py-1 text-xs text-detec-ui-muted hover:bg-detec-slate-100 hover:text-detec-ui-text"
+                            onClick={() => navigate(`/policies/${policy.id}/edit`, { state: { policy } })}
+                            className="rounded px-2 py-1 text-xs text-detec-ink-secondary hover:bg-detec-slate-100 hover:text-detec-ink-primary"
                           >
                             Edit
                           </button>
                           <button
                             type="button"
                             onClick={() => setHistoryPolicy(policy)}
-                            className="rounded px-2 py-1 text-xs text-detec-ui-muted hover:bg-detec-slate-100 hover:text-detec-ui-accent"
+                            className="rounded px-2 py-1 text-xs text-detec-ink-secondary hover:bg-detec-slate-100 hover:text-detec-brand"
                             title="View change history"
                           >
                             History
@@ -453,7 +453,7 @@ export default function PoliciesPage() {
               </tbody>
             </table>
           </div>
-          <div className="px-4 py-2 border-t border-detec-ui-border text-xs text-detec-ui-muted">
+          <div className="px-4 py-2 border-t border-detec-ui-border text-xs text-detec-ink-secondary">
             {total} {total === 1 ? 'policy' : 'policies'} total
           </div>
         </div>
@@ -475,24 +475,24 @@ export default function PoliciesPage() {
           role="presentation"
         >
           <div
-            className="w-full max-w-md rounded-xl border border-detec-ui-border bg-detec-ui-page p-5 shadow-2xl"
+            className="w-full max-w-md rounded-detec-md border border-detec-ui-border bg-detec-void p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-labelledby="explainer-title"
           >
-            <h3 id="explainer-title" className="text-lg font-semibold text-detec-ui-text mb-2">
+            <h3 id="explainer-title" className="text-lg font-semibold text-detec-ink-primary mb-2">
               {explainerRuleId}
             </h3>
-            <p className="text-sm text-detec-ui-text leading-relaxed mb-3">
+            <p className="text-sm text-detec-ink-primary leading-relaxed mb-3">
               {BASELINE_EXPLAINERS[explainerRuleId]}
             </p>
-            <p className="text-xs text-detec-ui-muted mb-4">
+            <p className="text-xs text-detec-ink-secondary mb-4">
               Full definitions live in the governance playbook (section 6.3 baseline ladder).
             </p>
             <button
               type="button"
               onClick={() => setExplainerRuleId(null)}
-              className="px-4 py-2 rounded-lg bg-detec-ui-accent text-white text-sm font-medium"
+              className="px-4 py-2 rounded-lg bg-detec-brand text-white text-sm font-medium"
             >
               Close
             </button>
@@ -538,32 +538,32 @@ export default function PoliciesPage() {
 
 function PolicyCard({ policy, ruleLabel, canManage, onEdit, onToggleActive, onDelete }) {
   const decisionState = policy.parameters?.decision_state;
-  const badgeClass = DECISION_BADGES[decisionState] || 'bg-detec-slate-100 text-detec-ui-muted border-detec-ui-border';
+  const badgeClass = DECISION_BADGES[decisionState] || 'bg-detec-slate-100 text-detec-ink-secondary border-detec-ui-border';
   const isInactiveBaseline = policy.is_baseline && !policy.is_active;
 
   return (
-    <div className={`rounded-detec-lg border bg-detec-ui-surface p-5 transition-colors shadow-detec-card ${
+    <div className={`rounded-detec-lg border bg-detec-surface p-5 transition-colors ${
       policy.is_active ? 'border-detec-ui-border' : 'border-detec-ui-border opacity-60'
     } ${isInactiveBaseline ? 'ring-1 ring-amber-300' : ''}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-sm font-semibold text-detec-ui-text font-mono">{policy.rule_id}</span>
+            <span className="text-sm font-semibold text-detec-ink-primary font-mono">{policy.rule_id}</span>
             {ruleLabel && (
-              <span className="text-xs text-detec-ui-muted font-normal">
+              <span className="text-xs text-detec-ink-secondary font-normal">
                 {ruleLabel}
               </span>
             )}
-            <span className="text-xs px-1.5 py-0.5 rounded bg-detec-slate-100 text-detec-ui-muted">
+            <span className="text-xs px-1.5 py-0.5 rounded bg-detec-slate-100 text-detec-ink-secondary">
               v{policy.rule_version}
             </span>
             {policy.is_baseline && (
-              <span className="text-xs px-1.5 py-0.5 rounded bg-detec-ui-accent/15 text-detec-ui-accent border border-detec-ui-accent/30">
+              <span className="text-xs px-1.5 py-0.5 rounded bg-detec-brand-muted text-detec-brand border border-detec-brand/30">
                 Baseline
               </span>
             )}
             <span className={`text-xs px-1.5 py-0.5 rounded ${
-              policy.is_active ? 'bg-detec-teal-500/15 text-detec-teal-600' : 'bg-detec-slate-100 text-detec-ui-muted'
+              policy.is_active ? 'bg-detec-teal-500/15 text-detec-teal-600' : 'bg-detec-slate-100 text-detec-ink-secondary'
             }`}>
               {policy.is_active ? 'Active' : 'Inactive'}
             </span>
@@ -574,7 +574,7 @@ function PolicyCard({ policy, ruleLabel, canManage, onEdit, onToggleActive, onDe
             )}
           </div>
           {policy.description && (
-            <p className="text-sm text-detec-ui-muted mt-1">{policy.description}</p>
+            <p className="text-sm text-detec-ink-secondary mt-1">{policy.description}</p>
           )}
           {isInactiveBaseline && (
             <p className="text-xs text-amber-700 mt-1.5">
@@ -587,7 +587,7 @@ function PolicyCard({ policy, ruleLabel, canManage, onEdit, onToggleActive, onDe
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={onEdit}
-              className="rounded px-2 py-1 text-xs text-detec-ui-muted hover:bg-detec-slate-100 hover:text-detec-ui-text transition-colors"
+              className="rounded px-2 py-1 text-xs text-detec-ink-secondary hover:bg-detec-slate-100 hover:text-detec-ink-primary transition-colors"
             >
               Edit
             </button>
@@ -633,12 +633,12 @@ function PolicyParameters({ parameters }) {
     <div className="mt-3 pt-3 border-t border-detec-ui-border">
       {conditionEntries.length > 0 && (
         <div className="mb-2">
-          <div className="text-xs text-detec-ui-muted uppercase tracking-wider font-medium mb-1">Conditions</div>
+          <div className="text-xs text-detec-ink-secondary uppercase tracking-wider font-medium mb-1">Conditions</div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1">
             {conditionEntries.map(([k, v]) => (
               <div key={k} className="flex items-baseline gap-1.5 text-xs">
-                <span className="text-detec-ui-muted font-mono">{k}:</span>
-                <span className="text-detec-ui-text font-mono truncate">
+                <span className="text-detec-ink-secondary font-mono">{k}:</span>
+                <span className="text-detec-ink-primary font-mono truncate">
                   {Array.isArray(v) ? v.join(', ') : String(v)}
                 </span>
               </div>
@@ -647,14 +647,14 @@ function PolicyParameters({ parameters }) {
         </div>
       )}
       {rationale && (
-        <p className="text-xs text-detec-ui-muted italic mt-1">{rationale}</p>
+        <p className="text-xs text-detec-ink-secondary italic mt-1">{rationale}</p>
       )}
       {hasExtra && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 mt-1">
           {Object.entries(rest).map(([k, v]) => (
             <div key={k} className="flex items-baseline gap-1.5 text-xs">
-              <span className="text-detec-ui-muted font-mono">{k}:</span>
-              <span className="text-detec-ui-text font-mono truncate">
+              <span className="text-detec-ink-secondary font-mono">{k}:</span>
+              <span className="text-detec-ink-primary font-mono truncate">
                 {typeof v === 'object' ? JSON.stringify(v) : String(v)}
               </span>
             </div>
@@ -738,13 +738,13 @@ function PolicyFormModal({ policy, onClose, onSaved, onError }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-detec-lg border border-detec-ui-border bg-detec-ui-surface p-4 sm:p-6 shadow-detec-card max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-lg rounded-detec-lg border border-detec-ui-border bg-detec-surface p-4 sm:p-6 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-detec-ui-text mb-4">
+        <h2 className="text-lg font-semibold text-detec-ink-primary mb-4">
           {isEdit ? 'Edit Policy' : 'Create Policy'}
           {isBaseline && (
-            <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-detec-ui-accent/15 text-detec-ui-accent border border-detec-ui-accent/30 align-middle">
+            <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-detec-brand-muted text-detec-brand border border-detec-brand/30 align-middle">
               Baseline
             </span>
           )}
@@ -753,42 +753,42 @@ function PolicyFormModal({ policy, onClose, onSaved, onError }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-detec-ui-muted mb-1">Rule ID</label>
+              <label className="block text-xs font-medium text-detec-ink-secondary mb-1">Rule ID</label>
               <input
                 type="text"
                 value={ruleId}
                 onChange={(e) => setRuleId(e.target.value)}
                 placeholder="e.g. CUSTOM-001"
                 disabled={isBaseline}
-                className={`w-full rounded-detec border border-detec-ui-border bg-white px-3 py-2 text-sm text-detec-ui-text font-mono focus:ring-2 focus:ring-detec-ui-accent/30 focus:border-detec-ui-accent focus:outline-none shadow-detec-sm ${
+                className={`w-full rounded-detec border border-detec-ui-border bg-white px-3 py-2 text-sm text-detec-ink-primary font-mono focus:ring-2 focus:ring-detec-brand/30 focus:border-detec-brand focus:outline-none ${
                   isBaseline ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
                 required
               />
               {isBaseline && (
-                <p className="text-xs text-detec-ui-muted mt-1">Rule ID is locked on baseline policies</p>
+                <p className="text-xs text-detec-ink-secondary mt-1">Rule ID is locked on baseline policies</p>
               )}
             </div>
             <div>
-              <label className="block text-xs font-medium text-detec-ui-muted mb-1">Version</label>
+              <label className="block text-xs font-medium text-detec-ink-secondary mb-1">Version</label>
               <input
                 type="text"
                 value={ruleVersion}
                 onChange={(e) => setRuleVersion(e.target.value)}
                 placeholder="0.4.0"
-                className="w-full rounded-detec border border-detec-ui-border bg-white px-3 py-2 text-sm text-detec-ui-text font-mono focus:ring-2 focus:ring-detec-ui-accent/30 focus:border-detec-ui-accent focus:outline-none shadow-detec-sm"
+                className="w-full rounded-detec border border-detec-ui-border bg-white px-3 py-2 text-sm text-detec-ink-primary font-mono focus:ring-2 focus:ring-detec-brand/30 focus:border-detec-brand focus:outline-none"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-detec-ui-muted mb-1">Description</label>
+            <label className="block text-xs font-medium text-detec-ink-secondary mb-1">Description</label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What this policy does"
-              className="w-full rounded-detec border border-detec-ui-border bg-white px-3 py-2 text-sm text-detec-ui-text focus:ring-2 focus:ring-detec-ui-accent/30 focus:border-detec-ui-accent focus:outline-none shadow-detec-sm"
+              className="w-full rounded-detec border border-detec-ui-border bg-white px-3 py-2 text-sm text-detec-ink-primary focus:ring-2 focus:ring-detec-brand/30 focus:border-detec-brand focus:outline-none"
             />
           </div>
 
@@ -800,17 +800,17 @@ function PolicyFormModal({ policy, onClose, onSaved, onError }) {
                 onChange={(e) => setIsActive(e.target.checked)}
                 className="peer sr-only"
               />
-              <div className="h-5 w-9 rounded-full bg-detec-slate-200 border border-detec-ui-border after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition-all peer-checked:bg-detec-ui-accent peer-checked:after:translate-x-full peer-checked:after:bg-white" />
+              <div className="h-5 w-9 rounded-full bg-detec-slate-200 border border-detec-ui-border after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition-all peer-checked:bg-detec-brand peer-checked:after:translate-x-full peer-checked:after:bg-white" />
             </label>
-            <span className="text-sm text-detec-ui-text">
+            <span className="text-sm text-detec-ink-primary">
               {isActive ? 'Active' : 'Inactive'}
             </span>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-detec-ui-muted mb-1">
+            <label className="block text-xs font-medium text-detec-ink-secondary mb-1">
               Parameters
-              <span className="text-detec-ui-muted font-normal ml-1">(JSON)</span>
+              <span className="text-detec-ink-secondary font-normal ml-1">(JSON)</span>
             </label>
             <textarea
               value={paramsText}
@@ -818,10 +818,10 @@ function PolicyFormModal({ policy, onClose, onSaved, onError }) {
               onBlur={() => validateParams(paramsText)}
               rows={8}
               spellCheck={false}
-              className={`w-full rounded-detec border bg-white px-3 py-2 text-sm text-detec-ui-text font-mono focus:outline-none resize-y shadow-detec-sm ${
+              className={`w-full rounded-detec border bg-white px-3 py-2 text-sm text-detec-ink-primary font-mono focus:outline-none resize-y ${
                 paramsError
                   ? 'border-red-500 focus:ring-2 focus:ring-red-500/30'
-                  : 'border-detec-ui-border focus:ring-2 focus:ring-detec-ui-accent/30 focus:border-detec-ui-accent'
+                  : 'border-detec-ui-border focus:ring-2 focus:ring-detec-brand/30 focus:border-detec-brand'
               }`}
             />
             {paramsError && (
@@ -839,14 +839,14 @@ function PolicyFormModal({ policy, onClose, onSaved, onError }) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-detec border border-detec-ui-border px-4 py-2 text-sm text-detec-ui-muted hover:bg-detec-slate-100"
+              className="rounded-detec border border-detec-ui-border px-4 py-2 text-sm text-detec-ink-secondary hover:bg-detec-slate-100"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-detec bg-detec-ui-accent px-4 py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover disabled:opacity-50"
+              className="rounded-detec bg-detec-brand px-4 py-2 text-sm font-medium text-white hover:bg-detec-brandHover disabled:opacity-50"
             >
               {submitting ? 'Saving...' : isEdit ? 'Save changes' : 'Create policy'}
             </button>
@@ -862,15 +862,15 @@ function ConfirmModal({ title, message, confirmLabel, confirmClass, onConfirm, o
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onCancel}>
       <div
-        className="w-full max-w-sm rounded-detec-lg border border-detec-ui-border bg-detec-ui-surface p-4 sm:p-6 shadow-detec-card"
+        className="w-full max-w-sm rounded-detec-lg border border-detec-ui-border bg-detec-surface p-4 sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-base font-semibold text-detec-ui-text mb-2">{title}</h3>
-        <p className="text-sm text-detec-ui-muted mb-5">{message}</p>
+        <h3 className="text-base font-semibold text-detec-ink-primary mb-2">{title}</h3>
+        <p className="text-sm text-detec-ink-secondary mb-5">{message}</p>
         <div className="flex justify-end gap-3">
           <button
             onClick={onCancel}
-            className="rounded-detec border border-detec-ui-border px-4 py-2 text-sm text-detec-ui-muted hover:bg-detec-slate-100"
+            className="rounded-detec border border-detec-ui-border px-4 py-2 text-sm text-detec-ink-secondary hover:bg-detec-slate-100"
           >
             Cancel
           </button>

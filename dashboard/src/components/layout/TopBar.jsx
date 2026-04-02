@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import useAuth from '../../hooks/useAuth';
 import useTenants from '../../hooks/useTenants';
 import { switchTenant } from '../../lib/api';
 import { setActiveTenantId } from '../../lib/auth';
+import StatusPulse from '../ui/StatusPulse';
 
 export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0, onMenuClick }) {
   const { user, logout } = useAuth();
@@ -17,6 +18,7 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
   const userMenuRef = useRef(null);
   const notificationsRef = useRef(null);
   const orgSwitcherRef = useRef(null);
+  const searchInputRef = useRef(null);
   const debounceRef = useRef(null);
 
   useEffect(() => {
@@ -36,6 +38,18 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
       document.removeEventListener('mousedown', handleClickOutside);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
+  }, []);
+
+  /* Cmd+K → focus search */
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const activeTenantId = user?.activeTenantId;
@@ -72,11 +86,11 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
   const initials = [user?.first_name?.[0], user?.last_name?.[0]].filter(Boolean).join('').toUpperCase() || '?';
 
   return (
-    <header className="h-14 bg-detec-slate-900 border-b border-detec-slate-800 flex items-center justify-between gap-3 px-4 sm:px-6 shrink-0 min-h-[44px]">
+    <header className="h-12 bg-detec-ground border-b border-detec-edge flex items-center justify-between gap-3 px-4 sm:px-5 shrink-0">
       <div className="flex items-center gap-2 min-w-0">
         <button
           onClick={onMenuClick}
-          className="lg:hidden p-2.5 -ml-1 text-detec-slate-400 hover:text-detec-slate-100 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+          className="lg:hidden p-2.5 -ml-1 text-detec-ink-secondary hover:text-detec-ink-primary rounded-detec-md transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
           aria-label="Open menu"
         >
           <MenuIcon />
@@ -88,7 +102,7 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
       {tenants.length > 0 && (
         <div className="hidden lg:flex items-center shrink-0 relative" ref={orgSwitcherRef}>
           {tenants.length === 1 ? (
-            <span className="px-3 py-1.5 text-sm font-medium text-detec-slate-400 border border-detec-slate-700 rounded-detec bg-detec-slate-800 max-w-[160px] truncate" title={activeTenant?.name}>
+            <span className="px-3 py-1.5 text-sm font-medium text-detec-ink-secondary border border-detec-edge rounded-detec bg-detec-surface max-w-[160px] truncate" title={activeTenant?.name}>
               {activeTenant?.name ?? ''}
             </span>
           ) : (
@@ -100,7 +114,7 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
                 aria-haspopup="listbox"
                 aria-label="Switch organisation"
                 disabled={switching}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border border-detec-slate-700 bg-detec-slate-800 text-detec-slate-100 hover:bg-detec-slate-700 disabled:opacity-60 max-w-[180px]"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border border-detec-edge bg-detec-surface text-detec-ink-primary hover:bg-detec-raised disabled:opacity-60 max-w-[180px]"
               >
                 <BuildingIcon />
                 <span className="truncate max-w-[120px]">{activeTenant?.name ?? 'Select org'}</span>
@@ -110,10 +124,10 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
                 <div
                   role="listbox"
                   aria-label="Select organisation"
-                  className="absolute left-0 top-full mt-2 w-56 bg-detec-slate-800 border border-detec-slate-700 rounded-detec shadow-detec-card py-1 z-50"
+                  className="absolute left-0 top-full mt-2 w-56 bg-detec-surface border border-detec-edge rounded-detec py-1 z-50"
                 >
-                  <div className="px-3 py-2 border-b border-detec-slate-700">
-                    <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">Switch organisation</span>
+                  <div className="px-3 py-2 border-b border-detec-edge">
+                    <span className="text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">Switch organisation</span>
                   </div>
                   {tenants.map((t) => {
                     const isActive = String(t.id) === String(activeTenantId) || (!activeTenantId && t === tenants[0]);
@@ -124,12 +138,12 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
                         aria-selected={isActive}
                         type="button"
                         onClick={() => handleSwitchTenant(t.id)}
-                        className="w-full text-left px-3 py-2.5 text-sm text-detec-slate-100 hover:bg-detec-slate-700 transition-colors flex items-center justify-between gap-2"
+                        className="w-full text-left px-3 py-2.5 text-sm text-detec-ink-primary hover:bg-detec-raised transition-colors flex items-center justify-between gap-2"
                       >
                         <span className="flex flex-col min-w-0">
                           <span className="truncate font-medium">{t.name}</span>
                           {t.role && (
-                            <span className="text-xs text-detec-slate-400 capitalize">{t.role}</span>
+                            <span className="text-xs text-detec-ink-secondary capitalize">{t.role}</span>
                           )}
                         </span>
                         {isActive && <CheckIcon />}
@@ -145,19 +159,23 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
 
       <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 max-w-2xl lg:mx-6">
         <div className="relative flex-1">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-detec-slate-500" />
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-detec-ink-tertiary" />
           <input
+            ref={searchInputRef}
             type="text"
             value={searchValue}
             onChange={handleSearchChange}
             placeholder="Search tools..."
-            aria-label="Search tools"
-            className="w-full bg-detec-slate-800 border border-detec-slate-700 rounded-detec pl-9 pr-3 py-1.5 text-sm text-detec-slate-100 placeholder:text-detec-slate-500 focus:outline-none focus:ring-2 focus:ring-detec-primary-500/30 focus:border-detec-primary-500 transition-colors"
+            aria-label="Search tools (Cmd+K)"
+            className="w-full bg-detec-surface border border-detec-edge rounded-detec pl-9 pr-14 py-1.5 text-sm text-detec-ink-primary placeholder:text-detec-ink-tertiary focus:outline-none focus:ring-2 focus:ring-detec-brand/30 focus:border-detec-brand transition-colors"
           />
+          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-detec border border-detec-edge text-data-xs font-data text-detec-ink-tertiary pointer-events-none">
+            <span className="text-[10px]">&#8984;</span>K
+          </kbd>
         </div>
         <button
           onClick={onRefresh}
-          className="p-2.5 sm:p-1.5 bg-detec-slate-800 border border-detec-slate-700 rounded-detec text-detec-slate-400 hover:text-detec-slate-100 hover:bg-detec-slate-700 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center shrink-0"
+          className="p-2.5 sm:p-1.5 bg-detec-surface border border-detec-edge rounded-detec text-detec-ink-secondary hover:text-detec-ink-primary hover:bg-detec-raised transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center shrink-0"
           title="Refresh data"
         >
           <RefreshIcon />
@@ -165,6 +183,7 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
       </div>
 
       <div className="flex items-center gap-1 sm:gap-3 shrink-0">
+        <StatusPulse status="live" size="sm" />
         <div className="relative" ref={notificationsRef}>
           <button
             type="button"
@@ -173,7 +192,7 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
             aria-haspopup="true"
             aria-label={`Notifications${alertCount > 0 ? `, ${alertCount} alerts` : ''}`}
             title={alertCount > 0 ? `${alertCount} alerts requiring attention` : 'Notification settings'}
-            className="relative p-2.5 sm:p-1.5 text-detec-slate-400 hover:text-detec-slate-100 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
+            className="relative p-2.5 sm:p-1.5 text-detec-ink-secondary hover:text-detec-ink-primary transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
           >
             <BellIcon />
             {alertCount > 0 && (
@@ -183,40 +202,40 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
             )}
           </button>
           {showNotifications && (
-            <div className="absolute right-0 top-full mt-2 w-64 bg-detec-slate-800 border border-detec-slate-700 rounded-detec shadow-detec-card py-1 z-50">
-              <div className="px-3 py-2 border-b border-detec-slate-700">
-                <span className="text-xs font-medium text-detec-slate-400 uppercase tracking-wider">Notifications</span>
+            <div className="absolute right-0 top-full mt-2 w-64 bg-detec-surface border border-detec-edge rounded-detec py-1 z-50">
+              <div className="px-3 py-2 border-b border-detec-edge">
+                <span className="text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">Notifications</span>
               </div>
-              <label className="flex items-center gap-2 px-3 py-2.5 text-sm text-detec-slate-100 hover:bg-detec-slate-700 cursor-pointer">
+              <label className="flex items-center gap-2 px-3 py-2.5 text-sm text-detec-ink-primary hover:bg-detec-raised cursor-pointer">
                 <input
                   type="checkbox"
                   checked={alertOnApproval}
                   onChange={(e) => setAlertOnApproval(e.target.checked)}
-                  className="rounded border-detec-slate-600 bg-detec-slate-700 text-detec-primary-500 focus:ring-detec-primary-500/30"
+                  className="rounded border-detec-edge-emphasis bg-detec-raised text-detec-brand focus:ring-detec-brand/30"
                 />
                 <span>Alert me when tools need approval</span>
               </label>
-              <label className="flex items-center gap-2 px-3 py-2.5 text-sm text-detec-slate-100 hover:bg-detec-slate-700 cursor-pointer">
+              <label className="flex items-center gap-2 px-3 py-2.5 text-sm text-detec-ink-primary hover:bg-detec-raised cursor-pointer">
                 <input
                   type="checkbox"
                   checked={emailDigest}
                   onChange={(e) => setEmailDigest(e.target.checked)}
-                  className="rounded border-detec-slate-600 bg-detec-slate-700 text-detec-primary-500 focus:ring-detec-primary-500/30"
+                  className="rounded border-detec-edge-emphasis bg-detec-raised text-detec-brand focus:ring-detec-brand/30"
                 />
                 <span>Email digest</span>
               </label>
-              <div className="border-t border-detec-slate-700">
+              <div className="border-t border-detec-edge">
                 <button
                   type="button"
                   onClick={() => { onNavigate('events'); setShowNotifications(false); }}
-                  className="w-full text-left px-3 py-2 text-sm text-detec-slate-100 hover:bg-detec-slate-700 transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm text-detec-ink-primary hover:bg-detec-raised transition-colors"
                 >
                   View all events
                 </button>
                 <button
                   type="button"
                   onClick={() => { onNavigate('settings'); setShowNotifications(false); }}
-                  className="w-full text-left px-3 py-2 text-sm text-detec-slate-400 hover:bg-detec-slate-700 transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm text-detec-ink-secondary hover:bg-detec-raised transition-colors"
                 >
                   Notification settings
                 </button>
@@ -231,29 +250,29 @@ export default function TopBar({ onNavigate, onSearch, onRefresh, alertCount = 0
             aria-expanded={showUserMenu}
             aria-haspopup="true"
             aria-label="User menu"
-            className="flex items-center gap-2 sm:gap-2.5 pl-2 sm:pl-3 border-l border-detec-slate-700 cursor-pointer hover:opacity-80 transition-opacity min-h-[44px] py-1"
+            className="flex items-center gap-2 sm:gap-2.5 pl-2 sm:pl-3 border-l border-detec-edge cursor-pointer hover:opacity-80 transition-opacity min-h-[44px] py-1"
           >
-            <div className="w-8 h-8 rounded-full bg-detec-primary-500/15 border border-detec-primary-500/30 flex items-center justify-center text-xs font-semibold text-detec-primary-400 shrink-0">
+            <div className="w-8 h-8 rounded-full bg-detec-brand-muted border border-detec-brand/30 flex items-center justify-center text-xs font-semibold text-detec-brand-hover shrink-0">
               {initials}
             </div>
             <div className="text-right hidden sm:block">
-              <div className="text-sm font-medium text-detec-slate-100 leading-tight truncate max-w-[120px] lg:max-w-none">
+              <div className="text-sm font-medium text-detec-ink-primary leading-tight truncate max-w-[120px] lg:max-w-none">
                 {displayName}
               </div>
-              <div className="text-xs text-detec-slate-400 leading-tight">
+              <div className="text-xs text-detec-ink-secondary leading-tight">
                 {user?.role || 'analyst'}
               </div>
             </div>
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 top-full mt-2 w-48 bg-detec-slate-800 border border-detec-slate-700 rounded-detec shadow-detec-card py-1 z-50">
-              <div className="px-3 py-2 border-b border-detec-slate-700">
-                <div className="text-xs text-detec-slate-400 truncate">{user?.email}</div>
+            <div className="absolute right-0 top-full mt-2 w-48 bg-detec-surface border border-detec-edge rounded-detec py-1 z-50">
+              <div className="px-3 py-2 border-b border-detec-edge">
+                <div className="text-xs text-detec-ink-secondary truncate">{user?.email}</div>
               </div>
               <button
                 onClick={() => { onNavigate('settings'); setShowUserMenu(false); }}
-                className="w-full text-left px-3 py-2 text-sm text-detec-slate-100 hover:bg-detec-slate-700 transition-colors"
+                className="w-full text-left px-3 py-2 text-sm text-detec-ink-primary hover:bg-detec-raised transition-colors"
               >
                 Settings
               </button>
@@ -328,7 +347,7 @@ function ChevronDownIcon() {
 
 function CheckIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-detec-ui-accent">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-detec-brand">
       <polyline points="20 6 9 17 4 12" />
     </svg>
   );

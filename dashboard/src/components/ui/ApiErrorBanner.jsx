@@ -12,7 +12,7 @@ export default function ApiErrorBanner({ error, onDismiss, className = '' }) {
   return (
     <div
       role="alert"
-      className={`flex items-start gap-3 rounded-lg border border-red-700/50 bg-red-900/20 px-4 py-3 text-sm text-red-300 ${className}`}
+      className={`flex items-start gap-3 rounded-detec-md border border-red-700/50 bg-red-900/20 px-4 py-3 text-sm text-red-300 ${className}`}
     >
       {/* Warning icon */}
       <svg

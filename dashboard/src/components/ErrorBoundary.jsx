@@ -17,13 +17,13 @@ export default class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-detec-ui-page text-detec-ui-text p-8">
+        <div className="min-h-screen flex items-center justify-center bg-detec-void text-detec-ink-primary p-8">
           <div className="max-w-md text-center space-y-4">
             <h1 className="text-2xl font-semibold text-red-400">Something went wrong</h1>
-            <p className="text-detec-ui-muted">
+            <p className="text-detec-ink-secondary">
               An unexpected error occurred. Try refreshing the page.
             </p>
-            <pre className="text-xs text-left bg-detec-ui-page rounded p-4 overflow-auto max-h-40 text-detec-ui-muted">
+            <pre className="text-xs text-left bg-detec-void rounded p-4 overflow-auto max-h-40 text-detec-ink-secondary">
               {this.state.error?.message || 'Unknown error'}
             </pre>
             <button

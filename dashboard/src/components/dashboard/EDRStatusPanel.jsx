@@ -72,19 +72,19 @@ export default function EDRStatusPanel({ endpointId, isAdmin = false }) {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/80 p-5">
-        <h3 className="text-sm font-semibold text-detec-ui-text uppercase tracking-wider mb-3">
+      <div className="rounded-detec-md border border-detec-edge bg-detec-surface/80 p-5">
+        <h3 className="text-sm font-semibold text-detec-ink-primary uppercase tracking-wider mb-3">
           EDR Enforcement
         </h3>
-        <p className="text-sm text-detec-ui-muted">Loading...</p>
+        <p className="text-sm text-detec-ink-secondary">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/80 p-5 space-y-4">
+    <div className="rounded-detec-md border border-detec-edge bg-detec-surface/80 p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-detec-ui-text uppercase tracking-wider">
+        <h3 className="text-sm font-semibold text-detec-ink-primary uppercase tracking-wider">
           EDR Enforcement
         </h3>
         {status?.available && (
@@ -102,27 +102,27 @@ export default function EDRStatusPanel({ endpointId, isAdmin = false }) {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">
+        <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">
           {error}
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
-          <span className="text-xs text-detec-ui-muted uppercase tracking-wider">Provider</span>
+          <span className="text-xs text-detec-ink-secondary uppercase tracking-wider">Provider</span>
           {isAdmin ? (
             <select
               value={selectedProvider}
               onChange={(e) => handleProviderChange(e.target.value)}
               disabled={saving}
-              className="mt-1 w-full bg-detec-ui-page border border-detec-ui-border rounded-lg px-3 py-2 text-sm text-detec-ui-text focus:outline-none focus:border-detec-ui-accent/50 transition-colors disabled:opacity-50"
+              className="mt-1 w-full bg-detec-void border border-detec-edge rounded-detec-md px-3 py-2 text-sm text-detec-ink-primary focus:outline-none focus:border-detec-brand/50 transition-colors disabled:opacity-50"
             >
               {PROVIDER_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
           ) : (
-            <p className="mt-1 text-detec-ui-text">
+            <p className="mt-1 text-detec-ink-primary">
               {status?.enforcement_provider
                 ? PROVIDER_OPTIONS.find(o => o.value === status.enforcement_provider)?.label || status.enforcement_provider
                 : 'Local (no EDR)'}
@@ -131,8 +131,8 @@ export default function EDRStatusPanel({ endpointId, isAdmin = false }) {
         </div>
 
         <div>
-          <span className="text-xs text-detec-ui-muted uppercase tracking-wider">EDR Host ID</span>
-          <p className="mt-1 font-mono text-xs text-detec-ui-muted break-all">
+          <span className="text-xs text-detec-ink-secondary uppercase tracking-wider">EDR Host ID</span>
+          <p className="mt-1 font-mono text-xs text-detec-ink-secondary break-all">
             {status?.edr_host_id || 'Not resolved'}
           </p>
         </div>
@@ -143,7 +143,7 @@ export default function EDRStatusPanel({ endpointId, isAdmin = false }) {
           <button
             onClick={handleTest}
             disabled={testing}
-            className="px-4 py-2 bg-detec-ui-accent hover:bg-detec-ui-accentHover text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+            className="px-4 py-2 bg-detec-brand hover:bg-detec-brand-hover text-white text-sm font-medium rounded-detec-md transition-colors disabled:opacity-50"
           >
             {testing ? 'Testing...' : 'Test EDR Connection'}
           </button>
@@ -162,7 +162,7 @@ export default function EDRStatusPanel({ endpointId, isAdmin = false }) {
       )}
 
       {status?.registered_providers?.length > 0 && (
-        <p className="text-xs text-detec-ui-muted">
+        <p className="text-xs text-detec-ink-secondary">
           Registered providers: {status.registered_providers.join(', ')}
         </p>
       )}

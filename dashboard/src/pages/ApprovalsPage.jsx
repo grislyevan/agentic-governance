@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { fetchApprovals, approveRequest, denyRequest, getApprovalStreamUrl } from '../lib/api';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
 import ApiErrorBanner from '../components/ui/ApiErrorBanner';
+import SectionTabBar from '../components/ui/SectionTabBar';
+import ExceptionsPage from './ExceptionsPage';
 
 const TABS = [
   { value: 'pending', label: 'Pending' },
@@ -13,7 +15,7 @@ function statusBadgeClass(status) {
   if (status === 'pending') return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
   if (status === 'approved') return 'bg-green-500/10 text-green-400 border-green-500/30';
   if (status === 'denied') return 'bg-red-500/10 text-red-400 border-red-500/30';
-  return 'bg-detec-slate-100 text-detec-ui-text border-detec-ui-border/50';
+  return 'bg-detec-slate-100 text-detec-ink-primary border-detec-ui-border/50';
 }
 
 function statusLabel(status) {
@@ -56,7 +58,7 @@ function EmptyState({ tab }) {
   };
   const m = msgs[tab] || { title: 'Nothing here', body: '' };
   return (
-    <div className="rounded-xl border border-dashed border-detec-ui-border bg-detec-slate-50 px-8 py-20 text-center">
+    <div className="rounded-detec-md border border-dashed border-detec-ui-border bg-detec-slate-50 px-8 py-20 text-center">
       <div className="mb-3 opacity-40">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="inline-block" aria-hidden="true">
           <circle cx="12" cy="12" r="10" />
@@ -64,8 +66,8 @@ function EmptyState({ tab }) {
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
       </div>
-      <div className="text-detec-ui-muted text-sm font-medium mb-1">{m.title}</div>
-      <div className="text-detec-ui-muted text-sm max-w-sm mx-auto">{m.body}</div>
+      <div className="text-detec-ink-secondary text-sm font-medium mb-1">{m.title}</div>
+      <div className="text-detec-ink-secondary text-sm max-w-sm mx-auto">{m.body}</div>
     </div>
   );
 }
@@ -84,19 +86,19 @@ function ActionModal({ item, mode, onConfirm, onCancel, loading }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onCancel}>
       <div
-        className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-page/95 p-6 max-w-md w-full mx-4 shadow-xl"
+        className="rounded-detec-md border border-detec-ui-border/50 bg-detec-void/95 p-6 max-w-md w-full mx-4 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-base font-semibold text-detec-ui-text mb-1">
+        <h2 className="text-base font-semibold text-detec-ink-primary mb-1">
           {isApprove ? 'Approve request' : 'Deny request'}
         </h2>
-        <p className="text-sm text-detec-ui-muted mb-4">
-          Tool: <span className="font-mono text-detec-ui-text">{item.tool_name}</span>
+        <p className="text-sm text-detec-ink-secondary mb-4">
+          Tool: <span className="font-mono text-detec-ink-primary">{item.tool_name}</span>
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-detec-ui-muted uppercase tracking-wider mb-1">
-              Reason {reasonRequired ? <span className="text-red-400">*</span> : <span className="text-detec-ui-muted">(optional)</span>}
+            <label className="block text-xs font-medium text-detec-ink-secondary uppercase tracking-wider mb-1">
+              Reason {reasonRequired ? <span className="text-red-400">*</span> : <span className="text-detec-ink-secondary">(optional)</span>}
             </label>
             <textarea
               value={reason}
@@ -104,21 +106,21 @@ function ActionModal({ item, mode, onConfirm, onCancel, loading }) {
               required={reasonRequired}
               rows={3}
               placeholder={isApprove ? 'Reason for approval (optional)' : 'Reason for denial (required)'}
-              className="w-full px-3 py-2 rounded-lg border border-detec-ui-border/50 bg-detec-ui-surface text-detec-ui-text text-sm resize-none focus:outline-none focus:ring-2 focus:ring-detec-ui-accent/30 focus:border-detec-ui-accent"
+              className="w-full px-3 py-2 rounded-detec-md border border-detec-ui-border/50 bg-detec-surface text-detec-ink-primary text-sm resize-none focus:outline-none focus:ring-2 focus:ring-detec-brand/30 focus:border-detec-brand"
             />
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <button
               type="button"
               onClick={onCancel}
-              className="px-3 py-1.5 text-sm text-detec-ui-muted hover:text-detec-ui-text"
+              className="px-3 py-1.5 text-sm text-detec-ink-secondary hover:text-detec-ink-primary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || (reasonRequired && !reason.trim())}
-              className={`px-4 py-1.5 text-sm font-medium rounded-lg disabled:opacity-50 transition-colors ${
+              className={`px-4 py-1.5 text-sm font-medium rounded-detec-md disabled:opacity-50 transition-colors ${
                 isApprove
                   ? 'bg-green-600 hover:bg-green-700 text-white'
                   : 'bg-red-600 hover:bg-red-700 text-white'
@@ -152,23 +154,26 @@ function DetailDrawer({ item, onClose, onAction, actionLoading, onNavigate }) {
         aria-hidden="true"
       />
       {/* Drawer */}
-      <div className="fixed right-0 top-0 bottom-0 z-40 w-full max-w-md bg-detec-ui-surface border-l border-detec-ui-border shadow-xl flex flex-col">
+      <div className="fixed right-0 top-0 bottom-0 z-40 w-full max-w-md bg-detec-surface border-l border-detec-ui-border shadow-xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-detec-ui-border">
           <div className="flex items-center gap-3 min-w-0 flex-wrap">
-            <span className="font-mono font-semibold text-detec-ui-text truncate">{item.tool_name}</span>
+            <span className="font-mono font-semibold text-detec-ink-primary truncate">{item.tool_name}</span>
             <span className={`inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium ${statusBadgeClass(item.status)}`}>
               {statusLabel(item.status)}
             </span>
             {item.status === 'pending' && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs font-semibold">
-                Execution held pending approval
+              <span
+                className="inline-flex items-center px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs font-semibold"
+                title="In active posture, the process is suspended (SIGSTOP). In passive/audit posture, this is advisory only."
+              >
+                Approval requested
               </span>
             )}
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-detec-ui-muted hover:text-detec-ui-text transition-colors rounded"
+            className="p-1.5 text-detec-ink-secondary hover:text-detec-ink-primary transition-colors rounded"
             aria-label="Close detail panel"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -182,7 +187,7 @@ function DetailDrawer({ item, onClose, onAction, actionLoading, onNavigate }) {
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           {/* Detection */}
           <section>
-            <h3 className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider mb-2">Detection</h3>
+            <h3 className="text-xs font-medium text-detec-ink-secondary uppercase tracking-wider mb-2">Detection</h3>
             <dl className="space-y-1.5">
               <DrawerRow label="Confidence band" value={item.confidence_band || '—'} />
               <DrawerRow label="Confidence score" value={fmtPct(item.confidence_score)} />
@@ -194,7 +199,7 @@ function DetailDrawer({ item, onClose, onAction, actionLoading, onNavigate }) {
                     ? (
                       <button
                         onClick={() => { onClose(); onNavigate?.('events'); }}
-                        className="font-mono text-xs text-detec-ui-accent hover:underline"
+                        className="font-mono text-xs text-detec-brand hover:underline"
                       >
                         {item.event_id.slice(0, 16)}…
                       </button>
@@ -207,7 +212,7 @@ function DetailDrawer({ item, onClose, onAction, actionLoading, onNavigate }) {
 
           {/* Context */}
           <section>
-            <h3 className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider mb-2">Context</h3>
+            <h3 className="text-xs font-medium text-detec-ink-secondary uppercase tracking-wider mb-2">Context</h3>
             <dl className="space-y-1.5">
               <DrawerRow label="Endpoint" value={item.endpoint_id ? <span className="font-mono text-xs">{item.endpoint_id.slice(0, 16)}…</span> : '—'} />
               <DrawerRow label="Requester type" value={item.requester_type || '—'} />
@@ -218,7 +223,7 @@ function DetailDrawer({ item, onClose, onAction, actionLoading, onNavigate }) {
           {/* Decision */}
           {(item.decided_by || item.decided_at || item.reason) && (
             <section>
-              <h3 className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider mb-2">Decision</h3>
+              <h3 className="text-xs font-medium text-detec-ink-secondary uppercase tracking-wider mb-2">Decision</h3>
               <dl className="space-y-1.5">
                 {item.decided_by && <DrawerRow label="Decided by" value={item.decided_by} />}
                 {item.decided_at && <DrawerRow label="Decided at" value={fmtDate(item.decided_at)} />}
@@ -234,14 +239,14 @@ function DetailDrawer({ item, onClose, onAction, actionLoading, onNavigate }) {
             <button
               onClick={() => setMode('approve')}
               disabled={actionLoading}
-              className="flex-1 px-4 py-2 text-sm font-medium rounded-lg bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transition-colors"
+              className="flex-1 px-4 py-2 text-sm font-medium rounded-detec-md bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transition-colors"
             >
               Approve
             </button>
             <button
               onClick={() => setMode('deny')}
               disabled={actionLoading}
-              className="flex-1 px-4 py-2 text-sm font-medium rounded-lg bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 transition-colors"
+              className="flex-1 px-4 py-2 text-sm font-medium rounded-detec-md bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 transition-colors"
             >
               Deny
             </button>
@@ -265,8 +270,8 @@ function DetailDrawer({ item, onClose, onAction, actionLoading, onNavigate }) {
 function DrawerRow({ label, value }) {
   return (
     <div className="flex items-start justify-between gap-4 text-sm">
-      <dt className="text-detec-ui-muted shrink-0 w-32">{label}</dt>
-      <dd className="text-detec-ui-text text-right">{value}</dd>
+      <dt className="text-detec-ink-secondary shrink-0 w-32">{label}</dt>
+      <dd className="text-detec-ink-primary text-right">{value}</dd>
     </div>
   );
 }
@@ -286,6 +291,8 @@ export default function ApprovalsPage({ onNavigate }) {
   const [selectedItem, setSelectedItem] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState(null);
+
+  const [sectionTab, setSectionTab] = useState('queue');
 
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkDecision, setBulkDecision] = useState(null); // 'approve' | 'deny' | null
@@ -319,6 +326,9 @@ export default function ApprovalsPage({ onNavigate }) {
       setLoading(false);
     }
   }, [activeTab, page]);
+
+  // Initial load + reload on tab/page change
+  useEffect(() => { load(); }, [load]);
 
   // SSE for real-time updates; falls back to 30s polling on error
   const fallbackTimerRef = useRef(null);
@@ -436,13 +446,24 @@ export default function ApprovalsPage({ onNavigate }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0">
+      <h1 className="text-lg font-bold text-detec-ink-primary tracking-tight">Approvals</h1>
+      <SectionTabBar
+        tabs={[
+          { key: 'queue', label: 'Queue' },
+          { key: 'exceptions', label: 'Exceptions' },
+        ]}
+        activeTab={sectionTab}
+        onChange={setSectionTab}
+      />
+
+      {sectionTab === 'queue' && (
+      <div className="space-y-4">
       {/* Page header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-detec-ui-text">Approvals</h1>
               {/* Stream status badge */}
               <span
                 title={streamStatus === 'live' ? 'Receiving real-time updates via SSE' : streamStatus === 'polling' ? 'SSE unavailable — polling every 30s' : 'Connecting to real-time stream...'}
@@ -451,22 +472,22 @@ export default function ApprovalsPage({ onNavigate }) {
                     ? 'bg-detec-teal-500/15 text-detec-teal-500 border-detec-teal-500/30'
                     : streamStatus === 'polling'
                     ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                    : 'bg-detec-ui-surface text-detec-ui-muted border-detec-ui-border'
+                    : 'bg-detec-surface text-detec-ink-secondary border-detec-ui-border'
                 }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${
-                  streamStatus === 'live' ? 'bg-detec-teal-500' : streamStatus === 'polling' ? 'bg-amber-400' : 'bg-detec-ui-muted'
+                  streamStatus === 'live' ? 'bg-detec-teal-500' : streamStatus === 'polling' ? 'bg-amber-400' : 'bg-detec-ink-secondary'
                 }`} />
                 {streamStatus === 'live' ? 'Live' : streamStatus === 'polling' ? 'Polling' : 'Connecting'}
               </span>
             </div>
-            <p className="text-sm text-detec-ui-muted mt-0.5">
+            <p className="text-sm text-detec-ink-secondary mt-0.5">
               Review and action tool execution requests that require human approval.
             </p>
           </div>
           <button
             onClick={togglePause}
-            className="text-xs text-detec-ui-muted hover:text-detec-ui-text border border-detec-ui-border/50 rounded px-2 py-1 transition-colors"
+            className="text-xs text-detec-ink-secondary hover:text-detec-ink-primary border border-detec-ui-border/50 rounded px-2 py-1 transition-colors"
             title={streamStatus === 'polling' ? 'Reconnect SSE stream' : 'Pause live stream'}
           >
             {streamStatus === 'polling' ? 'Reconnect' : 'Pause'}
@@ -475,16 +496,32 @@ export default function ApprovalsPage({ onNavigate }) {
         {loading && <ApertureSpinner size="sm" label="Loading approvals" />}
       </div>
 
+      {/* Enforcement posture callout */}
+      <div className="rounded-detec-md border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-start gap-3">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5" aria-hidden="true">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <div className="text-sm">
+          <p className="text-detec-ink-primary font-medium">Enforcement behavior depends on posture</p>
+          <p className="text-detec-ink-secondary mt-0.5">
+            <strong className="text-detec-ink-primary">Active posture:</strong> detected processes are suspended (SIGSTOP) while awaiting a decision.{' '}
+            <strong className="text-detec-ink-primary">Passive / audit posture:</strong> approval requests are logged and surfaced here, but execution is not blocked.
+            Check your enforcement posture in Admin &gt; Server Settings.
+          </p>
+        </div>
+      </div>
+
       {/* Tabs */}
-      <div className="inline-flex rounded-lg border border-detec-ui-border/50 bg-detec-ui-surface/80 p-0.5">
+      <div className="inline-flex rounded-detec-md border border-detec-ui-border/50 bg-detec-surface/80 p-0.5">
         {TABS.map(({ value, label }) => (
           <button
             key={value}
             onClick={() => handleTabChange(value)}
             className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
               activeTab === value
-                ? 'bg-detec-slate-200 text-detec-ui-text'
-                : 'text-detec-ui-muted hover:text-detec-ui-text hover:bg-detec-slate-100'
+                ? 'bg-detec-slate-200 text-detec-ink-primary'
+                : 'text-detec-ink-secondary hover:text-detec-ink-primary hover:bg-detec-slate-100'
             }`}
           >
             {label}
@@ -501,22 +538,22 @@ export default function ApprovalsPage({ onNavigate }) {
 
       {/* Bulk action bar */}
       {activeTab === 'pending' && selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2 bg-detec-slate-50 border border-detec-ui-border rounded-lg mb-4">
-          <span className="text-sm text-detec-ui-muted">{selectedIds.size} selected</span>
+        <div className="flex items-center gap-3 px-4 py-2 bg-detec-slate-50 border border-detec-ui-border rounded-detec-md mb-4">
+          <span className="text-sm text-detec-ink-secondary">{selectedIds.size} selected</span>
           <button className="px-3 py-1 text-xs rounded bg-emerald-500 text-white hover:bg-emerald-600" onClick={() => setBulkDecision('approve')}>Approve all</button>
           <button className="px-3 py-1 text-xs rounded bg-red-500 text-white hover:bg-red-600" onClick={() => setBulkDecision('deny')}>Deny all</button>
-          <button className="text-xs text-detec-ui-muted hover:text-detec-ui-text ml-auto" onClick={clearSelection}>Clear selection</button>
+          <button className="text-xs text-detec-ink-secondary hover:text-detec-ink-primary ml-auto" onClick={clearSelection}>Clear selection</button>
         </div>
       )}
 
       {/* Table */}
       {items.length > 0 && (
-        <div className="rounded-xl border border-detec-ui-border/50 overflow-x-auto overflow-hidden">
+        <div className="rounded-detec-md border border-detec-ui-border/50 overflow-x-auto overflow-hidden">
           <table className="w-full text-left min-w-[700px]" aria-label="Approval requests">
             <thead>
-              <tr className="bg-detec-ui-surface/80 border-b border-detec-ui-border/50">
+              <tr className="bg-detec-surface/80 border-b border-detec-ui-border/50">
                 {activeTab === 'pending' && (
-                  <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider w-8">
+                  <th className="px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider w-8">
                     <input
                       type="checkbox"
                       onChange={e => {
@@ -527,17 +564,17 @@ export default function ApprovalsPage({ onNavigate }) {
                     />
                   </th>
                 )}
-                <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Tool</th>
-                <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider hidden md:table-cell">Endpoint</th>
-                <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Confidence</th>
-                <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider hidden lg:table-cell">Policy rule</th>
-                <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Requested at</th>
+                <th className="px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">Tool</th>
+                <th className="px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider hidden md:table-cell">Endpoint</th>
+                <th className="px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">Confidence</th>
+                <th className="px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider hidden lg:table-cell">Policy rule</th>
+                <th className="px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">Requested at</th>
                 {activeTab === 'pending' && (
-                  <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Age</th>
+                  <th className="px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">Age</th>
                 )}
-                <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">Status</th>
                 {activeTab === 'pending' && (
-                  <th className="px-4 py-3 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">Actions</th>
+                  <th className="px-4 py-3 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">Actions</th>
                 )}
               </tr>
             </thead>
@@ -548,7 +585,7 @@ export default function ApprovalsPage({ onNavigate }) {
               ).map((item) => (
                 <tr
                   key={item.id}
-                  className="border-b border-detec-ui-border/40 hover:bg-detec-ui-surface/40 cursor-pointer"
+                  className="border-b border-detec-ui-border/40 hover:bg-detec-surface/40 cursor-pointer"
                   onClick={() => setSelectedItem(item)}
                 >
                   {activeTab === 'pending' && (
@@ -556,24 +593,24 @@ export default function ApprovalsPage({ onNavigate }) {
                       <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} />
                     </td>
                   )}
-                  <td className="px-4 py-3 text-sm font-mono text-detec-ui-text">{item.tool_name}</td>
-                  <td className="px-4 py-3 text-sm text-detec-ui-muted hidden md:table-cell">
+                  <td className="px-4 py-3 text-sm font-mono text-detec-ink-primary">{item.tool_name}</td>
+                  <td className="px-4 py-3 text-sm text-detec-ink-secondary hidden md:table-cell">
                     {item.endpoint_id ? item.endpoint_id.slice(0, 12) + '…' : '—'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-detec-ui-muted">
+                  <td className="px-4 py-3 text-sm text-detec-ink-secondary">
                     <span className="font-mono">{fmtPct(item.confidence_score)}</span>
                     {item.confidence_band && (
-                      <span className="ml-1.5 text-xs text-detec-ui-muted opacity-70">({item.confidence_band})</span>
+                      <span className="ml-1.5 text-xs text-detec-ink-secondary opacity-70">({item.confidence_band})</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm font-mono text-detec-ui-muted hidden lg:table-cell">
+                  <td className="px-4 py-3 text-sm font-mono text-detec-ink-secondary hidden lg:table-cell">
                     {item.policy_rule_id ? item.policy_rule_id.slice(0, 16) + '…' : '—'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-detec-ui-muted whitespace-nowrap">
+                  <td className="px-4 py-3 text-sm text-detec-ink-secondary whitespace-nowrap">
                     {fmtDate(item.requested_at)}
                   </td>
                   {activeTab === 'pending' && (
-                    <td className="px-4 py-3 text-sm text-detec-ui-muted whitespace-nowrap">
+                    <td className="px-4 py-3 text-sm text-detec-ink-secondary whitespace-nowrap">
                       {formatAge(item.requested_at)}
                     </td>
                   )}
@@ -616,17 +653,17 @@ export default function ApprovalsPage({ onNavigate }) {
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="px-3 py-1.5 text-sm text-detec-ui-muted hover:text-detec-ui-text disabled:opacity-30 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 text-sm text-detec-ink-secondary hover:text-detec-ink-primary disabled:opacity-30 disabled:cursor-not-allowed"
           >
             Previous
           </button>
-          <span className="text-sm text-detec-ui-muted">
+          <span className="text-sm text-detec-ink-secondary">
             Page {page} of {Math.ceil(total / 50)}
           </span>
           <button
             onClick={() => setPage((p) => p + 1)}
             disabled={page * 50 >= total}
-            className="px-3 py-1.5 text-sm text-detec-ui-muted hover:text-detec-ui-text disabled:opacity-30 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 text-sm text-detec-ink-secondary hover:text-detec-ink-primary disabled:opacity-30 disabled:cursor-not-allowed"
           >
             Next
           </button>
@@ -647,20 +684,26 @@ export default function ApprovalsPage({ onNavigate }) {
       {/* Bulk decision modal */}
       {bulkDecision && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-detec-surface border border-detec-ui-border rounded-lg p-6 w-96 space-y-4">
-            <h2 className="font-semibold text-detec-ui-text capitalize">{bulkDecision} {selectedIds.size} requests</h2>
+          <div className="bg-detec-surface border border-detec-ui-border rounded-detec-md p-6 w-96 space-y-4">
+            <h2 className="font-semibold text-detec-ink-primary capitalize">{bulkDecision} {selectedIds.size} requests</h2>
             <div className="flex flex-wrap gap-1 mb-2">
               {(REASON_TEMPLATES[bulkDecision] || []).map(t => (
                 <button key={t} className="text-xs px-2 py-0.5 rounded border border-detec-ui-border hover:bg-detec-slate-100" onClick={() => setBulkReason(t)}>{t}</button>
               ))}
             </div>
-            <textarea className="w-full border border-detec-ui-border rounded px-3 py-1.5 text-sm bg-detec-bg text-detec-ui-text" rows={2} placeholder="Reason..." value={bulkReason} onChange={e => setBulkReason(e.target.value)} />
+            <textarea className="w-full border border-detec-ui-border rounded px-3 py-1.5 text-sm bg-detec-bg text-detec-ink-primary" rows={2} placeholder="Reason..." value={bulkReason} onChange={e => setBulkReason(e.target.value)} />
             <div className="flex gap-2">
-              <button className="flex-1 py-1.5 text-sm rounded bg-detec-ui-accent text-white hover:opacity-90 disabled:opacity-50" disabled={bulkBusy || !bulkReason.trim()} onClick={executeBulkDecision}>{bulkBusy ? 'Processing…' : 'Confirm'}</button>
-              <button className="flex-1 py-1.5 text-sm rounded border border-detec-ui-border text-detec-ui-muted" onClick={() => { setBulkDecision(null); setBulkReason(''); }}>Cancel</button>
+              <button className="flex-1 py-1.5 text-sm rounded bg-detec-brand text-white hover:opacity-90 disabled:opacity-50" disabled={bulkBusy || !bulkReason.trim()} onClick={executeBulkDecision}>{bulkBusy ? 'Processing…' : 'Confirm'}</button>
+              <button className="flex-1 py-1.5 text-sm rounded border border-detec-ui-border text-detec-ink-secondary" onClick={() => { setBulkDecision(null); setBulkReason(''); }}>Cancel</button>
             </div>
           </div>
         </div>
+      )}
+      </div>
+      )}
+
+      {sectionTab === 'exceptions' && (
+        <ExceptionsPage embedded />
       )}
     </div>
   );

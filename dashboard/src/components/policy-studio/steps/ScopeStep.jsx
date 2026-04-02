@@ -42,12 +42,12 @@ export default function ScopeStep({ data, onChange }) {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-detec-ui-muted">
+      <p className="text-sm text-detec-ink-secondary">
         What are you trying to protect or govern? Select data types and optional activity targets.
       </p>
 
       <section>
-        <h4 className="text-sm font-semibold text-detec-ui-text mb-2">Data at risk</h4>
+        <h4 className="text-sm font-semibold text-detec-ink-primary mb-2">Data at risk</h4>
         <div className="flex flex-wrap gap-2">
           {DATA_AT_RISK.map((chip) => {
             const isSelected = assets.includes(chip.id);
@@ -58,8 +58,8 @@ export default function ScopeStep({ data, onChange }) {
                 onClick={() => toggle('assets', chip.id)}
                 className={`px-4 py-2 rounded-detec text-sm font-medium transition-colors ${
                   isSelected
-                    ? 'bg-detec-ui-accent/10 border border-detec-ui-accent text-detec-ui-text'
-                    : 'bg-white border border-detec-ui-border text-detec-ui-text hover:border-detec-slate-300'
+                    ? 'bg-detec-brand/10 border border-detec-brand text-detec-ink-primary'
+                    : 'bg-white border border-detec-ui-border text-detec-ink-primary hover:border-detec-slate-300'
                 }`}
               >
                 {chip.label}
@@ -70,7 +70,7 @@ export default function ScopeStep({ data, onChange }) {
       </section>
 
       <section>
-        <h4 className="text-sm font-semibold text-detec-ui-text mb-2">Activity targets</h4>
+        <h4 className="text-sm font-semibold text-detec-ink-primary mb-2">Activity targets</h4>
         <div className="flex flex-wrap gap-2">
           {ACTIVITY_TARGETS.map((chip) => {
             const isSelected = subjects.includes(chip.id);
@@ -81,8 +81,8 @@ export default function ScopeStep({ data, onChange }) {
                 onClick={() => toggle('subjects', chip.id)}
                 className={`px-4 py-2 rounded-detec text-sm font-medium transition-colors ${
                   isSelected
-                    ? 'bg-detec-ui-accent/10 border border-detec-ui-accent text-detec-ui-text'
-                    : 'bg-white border border-detec-ui-border text-detec-ui-text hover:border-detec-slate-300'
+                    ? 'bg-detec-brand/10 border border-detec-brand text-detec-ink-primary'
+                    : 'bg-white border border-detec-ui-border text-detec-ink-primary hover:border-detec-slate-300'
                 }`}
               >
                 {chip.label}
@@ -93,7 +93,7 @@ export default function ScopeStep({ data, onChange }) {
       </section>
 
       <section>
-        <h4 className="text-sm font-semibold text-detec-ui-text mb-2">Sensitivity</h4>
+        <h4 className="text-sm font-semibold text-detec-ink-primary mb-2">Sensitivity</h4>
         <div className="flex flex-wrap gap-2">
           {SENSITIVITY.map((chip) => {
             const isSelected = sensitivity.includes(chip.id);
@@ -104,8 +104,8 @@ export default function ScopeStep({ data, onChange }) {
                 onClick={() => toggle('sensitivity', chip.id)}
                 className={`px-4 py-2 rounded-detec text-sm font-medium transition-colors ${
                   isSelected
-                    ? 'bg-detec-ui-accent/10 border border-detec-ui-accent text-detec-ui-text'
-                    : 'bg-white border border-detec-ui-border text-detec-ui-text hover:border-detec-slate-300'
+                    ? 'bg-detec-brand/10 border border-detec-brand text-detec-ink-primary'
+                    : 'bg-white border border-detec-ui-border text-detec-ink-primary hover:border-detec-slate-300'
                 }`}
               >
                 {chip.label}

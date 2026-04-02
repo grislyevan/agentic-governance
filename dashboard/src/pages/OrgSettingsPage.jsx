@@ -68,50 +68,50 @@ export default function OrgSettingsPage() {
     setKeyCopied(false);
   };
 
-  if (loading) return <div className="p-8 text-detec-ui-muted">Loading...</div>;
+  if (loading) return <div className="p-8 text-detec-ink-secondary">Loading...</div>;
   if (error) return <div className="p-8 text-red-600">{error}</div>;
 
   const isOwner = tenant.role === 'owner';
 
   return (
     <div className="max-w-2xl mx-auto p-8">
-      <h1 className="text-xl font-semibold text-detec-ui-text mb-6">Organization Settings</h1>
-      <div className="bg-detec-surface border border-detec-ui-border rounded-lg p-6 space-y-4">
+      <h1 className="text-xl font-semibold text-detec-ink-primary mb-6">Organization Settings</h1>
+      <div className="bg-detec-surface border border-detec-ui-border rounded-detec-md p-6 space-y-4">
         <div>
-          <label className="block text-xs font-medium text-detec-ui-muted mb-1">Organization name</label>
+          <label className="block text-xs font-medium text-detec-ink-secondary mb-1">Organization name</label>
           {editing ? (
             <input
               id="org-name-input"
               aria-label="Org name"
-              className="w-full border border-detec-ui-border rounded px-3 py-1.5 text-sm bg-detec-bg text-detec-ui-text focus:outline-none focus:ring-1 focus:ring-detec-ui-accent"
+              className="w-full border border-detec-ui-border rounded px-3 py-1.5 text-sm bg-detec-bg text-detec-ink-primary focus:outline-none focus:ring-1 focus:ring-detec-brand"
               value={nameInput}
               onChange={e => setNameInput(e.target.value)}
             />
           ) : (
-            <p className="text-sm text-detec-ui-text">{tenant.name}</p>
+            <p className="text-sm text-detec-ink-primary">{tenant.name}</p>
           )}
         </div>
         <div>
-          <label className="block text-xs font-medium text-detec-ui-muted mb-1">Slug</label>
-          <p className="text-sm font-mono text-detec-ui-muted">{tenant.slug}</p>
+          <label className="block text-xs font-medium text-detec-ink-secondary mb-1">Slug</label>
+          <p className="text-sm font-mono text-detec-ink-secondary">{tenant.slug}</p>
         </div>
         <div>
-          <label className="block text-xs font-medium text-detec-ui-muted mb-1">Subscription tier</label>
-          <p className="text-sm text-detec-ui-text capitalize">{tenant.subscription_tier || 'free'}</p>
+          <label className="block text-xs font-medium text-detec-ink-secondary mb-1">Subscription tier</label>
+          <p className="text-sm text-detec-ink-primary capitalize">{tenant.subscription_tier || 'free'}</p>
         </div>
         <div className="flex gap-6 pt-2">
           <div>
-            <p className="text-xs text-detec-ui-muted">Members</p>
-            <p className="text-lg font-semibold text-detec-ui-text">{tenant.member_count}</p>
+            <p className="text-xs text-detec-ink-secondary">Members</p>
+            <p className="text-lg font-semibold text-detec-ink-primary">{tenant.member_count}</p>
           </div>
           <div>
-            <p className="text-xs text-detec-ui-muted">Endpoints</p>
-            <p className="text-lg font-semibold text-detec-ui-text">{tenant.endpoint_count}</p>
+            <p className="text-xs text-detec-ink-secondary">Endpoints</p>
+            <p className="text-lg font-semibold text-detec-ink-primary">{tenant.endpoint_count}</p>
           </div>
         </div>
         {isOwner && !editing && (
           <button
-            className="mt-2 px-4 py-1.5 text-sm rounded border border-detec-ui-border text-detec-ui-text hover:bg-detec-slate-100 transition-colors"
+            className="mt-2 px-4 py-1.5 text-sm rounded border border-detec-ui-border text-detec-ink-primary hover:bg-detec-slate-100 transition-colors"
             onClick={() => setEditing(true)}
           >
             Edit
@@ -120,14 +120,14 @@ export default function OrgSettingsPage() {
         {editing && (
           <div className="flex gap-2 mt-2">
             <button
-              className="px-4 py-1.5 text-sm rounded bg-detec-ui-accent text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="px-4 py-1.5 text-sm rounded bg-detec-brand text-white hover:opacity-90 transition-opacity disabled:opacity-50"
               onClick={handleSave}
               disabled={saving || !nameInput.trim()}
             >
               {saving ? 'Saving\u2026' : 'Save'}
             </button>
             <button
-              className="px-4 py-1.5 text-sm rounded border border-detec-ui-border text-detec-ui-muted hover:bg-detec-slate-100 transition-colors"
+              className="px-4 py-1.5 text-sm rounded border border-detec-ui-border text-detec-ink-secondary hover:bg-detec-slate-100 transition-colors"
               onClick={() => { setEditing(false); setNameInput(tenant.name); setSaveError(null); }}
             >
               Cancel
@@ -137,42 +137,42 @@ export default function OrgSettingsPage() {
         )}
       </div>
       {!isOwner && (
-        <p className="mt-4 text-xs text-detec-ui-muted">Only the organization owner can edit these settings.</p>
+        <p className="mt-4 text-xs text-detec-ink-secondary">Only the organization owner can edit these settings.</p>
       )}
 
       {/* Agent Key section */}
-      <div className="mt-6 bg-detec-surface border border-detec-ui-border rounded-lg p-6">
-        <h2 className="text-sm font-semibold text-detec-ui-text mb-1">Agent Key</h2>
-        <p className="text-xs text-detec-ui-muted mb-4">
+      <div className="mt-6 bg-detec-surface border border-detec-ui-border rounded-detec-md p-6">
+        <h2 className="text-sm font-semibold text-detec-ink-primary mb-1">Agent Key</h2>
+        <p className="text-xs text-detec-ink-secondary mb-4">
           The agent key authenticates endpoint agents to this server. Rotating it immediately
           invalidates all existing agent connections.
         </p>
 
         {/* Post-rotation result: show new key once */}
         {rotateResult && (
-          <div className="mb-4 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950 p-4 space-y-3">
+          <div className="mb-4 rounded-detec-md border border-amber-400 bg-amber-50 dark:bg-amber-950 p-4 space-y-3">
             <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
               Store this key securely &mdash; it will not be shown again.
             </p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 block text-xs font-mono bg-white dark:bg-detec-bg border border-detec-ui-border rounded px-3 py-2 text-detec-ui-text break-all select-all">
+              <code className="flex-1 block text-xs font-mono bg-white dark:bg-detec-bg border border-detec-ui-border rounded px-3 py-2 text-detec-ink-primary break-all select-all">
                 {rotateResult.agent_key}
               </code>
               <button
                 onClick={handleCopyKey}
-                className="shrink-0 px-3 py-2 text-xs rounded border border-detec-ui-border text-detec-ui-text hover:bg-detec-slate-100 transition-colors"
+                className="shrink-0 px-3 py-2 text-xs rounded border border-detec-ui-border text-detec-ink-primary hover:bg-detec-slate-100 transition-colors"
               >
                 {keyCopied ? 'Copied!' : 'Copy'}
               </button>
             </div>
-            <p className="text-xs text-detec-ui-muted">
+            <p className="text-xs text-detec-ink-secondary">
               Key prefix: <span className="font-mono">{rotateResult.prefix}&hellip;</span>
               &ensp;&middot;&ensp;
               Rotated at: {new Date(rotateResult.rotated_at).toLocaleString()}
             </p>
             <button
               onClick={handleDismissResult}
-              className="text-xs text-detec-ui-muted underline hover:text-detec-ui-text"
+              className="text-xs text-detec-ink-secondary underline hover:text-detec-ink-primary"
             >
               Dismiss
             </button>
@@ -188,16 +188,16 @@ export default function OrgSettingsPage() {
           </button>
         )}
         {!isOwner && (
-          <p className="text-xs text-detec-ui-muted">Only the organization owner can rotate the agent key.</p>
+          <p className="text-xs text-detec-ink-secondary">Only the organization owner can rotate the agent key.</p>
         )}
       </div>
 
       {/* Rotate confirmation modal */}
       {showRotateConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-detec-surface border border-detec-ui-border rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-base font-semibold text-detec-ui-text mb-3">Rotate Agent Key?</h3>
-            <p className="text-sm text-detec-ui-muted mb-4">
+          <div className="bg-detec-surface border border-detec-ui-border rounded-detec-md shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-base font-semibold text-detec-ink-primary mb-3">Rotate Agent Key?</h3>
+            <p className="text-sm text-detec-ink-secondary mb-4">
               This will immediately invalidate all current agent connections. Agents will fail to
               authenticate on their next heartbeat until reconfigured with the new key. This cannot
               be undone.
@@ -207,7 +207,7 @@ export default function OrgSettingsPage() {
             )}
             <div className="flex gap-2 justify-end">
               <button
-                className="px-4 py-1.5 text-sm rounded border border-detec-ui-border text-detec-ui-muted hover:bg-detec-slate-100 transition-colors"
+                className="px-4 py-1.5 text-sm rounded border border-detec-ui-border text-detec-ink-secondary hover:bg-detec-slate-100 transition-colors"
                 onClick={() => { setShowRotateConfirm(false); setRotateError(null); }}
                 disabled={rotateLoading}
               >

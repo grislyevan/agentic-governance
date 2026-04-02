@@ -97,7 +97,7 @@ export default function EndpointProfilesPage() {
     <div className="space-y-4 min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-          <h1 className="text-xl sm:text-2xl font-bold text-detec-ui-text">
+          <h1 className="text-xl sm:text-2xl font-bold text-detec-ink-primary">
             Endpoint Profiles
           </h1>
           <PollingStatus lastUpdated={lastUpdated} paused={paused} onTogglePause={togglePause} />
@@ -105,19 +105,19 @@ export default function EndpointProfilesPage() {
         {canManage && (
           <button
             onClick={() => { setEditingProfile(null); setShowForm(true); }}
-            className="rounded-lg bg-detec-ui-accent px-4 py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover transition-colors"
+            className="rounded-detec-md bg-detec-brand px-4 py-2 text-sm font-medium text-white hover:bg-detec-brandHover transition-colors"
           >
             Create profile
           </button>
         )}
       </div>
 
-      <p className="text-sm text-detec-ui-muted">
+      <p className="text-sm text-detec-ink-secondary">
         Profiles define scan interval, enforcement posture, and auto-enforce threshold for groups of endpoints (e.g. Critical Server, Standard Workstation). Assign profiles to endpoints from the AI Inventory page.
       </p>
 
       {error && (
-        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">
+        <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">
           {error}
         </div>
       )}
@@ -127,25 +127,25 @@ export default function EndpointProfilesPage() {
           <ApertureSpinner size="lg" label="Loading profiles" />
         </div>
       ) : profiles.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-detec-ui-border bg-detec-slate-50 px-8 py-20 text-center">
-          <div className="text-detec-ui-muted text-sm font-medium mb-1">No endpoint profiles yet</div>
-          <div className="text-detec-ui-muted text-sm max-w-sm mx-auto mb-4">
+        <div className="rounded-detec-md border border-dashed border-detec-ui-border bg-detec-slate-50 px-8 py-20 text-center">
+          <div className="text-detec-ink-secondary text-sm font-medium mb-1">No endpoint profiles yet</div>
+          <div className="text-detec-ink-secondary text-sm max-w-sm mx-auto mb-4">
             Create profiles to apply consistent scan and enforcement settings to groups of endpoints.
           </div>
           {canManage && (
             <button
               onClick={() => { setEditingProfile(null); setShowForm(true); }}
-              className="rounded-lg bg-detec-ui-accent px-4 py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover transition-colors"
+              className="rounded-detec-md bg-detec-brand px-4 py-2 text-sm font-medium text-white hover:bg-detec-brandHover transition-colors"
             >
               Create first profile
             </button>
           )}
         </div>
       ) : (
-        <div className="rounded-lg border border-detec-ui-border/50 bg-detec-slate-50 overflow-hidden">
+        <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-slate-50 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-detec-ui-border/50 text-left text-detec-ui-muted">
+              <tr className="border-b border-detec-ui-border/50 text-left text-detec-ink-secondary">
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Slug</th>
                 <th className="px-4 py-3 font-medium">Interval</th>
@@ -161,20 +161,20 @@ export default function EndpointProfilesPage() {
                 return (
                   <tr
                     key={p.id}
-                    className="border-b border-detec-ui-border/30 hover:bg-detec-ui-surface/80"
+                    className="border-b border-detec-ui-border/30 hover:bg-detec-surface/80"
                   >
-                    <td className="px-4 py-3 text-detec-ui-text font-medium">{p.name}</td>
-                    <td className="px-4 py-3 font-mono text-detec-ui-muted text-xs">{p.slug}</td>
-                    <td className="px-4 py-3 text-detec-ui-text">{p.scan_interval_seconds}s</td>
+                    <td className="px-4 py-3 text-detec-ink-primary font-medium">{p.name}</td>
+                    <td className="px-4 py-3 font-mono text-detec-ink-secondary text-xs">{p.slug}</td>
+                    <td className="px-4 py-3 text-detec-ink-primary">{p.scan_interval_seconds}s</td>
                     <td className="px-4 py-3">
-                      <span className="capitalize text-detec-ui-text">{p.enforcement_posture}</span>
+                      <span className="capitalize text-detec-ink-primary">{p.enforcement_posture}</span>
                     </td>
-                    <td className="px-4 py-3 text-detec-ui-text">{p.auto_enforce_threshold.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-detec-ui-muted">
+                    <td className="px-4 py-3 text-detec-ink-primary">{p.auto_enforce_threshold.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-detec-ink-secondary">
                       {assignedCount > 0 ? (
                         <span>{assignedCount} assigned</span>
                       ) : (
-                        <span className="text-detec-ui-muted">0</span>
+                        <span className="text-detec-ink-secondary">0</span>
                       )}
                     </td>
                     {canManage && (
@@ -182,13 +182,13 @@ export default function EndpointProfilesPage() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => { setEditingProfile(p); setShowForm(true); }}
-                            className="text-detec-ui-muted hover:text-detec-ui-accent text-xs"
+                            className="text-detec-ink-secondary hover:text-detec-brand text-xs"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => handleDelete(p)}
-                            className="text-detec-ui-muted hover:text-red-400 text-xs"
+                            className="text-detec-ink-secondary hover:text-red-400 text-xs"
                           >
                             Delete
                           </button>
@@ -204,7 +204,7 @@ export default function EndpointProfilesPage() {
       )}
 
       {total > 0 && (
-        <div className="text-sm text-detec-ui-muted">
+        <div className="text-sm text-detec-ink-secondary">
           {total} profile{total !== 1 ? 's' : ''} total
         </div>
       )}
@@ -221,23 +221,23 @@ export default function EndpointProfilesPage() {
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setConfirmDelete(null)}>
           <div
-            className="w-full max-w-sm rounded-xl border border-detec-ui-border bg-detec-ui-page p-4 sm:p-6 shadow-2xl"
+            className="w-full max-w-sm rounded-detec-md border border-detec-ui-border bg-detec-void p-4 sm:p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-semibold text-detec-ui-text mb-2">Delete profile?</h3>
-            <p className="text-sm text-detec-ui-muted mb-5">
+            <h3 className="text-base font-semibold text-detec-ink-primary mb-2">Delete profile?</h3>
+            <p className="text-sm text-detec-ink-secondary mb-5">
               Permanently delete &quot;{confirmDelete.name}&quot;? This cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setConfirmDelete(null)}
-                className="rounded-lg border border-detec-ui-border px-4 py-2 text-sm text-detec-ui-muted hover:bg-detec-ui-surface"
+                className="rounded-detec-md border border-detec-ui-border px-4 py-2 text-sm text-detec-ink-secondary hover:bg-detec-surface"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-500"
+                className="rounded-detec-md px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-500"
               >
                 Delete
               </button>
@@ -304,41 +304,41 @@ function ProfileFormModal({ profile, onClose, onSaved, onError }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-xl border border-detec-ui-border bg-detec-ui-page p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-lg rounded-detec-md border border-detec-ui-border bg-detec-void p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-detec-ui-text mb-4">
+        <h2 className="text-lg font-semibold text-detec-ink-primary mb-4">
           {isEdit ? 'Edit Profile' : 'Create Profile'}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-detec-ui-muted mb-1">Name</label>
+            <label className="block text-xs font-medium text-detec-ink-secondary mb-1">Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Critical Server"
-              className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text focus:border-detec-ui-accent focus:outline-none"
+              className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary focus:border-detec-brand focus:outline-none"
               required
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-detec-ui-muted mb-1">
+            <label className="block text-xs font-medium text-detec-ink-secondary mb-1">
               Slug
-              <span className="text-detec-ui-muted font-normal ml-1">(optional, auto-generated from name if empty)</span>
+              <span className="text-detec-ink-secondary font-normal ml-1">(optional, auto-generated from name if empty)</span>
             </label>
             <input
               type="text"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               placeholder="critical-server"
-              className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text font-mono focus:border-detec-ui-accent focus:outline-none"
+              className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary font-mono focus:border-detec-brand focus:outline-none"
               maxLength={64}
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-detec-ui-muted mb-1">
+            <label className="block text-xs font-medium text-detec-ink-secondary mb-1">
               Scan interval (seconds)
             </label>
             <input
@@ -347,18 +347,18 @@ function ProfileFormModal({ profile, onClose, onSaved, onError }) {
               max={86400}
               value={scanIntervalSeconds}
               onChange={(e) => setScanIntervalSeconds(Number(e.target.value))}
-              className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text focus:border-detec-ui-accent focus:outline-none"
+              className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary focus:border-detec-brand focus:outline-none"
             />
-            <p className="text-xs text-detec-ui-muted mt-1">30 to 86400 (24 hours)</p>
+            <p className="text-xs text-detec-ink-secondary mt-1">30 to 86400 (24 hours)</p>
           </div>
           <div>
-            <label className="block text-xs font-medium text-detec-ui-muted mb-1">
+            <label className="block text-xs font-medium text-detec-ink-secondary mb-1">
               Enforcement posture
             </label>
             <select
               value={enforcementPosture}
               onChange={(e) => setEnforcementPosture(e.target.value)}
-              className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text focus:border-detec-ui-accent focus:outline-none"
+              className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary focus:border-detec-brand focus:outline-none"
             >
               {POSTURE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -366,7 +366,7 @@ function ProfileFormModal({ profile, onClose, onSaved, onError }) {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-detec-ui-muted mb-1">
+            <label className="block text-xs font-medium text-detec-ink-secondary mb-1">
               Auto-enforce threshold
             </label>
             <input
@@ -376,27 +376,27 @@ function ProfileFormModal({ profile, onClose, onSaved, onError }) {
               step={0.05}
               value={autoEnforceThreshold}
               onChange={(e) => setAutoEnforceThreshold(Number(e.target.value))}
-              className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text focus:border-detec-ui-accent focus:outline-none"
+              className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary focus:border-detec-brand focus:outline-none"
             />
-            <p className="text-xs text-detec-ui-muted mt-1">0.00 to 1.00</p>
+            <p className="text-xs text-detec-ink-secondary mt-1">0.00 to 1.00</p>
           </div>
           <div>
-            <label className="block text-xs font-medium text-detec-ui-muted mb-1">
+            <label className="block text-xs font-medium text-detec-ink-secondary mb-1">
               Policy set ID
-              <span className="text-detec-ui-muted font-normal ml-1">(optional)</span>
+              <span className="text-detec-ink-secondary font-normal ml-1">(optional)</span>
             </label>
             <input
               type="text"
               value={policySetId}
               onChange={(e) => setPolicySetId(e.target.value)}
               placeholder=""
-              className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text font-mono focus:border-detec-ui-accent focus:outline-none"
+              className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary font-mono focus:border-detec-brand focus:outline-none"
               maxLength={128}
             />
           </div>
 
           {formError && (
-            <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">
+            <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">
               {formError}
             </div>
           )}
@@ -405,14 +405,14 @@ function ProfileFormModal({ profile, onClose, onSaved, onError }) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-detec-ui-border px-4 py-2 text-sm text-detec-ui-muted hover:bg-detec-ui-surface"
+              className="rounded-detec-md border border-detec-ui-border px-4 py-2 text-sm text-detec-ink-secondary hover:bg-detec-surface"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-lg bg-detec-ui-accent px-4 py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover disabled:opacity-50"
+              className="rounded-detec-md bg-detec-brand px-4 py-2 text-sm font-medium text-white hover:bg-detec-brandHover disabled:opacity-50"
             >
               {submitting ? 'Saving...' : isEdit ? 'Save changes' : 'Create profile'}
             </button>

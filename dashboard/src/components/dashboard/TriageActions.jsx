@@ -49,10 +49,10 @@ function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
-      <div className="relative bg-detec-ui-surface border border-detec-ui-border rounded-detec shadow-detec-card max-w-md w-full p-5 space-y-4">
+      <div className="relative bg-detec-surface border border-detec-ui-border rounded-detec max-w-md w-full p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-detec-ui-text">{title}</h3>
-          <button type="button" onClick={onClose} className="text-detec-ui-muted hover:text-detec-ui-text" aria-label="Close">
+          <h3 className="text-base font-semibold text-detec-ink-primary">{title}</h3>
+          <button type="button" onClick={onClose} className="text-detec-ink-secondary hover:text-detec-ink-primary" aria-label="Close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -67,13 +67,13 @@ function Modal({ title, onClose, children }) {
 function FieldLabel({ label, children }) {
   return (
     <label className="block space-y-1">
-      <span className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider">{label}</span>
+      <span className="text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">{label}</span>
       {children}
     </label>
   );
 }
 
-const inputCls = 'w-full bg-detec-ui-page border border-detec-ui-border rounded-detec px-3 py-2 text-sm text-detec-ui-text placeholder:text-detec-ui-muted focus:outline-none focus:border-detec-ui-accent/60';
+const inputCls = 'w-full bg-detec-void border border-detec-ui-border rounded-detec px-3 py-2 text-sm text-detec-ink-primary placeholder:text-detec-ink-secondary focus:outline-none focus:border-detec-brand/60';
 
 // ─── Request Approval modal ───────────────────────────────────────────────────
 
@@ -137,7 +137,7 @@ function RequestApprovalModal({ prefill, onClose, onSuccess }) {
           <p className="text-xs text-detec-enforce-block rounded bg-detec-enforce-block/10 border border-detec-enforce-block/30 px-3 py-2">{error}</p>
         )}
         <div className="flex justify-end gap-2 pt-1">
-          <button type="button" onClick={onClose} className="px-4 py-2 rounded-detec border border-detec-ui-border text-sm text-detec-ui-muted hover:text-detec-ui-text">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-detec border border-detec-ui-border text-sm text-detec-ink-secondary hover:text-detec-ink-primary">
             Cancel
           </button>
           <button
@@ -230,7 +230,7 @@ function AddExceptionModal({ prefill, onClose, onSuccess }) {
           <p className="text-xs text-detec-enforce-block rounded bg-detec-enforce-block/10 border border-detec-enforce-block/30 px-3 py-2">{error}</p>
         )}
         <div className="flex justify-end gap-2 pt-1">
-          <button type="button" onClick={onClose} className="px-4 py-2 rounded-detec border border-detec-ui-border text-sm text-detec-ui-muted hover:text-detec-ui-text">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-detec border border-detec-ui-border text-sm text-detec-ink-secondary hover:text-detec-ink-primary">
             Cancel
           </button>
           <button
@@ -291,8 +291,8 @@ export default function TriageActions({ report, onToast }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 rounded-detec border border-detec-ui-border bg-detec-ui-surface shadow-detec-sm px-4 py-2.5">
-        <span className="text-xs font-semibold text-detec-ui-muted uppercase tracking-wider mr-1 hidden sm:inline">Triage</span>
+      <div className="flex flex-wrap items-center gap-2 rounded-detec border border-detec-ui-border bg-detec-surface px-4 py-2.5">
+        <span className="text-xs font-semibold text-detec-ink-secondary uppercase tracking-wider mr-1 hidden sm:inline">Triage</span>
 
         {/* Request Approval */}
         <button
@@ -318,7 +318,7 @@ export default function TriageActions({ report, onToast }) {
         <button
           type="button"
           onClick={() => navigate(eventsHref)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-detec bg-detec-ui-page border border-detec-ui-border text-detec-ui-muted text-xs font-medium hover:text-detec-ui-text hover:bg-detec-ui-surface transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-detec bg-detec-void border border-detec-ui-border text-detec-ink-secondary text-xs font-medium hover:text-detec-ink-primary hover:bg-detec-surface transition-colors"
         >
           <ListIcon />
           Related Events

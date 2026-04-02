@@ -17,7 +17,7 @@ const SCOPE_LABELS = {
   runtime_actions: 'Runtime actions',
 };
 
-export default function ReviewStep({ draft, onSaveDraft, onPublish, onPreviewMatches, saving }) {
+export default function ReviewStep({ draft, isEdit = false, onSaveDraft, onPublish, onPreviewMatches, saving }) {
   const b = draft?.basics ?? {};
   const sourceId = draft?.source?.connectors?.[0] ?? draft?.source?.category ?? null;
   const source = ENDPOINT_SOURCES.find((s) => s.id === sourceId);
@@ -27,37 +27,37 @@ export default function ReviewStep({ draft, onSaveDraft, onPublish, onPreviewMat
   return (
     <div className="space-y-6">
       <div className="rounded-detec-md border border-detec-ui-border bg-detec-slate-50/50 p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-detec-ui-text">Basics</h3>
+        <h3 className="text-sm font-semibold text-detec-ink-primary">Basics</h3>
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <dt className="text-detec-ui-muted">Name</dt>
-          <dd className="text-detec-ui-text">{b.name || '—'}</dd>
-          <dt className="text-detec-ui-muted">Description</dt>
-          <dd className="text-detec-ui-text">{b.description || '—'}</dd>
-          <dt className="text-detec-ui-muted">Severity</dt>
-          <dd className="text-detec-ui-text">{b.severity || '—'}</dd>
-          <dt className="text-detec-ui-muted">Outcome</dt>
-          <dd className="text-detec-ui-text">{b.outcome || '—'}</dd>
+          <dt className="text-detec-ink-secondary">Name</dt>
+          <dd className="text-detec-ink-primary">{b.name || '—'}</dd>
+          <dt className="text-detec-ink-secondary">Description</dt>
+          <dd className="text-detec-ink-primary">{b.description || '—'}</dd>
+          <dt className="text-detec-ink-secondary">Severity</dt>
+          <dd className="text-detec-ink-primary">{b.severity || '—'}</dd>
+          <dt className="text-detec-ink-secondary">Outcome</dt>
+          <dd className="text-detec-ink-primary">{b.outcome || '—'}</dd>
         </dl>
       </div>
 
       <div className="rounded-detec-md border border-detec-ui-border bg-detec-slate-50/50 p-5 space-y-2">
-        <h3 className="text-sm font-semibold text-detec-ui-text">Source</h3>
-        <p className="text-sm text-detec-ui-text">{source?.name ?? '—'}</p>
+        <h3 className="text-sm font-semibold text-detec-ink-primary">Source</h3>
+        <p className="text-sm text-detec-ink-primary">{source?.name ?? '—'}</p>
       </div>
 
       <div className="rounded-detec-md border border-detec-ui-border bg-detec-slate-50/50 p-5 space-y-2">
-        <h3 className="text-sm font-semibold text-detec-ui-text">Scope</h3>
-        <p className="text-sm text-detec-ui-text">{scopeLabels.length ? scopeLabels.join(', ') : '—'}</p>
+        <h3 className="text-sm font-semibold text-detec-ink-primary">Scope</h3>
+        <p className="text-sm text-detec-ink-primary">{scopeLabels.length ? scopeLabels.join(', ') : '—'}</p>
       </div>
 
       <div className="rounded-detec-md border border-detec-ui-border bg-detec-slate-50/50 p-5 space-y-2">
-        <h3 className="text-sm font-semibold text-detec-ui-text">Rules</h3>
-        <p className="text-sm text-detec-ui-text">{(draft?.rules?.mode || 'simple') === 'simple' ? 'Simple mode (derived from Basics and Scope)' : 'Advanced mode (custom JSON)'}</p>
+        <h3 className="text-sm font-semibold text-detec-ink-primary">Rules</h3>
+        <p className="text-sm text-detec-ink-primary">{(draft?.rules?.mode || 'simple') === 'simple' ? 'Simple mode (derived from Basics and Scope)' : 'Advanced mode (custom JSON)'}</p>
       </div>
 
       <div className="rounded-detec-md border border-detec-ui-border bg-detec-slate-50/50 p-5 space-y-2">
-        <h3 className="text-sm font-semibold text-detec-ui-text">Explainability</h3>
-        <ul className="text-sm text-detec-ui-muted list-disc list-inside space-y-1">
+        <h3 className="text-sm font-semibold text-detec-ink-primary">Explainability</h3>
+        <ul className="text-sm text-detec-ink-secondary list-disc list-inside space-y-1">
           <li>Signals evaluated from selected source and scope</li>
           <li>Trigger conditions based on rule definition</li>
           <li>Enforcement outcome: {b.outcome || 'warn'}</li>
@@ -65,8 +65,8 @@ export default function ReviewStep({ draft, onSaveDraft, onPublish, onPreviewMat
       </div>
 
       <div className="rounded-detec-md border border-detec-ui-border bg-detec-slate-50/50 p-5 space-y-2">
-        <h3 className="text-sm font-semibold text-detec-ui-text">Preview matches</h3>
-        <p className="text-sm text-detec-ui-muted">Preview is not available yet. Use Save draft or Publish to continue.</p>
+        <h3 className="text-sm font-semibold text-detec-ink-primary">Preview matches</h3>
+        <p className="text-sm text-detec-ink-secondary">Preview is not available yet. Use Save draft or Publish to continue.</p>
       </div>
 
       <div className="flex flex-wrap gap-3 pt-2">
@@ -74,14 +74,14 @@ export default function ReviewStep({ draft, onSaveDraft, onPublish, onPreviewMat
           type="button"
           onClick={onSaveDraft}
           disabled={saving}
-          className="h-10 px-4 rounded-detec border border-detec-ui-border text-sm font-medium text-detec-ui-text hover:bg-detec-slate-100 disabled:opacity-50"
+          className="h-10 px-4 rounded-detec border border-detec-ui-border text-sm font-medium text-detec-ink-primary hover:bg-detec-slate-100 disabled:opacity-50"
         >
-          Save draft
+          {isEdit ? 'Save changes' : 'Save draft'}
         </button>
         <button
           type="button"
           onClick={onPreviewMatches}
-          className="h-10 px-4 rounded-detec border border-detec-ui-border text-sm font-medium text-detec-ui-muted hover:bg-detec-slate-100"
+          className="h-10 px-4 rounded-detec border border-detec-ui-border text-sm font-medium text-detec-ink-secondary hover:bg-detec-slate-100"
         >
           Preview matches
         </button>
@@ -89,7 +89,7 @@ export default function ReviewStep({ draft, onSaveDraft, onPublish, onPreviewMat
           type="button"
           onClick={() => onPublish(false)}
           disabled={saving}
-          className="h-10 px-4 rounded-detec border border-detec-ui-accent text-sm font-medium text-detec-ui-accent hover:bg-detec-ui-accent/10 disabled:opacity-50"
+          className="h-10 px-4 rounded-detec border border-detec-brand text-sm font-medium text-detec-brand hover:bg-detec-brand/10 disabled:opacity-50"
         >
           Submit for review
         </button>
@@ -97,9 +97,9 @@ export default function ReviewStep({ draft, onSaveDraft, onPublish, onPreviewMat
           type="button"
           onClick={() => onPublish(true)}
           disabled={saving}
-          className="h-10 px-4 rounded-detec bg-detec-ui-accent text-sm font-medium text-white hover:bg-detec-ui-accentHover disabled:opacity-50"
+          className="h-10 px-4 rounded-detec bg-detec-brand text-sm font-medium text-white hover:bg-detec-brandHover disabled:opacity-50"
         >
-          {saving ? 'Publishing...' : 'Publish'}
+          {saving ? (isEdit ? 'Saving...' : 'Publishing...') : (isEdit ? 'Update & publish' : 'Publish')}
         </button>
       </div>
     </div>

@@ -78,29 +78,29 @@ export default function PlaybooksPage({ onNavigate }) {
   return (
     <div className="space-y-6 min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold text-detec-ui-text">
+        <h1 className="text-xl sm:text-2xl font-bold text-detec-ink-primary">
           Response Playbooks
         </h1>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-800/50 bg-red-900/20 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-detec-md border border-red-800/50 bg-red-900/20 px-4 py-3 text-sm text-red-300">
           {error}
         </div>
       )}
 
       <section>
-        <h2 className="text-sm font-semibold text-detec-ui-text mb-3">Playbooks</h2>
-        <div className="rounded-lg border border-detec-ui-border/50 bg-detec-slate-50 overflow-hidden">
+        <h2 className="text-sm font-semibold text-detec-ink-primary mb-3">Playbooks</h2>
+        <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-slate-50 overflow-hidden">
           <ul className="divide-y divide-detec-slate-700/50">
             {playbooks.map((pb) => (
               <li key={pb.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="font-medium text-detec-ui-text">{pb.name}</div>
+                  <div className="font-medium text-detec-ink-primary">{pb.name}</div>
                   {pb.description && (
-                    <div className="text-sm text-detec-ui-muted mt-0.5">{pb.description}</div>
+                    <div className="text-sm text-detec-ink-secondary mt-0.5">{pb.description}</div>
                   )}
-                  <div className="text-xs text-detec-ui-muted mt-1">
+                  <div className="text-xs text-detec-ink-secondary mt-1">
                     Trigger: {JSON.stringify(pb.trigger || {})}
                   </div>
                 </div>
@@ -110,7 +110,7 @@ export default function PlaybooksPage({ onNavigate }) {
                       type="button"
                       onClick={() => handleTest(pb.id)}
                       disabled={testingId === pb.id}
-                      className="px-3 py-1.5 rounded-md text-sm font-medium bg-detec-ui-accent/15 text-detec-ui-accent hover:bg-detec-ui-accent/30 disabled:opacity-50"
+                      className="px-3 py-1.5 rounded-md text-sm font-medium bg-detec-brand-muted text-detec-brand hover:bg-detec-brand/20 disabled:opacity-50"
                     >
                       {testingId === pb.id ? 'Testing…' : 'Dry run'}
                     </button>
@@ -123,12 +123,12 @@ export default function PlaybooksPage({ onNavigate }) {
       </section>
 
       {testResult && (
-        <div className="rounded-lg border border-detec-ui-border bg-detec-ui-surface/80 p-4">
-          <h3 className="text-sm font-medium text-detec-ui-text mb-2">Last test result</h3>
+        <div className="rounded-detec-md border border-detec-ui-border bg-detec-surface/80 p-4">
+          <h3 className="text-sm font-medium text-detec-ink-primary mb-2">Last test result</h3>
           {testResult.error ? (
             <p className="text-sm text-red-400">{testResult.error}</p>
           ) : (
-            <pre className="text-xs text-detec-ui-text overflow-x-auto">
+            <pre className="text-xs text-detec-ink-primary overflow-x-auto">
               {JSON.stringify({ matched: testResult.matched, actions_run: testResult.actions_run }, null, 2)}
             </pre>
           )}
@@ -136,26 +136,26 @@ export default function PlaybooksPage({ onNavigate }) {
       )}
 
       <section>
-        <h2 className="text-sm font-semibold text-detec-ui-text mb-3">Response timeline</h2>
-        <p className="text-sm text-detec-ui-muted mb-2">
+        <h2 className="text-sm font-semibold text-detec-ink-primary mb-3">Response timeline</h2>
+        <p className="text-sm text-detec-ink-secondary mb-2">
           Recent playbook responses (audit log).
         </p>
-        <div className="rounded-lg border border-detec-ui-border/50 bg-detec-slate-50 overflow-hidden">
+        <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-slate-50 overflow-hidden">
           {timeline.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-detec-ui-muted text-center">
+            <div className="px-4 py-6 text-sm text-detec-ink-secondary text-center">
               No playbook responses yet.
             </div>
           ) : (
             <ul className="divide-y divide-detec-slate-700/50">
               {timeline.map((entry) => (
                 <li key={entry.id} className="px-4 py-2 text-sm">
-                  <span className="text-detec-ui-muted">{entry.occurred_at}</span>
+                  <span className="text-detec-ink-secondary">{entry.occurred_at}</span>
                   {' '}
-                  <span className="text-detec-ui-text">{entry.action}</span>
+                  <span className="text-detec-ink-primary">{entry.action}</span>
                   {' '}
-                  <span className="text-detec-ui-muted">playbook={entry.resource_id}</span>
+                  <span className="text-detec-ink-secondary">playbook={entry.resource_id}</span>
                   {entry.detail?.event_id && (
-                    <span className="text-detec-ui-muted"> event={entry.detail.event_id}</span>
+                    <span className="text-detec-ink-secondary"> event={entry.detail.event_id}</span>
                   )}
                 </li>
               ))}

@@ -18,7 +18,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 min-w-0">
-      <h1 className="text-xl sm:text-2xl font-bold text-detec-ui-text">Settings</h1>
+      <h1 className="text-xl sm:text-2xl font-bold text-detec-ink-primary">Settings</h1>
 
       <div className="max-w-2xl space-y-6 w-full">
         {canManageWebhooks && <AgentDownloadSection />}
@@ -52,25 +52,25 @@ function AgentDownloadSection() {
   };
 
   return (
-    <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/80 p-5 space-y-4">
-      <h2 className="text-sm font-semibold text-detec-ui-text uppercase tracking-wider">
+    <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface/80 p-5 space-y-4">
+      <h2 className="text-sm font-semibold text-detec-ink-primary uppercase tracking-wider">
         Agent Installer
       </h2>
-      <p className="text-xs text-detec-ui-muted">
+      <p className="text-xs text-detec-ink-secondary">
         Download a pre-configured Windows installer. The agent will automatically
         connect to this server with your tenant credentials.
       </p>
       {error && (
-        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
+        <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
       )}
       <button
         onClick={handleDownload}
         disabled={downloading}
-        className="px-4 py-2 bg-detec-ui-accent hover:bg-detec-ui-accentHover text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+        className="px-4 py-2 bg-detec-brand hover:bg-detec-brandHover text-white text-sm font-medium rounded-detec-md transition-colors disabled:opacity-50"
       >
         {downloading ? 'Preparing...' : 'Download Agent MSI'}
       </button>
-      <p className="text-xs text-detec-ui-muted">
+      <p className="text-xs text-detec-ink-secondary">
         Install silently: <code className="font-mono">msiexec /i DetecAgent.msi /qn</code>
       </p>
     </div>
@@ -133,21 +133,21 @@ function WebhooksSection() {
   };
 
   return (
-    <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/80 p-5 space-y-4">
+    <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface/80 p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-detec-ui-text uppercase tracking-wider">
+        <h2 className="text-sm font-semibold text-detec-ink-primary uppercase tracking-wider">
           Webhooks
         </h2>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowTemplateModal(true)}
-            className="rounded-lg border border-detec-ui-accent/50 px-3 py-1.5 text-xs font-medium text-detec-ui-accent hover:bg-detec-ui-accentHover/10 transition-colors"
+            className="rounded-detec-md border border-detec-brand/50 px-3 py-1.5 text-xs font-medium text-detec-brand hover:bg-detec-brandHover/10 transition-colors"
           >
             Create from template
           </button>
           <button
             onClick={() => setShowForm(true)}
-            className="rounded-lg bg-detec-ui-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-detec-ui-accentHover transition-colors"
+            className="rounded-detec-md bg-detec-brand px-3 py-1.5 text-xs font-medium text-white hover:bg-detec-brandHover transition-colors"
           >
             Add webhook
           </button>
@@ -155,56 +155,56 @@ function WebhooksSection() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
+        <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
       )}
 
       {loading ? (
-        <p className="text-sm text-detec-ui-muted">Loading...</p>
+        <p className="text-sm text-detec-ink-secondary">Loading...</p>
       ) : webhooks.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-detec-ui-border bg-detec-slate-50 px-6 py-8 text-center">
-          <p className="text-sm text-detec-ui-muted">No webhooks configured.</p>
-          <p className="text-xs text-detec-ui-muted mt-1">Add a webhook to receive event notifications.</p>
+        <div className="rounded-detec-md border border-dashed border-detec-ui-border bg-detec-slate-50 px-6 py-8 text-center">
+          <p className="text-sm text-detec-ink-secondary">No webhooks configured.</p>
+          <p className="text-xs text-detec-ink-secondary mt-1">Add a webhook to receive event notifications.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {webhooks.map((wh) => (
             <div
               key={wh.id}
-              className="rounded-lg border border-detec-ui-border/40 bg-detec-ui-page/50 p-4 space-y-2"
+              className="rounded-detec-md border border-detec-ui-border/40 bg-detec-void/50 p-4 space-y-2"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <code className="text-sm text-detec-ui-text break-all">{wh.url}</code>
+                  <code className="text-sm text-detec-ink-primary break-all">{wh.url}</code>
                   <div className="flex items-center gap-2 mt-1">
                     {wh.is_active ? (
                       <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Active
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-detec-ui-muted">
+                      <span className="inline-flex items-center gap-1 text-xs text-detec-ink-secondary">
                         <span className="h-1.5 w-1.5 rounded-full bg-detec-slate-200" />Paused
                       </span>
                     )}
                     {wh.events.length > 0 && (
-                      <span className="text-xs text-detec-ui-muted">
+                      <span className="text-xs text-detec-ink-secondary">
                         {wh.events.length} event type{wh.events.length !== 1 ? 's' : ''}
                       </span>
                     )}
                     {wh.events.length === 0 && (
-                      <span className="text-xs text-detec-ui-muted">All events</span>
+                      <span className="text-xs text-detec-ink-secondary">All events</span>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     onClick={() => handleTest(wh.id)}
-                    className="rounded px-2 py-1 text-xs text-detec-ui-muted hover:bg-detec-ui-surface transition-colors"
+                    className="rounded px-2 py-1 text-xs text-detec-ink-secondary hover:bg-detec-surface transition-colors"
                   >
                     Test
                   </button>
                   <button
                     onClick={() => handleToggle(wh)}
-                    className="rounded px-2 py-1 text-xs text-detec-ui-muted hover:bg-detec-ui-surface transition-colors"
+                    className="rounded px-2 py-1 text-xs text-detec-ink-secondary hover:bg-detec-surface transition-colors"
                   >
                     {wh.is_active ? 'Pause' : 'Resume'}
                   </button>
@@ -218,10 +218,10 @@ function WebhooksSection() {
               </div>
 
               <details className="group">
-                <summary className="text-xs text-detec-ui-muted cursor-pointer hover:text-detec-ui-muted transition-colors">
+                <summary className="text-xs text-detec-ink-secondary cursor-pointer hover:text-detec-ink-secondary transition-colors">
                   Signing secret
                 </summary>
-                <code className="mt-1 block text-xs text-detec-ui-muted break-all select-all">
+                <code className="mt-1 block text-xs text-detec-ink-secondary break-all select-all">
                   {wh.secret}
                 </code>
               </details>
@@ -315,45 +315,45 @@ function WebhookTemplateModal({ onClose, onSaved, onError }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-xl border border-detec-ui-border bg-detec-ui-page p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-lg rounded-detec-md border border-detec-ui-border bg-detec-void p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-detec-ui-text mb-4">Create Webhook from Template</h2>
+        <h2 className="text-lg font-semibold text-detec-ink-primary mb-4">Create Webhook from Template</h2>
 
         {loading ? (
-          <p className="text-sm text-detec-ui-muted">Loading templates...</p>
+          <p className="text-sm text-detec-ink-secondary">Loading templates...</p>
         ) : !selectedTemplate ? (
           <div className="space-y-2">
-            <p className="text-xs text-detec-ui-muted mb-3">Choose a SIEM or integration template:</p>
+            <p className="text-xs text-detec-ink-secondary mb-3">Choose a SIEM or integration template:</p>
             {templates.map((t) => (
               <button
                 key={t.id}
                 onClick={() => handleSelectTemplate(t)}
-                className="w-full text-left rounded-lg border border-detec-ui-border bg-detec-ui-surface/80 px-4 py-3 hover:border-detec-ui-accent/30 hover:bg-detec-ui-surface transition-colors"
+                className="w-full text-left rounded-detec-md border border-detec-ui-border bg-detec-surface/80 px-4 py-3 hover:border-detec-brand/30 hover:bg-detec-surface transition-colors"
               >
-                <div className="font-medium text-detec-ui-text">{t.name}</div>
-                <div className="text-xs text-detec-ui-muted mt-0.5">{t.description}</div>
+                <div className="font-medium text-detec-ink-primary">{t.name}</div>
+                <div className="text-xs text-detec-ink-secondary mt-0.5">{t.description}</div>
               </button>
             ))}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-detec-ui-text">{selectedTemplate.name}</h3>
+              <h3 className="text-sm font-medium text-detec-ink-primary">{selectedTemplate.name}</h3>
               <button
                 type="button"
                 onClick={() => setSelectedTemplate(null)}
-                className="text-xs text-detec-ui-muted hover:text-detec-ui-text"
+                className="text-xs text-detec-ink-secondary hover:text-detec-ink-primary"
               >
                 Change template
               </button>
             </div>
-            <p className="text-xs text-detec-ui-muted">{selectedTemplate.description}</p>
+            <p className="text-xs text-detec-ink-secondary">{selectedTemplate.description}</p>
 
             <div className="space-y-3">
               {(selectedTemplate.config_fields || []).map((f) => (
                 <label key={f.key} className="block">
-                  <span className="text-xs font-medium text-detec-ui-muted uppercase tracking-wider">
+                  <span className="text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">
                     {f.label}
                     {f.required && <span className="text-red-400 ml-0.5">*</span>}
                   </span>
@@ -363,28 +363,28 @@ function WebhookTemplateModal({ onClose, onSaved, onError }) {
                     onChange={(e) => handleConfigChange(f.key, e.target.value)}
                     placeholder={f.placeholder || f.default || ''}
                     spellCheck={false}
-                    className="mt-1 w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text font-mono placeholder:text-detec-ui-muted focus:border-detec-ui-accent focus:outline-none"
+                    className="mt-1 w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary font-mono placeholder:text-detec-ink-secondary focus:border-detec-brand focus:outline-none"
                   />
                 </label>
               ))}
             </div>
 
             {formError && (
-              <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{formError}</div>
+              <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{formError}</div>
             )}
 
             <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg border border-detec-ui-border px-4 py-2 text-sm text-detec-ui-muted hover:bg-detec-ui-surface"
+                className="rounded-detec-md border border-detec-ui-border px-4 py-2 text-sm text-detec-ink-secondary hover:bg-detec-surface"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-lg bg-detec-ui-accent px-4 py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover disabled:opacity-50"
+                className="rounded-detec-md bg-detec-brand px-4 py-2 text-sm font-medium text-white hover:bg-detec-brandHover disabled:opacity-50"
               >
                 {submitting ? 'Creating...' : 'Create webhook'}
               </button>
@@ -398,7 +398,7 @@ function WebhookTemplateModal({ onClose, onSaved, onError }) {
 
 
 const POSTURE_META = {
-  passive: { label: 'Passive', color: 'bg-detec-slate-200/30 text-detec-ui-muted', dot: 'bg-detec-slate-500' },
+  passive: { label: 'Passive', color: 'bg-detec-slate-200/30 text-detec-ink-secondary', dot: 'bg-detec-slate-500' },
   audit:   { label: 'Audit',   color: 'bg-detec-amber-500/15 text-detec-amber-500', dot: 'bg-detec-amber-500' },
   active:  { label: 'Active',  color: 'bg-detec-enforce-block/15 text-detec-enforce-block', dot: 'bg-detec-enforce-block' },
 };
@@ -479,17 +479,17 @@ function TenantPostureSection() {
   const showThreshold = selectedPosture === 'audit' || selectedPosture === 'active';
 
   return (
-    <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/80 p-5 space-y-4">
-      <h2 className="text-sm font-semibold text-detec-ui-text uppercase tracking-wider">
+    <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface/80 p-5 space-y-4">
+      <h2 className="text-sm font-semibold text-detec-ink-primary uppercase tracking-wider">
         Enforcement Posture
       </h2>
-      <p className="text-xs text-detec-ui-muted">
+      <p className="text-xs text-detec-ink-secondary">
         Set the default enforcement posture for all endpoints in this tenant.
         New endpoints inherit this posture on registration.
       </p>
 
       {error && (
-        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
+        <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
       )}
 
       {feedback && (
@@ -503,7 +503,7 @@ function TenantPostureSection() {
       )}
 
       {loading ? (
-        <p className="text-sm text-detec-ui-muted">Loading...</p>
+        <p className="text-sm text-detec-ink-secondary">Loading...</p>
       ) : (
         <>
           {/* Current posture distribution */}
@@ -520,7 +520,7 @@ function TenantPostureSection() {
                   </div>
                 );
               })}
-              <span className="text-detec-ui-muted self-center ml-1">
+              <span className="text-detec-ink-secondary self-center ml-1">
                 {summary.total} endpoint{summary.total !== 1 ? 's' : ''} total
               </span>
             </div>
@@ -537,20 +537,20 @@ function TenantPostureSection() {
                   key={opt.value}
                   disabled={disabled}
                   onClick={() => !disabled && setSelectedPosture(opt.value)}
-                  className={`flex-1 rounded-lg border px-3 py-2 text-left transition-all ${
+                  className={`flex-1 rounded-detec-md border px-3 py-2 text-left transition-all ${
                     selected
-                      ? `border-detec-ui-accent/50 ${meta.color} ring-1 ring-detec-ui-accent/30`
+                      ? `border-detec-brand/50 ${meta.color} ring-1 ring-detec-ui-accent/30`
                       : disabled
                         ? 'border-detec-ui-border/50 bg-detec-slate-50 opacity-40 cursor-not-allowed'
-                        : 'border-detec-ui-border bg-detec-ui-surface/80 hover:border-detec-ui-border cursor-pointer'
+                        : 'border-detec-ui-border bg-detec-surface/80 hover:border-detec-ui-border cursor-pointer'
                   }`}
                   title={disabled ? 'Owner role required for Active posture' : ''}
                 >
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${selected ? meta.dot : 'bg-detec-slate-200'}`} />
-                    <span className={`text-sm font-medium ${selected ? '' : 'text-detec-ui-muted'}`}>{opt.label}</span>
+                    <span className={`text-sm font-medium ${selected ? '' : 'text-detec-ink-secondary'}`}>{opt.label}</span>
                   </div>
-                  <p className="text-xs text-detec-ui-muted mt-1">{opt.desc}</p>
+                  <p className="text-xs text-detec-ink-secondary mt-1">{opt.desc}</p>
                   {disabled && (
                     <p className="text-xs text-detec-enforce-warn mt-1">Owner only</p>
                   )}
@@ -563,10 +563,10 @@ function TenantPostureSection() {
           {showThreshold && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-xs text-detec-ui-muted">
+                <label className="text-xs text-detec-ink-secondary">
                   Auto-enforce threshold
                 </label>
-                <span className="text-sm font-mono text-detec-ui-text">{selectedThreshold.toFixed(2)}</span>
+                <span className="text-sm font-mono text-detec-ink-primary">{selectedThreshold.toFixed(2)}</span>
               </div>
               <input
                 type="range"
@@ -575,9 +575,9 @@ function TenantPostureSection() {
                 step="0.05"
                 value={selectedThreshold}
                 onChange={(e) => setSelectedThreshold(parseFloat(e.target.value))}
-                className="w-full accent-detec-ui-accent cursor-pointer"
+                className="w-full accent-detec-brand cursor-pointer"
               />
-              <div className="flex justify-between text-xs text-detec-ui-muted">
+              <div className="flex justify-between text-xs text-detec-ink-secondary">
                 <span>0.50 (aggressive)</span>
                 <span>1.00 (conservative)</span>
               </div>
@@ -590,14 +590,14 @@ function TenantPostureSection() {
               type="checkbox"
               checked={applyToAll}
               onChange={(e) => setApplyToAll(e.target.checked)}
-              className="mt-0.5 rounded border-detec-ui-border bg-detec-ui-page text-detec-ui-accent focus:ring-detec-ui-accent/30"
+              className="mt-0.5 rounded border-detec-ui-border bg-detec-void text-detec-brand focus:ring-detec-brand/30"
             />
             <div>
-              <span className="text-sm text-detec-ui-text group-hover:text-detec-ui-text transition-colors">
+              <span className="text-sm text-detec-ink-primary group-hover:text-detec-ink-primary transition-colors">
                 Apply to all existing endpoints
               </span>
               {summary && (
-                <p className="text-xs text-detec-ui-muted mt-0.5">
+                <p className="text-xs text-detec-ink-secondary mt-0.5">
                   Updates {summary.total} existing endpoint{summary.total !== 1 ? 's' : ''} to the selected posture and threshold
                 </p>
               )}
@@ -609,16 +609,16 @@ function TenantPostureSection() {
             <button
               disabled={!applyToAll || saving}
               onClick={handleSave}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              className={`px-4 py-2 text-sm font-medium rounded-detec-md transition-colors ${
                 applyToAll && !saving
-                  ? 'bg-detec-ui-accent hover:bg-detec-ui-accent text-white cursor-pointer'
-                  : 'bg-detec-slate-200 text-detec-ui-muted cursor-not-allowed'
+                  ? 'bg-detec-brand hover:bg-detec-brand text-white cursor-pointer'
+                  : 'bg-detec-slate-200 text-detec-ink-secondary cursor-not-allowed'
               }`}
             >
               {saving ? 'Saving...' : 'Save Enforcement Defaults'}
             </button>
             {!applyToAll && (
-              <span className="text-xs text-detec-ui-muted">
+              <span className="text-xs text-detec-ink-secondary">
                 Check "Apply to all" to enable saving
               </span>
             )}
@@ -649,12 +649,12 @@ function ConfirmActiveTenantModal({ endpointCount, threshold, confirmInput, onIn
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onCancel}>
       <div
-        className="w-full max-w-lg rounded-xl border border-detec-ui-border bg-detec-ui-page p-4 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-lg rounded-detec-md border border-detec-ui-border bg-detec-void p-4 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-bold text-detec-ui-text">Enable Active Enforcement for All Endpoints</h2>
+        <h2 className="text-lg font-bold text-detec-ink-primary">Enable Active Enforcement for All Endpoints</h2>
 
-        <div className="rounded-lg border border-detec-enforce-block/30 bg-detec-enforce-block/10 p-4 text-sm text-detec-enforce-block space-y-2">
+        <div className="rounded-detec-md border border-detec-enforce-block/30 bg-detec-enforce-block/10 p-4 text-sm text-detec-enforce-block space-y-2">
           <p className="font-semibold">This is a destructive, tenant-wide action.</p>
           <p>
             Active enforcement enables <strong>autonomous process termination</strong> on
@@ -667,18 +667,18 @@ function ConfirmActiveTenantModal({ endpointCount, threshold, confirmInput, onIn
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             <div>
-              <span className="text-detec-ui-muted">Endpoints affected</span>
-              <p className="text-detec-ui-text font-mono">{endpointCount}</p>
+              <span className="text-detec-ink-secondary">Endpoints affected</span>
+              <p className="text-detec-ink-primary font-mono">{endpointCount}</p>
             </div>
             <div>
-              <span className="text-detec-ui-muted">Threshold</span>
-              <p className="text-detec-ui-text font-mono">{threshold.toFixed(2)}</p>
+              <span className="text-detec-ink-secondary">Threshold</span>
+              <p className="text-detec-ink-primary font-mono">{threshold.toFixed(2)}</p>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm text-detec-ui-muted mb-1.5">
-              Type <span className="font-mono text-detec-ui-text">{CONFIRM_PHRASE}</span> to confirm
+            <label className="block text-sm text-detec-ink-secondary mb-1.5">
+              Type <span className="font-mono text-detec-ink-primary">{CONFIRM_PHRASE}</span> to confirm
             </label>
             <input
               type="text"
@@ -686,7 +686,7 @@ function ConfirmActiveTenantModal({ endpointCount, threshold, confirmInput, onIn
               onChange={(e) => onInputChange(e.target.value)}
               placeholder={CONFIRM_PHRASE}
               autoFocus
-              className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text placeholder:text-detec-ui-muted focus:outline-none focus:ring-1 focus:ring-detec-enforce-block/50"
+              className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary placeholder:text-detec-ink-secondary focus:outline-none focus:ring-1 focus:ring-detec-enforce-block/50"
             />
           </div>
         </div>
@@ -694,17 +694,17 @@ function ConfirmActiveTenantModal({ endpointCount, threshold, confirmInput, onIn
         <div className="flex justify-end gap-3">
           <button
             onClick={onCancel}
-            className="text-sm px-4 py-1.5 rounded-lg text-detec-ui-muted hover:text-detec-ui-text transition-colors"
+            className="text-sm px-4 py-1.5 rounded-detec-md text-detec-ink-secondary hover:text-detec-ink-primary transition-colors"
           >
             Cancel
           </button>
           <button
             disabled={!confirmed || saving}
             onClick={onConfirm}
-            className={`text-sm px-4 py-1.5 rounded-lg font-medium transition-colors ${
+            className={`text-sm px-4 py-1.5 rounded-detec-md font-medium transition-colors ${
               confirmed && !saving
                 ? 'bg-detec-enforce-block text-white hover:bg-red-600 cursor-pointer'
-                : 'bg-detec-slate-200 text-detec-ui-muted cursor-not-allowed'
+                : 'bg-detec-slate-200 text-detec-ink-secondary cursor-not-allowed'
             }`}
           >
             {saving ? 'Enabling...' : 'Enable Active Enforcement'}
@@ -760,39 +760,39 @@ function AllowListSection() {
   };
 
   return (
-    <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/80 p-5 space-y-4">
+    <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface/80 p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-detec-ui-text uppercase tracking-wider">
+        <h2 className="text-sm font-semibold text-detec-ink-primary uppercase tracking-wider">
           Enforcement Allow List
         </h2>
         <button
           onClick={() => setShowForm(true)}
-          className="rounded-lg bg-detec-ui-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-detec-ui-accentHover transition-colors"
+          className="rounded-detec-md bg-detec-brand px-3 py-1.5 text-xs font-medium text-white hover:bg-detec-brandHover transition-colors"
         >
           Add entry
         </button>
       </div>
 
-      <p className="text-xs text-detec-ui-muted">
+      <p className="text-xs text-detec-ink-secondary">
         Tools matching an allow-list entry are exempt from enforcement actions regardless of posture or policy.
       </p>
 
       {error && (
-        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
+        <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
       )}
 
       {loading ? (
-        <p className="text-sm text-detec-ui-muted">Loading...</p>
+        <p className="text-sm text-detec-ink-secondary">Loading...</p>
       ) : entries.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-detec-ui-border bg-detec-slate-50 px-6 py-8 text-center">
-          <p className="text-sm text-detec-ui-muted">No allow-list entries.</p>
-          <p className="text-xs text-detec-ui-muted mt-1">Add an entry to exempt specific tools from enforcement.</p>
+        <div className="rounded-detec-md border border-dashed border-detec-ui-border bg-detec-slate-50 px-6 py-8 text-center">
+          <p className="text-sm text-detec-ink-secondary">No allow-list entries.</p>
+          <p className="text-xs text-detec-ink-secondary mt-1">Add an entry to exempt specific tools from enforcement.</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-detec-ui-border/40 text-xs font-medium text-detec-ui-muted uppercase tracking-wider">
+              <tr className="border-b border-detec-ui-border/40 text-xs font-medium text-detec-ink-secondary uppercase tracking-wider">
                 <th className="pb-2 pr-4">Pattern</th>
                 <th className="pb-2 pr-4">Type</th>
                 <th className="pb-2 pr-4">Description</th>
@@ -805,20 +805,20 @@ function AllowListSection() {
               {entries.map((entry) => (
                 <tr key={entry.id} className="border-b border-detec-ui-border/20">
                   <td className="py-2.5 pr-4">
-                    <code className="text-xs text-detec-ui-text break-all">{entry.pattern}</code>
+                    <code className="text-xs text-detec-ink-primary break-all">{entry.pattern}</code>
                   </td>
                   <td className="py-2.5 pr-4">
-                    <span className="inline-block rounded bg-detec-slate-100 px-2 py-0.5 text-xs text-detec-ui-muted">
+                    <span className="inline-block rounded bg-detec-slate-100 px-2 py-0.5 text-xs text-detec-ink-secondary">
                       {entry.pattern_type}
                     </span>
                   </td>
-                  <td className="py-2.5 pr-4 text-xs text-detec-ui-muted">
-                    {entry.description || <span className="text-detec-ui-muted italic">none</span>}
+                  <td className="py-2.5 pr-4 text-xs text-detec-ink-secondary">
+                    {entry.description || <span className="text-detec-ink-secondary italic">none</span>}
                   </td>
-                  <td className="py-2.5 pr-4 text-xs text-detec-ui-muted">
-                    {entry.created_by || <span className="text-detec-ui-muted">unknown</span>}
+                  <td className="py-2.5 pr-4 text-xs text-detec-ink-secondary">
+                    {entry.created_by || <span className="text-detec-ink-secondary">unknown</span>}
                   </td>
-                  <td className="py-2.5 pr-4 text-xs text-detec-ui-muted whitespace-nowrap">
+                  <td className="py-2.5 pr-4 text-xs text-detec-ink-secondary whitespace-nowrap">
                     {fmtDate(entry.created_at)}
                   </td>
                   <td className="py-2.5 text-right">
@@ -878,14 +878,14 @@ function AllowListFormModal({ onClose, onSaved }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl border border-detec-ui-border bg-detec-ui-page p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-md rounded-detec-md border border-detec-ui-border bg-detec-void p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-detec-ui-text mb-4">Add Allow-List Entry</h2>
+        <h2 className="text-lg font-semibold text-detec-ink-primary mb-4">Add Allow-List Entry</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-detec-ui-muted mb-1">Pattern</label>
+            <label className="block text-xs font-medium text-detec-ink-secondary mb-1">Pattern</label>
             <input
               type="text"
               value={pattern}
@@ -893,22 +893,22 @@ function AllowListFormModal({ onClose, onSaved }) {
               placeholder="e.g. ollama, /usr/local/bin/ollama, sha256:abc..."
               required
               spellCheck={false}
-              className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text font-mono focus:border-detec-ui-accent focus:outline-none"
+              className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary font-mono focus:border-detec-brand focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-detec-ui-muted mb-1">Match Type</label>
+            <label className="block text-xs font-medium text-detec-ink-secondary mb-1">Match Type</label>
             <select
               value={patternType}
               onChange={(e) => setPatternType(e.target.value)}
-              className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text focus:border-detec-ui-accent focus:outline-none"
+              className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary focus:border-detec-brand focus:outline-none"
             >
               {PATTERN_TYPES.map((pt) => (
                 <option key={pt.value} value={pt.value}>{pt.label}</option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-detec-ui-muted">
+            <p className="mt-1 text-xs text-detec-ink-secondary">
               {patternType === 'name' && 'Match by tool or process name (e.g. "ollama")'}
               {patternType === 'path' && 'Match by full executable path (e.g. "/usr/local/bin/ollama")'}
               {patternType === 'hash' && 'Match by binary SHA-256 hash'}
@@ -916,34 +916,34 @@ function AllowListFormModal({ onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-detec-ui-muted mb-1">
-              Description <span className="font-normal text-detec-ui-muted">(optional)</span>
+            <label className="block text-xs font-medium text-detec-ink-secondary mb-1">
+              Description <span className="font-normal text-detec-ink-secondary">(optional)</span>
             </label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Why this tool is exempt"
-              className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text focus:border-detec-ui-accent focus:outline-none"
+              className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary focus:border-detec-brand focus:outline-none"
             />
           </div>
 
           {formError && (
-            <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{formError}</div>
+            <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{formError}</div>
           )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-detec-ui-border px-4 py-2 text-sm text-detec-ui-muted hover:bg-detec-ui-surface"
+              className="rounded-detec-md border border-detec-ui-border px-4 py-2 text-sm text-detec-ink-secondary hover:bg-detec-surface"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-lg bg-detec-ui-accent px-4 py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover disabled:opacity-50"
+              className="rounded-detec-md bg-detec-brand px-4 py-2 text-sm font-medium text-white hover:bg-detec-brandHover disabled:opacity-50"
             >
               {submitting ? 'Adding...' : 'Add entry'}
             </button>
@@ -1014,9 +1014,9 @@ function DisabledServicesSection() {
   const totalServices = endpoints.reduce((sum, ep) => sum + (ep.disabled_services?.length || 0), 0);
 
   return (
-    <div className="rounded-xl border border-detec-ui-border/50 bg-detec-ui-surface/80 p-5 space-y-4">
+    <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface/80 p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-detec-ui-text uppercase tracking-wider">
+        <h2 className="text-sm font-semibold text-detec-ink-primary uppercase tracking-wider">
           Disabled Services
         </h2>
         {totalServices > 0 && (
@@ -1026,12 +1026,12 @@ function DisabledServicesSection() {
         )}
       </div>
 
-      <p className="text-xs text-detec-ui-muted">
+      <p className="text-xs text-detec-ink-secondary">
         Services disabled by anti-resurrection escalation (repeated enforcement kills). Restoring re-enables the service unit on the endpoint.
       </p>
 
       {feedback && (
-        <div className={`rounded-lg border px-3 py-2 text-xs ${
+        <div className={`rounded-detec-md border px-3 py-2 text-xs ${
           feedback.type === 'success'
             ? 'border-detec-teal-500/30 bg-detec-teal-900/20 text-detec-teal-400'
             : 'border-red-800/50 bg-red-950/30 text-red-400'
@@ -1041,30 +1041,30 @@ function DisabledServicesSection() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
+        <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
       )}
 
       {loading ? (
-        <p className="text-sm text-detec-ui-muted">Loading...</p>
+        <p className="text-sm text-detec-ink-secondary">Loading...</p>
       ) : endpoints.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-detec-ui-border bg-detec-slate-50 px-6 py-8 text-center">
-          <p className="text-sm text-detec-ui-muted">No disabled services across any endpoints.</p>
-          <p className="text-xs text-detec-ui-muted mt-1">Services appear here when anti-resurrection escalation disables a systemd unit or launchd plist.</p>
+        <div className="rounded-detec-md border border-dashed border-detec-ui-border bg-detec-slate-50 px-6 py-8 text-center">
+          <p className="text-sm text-detec-ink-secondary">No disabled services across any endpoints.</p>
+          <p className="text-xs text-detec-ink-secondary mt-1">Services appear here when anti-resurrection escalation disables a systemd unit or launchd plist.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {endpoints.map((ep) => (
-            <div key={ep.endpoint_id} className="rounded-lg border border-detec-ui-border/40 bg-detec-ui-page/50 p-4 space-y-3">
+            <div key={ep.endpoint_id} className="rounded-detec-md border border-detec-ui-border/40 bg-detec-void/50 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-detec-ui-text">{ep.hostname}</span>
-                  <span className="text-xs text-detec-ui-muted font-mono">{ep.endpoint_id.slice(0, 8)}</span>
+                  <span className="text-sm font-medium text-detec-ink-primary">{ep.hostname}</span>
+                  <span className="text-xs text-detec-ink-secondary font-mono">{ep.endpoint_id.slice(0, 8)}</span>
                 </div>
                 {ep.disabled_services?.length > 1 && (
                   <button
                     onClick={() => handleRestoreAll(ep.endpoint_id, ep.hostname)}
                     disabled={restoring[ep.endpoint_id]}
-                    className="rounded-lg border border-detec-teal-500/30 px-2.5 py-1 text-xs font-medium text-detec-teal-400 hover:bg-detec-teal-500/10 disabled:opacity-50 transition-colors"
+                    className="rounded-detec-md border border-detec-teal-500/30 px-2.5 py-1 text-xs font-medium text-detec-teal-400 hover:bg-detec-teal-500/10 disabled:opacity-50 transition-colors"
                   >
                     {restoring[ep.endpoint_id] ? 'Queuing...' : 'Restore all'}
                   </button>
@@ -1074,7 +1074,7 @@ function DisabledServicesSection() {
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="text-detec-ui-muted border-b border-detec-ui-border/30">
+                    <tr className="text-detec-ink-secondary border-b border-detec-ui-border/30">
                       <th className="text-left py-1.5 pr-3 font-medium">Unit</th>
                       <th className="text-left py-1.5 pr-3 font-medium">Type</th>
                       <th className="text-left py-1.5 pr-3 font-medium">Tool</th>
@@ -1085,7 +1085,7 @@ function DisabledServicesSection() {
                   <tbody>
                     {ep.disabled_services.map((svc) => (
                       <tr key={svc.service_id} className="border-b border-detec-ui-border/20 last:border-0">
-                        <td className="py-2 pr-3 font-mono text-detec-ui-text">{svc.unit_name}</td>
+                        <td className="py-2 pr-3 font-mono text-detec-ink-primary">{svc.unit_name}</td>
                         <td className="py-2 pr-3">
                           <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
                             svc.service_type === 'systemd'
@@ -1095,13 +1095,13 @@ function DisabledServicesSection() {
                             {svc.service_type}
                           </span>
                         </td>
-                        <td className="py-2 pr-3 text-detec-ui-muted">{svc.tool_name || 'N/A'}</td>
-                        <td className="py-2 pr-3 text-detec-ui-muted">{fmtDate(svc.disabled_at)}</td>
+                        <td className="py-2 pr-3 text-detec-ink-secondary">{svc.tool_name || 'N/A'}</td>
+                        <td className="py-2 pr-3 text-detec-ink-secondary">{fmtDate(svc.disabled_at)}</td>
                         <td className="py-2 text-right">
                           <button
                             onClick={() => handleRestore(ep.endpoint_id, svc.service_id, svc.unit_name)}
                             disabled={restoring[svc.service_id]}
-                            className="rounded-lg bg-detec-teal-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-detec-teal-500 disabled:opacity-50 transition-colors"
+                            className="rounded-detec-md bg-detec-teal-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-detec-teal-500 disabled:opacity-50 transition-colors"
                           >
                             {restoring[svc.service_id] ? 'Queuing...' : 'Restore'}
                           </button>
@@ -1153,62 +1153,62 @@ function WebhookFormModal({ onClose, onSaved }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl border border-detec-ui-border bg-detec-ui-page p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-md rounded-detec-md border border-detec-ui-border bg-detec-void p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-detec-ui-text mb-4">Add Webhook</h2>
+        <h2 className="text-lg font-semibold text-detec-ink-primary mb-4">Add Webhook</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-detec-ui-muted mb-1">Endpoint URL</label>
+            <label className="block text-xs font-medium text-detec-ink-secondary mb-1">Endpoint URL</label>
             <input
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://example.com/webhook"
               required
-              className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text focus:border-detec-ui-accent focus:outline-none"
+              className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary focus:border-detec-brand focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-detec-ui-muted mb-2">
-              Event types <span className="font-normal text-detec-ui-muted">(leave empty for all)</span>
+            <label className="block text-xs font-medium text-detec-ink-secondary mb-2">
+              Event types <span className="font-normal text-detec-ink-secondary">(leave empty for all)</span>
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {EVENT_TYPES.map((evt) => (
                 <label
                   key={evt}
-                  className="flex items-center gap-2 rounded-lg border border-detec-ui-border/40 bg-detec-ui-surface/80 px-3 py-2 cursor-pointer hover:border-detec-ui-accent/30 transition-colors"
+                  className="flex items-center gap-2 rounded-detec-md border border-detec-ui-border/40 bg-detec-surface/80 px-3 py-2 cursor-pointer hover:border-detec-brand/30 transition-colors"
                 >
                   <input
                     type="checkbox"
                     checked={selectedEvents.includes(evt)}
                     onChange={() => toggleEvent(evt)}
-                    className="rounded border-detec-ui-border bg-detec-ui-page text-detec-ui-accent focus:ring-detec-ui-accent/30"
+                    className="rounded border-detec-ui-border bg-detec-void text-detec-brand focus:ring-detec-brand/30"
                   />
-                  <span className="text-xs text-detec-ui-text">{evt}</span>
+                  <span className="text-xs text-detec-ink-primary">{evt}</span>
                 </label>
               ))}
             </div>
           </div>
 
           {formError && (
-            <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{formError}</div>
+            <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{formError}</div>
           )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-detec-ui-border px-4 py-2 text-sm text-detec-ui-muted hover:bg-detec-ui-surface"
+              className="rounded-detec-md border border-detec-ui-border px-4 py-2 text-sm text-detec-ink-secondary hover:bg-detec-surface"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-lg bg-detec-ui-accent px-4 py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover disabled:opacity-50"
+              className="rounded-detec-md bg-detec-brand px-4 py-2 text-sm font-medium text-white hover:bg-detec-brandHover disabled:opacity-50"
             >
               {submitting ? 'Creating...' : 'Create webhook'}
             </button>

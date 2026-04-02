@@ -40,16 +40,16 @@ export default function SsoCallbackPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-detec-ui-page flex items-center justify-center p-4">
+      <div className="min-h-screen bg-detec-void flex items-center justify-center p-4">
         <div className="w-full max-w-sm space-y-6 text-center">
           <DetecLogo size="lg" className="justify-center" />
-          <div className="rounded-xl border border-detec-enforce-block/30 bg-detec-enforce-block/10 px-4 py-3 text-sm text-detec-enforce-block">
+          <div className="rounded-detec-md border border-detec-enforce-block/30 bg-detec-enforce-block/10 px-4 py-3 text-sm text-detec-enforce-block">
             {error}
           </div>
           <button
             type="button"
             onClick={() => navigate('/', { replace: true })}
-            className="text-sm text-detec-ui-accent hover:text-detec-ui-accent transition-colors"
+            className="text-sm text-detec-brand hover:text-detec-brand transition-colors"
           >
             Return to sign in
           </button>
@@ -59,9 +59,9 @@ export default function SsoCallbackPage() {
   }
 
   return (
-    <div className="min-h-screen bg-detec-ui-page flex flex-col items-center justify-center gap-3">
+    <div className="min-h-screen bg-detec-void flex flex-col items-center justify-center gap-3">
       <ApertureSpinner size="xl" label="Completing sign in" />
-      <span className="text-sm text-detec-ui-muted">Signing you in...</span>
+      <span className="text-sm text-detec-ink-secondary">Signing you in...</span>
     </div>
   );
 }

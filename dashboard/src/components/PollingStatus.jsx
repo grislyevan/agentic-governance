@@ -31,14 +31,14 @@ export default function PollingStatus({ lastUpdated, paused, onTogglePause, onFo
   const dotClass = !paused && lastUpdated ? freshnessDotClass(secs) : 'bg-detec-slate-500';
 
   return (
-    <div className="flex items-center gap-2 text-xs text-detec-ui-muted">
+    <div className="flex items-center gap-2 text-xs text-detec-ink-secondary">
       {lastUpdated && (
         <span className={`inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotClass}`} aria-hidden="true" />
       )}
       <span>{paused ? 'Paused' : (lastUpdated ? `Updated ${ago}` : 'Updated never')}</span>
       <button
         onClick={onTogglePause}
-        className="ml-0.5 hover:text-detec-ui-text transition-colors"
+        className="ml-0.5 hover:text-detec-ink-primary transition-colors"
         aria-label={paused ? 'Resume auto-refresh' : 'Pause auto-refresh'}
       >
         {paused ? (
@@ -54,7 +54,7 @@ export default function PollingStatus({ lastUpdated, paused, onTogglePause, onFo
       <button
         onClick={onForceScan}
         disabled={!onForceScan}
-        className="ml-2 px-2 py-0.5 rounded border border-detec-ui-border text-[11px] font-medium text-detec-ui-muted hover:text-detec-ui-text hover:border-detec-ui-accent/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        className="ml-2 px-2 py-0.5 rounded border border-detec-ui-border text-[11px] font-medium text-detec-ink-secondary hover:text-detec-ink-primary hover:border-detec-brand/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         title="Force all endpoints to scan immediately (coming soon)"
       >
         Force Scan

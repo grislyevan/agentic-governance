@@ -26,7 +26,7 @@ export default function BehaviorChainViz({ chains }) {
 
   if (parsed.length === 0) {
     return (
-      <p className="text-sm text-detec-ui-muted">No behavior chains</p>
+      <p className="text-sm text-detec-ink-secondary">No behavior chains</p>
     );
   }
 
@@ -36,11 +36,11 @@ export default function BehaviorChainViz({ chains }) {
         <div key={chainIdx} className="flex flex-wrap items-center gap-1">
           {steps.map((step, stepIdx) => (
             <span key={stepIdx} className="inline-flex items-center gap-1">
-              <span className="px-2 py-1 rounded bg-detec-slate-700 text-detec-ui-text text-xs font-medium">
+              <span className="px-2 py-1 rounded bg-detec-raised text-detec-ink-primary text-xs font-medium">
                 {stepLabel(step)}
               </span>
               {stepIdx < steps.length - 1 && (
-                <span className="text-detec-ui-muted" aria-hidden="true">→</span>
+                <span className="text-detec-ink-secondary" aria-hidden="true">→</span>
               )}
             </span>
           ))}

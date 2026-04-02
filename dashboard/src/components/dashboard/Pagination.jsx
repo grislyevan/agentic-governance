@@ -6,8 +6,8 @@ export default function Pagination({ page, pageSize, total, onPageChange, onPage
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm">
       {/* Left: total count */}
-      <div className="text-detec-ui-muted order-2 sm:order-1">
-        Tool Scanners <span className="text-detec-ui-muted font-medium">{total} total</span>
+      <div className="text-detec-ink-secondary order-2 sm:order-1">
+        Tool Scanners <span className="text-detec-ink-secondary font-medium">{total} total</span>
       </div>
 
       {/* Center: page numbers */}
@@ -30,7 +30,7 @@ export default function Pagination({ page, pageSize, total, onPageChange, onPage
 
         {pages.map((p, i) =>
           p === '...' ? (
-            <span key={`dots-${i}`} className="px-1 text-detec-ui-muted">...</span>
+            <span key={`dots-${i}`} className="px-1 text-detec-ink-secondary">...</span>
           ) : (
             <button
               key={p}
@@ -38,8 +38,8 @@ export default function Pagination({ page, pageSize, total, onPageChange, onPage
               className={`
                 min-w-[32px] h-8 px-2 rounded-md text-sm font-medium transition-colors
                 ${p === page
-                  ? 'bg-detec-ui-accent/15 text-detec-ui-accent border border-detec-ui-accent/30'
-                  : 'text-detec-ui-muted hover:text-detec-ui-text hover:bg-detec-ui-surface'
+                  ? 'bg-detec-brand-muted text-detec-brand border border-detec-brand/30'
+                  : 'text-detec-ink-secondary hover:text-detec-ink-primary hover:bg-detec-surface'
                 }
               `}
             >
@@ -71,13 +71,13 @@ export default function Pagination({ page, pageSize, total, onPageChange, onPage
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
           aria-label="Rows per page"
-          className="bg-detec-ui-surface border border-detec-ui-border rounded-md px-2 py-1 text-sm text-detec-ui-text focus:outline-none focus:border-detec-ui-accent/50"
+          className="bg-detec-surface border border-detec-ui-border rounded-md px-2 py-1 text-sm text-detec-ink-primary focus:outline-none focus:border-detec-brand/50"
         >
           {[10, 20, 50].map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
-        <span className="text-detec-ui-muted">Rows</span>
+        <span className="text-detec-ink-secondary">Rows</span>
       </div>
     </div>
   );
@@ -90,8 +90,8 @@ function NavButton({ children, disabled, ...props }) {
       className={`
         flex items-center justify-center min-h-[44px] min-w-[44px] sm:min-h-8 sm:min-w-0 sm:h-8 px-1.5 rounded-md transition-colors
         ${disabled
-          ? 'text-detec-slate-700 cursor-not-allowed'
-          : 'text-detec-ui-muted hover:text-detec-ui-text hover:bg-detec-ui-surface'
+          ? 'text-detec-raised cursor-not-allowed'
+          : 'text-detec-ink-secondary hover:text-detec-ink-primary hover:bg-detec-surface'
         }
       `}
       {...props}

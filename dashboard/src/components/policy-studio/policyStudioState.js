@@ -81,6 +81,54 @@ export function draftToApiPayload(draft, isPublish) {
   };
 }
 
+/**
+ * Reverse-map an API policy object into a nested draft so the wizard can pre-fill
+ * for edit mode. Best-effort: fields that don't exist in the API shape use defaults.
+ */
+export function apiPolicyToDraft(policy) {
+  const p = policy?.parameters || {};
+  const sourceId = p.source_type || '';
+  const scopeAssets = Array.isArray(p.scope) ? p.scope : [];
+
+  return {
+    basics: {
+      name: policy.rule_id || '',
+      description: policy.description || '',
+      goal: p.goal || '',
+      severity: p.severity || 'medium',
+      outcome: p.decision_state || 'warn',
+      whyThisMatters: p.impact || '',
+      recommendedResponse: p.remediation || '',
+      status: policy.is_active ? 'publish' : 'draft',
+    },
+    source: {
+      category: sourceId,
+      connectors: sourceId ? [sourceId] : [],
+      tags: [],
+    },
+    scope: {
+      assets: scopeAssets,
+      subjects: [],
+      sensitivity: [],
+    },
+    rules: {
+      mode: (p.conditions && Object.keys(p.conditions).length > 0) || p.precedence !== 100
+        ? 'advanced'
+        : 'simple',
+      templateId: null,
+      simpleConditions: [],
+      advancedJson: {
+        decision_state: p.decision_state || 'warn',
+        conditions: p.conditions || {},
+        precedence: p.precedence ?? 100,
+      },
+    },
+    review: {
+      previewEnabled: false,
+    },
+  };
+}
+
 /** Validation: required fields per step (for step-scoped errors). */
 export function validateStep(stepId, draft) {
   if (stepId === 'basics') {

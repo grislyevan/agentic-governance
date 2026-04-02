@@ -49,7 +49,7 @@ function formatExpiresAt(value) {
 }
 
 function formatFieldValue(field, value) {
-  if (value === null || value === undefined) return <span className="text-detec-ui-muted italic">null</span>;
+  if (value === null || value === undefined) return <span className="text-detec-ink-secondary italic">null</span>;
   if (field === 'expires_at') return <span>{formatExpiresAt(value)}</span>;
   if (field === 'no_expiry_override') return <span>{value ? 'Yes' : 'No'}</span>;
   return <span>{String(value)}</span>;
@@ -66,15 +66,15 @@ function DiffTable({ before, after }) {
     <table className="w-full text-xs border border-detec-ui-border rounded mt-2 overflow-hidden">
       <thead>
         <tr className="bg-detec-slate-50 border-b border-detec-ui-border">
-          <th className="text-left px-2 py-1 font-semibold text-detec-ui-muted w-1/4">Field</th>
-          <th className="text-left px-2 py-1 font-semibold text-detec-ui-muted w-[37.5%]">Before</th>
-          <th className="text-left px-2 py-1 font-semibold text-detec-ui-muted w-[37.5%]">After</th>
+          <th className="text-left px-2 py-1 font-semibold text-detec-ink-secondary w-1/4">Field</th>
+          <th className="text-left px-2 py-1 font-semibold text-detec-ink-secondary w-[37.5%]">Before</th>
+          <th className="text-left px-2 py-1 font-semibold text-detec-ink-secondary w-[37.5%]">After</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-detec-ui-border">
         {changed.map((f) => (
           <tr key={f}>
-            <td className="px-2 py-1 font-mono text-detec-ui-muted align-top">{f}</td>
+            <td className="px-2 py-1 font-mono text-detec-ink-secondary align-top">{f}</td>
             <td className="px-2 py-1 text-red-700 bg-red-50/50 align-top">
               {formatFieldValue(f, before[f])}
             </td>
@@ -96,13 +96,13 @@ function EntryDetail({ log }) {
     return (
       <div className="mt-1 space-y-0.5">
         {detail.pattern && (
-          <p className="text-xs text-detec-ui-muted">
-            Pattern: <span className="font-mono text-detec-ui-text">{detail.pattern}</span>
+          <p className="text-xs text-detec-ink-secondary">
+            Pattern: <span className="font-mono text-detec-ink-primary">{detail.pattern}</span>
           </p>
         )}
         {detail.scope && (
-          <p className="text-xs text-detec-ui-muted">
-            Scope: <span className="text-detec-ui-text">{detail.scope}</span>
+          <p className="text-xs text-detec-ink-secondary">
+            Scope: <span className="text-detec-ink-primary">{detail.scope}</span>
           </p>
         )}
       </div>
@@ -110,7 +110,7 @@ function EntryDetail({ log }) {
   }
 
   if (action === 'enforcement.allow_list_removed') {
-    return <p className="text-xs text-detec-ui-muted mt-1">Pattern removed</p>;
+    return <p className="text-xs text-detec-ink-secondary mt-1">Pattern removed</p>;
   }
 
   if (action === 'enforcement.allow_list_updated') {
@@ -121,7 +121,7 @@ function EntryDetail({ log }) {
       return (
         <ul className="mt-1 space-y-0.5">
           {detail.fields_changed.map((f) => (
-            <li key={f} className="text-xs text-detec-ui-muted font-mono">{f}</li>
+            <li key={f} className="text-xs text-detec-ink-secondary font-mono">{f}</li>
           ))}
         </ul>
       );
@@ -170,19 +170,19 @@ export default function ExceptionHistoryDrawer({ entry, onClose }) {
         aria-hidden="true"
       />
       {/* Panel */}
-      <div className="ml-auto w-full max-w-md flex flex-col bg-detec-ui-surface border-l border-detec-ui-border h-full overflow-y-auto">
+      <div className="ml-auto w-full max-w-md flex flex-col bg-detec-surface border-l border-detec-ui-border h-full overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-detec-ui-border shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="font-mono font-semibold text-detec-ui-text truncate max-w-[200px]">
+            <span className="font-mono font-semibold text-detec-ink-primary truncate max-w-[200px]">
               {entry.pattern}
             </span>
-            <span className="text-sm text-detec-ui-muted shrink-0">History</span>
+            <span className="text-sm text-detec-ink-secondary shrink-0">History</span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="ml-3 shrink-0 text-detec-ui-muted hover:text-detec-ui-text text-xl leading-none"
+            className="ml-3 shrink-0 text-detec-ink-secondary hover:text-detec-ink-primary text-xl leading-none"
             aria-label="Close history drawer"
           >
             ×
@@ -204,7 +204,7 @@ export default function ExceptionHistoryDrawer({ entry, onClose }) {
           )}
 
           {!loading && !error && logs.length === 0 && (
-            <p className="text-sm text-detec-ui-muted text-center py-10">
+            <p className="text-sm text-detec-ink-secondary text-center py-10">
               No history found for this entry.
             </p>
           )}
@@ -215,7 +215,7 @@ export default function ExceptionHistoryDrawer({ entry, onClose }) {
                 <li key={log.id} className="flex gap-3">
                   {/* Timeline dot */}
                   <div className="flex flex-col items-center pt-0.5 shrink-0">
-                    <div className="w-2 h-2 rounded-full bg-detec-ui-accent/60 ring-2 ring-detec-ui-accent/20" />
+                    <div className="w-2 h-2 rounded-full bg-detec-brand/60 ring-2 ring-detec-brand/20" />
                     <div className="flex-1 w-px bg-detec-ui-border mt-1" />
                   </div>
                   {/* Content */}
@@ -226,10 +226,10 @@ export default function ExceptionHistoryDrawer({ entry, onClose }) {
                       >
                         {actionLabel(log.action)}
                       </span>
-                      <span className="text-xs text-detec-ui-muted">{timeSince(log.occurred_at)}</span>
+                      <span className="text-xs text-detec-ink-secondary">{timeSince(log.occurred_at)}</span>
                     </div>
                     {log.actor_id && (
-                      <p className="mt-1 text-xs font-mono text-detec-ui-muted truncate max-w-[260px]">
+                      <p className="mt-1 text-xs font-mono text-detec-ink-secondary truncate max-w-[260px]">
                         {log.actor_id}
                       </p>
                     )}

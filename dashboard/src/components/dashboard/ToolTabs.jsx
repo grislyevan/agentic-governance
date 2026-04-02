@@ -28,8 +28,8 @@ export default function ToolTabs({ activeTab, onTabChange, counts, totalTools })
               className={`
                 flex items-center gap-1.5 px-4 py-3 sm:py-2.5 text-sm font-medium border-b-2 transition-colors min-h-[44px] sm:min-h-0 shrink-0
                 ${active
-                  ? 'border-detec-ui-accent text-detec-ui-text'
-                  : 'border-transparent text-detec-ui-muted hover:text-detec-ui-text'
+                  ? 'border-detec-brand text-detec-ink-primary'
+                  : 'border-transparent text-detec-ink-secondary hover:text-detec-ink-primary'
                 }
               `}
             >
@@ -37,8 +37,8 @@ export default function ToolTabs({ activeTab, onTabChange, counts, totalTools })
               <span className={`
                 text-xs px-1.5 py-0.5 rounded-full
                 ${active
-                  ? 'bg-detec-ui-accent/15 text-detec-ui-accent'
-                  : 'bg-detec-ui-surface text-detec-ui-muted'
+                  ? 'bg-detec-brand-muted text-detec-brand'
+                  : 'bg-detec-surface text-detec-ink-secondary'
                 }
               `}>
                 {count}

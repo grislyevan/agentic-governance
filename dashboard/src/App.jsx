@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import useAuth from './hooks/useAuth';
-import Sidebar from './components/layout/Sidebar';
+import IconRail from './components/layout/IconRail';
 import TopBar from './components/layout/TopBar';
 import AdminLayout from './components/layout/AdminLayout';
 import ApertureSpinner from './components/branding/ApertureSpinner';
@@ -9,6 +9,7 @@ import LoginPage from './pages/LoginPage';
 import SetPasswordPage from './pages/SetPasswordPage';
 import SsoCallbackPage from './pages/SsoCallbackPage';
 import DashboardPage from './pages/DashboardPage';
+import DetectionsPage from './pages/DetectionsPage';
 import EventsPage from './pages/EventsPage';
 import SessionsPage from './pages/SessionsPage';
 import SessionDetailPage from './pages/SessionDetailPage';
@@ -16,6 +17,7 @@ import PoliciesPage from './pages/PoliciesPage';
 import PolicyStudioPage from './pages/PolicyStudioPage';
 import PlaybooksPage from './pages/PlaybooksPage';
 import EndpointProfilesPage from './pages/EndpointProfilesPage';
+import EndpointsPageWrapper from './pages/EndpointsPageWrapper';
 import AuditLogPage from './pages/AuditLogPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import AdminPage from './pages/AdminPage';
@@ -28,24 +30,23 @@ import OrgSettingsPage from './pages/OrgSettingsPage';
 import MembersPage from './pages/MembersPage';
 import DemoBanner from './components/layout/DemoBanner';
 import ExceptionsPage from './pages/ExceptionsPage';
+import BehaviorsPage from './pages/BehaviorsPage';
 
-const PATH_TO_PAGE = {
-  '/endpoints': 'endpoints',
-  '/sessions': 'sessions',
-  '/events': 'events',
-  '/policies': 'policies',
-  '/playbooks': 'admin',
-  '/endpoint-profiles': 'admin',
-  '/audit': 'audit',
-  '/approvals': 'approvals',
-  '/admin': 'admin',
-  '/settings': 'settings',
-  '/billing': 'billing',
-  '/org': 'org',
-  '/org-settings': 'org-settings',
-  '/members': 'members',
-  '/exceptions': 'exceptions',
-};
+/**
+ * Map pathname prefixes → icon rail active section.
+ * Order matters: more specific prefixes first.
+ */
+function resolveActivePage(pathname) {
+  if (pathname === '/') return 'overview';
+  if (pathname.startsWith('/detections') || pathname.startsWith('/events') || pathname.startsWith('/sessions')) return 'detections';
+  if (pathname.startsWith('/policies')) return 'policies';
+  if (pathname.startsWith('/approvals') || pathname.startsWith('/exceptions')) return 'approvals';
+  if (pathname.startsWith('/endpoints') || pathname.startsWith('/endpoint-profiles')) return 'endpoints';
+  if (pathname.startsWith('/behaviors')) return 'behaviors';
+  if (pathname.startsWith('/audit')) return 'audit';
+  if (pathname.startsWith('/admin') || pathname.startsWith('/playbooks') || pathname.startsWith('/settings') || pathname.startsWith('/billing') || pathname.startsWith('/org') || pathname.startsWith('/members')) return 'admin';
+  return 'overview';
+}
 
 export default function App() {
   const { isAuthenticated, loading } = useAuth();
@@ -53,37 +54,10 @@ export default function App() {
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [alertCount, setAlertCount] = useState(0);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem('detec_sidebar_collapsed') === '1';
-    } catch {
-      return false;
-    }
-  });
+  const [railOpen, setRailOpen] = useState(false);
   const refreshRef = useRef(null);
 
-  const toggleSidebarCollapsed = useCallback(() => {
-    setSidebarCollapsed((c) => {
-      const next = !c;
-      try {
-        localStorage.setItem('detec_sidebar_collapsed', next ? '1' : '0');
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  }, []);
-
-  const activePage = location.pathname.startsWith('/sessions')
-    ? 'sessions'
-    : location.pathname.startsWith('/policies')
-      ? 'policies'
-      : location.pathname.startsWith('/admin') ||
-          location.pathname === '/playbooks' ||
-          location.pathname === '/endpoint-profiles'
-        ? 'admin'
-        : PATH_TO_PAGE[location.pathname] || 'endpoints';
+  const activePage = resolveActivePage(location.pathname);
 
   const handleNavigate = useCallback((page) => {
     navigate(`/${page}`);
@@ -94,8 +68,25 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    setSidebarOpen(false);
+    setRailOpen(false);
   }, [location.pathname]);
+
+  /* ── Keyboard shortcuts: 1-8 → section navigation ── */
+  useEffect(() => {
+    const SECTION_KEYS = { '1': '', '2': 'detections', '3': 'policies', '4': 'approvals', '5': 'endpoints', '6': 'behaviors', '7': 'audit', '8': 'admin' };
+    function handleKeyDown(e) {
+      // Skip when typing in inputs/textareas or when modifier keys are held (except for standalone digits)
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const path = SECTION_KEYS[e.key];
+      if (path != null) {
+        e.preventDefault();
+        navigate(`/${path}`);
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [navigate]);
 
   if (location.pathname === '/auth/sso/callback') {
     return <SsoCallbackPage />;
@@ -103,9 +94,9 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-detec-ui-page flex flex-col items-center justify-center gap-3">
+      <div className="min-h-screen bg-detec-void flex flex-col items-center justify-center gap-3">
         <ApertureSpinner size="xl" label="Starting Detec" />
-        <span className="text-sm text-detec-ui-muted">Connecting...</span>
+        <span className="text-sm text-detec-ink-secondary">Connecting...</span>
       </div>
     );
   }
@@ -126,39 +117,57 @@ export default function App() {
   };
 
   return (
-    <div className="flex min-h-screen bg-detec-ui-page">
-      <Sidebar
+    <div className="flex min-h-screen bg-detec-void">
+      <IconRail
         activePage={activePage}
         onNavigate={handleNavigate}
         alertCount={alertCount}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={toggleSidebarCollapsed}
+        isOpen={railOpen}
+        onClose={() => setRailOpen(false)}
       />
 
-      <div
-        className={`flex flex-col flex-1 min-w-0 transition-[margin] duration-200 ease-out ${
-          sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-60'
-        }`}
-      >
+      {/* Main content — 56px left margin for icon rail on desktop */}
+      <div className="flex flex-col flex-1 min-w-0 lg:ml-14">
         <DemoBanner />
         <TopBar
           onNavigate={handleNavigate}
           onSearch={setSearchQuery}
           onRefresh={handleRefresh}
           alertCount={alertCount}
-          onMenuClick={() => setSidebarOpen(true)}
+          onMenuClick={() => setRailOpen(true)}
         />
 
-        <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8 2xl:px-10 overflow-y-auto overflow-x-hidden max-w-[1600px] mx-auto w-full">
+        <main className="flex-1 py-6 px-4 sm:px-5 lg:px-6 2xl:px-8 overflow-y-auto overflow-x-hidden max-w-[1800px] mx-auto w-full">
           <Routes>
-            <Route path="/endpoints" element={<DashboardPage {...pageProps} />} />
+            {/* Overview (default landing) */}
+            <Route path="/" element={<DashboardPage {...pageProps} />} />
+
+            {/* Detections — events + sessions grouped */}
+            <Route path="/detections" element={<DetectionsPage {...pageProps} />} />
+            <Route path="/events" element={<EventsPage {...pageProps} />} />
             <Route path="/sessions" element={<SessionsPage {...pageProps} />} />
             <Route path="/sessions/:id" element={<SessionDetailPage {...pageProps} />} />
-            <Route path="/events" element={<EventsPage {...pageProps} />} />
+
+            {/* Policies */}
             <Route path="/policies" element={<PoliciesPage {...pageProps} />} />
             <Route path="/policies/new" element={<PolicyStudioPage />} />
+            <Route path="/policies/:id/edit" element={<PolicyStudioPage />} />
+
+            {/* Approvals + Exceptions grouped */}
+            <Route path="/approvals" element={<ApprovalsPage {...pageProps} />} />
+            <Route path="/exceptions" element={<ExceptionsPage {...pageProps} />} />
+
+            {/* Endpoints + Profiles grouped */}
+            <Route path="/endpoints" element={<EndpointsPageWrapper {...pageProps} />} />
+            <Route path="/endpoint-profiles" element={<EndpointProfilesPage {...pageProps} />} />
+
+            {/* Behaviors */}
+            <Route path="/behaviors" element={<BehaviorsPage {...pageProps} />} />
+
+            {/* Audit */}
+            <Route path="/audit" element={<AuditLogPage {...pageProps} />} />
+
+            {/* Admin — consolidated */}
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminPage {...pageProps} />} />
               <Route path="sso" element={<AdminSsoPage />} />
@@ -167,18 +176,14 @@ export default function App() {
             <Route path="/playbooks" element={<AdminLayout />}>
               <Route index element={<PlaybooksPage {...pageProps} />} />
             </Route>
-            <Route path="/endpoint-profiles" element={<AdminLayout />}>
-              <Route index element={<EndpointProfilesPage {...pageProps} />} />
-            </Route>
-            <Route path="/audit" element={<AuditLogPage {...pageProps} />} />
-            <Route path="/approvals" element={<ApprovalsPage {...pageProps} />} />
-            <Route path="/exceptions" element={<ExceptionsPage {...pageProps} />} />
             <Route path="/settings" element={<SettingsPage {...pageProps} />} />
             <Route path="/billing" element={<BillingPage {...pageProps} />} />
             <Route path="/org" element={<OrgPage {...pageProps} />} />
             <Route path="/org-settings" element={<OrgSettingsPage />} />
             <Route path="/members" element={<MembersPage />} />
-            <Route path="*" element={<Navigate to="/endpoints" replace />} />
+
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
       </div>

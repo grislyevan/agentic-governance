@@ -7,10 +7,10 @@ const POSTURE_CARDS = [
     key: 'passive',
     label: 'Passive',
     desc: 'Detect only',
-    bg: 'bg-detec-slate-600/20',
+    bg: 'bg-detec-raised/20',
     border: 'border-detec-ui-border/30',
-    text: 'text-detec-ui-muted',
-    dot: 'bg-detec-slate-500',
+    text: 'text-detec-ink-secondary',
+    dot: 'bg-detec-ink-tertiary',
   },
   {
     key: 'audit',
@@ -80,9 +80,9 @@ export default function PostureSummaryWidget({ onPostureReset }) {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-detec-slate-700 bg-detec-slate-800 p-5">
-        <div className="flex items-center gap-2 text-sm text-detec-ui-muted">
-          <span className="inline-block w-3 h-3 border-2 border-detec-ui-border border-t-detec-ui-accent rounded-full animate-spin" />
+      <div className="rounded-detec-md border border-detec-edge bg-detec-surface p-5">
+        <div className="flex items-center gap-2 text-sm text-detec-ink-secondary">
+          <span className="inline-block w-3 h-3 border-2 border-detec-ui-border border-t-detec-brand rounded-full animate-spin" />
           Loading posture data...
         </div>
       </div>
@@ -91,9 +91,9 @@ export default function PostureSummaryWidget({ onPostureReset }) {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-detec-enforce-block/20 bg-detec-enforce-block/5 px-5 py-4 text-sm text-detec-enforce-block">
+      <div className="rounded-detec-md border border-detec-enforce-block/20 bg-detec-enforce-block/5 px-5 py-4 text-sm text-detec-enforce-block">
         <p>Failed to load posture summary: {error}</p>
-        <p className="text-detec-ui-muted mt-1 text-xs">Check the connection and try again.</p>
+        <p className="text-detec-ink-secondary mt-1 text-xs">Check the connection and try again.</p>
       </div>
     );
   }
@@ -102,12 +102,12 @@ export default function PostureSummaryWidget({ onPostureReset }) {
 
   return (
     <div className="space-y-2">
-      <div className="rounded-xl border border-detec-slate-700 bg-detec-slate-800 p-5 space-y-4">
+      <div className="rounded-detec-md border border-detec-edge bg-detec-surface p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <PostureIcon />
-            <h2 className="text-sm font-semibold text-detec-ui-text" title="How endpoints respond to policy: Passive (report only), Audit (log decisions), Active (auto-enforce).">Enforcement Posture</h2>
-            <span className="text-xs text-detec-ui-muted font-normal">
+            <h2 className="text-sm font-semibold text-detec-ink-primary" title="How endpoints respond to policy: Passive (report only), Audit (log decisions), Active (auto-enforce).">Enforcement Posture</h2>
+            <span className="text-xs text-detec-ink-secondary font-normal">
               {data?.total ?? 0} endpoint{data?.total !== 1 ? 's' : ''}
             </span>
           </div>
@@ -115,7 +115,7 @@ export default function PostureSummaryWidget({ onPostureReset }) {
           {isOwner && hasActiveEndpoints && (
             <button
               onClick={() => setShowKillSwitch(true)}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-detec-enforce-block/30 text-detec-enforce-block hover:bg-detec-enforce-block/10 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-detec-md border border-detec-enforce-block/30 text-detec-enforce-block hover:bg-detec-enforce-block/10 transition-colors cursor-pointer"
             >
               <KillSwitchIcon />
               Set All Passive
@@ -131,19 +131,19 @@ export default function PostureSummaryWidget({ onPostureReset }) {
             return (
               <div
                 key={card.key}
-                className={`rounded-lg border ${card.border} ${card.bg} px-4 py-3 flex items-center justify-between`}
+                className={`rounded-detec-md border ${card.border} ${card.bg} px-4 py-3 flex items-center justify-between`}
               >
                 <div className="flex items-center gap-2.5">
                   <span className={`w-2 h-2 rounded-full ${card.dot}`} />
                   <div>
                     <span className={`text-sm font-medium ${card.text}`}>{card.label}</span>
-                    <p className="text-xs text-detec-ui-muted">{card.desc}</p>
+                    <p className="text-xs text-detec-ink-secondary">{card.desc}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <span className={`text-xl font-bold ${card.text}`}>{count}</span>
                   {data?.total > 0 && (
-                    <p className="text-xs text-detec-ui-muted">{pct}%</p>
+                    <p className="text-xs text-detec-ink-secondary">{pct}%</p>
                   )}
                 </div>
               </div>
@@ -153,10 +153,10 @@ export default function PostureSummaryWidget({ onPostureReset }) {
 
         {/* Distribution bar */}
         {data?.total > 0 && (
-          <div className="flex h-1.5 rounded-full overflow-hidden bg-detec-slate-700">
+          <div className="flex h-1.5 rounded-full overflow-hidden bg-detec-raised">
             {data.passive > 0 && (
               <div
-                className="bg-detec-slate-500 transition-all"
+                className="bg-detec-ink-tertiary transition-all"
                 style={{ width: `${(data.passive / data.total) * 100}%` }}
               />
             )}
@@ -205,12 +205,12 @@ function KillSwitchModal({ activeCount, onConfirm, onCancel, resetting }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onCancel}>
       <div
-        className="w-full max-w-md rounded-xl border border-detec-ui-border bg-detec-ui-page p-4 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-md rounded-detec-md border border-detec-ui-border bg-detec-void p-4 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-bold text-detec-ui-text">Reset All Endpoints to Passive</h2>
+        <h2 className="text-lg font-bold text-detec-ink-primary">Reset All Endpoints to Passive</h2>
 
-        <div className="rounded-lg border border-detec-enforce-approval/30 bg-detec-enforce-approval/10 p-4 text-sm text-detec-enforce-approval space-y-2">
+        <div className="rounded-detec-md border border-detec-enforce-approval/30 bg-detec-enforce-approval/10 p-4 text-sm text-detec-enforce-approval space-y-2">
           <p className="font-semibold">This will disable all enforcement.</p>
           <p>
             {activeCount} endpoint{activeCount !== 1 ? 's' : ''} currently in audit or active
@@ -221,17 +221,17 @@ function KillSwitchModal({ activeCount, onConfirm, onCancel, resetting }) {
         <div className="flex justify-end gap-3">
           <button
             onClick={onCancel}
-            className="text-sm px-4 py-1.5 rounded-lg text-detec-ui-muted hover:text-detec-ui-text transition-colors"
+            className="text-sm px-4 py-1.5 rounded-detec-md text-detec-ink-secondary hover:text-detec-ink-primary transition-colors"
           >
             Cancel
           </button>
           <button
             disabled={resetting}
             onClick={onConfirm}
-            className={`text-sm px-4 py-1.5 rounded-lg font-medium transition-colors ${
+            className={`text-sm px-4 py-1.5 rounded-detec-md font-medium transition-colors ${
               !resetting
                 ? 'bg-detec-enforce-approval text-white hover:bg-orange-600 cursor-pointer'
-                : 'bg-detec-slate-600 text-detec-ui-muted cursor-not-allowed'
+                : 'bg-detec-raised text-detec-ink-secondary cursor-not-allowed'
             }`}
           >
             {resetting ? 'Resetting...' : 'Confirm: Set All Passive'}

@@ -110,7 +110,7 @@ function XIcon() {
 // ---------------------------------------------------------------------------
 
 const inputCls =
-  'w-full bg-white border border-detec-ui-border rounded-detec px-3 py-1.5 text-sm text-detec-ui-text focus:outline-none focus:ring-2 focus:ring-detec-ui-accent/30 focus:border-detec-ui-accent';
+  'w-full bg-white border border-detec-ui-border rounded-detec px-3 py-1.5 text-sm text-detec-ink-primary focus:outline-none focus:ring-2 focus:ring-detec-brand/30 focus:border-detec-brand';
 
 // ---------------------------------------------------------------------------
 // Drawer (create / edit)
@@ -205,16 +205,16 @@ function ExceptionDrawer({ entry, onClose, onSaved }) {
       />
 
       {/* Drawer panel */}
-      <div className="relative ml-auto w-full max-w-md flex flex-col bg-detec-ui-surface border-l border-detec-ui-border shadow-detec-card h-full overflow-y-auto">
+      <div className="relative ml-auto w-full max-w-md flex flex-col bg-detec-surface border-l border-detec-ui-border  h-full overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-detec-ui-border sticky top-0 bg-detec-ui-surface z-10">
-          <h2 className="text-sm font-semibold text-detec-ui-text">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-detec-ui-border sticky top-0 bg-detec-surface z-10">
+          <h2 className="text-sm font-semibold text-detec-ink-primary">
             {isEdit ? 'Edit Exception' : 'Add Exception'}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-detec hover:bg-detec-slate-100 text-detec-ui-muted transition-colors"
+            className="p-1.5 rounded-detec hover:bg-detec-slate-100 text-detec-ink-secondary transition-colors"
             aria-label="Close drawer"
           >
             <XIcon />
@@ -231,7 +231,7 @@ function ExceptionDrawer({ entry, onClose, onSaved }) {
 
           {/* Pattern */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-detec-ui-text">
+            <label className="text-xs font-medium text-detec-ink-primary">
               Pattern <span className="text-red-500">*</span>
             </label>
             <input
@@ -245,7 +245,7 @@ function ExceptionDrawer({ entry, onClose, onSaved }) {
 
           {/* Pattern type */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-detec-ui-text">
+            <label className="text-xs font-medium text-detec-ink-primary">
               Pattern type <span className="text-red-500">*</span>
             </label>
             <select
@@ -261,7 +261,7 @@ function ExceptionDrawer({ entry, onClose, onSaved }) {
 
           {/* Owner */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-detec-ui-text">
+            <label className="text-xs font-medium text-detec-ink-primary">
               Owner <span className="text-red-500">*</span>
             </label>
             <input
@@ -274,7 +274,7 @@ function ExceptionDrawer({ entry, onClose, onSaved }) {
 
           {/* Reason code */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-detec-ui-text">
+            <label className="text-xs font-medium text-detec-ink-primary">
               Reason code <span className="text-red-500">*</span>
             </label>
             <input
@@ -288,7 +288,7 @@ function ExceptionDrawer({ entry, onClose, onSaved }) {
 
           {/* Scope */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-detec-ui-text">Scope</label>
+            <label className="text-xs font-medium text-detec-ink-primary">Scope</label>
             <select
               className={inputCls}
               value={form.scope}
@@ -303,7 +303,7 @@ function ExceptionDrawer({ entry, onClose, onSaved }) {
           {/* Expires at */}
           {!form.no_expiry_override && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-detec-ui-text">
+              <label className="text-xs font-medium text-detec-ink-primary">
                 Expires at <span className="text-red-500">*</span>
               </label>
               <input
@@ -320,11 +320,11 @@ function ExceptionDrawer({ entry, onClose, onSaved }) {
           <label className="flex items-start gap-2.5 cursor-pointer select-none">
             <input
               type="checkbox"
-              className="mt-0.5 accent-detec-ui-accent"
+              className="mt-0.5 accent-detec-brand"
               checked={form.no_expiry_override}
               onChange={(e) => set('no_expiry_override', e.target.checked)}
             />
-            <span className="text-xs text-detec-ui-text leading-snug">
+            <span className="text-xs text-detec-ink-primary leading-snug">
               Override: create exception with no expiry (requires justification)
             </span>
           </label>
@@ -337,7 +337,7 @@ function ExceptionDrawer({ entry, onClose, onSaved }) {
 
           {/* Description */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-detec-ui-text">
+            <label className="text-xs font-medium text-detec-ink-primary">
               Description
               {form.no_expiry_override && <span className="text-red-500"> *</span>}
             </label>
@@ -356,14 +356,14 @@ function ExceptionDrawer({ entry, onClose, onSaved }) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-detec border border-detec-ui-border text-sm font-medium text-detec-ui-text hover:bg-detec-slate-100 transition-colors"
+              className="px-4 py-2 rounded-detec border border-detec-ui-border text-sm font-medium text-detec-ink-primary hover:bg-detec-slate-100 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 rounded-detec bg-detec-ui-accent text-white text-sm font-medium shadow-detec-sm hover:brightness-110 disabled:opacity-50 transition-all"
+              className="px-4 py-2 rounded-detec bg-detec-brand text-white text-sm font-medium hover:brightness-110 disabled:opacity-50 transition-all"
             >
               {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add exception'}
             </button>
@@ -381,11 +381,11 @@ function ExceptionDrawer({ entry, onClose, onSaved }) {
 function DeleteConfirm({ onCancel, onConfirm, busy }) {
   return (
     <div className="flex items-center gap-2 text-xs">
-      <span className="text-detec-ui-text font-medium">Delete this exception? This cannot be undone.</span>
+      <span className="text-detec-ink-primary font-medium">Delete this exception? This cannot be undone.</span>
       <button
         type="button"
         onClick={onCancel}
-        className="px-2 py-1 rounded border border-detec-ui-border text-detec-ui-muted hover:bg-detec-slate-100 transition-colors"
+        className="px-2 py-1 rounded border border-detec-ui-border text-detec-ink-secondary hover:bg-detec-slate-100 transition-colors"
       >
         Cancel
       </button>
@@ -412,8 +412,8 @@ function FilterPill({ label, active, onClick }) {
       onClick={onClick}
       className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
         active
-          ? 'bg-detec-ui-accent text-white border-detec-ui-accent shadow-detec-sm'
-          : 'bg-white border-detec-ui-border text-detec-ui-muted hover:border-detec-slate-300 hover:text-detec-ui-text'
+          ? 'bg-detec-brand text-white border-detec-brand'
+          : 'bg-white border-detec-ui-border text-detec-ink-secondary hover:border-detec-edge-emphasis hover:text-detec-ink-primary'
       }`}
     >
       {label}
@@ -601,12 +601,12 @@ export default function ExceptionsPage() {
       {/* Page header */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-detec bg-detec-ui-accent/10 flex items-center justify-center text-detec-ui-accent">
+          <div className="w-8 h-8 rounded-detec bg-detec-brand/10 flex items-center justify-center text-detec-brand">
             <ShieldBanIcon />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-detec-ui-text">Exceptions</h1>
-            <p className="text-xs text-detec-ui-muted mt-0.5">
+            <h1 className="text-lg font-bold text-detec-ink-primary">Exceptions</h1>
+            <p className="text-xs text-detec-ink-secondary mt-0.5">
               Manage enforcement allow-list entries for this tenant
             </p>
           </div>
@@ -614,7 +614,7 @@ export default function ExceptionsPage() {
         <button
           type="button"
           onClick={handleOpenCreate}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-detec bg-detec-ui-accent text-white text-sm font-medium shadow-detec-sm hover:brightness-110 transition-all"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-detec bg-detec-brand text-white text-sm font-medium hover:brightness-110 transition-all"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -649,7 +649,7 @@ export default function ExceptionsPage() {
 
       {/* Content */}
       {loading ? (
-        <div className="py-16 flex items-center justify-center text-detec-ui-muted text-sm">
+        <div className="py-16 flex items-center justify-center text-detec-ink-secondary text-sm">
           Loading exceptions…
         </div>
       ) : loadError ? (
@@ -664,14 +664,14 @@ export default function ExceptionsPage() {
           </button>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="py-16 flex flex-col items-center justify-center gap-2 text-detec-ui-muted">
+        <div className="py-16 flex flex-col items-center justify-center gap-2 text-detec-ink-secondary">
           <ShieldBanIcon />
           <span className="text-sm">No exceptions found.</span>
           {filter !== 'all' || search ? (
             <button
               type="button"
               onClick={() => { setFilter('all'); setSearch(''); }}
-              className="text-xs text-detec-ui-accent hover:underline"
+              className="text-xs text-detec-brand hover:underline"
             >
               Clear filters
             </button>
@@ -681,45 +681,45 @@ export default function ExceptionsPage() {
         <>
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-3 px-4 py-2 bg-detec-slate-50 border border-detec-ui-border rounded-lg mb-4">
-              <span className="text-sm text-detec-ui-muted">{selectedIds.size} selected</span>
+              <span className="text-sm text-detec-ink-secondary">{selectedIds.size} selected</span>
               <button className="px-3 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600" onClick={() => setBulkExtendOpen(true)}>Extend expiry</button>
-              <button className="text-xs text-detec-ui-muted hover:text-detec-ui-text ml-auto" onClick={clearSelection}>Clear</button>
+              <button className="text-xs text-detec-ink-secondary hover:text-detec-ink-primary ml-auto" onClick={clearSelection}>Clear</button>
             </div>
           )}
-        <div className="rounded-detec border border-detec-ui-border shadow-detec-card overflow-hidden">
+        <div className="rounded-detec border border-detec-ui-border  overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-detec-slate-100 border-b border-detec-ui-border">
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ui-muted uppercase tracking-wide w-8">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ink-secondary uppercase tracking-wide w-8">
                     <input
                       type="checkbox"
                       onChange={e => e.target.checked ? selectAll(filtered) : clearSelection()}
                       checked={selectedIds.size === filtered.length && filtered.length > 0}
                     />
                   </th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ui-muted uppercase tracking-wide">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ink-secondary uppercase tracking-wide">
                     Pattern
                   </th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ui-muted uppercase tracking-wide">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ink-secondary uppercase tracking-wide">
                     Type
                   </th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ui-muted uppercase tracking-wide">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ink-secondary uppercase tracking-wide">
                     Scope
                   </th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ui-muted uppercase tracking-wide">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ink-secondary uppercase tracking-wide">
                     Owner
                   </th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ui-muted uppercase tracking-wide">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ink-secondary uppercase tracking-wide">
                     Reason code
                   </th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ui-muted uppercase tracking-wide">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ink-secondary uppercase tracking-wide">
                     Expires
                   </th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ui-muted uppercase tracking-wide">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ink-secondary uppercase tracking-wide">
                     Status
                   </th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ui-muted uppercase tracking-wide">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-detec-ink-secondary uppercase tracking-wide">
                     Actions
                   </th>
                 </tr>
@@ -738,35 +738,35 @@ export default function ExceptionsPage() {
                         <input type="checkbox" checked={selectedIds.has(entry.id)} onChange={() => toggleSelect(entry.id)} />
                       </td>
                       <td className="px-4 py-3">
-                        <span className="font-mono text-xs text-detec-ui-text break-all">
+                        <span className="font-mono text-xs text-detec-ink-primary break-all">
                           {entry.pattern}
                         </span>
                         {entry.description && (
-                          <p className="text-xs text-detec-ui-muted mt-0.5 max-w-xs truncate">
+                          <p className="text-xs text-detec-ink-secondary mt-0.5 max-w-xs truncate">
                             {entry.description}
                           </p>
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 rounded bg-detec-slate-100 border border-detec-ui-border text-[11px] font-medium text-detec-ui-muted uppercase">
+                        <span className="px-2 py-0.5 rounded bg-detec-slate-100 border border-detec-ui-border text-[11px] font-medium text-detec-ink-secondary uppercase">
                           {entry.pattern_type || '—'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-detec-ui-text">
+                      <td className="px-4 py-3 text-xs text-detec-ink-primary">
                         {entry.scope || 'tenant'}
                       </td>
-                      <td className="px-4 py-3 text-xs text-detec-ui-text max-w-[120px] truncate">
+                      <td className="px-4 py-3 text-xs text-detec-ink-primary max-w-[120px] truncate">
                         {entry.owner_id || (
-                          <span className="text-detec-ui-muted">—</span>
+                          <span className="text-detec-ink-secondary">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         {entry.reason_code ? (
-                          <span className="font-mono text-xs text-detec-ui-text">
+                          <span className="font-mono text-xs text-detec-ink-primary">
                             {entry.reason_code}
                           </span>
                         ) : (
-                          <span className="text-detec-ui-muted text-xs">—</span>
+                          <span className="text-detec-ink-secondary text-xs">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
@@ -796,7 +796,7 @@ export default function ExceptionsPage() {
                               type="button"
                               onClick={() => handleOpenEdit(entry)}
                               title="Edit"
-                              className="p-1.5 rounded hover:bg-detec-slate-100 text-detec-ui-muted hover:text-detec-ui-accent transition-colors"
+                              className="p-1.5 rounded hover:bg-detec-slate-100 text-detec-ink-secondary hover:text-detec-brand transition-colors"
                             >
                               <PencilIcon />
                             </button>
@@ -804,7 +804,7 @@ export default function ExceptionsPage() {
                               type="button"
                               onClick={() => setHistoryEntry(entry)}
                               title="View change history"
-                              className="p-1.5 rounded hover:bg-detec-slate-100 text-detec-ui-muted hover:text-detec-ui-accent transition-colors"
+                              className="p-1.5 rounded hover:bg-detec-slate-100 text-detec-ink-secondary hover:text-detec-brand transition-colors"
                             >
                               <ClockIcon />
                             </button>
@@ -812,7 +812,7 @@ export default function ExceptionsPage() {
                               type="button"
                               onClick={() => setDeletingId(entry.id)}
                               title="Delete"
-                              className="p-1.5 rounded hover:bg-red-50 text-detec-ui-muted hover:text-red-600 transition-colors"
+                              className="p-1.5 rounded hover:bg-red-50 text-detec-ink-secondary hover:text-red-600 transition-colors"
                             >
                               <TrashIcon />
                             </button>
@@ -850,14 +850,14 @@ export default function ExceptionsPage() {
       {bulkExtendOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-detec-surface border border-detec-ui-border rounded-lg p-6 w-96 space-y-4">
-            <h2 className="font-semibold text-detec-ui-text">Extend expiry for {selectedIds.size} entries</h2>
+            <h2 className="font-semibold text-detec-ink-primary">Extend expiry for {selectedIds.size} entries</h2>
             <div>
-              <label className="block text-xs font-medium text-detec-ui-muted mb-1" htmlFor="new-expiry-input">New expiry</label>
-              <input id="new-expiry-input" aria-label="New expiry" type="datetime-local" className="w-full border border-detec-ui-border rounded px-3 py-1.5 text-sm bg-detec-bg text-detec-ui-text" value={newExpiry} onChange={e => setNewExpiry(e.target.value)} />
+              <label className="block text-xs font-medium text-detec-ink-secondary mb-1" htmlFor="new-expiry-input">New expiry</label>
+              <input id="new-expiry-input" aria-label="New expiry" type="datetime-local" className="w-full border border-detec-ui-border rounded px-3 py-1.5 text-sm bg-detec-bg text-detec-ink-primary" value={newExpiry} onChange={e => setNewExpiry(e.target.value)} />
             </div>
             <div className="flex gap-2">
               <button
-                className="flex-1 py-1.5 text-sm rounded bg-detec-ui-accent text-white hover:opacity-90 disabled:opacity-50"
+                className="flex-1 py-1.5 text-sm rounded bg-detec-brand text-white hover:opacity-90 disabled:opacity-50"
                 disabled={bulkExtendBusy || !newExpiry}
                 onClick={async () => {
                   setBulkExtendBusy(true);
@@ -870,7 +870,7 @@ export default function ExceptionsPage() {
                   } catch(e) { alert(e.message); } finally { setBulkExtendBusy(false); }
                 }}
               >{bulkExtendBusy ? 'Applying…' : 'Apply'}</button>
-              <button className="flex-1 py-1.5 text-sm rounded border border-detec-ui-border text-detec-ui-muted" onClick={() => { setBulkExtendOpen(false); setNewExpiry(''); }}>Cancel</button>
+              <button className="flex-1 py-1.5 text-sm rounded border border-detec-ui-border text-detec-ink-secondary" onClick={() => { setBulkExtendOpen(false); setNewExpiry(''); }}>Cancel</button>
             </div>
           </div>
         </div>

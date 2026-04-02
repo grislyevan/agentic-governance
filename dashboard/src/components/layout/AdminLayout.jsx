@@ -10,13 +10,13 @@ export default function AdminLayout() {
   const onServer = location.pathname === '/admin/server';
 
   const tabCls = (on) =>
-    `px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${on ? 'bg-detec-ui-accent text-white' : 'text-detec-ui-muted hover:text-detec-ui-text'}`;
+    `px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${on ? 'bg-detec-brand text-white' : 'text-detec-ink-secondary hover:text-detec-ink-primary'}`;
 
   return (
     <div className="space-y-4 min-w-0">
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-xl sm:text-2xl font-bold text-detec-ui-text">Admin</h1>
-        <nav className="flex flex-wrap rounded-detec border border-detec-ui-border bg-detec-ui-surface p-0.5 shadow-detec-sm gap-0.5" aria-label="Admin sections">
+        <h1 className="text-xl sm:text-2xl font-bold text-detec-ink-primary">Admin</h1>
+        <nav className="flex flex-wrap rounded-detec border border-detec-ui-border bg-detec-surface p-0.5 gap-0.5" aria-label="Admin sections">
           <button
             type="button"
             onClick={() => navigate('/admin')}

@@ -43,10 +43,10 @@ export default function AdminPage() {
   if (!canManage) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-detec-ui-text">Admin</h1>
-        <div className="rounded-xl border border-dashed border-detec-ui-border bg-detec-slate-50 px-8 py-20 text-center">
-          <div className="text-detec-ui-muted text-sm font-medium mb-1">Access restricted</div>
-          <div className="text-detec-ui-muted text-sm">You need an admin or owner role to manage users.</div>
+        <h1 className="text-2xl font-bold text-detec-ink-primary">Admin</h1>
+        <div className="rounded-detec-md border border-dashed border-detec-ui-border bg-detec-slate-50 px-8 py-20 text-center">
+          <div className="text-detec-ink-secondary text-sm font-medium mb-1">Access restricted</div>
+          <div className="text-detec-ink-secondary text-sm">You need an admin or owner role to manage users.</div>
         </div>
       </div>
     );
@@ -55,10 +55,10 @@ export default function AdminPage() {
   return (
     <div className="space-y-4 min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold text-detec-ui-text">Users</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-detec-ink-primary">Users</h1>
         <button
           onClick={() => { setEditingUser(null); setShowForm(true); }}
-          className="rounded-lg bg-detec-ui-accent px-4 py-3 sm:py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover transition-colors min-h-[44px] sm:min-h-0 w-full sm:w-auto"
+          className="rounded-detec-md bg-detec-brand px-4 py-3 sm:py-2 text-sm font-medium text-white hover:bg-detec-brandHover transition-colors min-h-[44px] sm:min-h-0 w-full sm:w-auto"
         >
           Invite user
         </button>
@@ -72,19 +72,19 @@ export default function AdminPage() {
           placeholder="Search by name or email..."
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          className="w-full sm:w-72 rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-3 sm:py-2 text-sm text-detec-ui-text placeholder-detec-slate-500 focus:border-detec-ui-accent focus:outline-none min-h-[44px] sm:min-h-0"
+          className="w-full sm:w-72 rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-3 sm:py-2 text-sm text-detec-ink-primary placeholder-detec-ink-tertiary focus:border-detec-brand focus:outline-none min-h-[44px] sm:min-h-0"
         />
-        <span className="text-xs text-detec-ui-muted">{total} user{total !== 1 ? 's' : ''}</span>
+        <span className="text-xs text-detec-ink-secondary">{total} user{total !== 1 ? 's' : ''}</span>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">{error}</div>
+        <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">{error}</div>
       )}
 
-      <div className="rounded-xl border border-detec-ui-border/60 bg-detec-ui-surface/80 overflow-x-auto overflow-hidden">
+      <div className="rounded-detec-md border border-detec-ui-border/60 bg-detec-surface/80 overflow-x-auto overflow-hidden">
         <table className="w-full text-sm min-w-[640px]" aria-label="Users">
           <thead>
-            <tr className="border-b border-detec-ui-border/40 text-left text-xs font-medium uppercase tracking-wider text-detec-ui-muted">
+            <tr className="border-b border-detec-ui-border/40 text-left text-xs font-medium uppercase tracking-wider text-detec-ink-secondary">
               <th className="px-3 sm:px-4 py-3">Name</th>
               <th className="px-3 sm:px-4 py-3 hidden md:table-cell">Email</th>
               <th className="px-3 sm:px-4 py-3">Role</th>
@@ -96,12 +96,12 @@ export default function AdminPage() {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-detec-ui-muted text-sm">Loading...</td>
+                <td colSpan={6} className="px-4 py-10 text-center text-detec-ink-secondary text-sm">Loading...</td>
               </tr>
             )}
             {!loading && users.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-detec-ui-muted text-sm">No users found.</td>
+                <td colSpan={6} className="px-4 py-10 text-center text-detec-ink-secondary text-sm">No users found.</td>
               </tr>
             )}
             {!loading && users.map((u) => (
@@ -135,17 +135,17 @@ export default function AdminPage() {
           <button
             disabled={page <= 1}
             onClick={() => setPage(p => p - 1)}
-            className="rounded-lg border border-detec-ui-border px-3 py-1.5 text-xs text-detec-ui-muted hover:bg-detec-ui-surface disabled:opacity-30"
+            className="rounded-detec-md border border-detec-ui-border px-3 py-1.5 text-xs text-detec-ink-secondary hover:bg-detec-surface disabled:opacity-30"
           >
             Previous
           </button>
-          <span className="text-xs text-detec-ui-muted">
+          <span className="text-xs text-detec-ink-secondary">
             Page {page} of {Math.ceil(total / 50)}
           </span>
           <button
             disabled={page * 50 >= total}
             onClick={() => setPage(p => p + 1)}
-            className="rounded-lg border border-detec-ui-border px-3 py-1.5 text-xs text-detec-ui-muted hover:bg-detec-ui-surface disabled:opacity-30"
+            className="rounded-detec-md border border-detec-ui-border px-3 py-1.5 text-xs text-detec-ink-secondary hover:bg-detec-surface disabled:opacity-30"
           >
             Next
           </button>
@@ -216,27 +216,27 @@ function InviteMemberSection({ onInvited }) {
   const clearSuccess = () => setSuccess(null);
 
   return (
-    <div className="rounded-xl border border-detec-ui-border/60 bg-detec-ui-surface/80 p-5 space-y-4">
-      <h2 className="text-sm font-semibold text-detec-ui-text uppercase tracking-wider">
+    <div className="rounded-detec-md border border-detec-ui-border/60 bg-detec-surface/80 p-5 space-y-4">
+      <h2 className="text-sm font-semibold text-detec-ink-primary uppercase tracking-wider">
         Invite Member
       </h2>
       <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-end gap-3">
         <div className="flex-1 min-w-0 sm:min-w-[200px]">
-          <label className="block text-xs font-medium text-detec-ui-muted mb-1">Email</label>
+          <label className="block text-xs font-medium text-detec-ink-secondary mb-1">Email</label>
           <input
             type="email"
             value={email}
             onChange={(e) => { setEmail(e.target.value); clearSuccess(); }}
             placeholder="user@company.com"
-            className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text placeholder-detec-slate-500 focus:border-detec-ui-accent focus:outline-none"
+            className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary placeholder-detec-ink-tertiary focus:border-detec-brand focus:outline-none"
           />
         </div>
         <div className="w-full sm:w-32">
-          <label className="block text-xs font-medium text-detec-ui-muted mb-1">Role</label>
+          <label className="block text-xs font-medium text-detec-ink-secondary mb-1">Role</label>
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text focus:border-detec-ui-accent focus:outline-none"
+            className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary focus:border-detec-brand focus:outline-none"
           >
             {ASSIGNABLE_ROLES.map((r) => (
               <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
@@ -246,26 +246,26 @@ function InviteMemberSection({ onInvited }) {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-lg bg-detec-ui-accent px-4 py-3 sm:py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover disabled:opacity-50 transition-colors min-h-[44px] sm:min-h-0"
+          className="rounded-detec-md bg-detec-brand px-4 py-3 sm:py-2 text-sm font-medium text-white hover:bg-detec-brandHover disabled:opacity-50 transition-colors min-h-[44px] sm:min-h-0"
         >
           {submitting ? 'Sending...' : 'Send Invite'}
         </button>
       </form>
       {error && (
-        <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
+        <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
       )}
       {success && (
-        <div className="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-400 space-y-2">
+        <div className="rounded-detec-md border border-emerald-800/50 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-400 space-y-2">
           <span>Invite sent to {success.email}.</span>
           {success.inviteUrl && (
             <div className="flex items-center gap-2 mt-2">
-              <code className="flex-1 rounded bg-detec-ui-surface px-2 py-1 text-xs text-detec-ui-text break-all">
+              <code className="flex-1 rounded bg-detec-surface px-2 py-1 text-xs text-detec-ink-primary break-all">
                 {success.inviteUrl}
               </code>
               <button
                 type="button"
                 onClick={handleCopy}
-                className="shrink-0 rounded border border-detec-ui-border px-2 py-1 text-xs text-detec-ui-muted hover:bg-detec-ui-surface"
+                className="shrink-0 rounded border border-detec-ui-border px-2 py-1 text-xs text-detec-ink-secondary hover:bg-detec-surface"
               >
                 {copied ? 'Copied' : 'Copy'}
               </button>
@@ -286,16 +286,16 @@ function UserRow({ u, currentUser, onEdit, onToggleActive }) {
   const isPending = u.password_reset_required;
 
   return (
-    <tr className="border-b border-detec-ui-border/20 hover:bg-detec-ui-surface/40 transition-colors">
+    <tr className="border-b border-detec-ui-border/20 hover:bg-detec-surface/40 transition-colors">
       <td className="px-3 sm:px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-detec-slate-200 text-xs font-semibold text-detec-ui-text">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-detec-slate-200 text-xs font-semibold text-detec-ink-primary">
             {initials}
           </div>
-          <span className="font-medium text-detec-ui-text">{displayName}</span>
+          <span className="font-medium text-detec-ink-primary">{displayName}</span>
         </div>
       </td>
-      <td className="px-3 sm:px-4 py-3 text-detec-ui-muted hidden md:table-cell">{u.email}</td>
+      <td className="px-3 sm:px-4 py-3 text-detec-ink-secondary hidden md:table-cell">{u.email}</td>
       <td className="px-3 sm:px-4 py-3">
         <span className={`inline-block rounded-md border px-2 py-0.5 text-xs font-medium ${ROLE_BADGES[u.role] || ROLE_BADGES.viewer}`}>
           {u.role}
@@ -303,7 +303,7 @@ function UserRow({ u, currentUser, onEdit, onToggleActive }) {
       </td>
       <td className="px-3 sm:px-4 py-3 hidden lg:table-cell">
         {!u.is_active ? (
-          <span className="inline-flex items-center gap-1 text-xs text-detec-ui-muted">
+          <span className="inline-flex items-center gap-1 text-xs text-detec-ink-secondary">
             <span className="h-1.5 w-1.5 rounded-full bg-detec-slate-200" />Inactive
           </span>
         ) : isPending ? (
@@ -316,7 +316,7 @@ function UserRow({ u, currentUser, onEdit, onToggleActive }) {
           </span>
         )}
       </td>
-      <td className="px-3 sm:px-4 py-3 text-detec-ui-muted text-xs hidden md:table-cell">
+      <td className="px-3 sm:px-4 py-3 text-detec-ink-secondary text-xs hidden md:table-cell">
         {new Date(u.created_at).toLocaleDateString()}
       </td>
       <td className="px-3 sm:px-4 py-3 text-right">
@@ -324,7 +324,7 @@ function UserRow({ u, currentUser, onEdit, onToggleActive }) {
           <div className="flex items-center justify-end gap-2">
             <button
               onClick={onEdit}
-              className="rounded px-2 py-1 text-xs text-detec-ui-muted hover:bg-detec-slate-200 hover:text-detec-ui-text transition-colors"
+              className="rounded px-2 py-1 text-xs text-detec-ink-secondary hover:bg-detec-slate-200 hover:text-detec-ink-primary transition-colors"
             >
               Edit
             </button>
@@ -340,8 +340,8 @@ function UserRow({ u, currentUser, onEdit, onToggleActive }) {
             </button>
           </div>
         )}
-        {isSelf && <span className="text-xs text-detec-ui-muted">You</span>}
-        {isOwner && !isSelf && <span className="text-xs text-detec-ui-muted">Owner</span>}
+        {isSelf && <span className="text-xs text-detec-ink-secondary">You</span>}
+        {isOwner && !isSelf && <span className="text-xs text-detec-ink-secondary">Owner</span>}
       </td>
     </tr>
   );
@@ -413,7 +413,7 @@ function UserFormModal({ user, currentUser, onClose, onSaved, onError }) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={() => { onSaved(); }}>
         <div
-          className="w-full max-w-md rounded-xl border border-detec-ui-border bg-detec-ui-page p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+          className="w-full max-w-md rounded-detec-md border border-detec-ui-border bg-detec-void p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="text-center">
@@ -422,32 +422,32 @@ function UserFormModal({ user, currentUser, onClose, onSaved, onError }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-lg font-semibold text-detec-ui-text">User invited</h2>
-            <p className="text-sm text-detec-ui-muted mt-1">
-              Share the invite link below with <strong className="text-detec-ui-text">{inviteResult.email}</strong>
+            <h2 className="text-lg font-semibold text-detec-ink-primary">User invited</h2>
+            <p className="text-sm text-detec-ink-secondary mt-1">
+              Share the invite link below with <strong className="text-detec-ink-primary">{inviteResult.email}</strong>
             </p>
           </div>
 
           <div className="space-y-2">
-            <label className="block text-xs font-medium text-detec-ui-muted">Invite link</label>
+            <label className="block text-xs font-medium text-detec-ink-secondary">Invite link</label>
             <div className="flex items-start gap-2">
-              <code className="flex-1 rounded-lg bg-detec-ui-surface border border-detec-ui-border px-3 py-2 text-xs text-detec-ui-text break-all select-all">
+              <code className="flex-1 rounded-detec-md bg-detec-surface border border-detec-ui-border px-3 py-2 text-xs text-detec-ink-primary break-all select-all">
                 {inviteUrl}
               </code>
               <button
                 onClick={handleCopy}
-                className="shrink-0 rounded-lg border border-detec-ui-border px-3 py-2 text-xs text-detec-ui-muted hover:bg-detec-ui-surface transition-colors"
+                className="shrink-0 rounded-detec-md border border-detec-ui-border px-3 py-2 text-xs text-detec-ink-secondary hover:bg-detec-surface transition-colors"
               >
                 {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
-            <p className="text-xs text-detec-ui-muted">This link expires in 24 hours.</p>
+            <p className="text-xs text-detec-ink-secondary">This link expires in 24 hours.</p>
           </div>
 
           <div className="flex justify-end pt-2">
             <button
               onClick={() => { onSaved(); }}
-              className="rounded-lg bg-detec-ui-accent px-4 py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover"
+              className="rounded-detec-md bg-detec-brand px-4 py-2 text-sm font-medium text-white hover:bg-detec-brandHover"
             >
               Done
             </button>
@@ -460,55 +460,55 @@ function UserFormModal({ user, currentUser, onClose, onSaved, onError }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-0" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl border border-detec-ui-border bg-detec-ui-page p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-md rounded-detec-md border border-detec-ui-border bg-detec-void p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-detec-ui-text mb-4">
+        <h2 className="text-lg font-semibold text-detec-ink-primary mb-4">
           {isEdit ? 'Edit User' : 'Invite User'}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-detec-ui-muted mb-1">First name</label>
+              <label className="block text-xs font-medium text-detec-ink-secondary mb-1">First name</label>
               <input
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text focus:border-detec-ui-accent focus:outline-none"
+                className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary focus:border-detec-brand focus:outline-none"
                 required={!isEdit}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-detec-ui-muted mb-1">Last name</label>
+              <label className="block text-xs font-medium text-detec-ink-secondary mb-1">Last name</label>
               <input
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text focus:border-detec-ui-accent focus:outline-none"
+                className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary focus:border-detec-brand focus:outline-none"
               />
             </div>
           </div>
 
           {!isEdit && (
             <div>
-              <label className="block text-xs font-medium text-detec-ui-muted mb-1">Email</label>
+              <label className="block text-xs font-medium text-detec-ink-secondary mb-1">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text focus:border-detec-ui-accent focus:outline-none"
+                className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary focus:border-detec-brand focus:outline-none"
                 required
               />
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-medium text-detec-ui-muted mb-1">Role</label>
+            <label className="block text-xs font-medium text-detec-ink-secondary mb-1">Role</label>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full rounded-lg border border-detec-ui-border bg-detec-ui-surface px-3 py-2 text-sm text-detec-ui-text focus:border-detec-ui-accent focus:outline-none"
+              className="w-full rounded-detec-md border border-detec-ui-border bg-detec-surface px-3 py-2 text-sm text-detec-ink-primary focus:border-detec-brand focus:outline-none"
             >
               {ASSIGNABLE_ROLES.map((r) => (
                 <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
@@ -517,27 +517,27 @@ function UserFormModal({ user, currentUser, onClose, onSaved, onError }) {
           </div>
 
           {!isEdit && (
-            <p className="text-xs text-detec-ui-muted">
+            <p className="text-xs text-detec-ink-secondary">
               An invite link will be generated. No temporary password needed.
             </p>
           )}
 
           {formError && (
-            <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{formError}</div>
+            <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{formError}</div>
           )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-detec-ui-border px-4 py-2 text-sm text-detec-ui-muted hover:bg-detec-ui-surface"
+              className="rounded-detec-md border border-detec-ui-border px-4 py-2 text-sm text-detec-ink-secondary hover:bg-detec-surface"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-lg bg-detec-ui-accent px-4 py-2 text-sm font-medium text-white hover:bg-detec-ui-accentHover disabled:opacity-50"
+              className="rounded-detec-md bg-detec-brand px-4 py-2 text-sm font-medium text-white hover:bg-detec-brandHover disabled:opacity-50"
             >
               {submitting ? 'Saving...' : isEdit ? 'Save changes' : 'Send invite'}
             </button>

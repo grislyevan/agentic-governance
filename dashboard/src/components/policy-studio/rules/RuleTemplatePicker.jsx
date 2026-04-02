@@ -12,7 +12,7 @@ const INTENT_TEMPLATES = [
 export default function RuleTemplatePicker({ selectedId, onSelect }) {
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium text-detec-ui-text">Intent template</p>
+      <p className="text-sm font-medium text-detec-ink-primary">Intent template</p>
       <div className="flex flex-wrap gap-2">
         {INTENT_TEMPLATES.map((t) => (
           <button
@@ -21,12 +21,12 @@ export default function RuleTemplatePicker({ selectedId, onSelect }) {
             onClick={() => onSelect(selectedId === t.id ? null : t.id)}
             className={`text-left rounded-detec border p-3 min-h-[84px] w-full sm:w-[280px] transition-colors ${
               selectedId === t.id
-                ? 'border-detec-ui-accent bg-detec-ui-accent/5'
+                ? 'border-detec-brand bg-detec-brand/5'
                 : 'border-detec-ui-border bg-white hover:border-detec-slate-300'
             }`}
           >
-            <div className="text-sm font-medium text-detec-ui-text">{t.title}</div>
-            <div className="text-xs text-detec-ui-muted mt-0.5">{t.description}</div>
+            <div className="text-sm font-medium text-detec-ink-primary">{t.title}</div>
+            <div className="text-xs text-detec-ink-secondary mt-0.5">{t.description}</div>
           </button>
         ))}
       </div>

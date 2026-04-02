@@ -47,7 +47,7 @@ function actionLabel(action) {
 }
 
 function formatFieldValue(field, value) {
-  if (value === null || value === undefined) return <span className="text-detec-ui-muted italic">null</span>;
+  if (value === null || value === undefined) return <span className="text-detec-ink-secondary italic">null</span>;
   if (field === 'is_active') {
     return <span>{value ? 'Enabled' : 'Disabled'}</span>;
   }
@@ -72,15 +72,15 @@ function DiffTable({ before, after }) {
     <table className="w-full text-xs border border-detec-ui-border rounded mt-2 overflow-hidden">
       <thead>
         <tr className="bg-detec-slate-50 border-b border-detec-ui-border">
-          <th className="text-left px-2 py-1 font-semibold text-detec-ui-muted w-1/4">Field</th>
-          <th className="text-left px-2 py-1 font-semibold text-detec-ui-muted w-[37.5%]">Before</th>
-          <th className="text-left px-2 py-1 font-semibold text-detec-ui-muted w-[37.5%]">After</th>
+          <th className="text-left px-2 py-1 font-semibold text-detec-ink-secondary w-1/4">Field</th>
+          <th className="text-left px-2 py-1 font-semibold text-detec-ink-secondary w-[37.5%]">Before</th>
+          <th className="text-left px-2 py-1 font-semibold text-detec-ink-secondary w-[37.5%]">After</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-detec-ui-border">
         {changed.map((f) => (
           <tr key={f}>
-            <td className="px-2 py-1 font-mono text-detec-ui-muted align-top">{f}</td>
+            <td className="px-2 py-1 font-mono text-detec-ink-secondary align-top">{f}</td>
             <td className="px-2 py-1 text-red-700 bg-red-50/50 align-top">
               {formatFieldValue(f, before[f])}
             </td>
@@ -100,29 +100,29 @@ function EntryDetail({ log }) {
 
   if (action === 'policy.created') {
     return (
-      <p className="text-xs text-detec-ui-muted mt-1">
+      <p className="text-xs text-detec-ink-secondary mt-1">
         Rule created
         {detail.rule_id && (
-          <> — <span className="font-mono text-detec-ui-text">{detail.rule_id}</span></>
+          <> — <span className="font-mono text-detec-ink-primary">{detail.rule_id}</span></>
         )}
       </p>
     );
   }
 
   if (action === 'policy.deleted') {
-    return <p className="text-xs text-detec-ui-muted mt-1">Rule deleted</p>;
+    return <p className="text-xs text-detec-ink-secondary mt-1">Rule deleted</p>;
   }
 
   if (action === 'policy.restore_defaults') {
-    return <p className="text-xs text-detec-ui-muted mt-1">Defaults restored</p>;
+    return <p className="text-xs text-detec-ink-secondary mt-1">Defaults restored</p>;
   }
 
   if (action === 'policy.preset_applied') {
     return (
-      <p className="text-xs text-detec-ui-muted mt-1">
+      <p className="text-xs text-detec-ink-secondary mt-1">
         Preset applied
         {detail.preset_id && (
-          <> — <span className="font-mono text-detec-ui-text">{detail.preset_id}</span></>
+          <> — <span className="font-mono text-detec-ink-primary">{detail.preset_id}</span></>
         )}
       </p>
     );
@@ -136,7 +136,7 @@ function EntryDetail({ log }) {
       return (
         <ul className="mt-1 space-y-0.5">
           {detail.fields_changed.map((f) => (
-            <li key={f} className="text-xs text-detec-ui-muted font-mono">{f}</li>
+            <li key={f} className="text-xs text-detec-ink-secondary font-mono">{f}</li>
           ))}
         </ul>
       );
@@ -185,17 +185,17 @@ export default function PolicyHistoryDrawer({ policy, onClose }) {
         aria-hidden="true"
       />
       {/* Panel */}
-      <div className="ml-auto w-full max-w-md flex flex-col bg-detec-ui-surface border-l border-detec-ui-border h-full overflow-y-auto">
+      <div className="ml-auto w-full max-w-md flex flex-col bg-detec-surface border-l border-detec-ui-border h-full overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-detec-ui-border shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="font-mono font-semibold text-detec-ui-text truncate">{policy.rule_id}</span>
-            <span className="text-sm text-detec-ui-muted shrink-0">History</span>
+            <span className="font-mono font-semibold text-detec-ink-primary truncate">{policy.rule_id}</span>
+            <span className="text-sm text-detec-ink-secondary shrink-0">History</span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="ml-3 shrink-0 text-detec-ui-muted hover:text-detec-ui-text text-xl leading-none"
+            className="ml-3 shrink-0 text-detec-ink-secondary hover:text-detec-ink-primary text-xl leading-none"
             aria-label="Close history drawer"
           >
             ×
@@ -217,7 +217,7 @@ export default function PolicyHistoryDrawer({ policy, onClose }) {
           )}
 
           {!loading && !error && logs.length === 0 && (
-            <p className="text-sm text-detec-ui-muted text-center py-10">
+            <p className="text-sm text-detec-ink-secondary text-center py-10">
               No history found for this policy.
             </p>
           )}
@@ -228,7 +228,7 @@ export default function PolicyHistoryDrawer({ policy, onClose }) {
                 <li key={log.id} className="flex gap-3">
                   {/* Timeline dot */}
                   <div className="flex flex-col items-center pt-0.5 shrink-0">
-                    <div className="w-2 h-2 rounded-full bg-detec-ui-accent/60 ring-2 ring-detec-ui-accent/20" />
+                    <div className="w-2 h-2 rounded-full bg-detec-brand/60 ring-2 ring-detec-brand/20" />
                     <div className="flex-1 w-px bg-detec-ui-border mt-1" />
                   </div>
                   {/* Content */}
@@ -239,10 +239,10 @@ export default function PolicyHistoryDrawer({ policy, onClose }) {
                       >
                         {actionLabel(log.action)}
                       </span>
-                      <span className="text-xs text-detec-ui-muted">{timeSince(log.occurred_at)}</span>
+                      <span className="text-xs text-detec-ink-secondary">{timeSince(log.occurred_at)}</span>
                     </div>
                     {log.actor_id && (
-                      <p className="mt-1 text-xs font-mono text-detec-ui-muted truncate max-w-[260px]">
+                      <p className="mt-1 text-xs font-mono text-detec-ink-secondary truncate max-w-[260px]">
                         {log.actor_id}
                       </p>
                     )}
