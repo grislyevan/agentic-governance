@@ -81,6 +81,24 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
+      - name: Extract version from tag
+        shell: bash
+        run: |
+          # Strip leading 'v' from git tag (e.g. v1.2.3 → 1.2.3)
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Validate semver pattern
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "Warning: tag '$GITHUB_REF_NAME' doesn't look like a semver tag; using as-is"
+          fi
+          echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Detected release version: $VERSION"
+      - name: Update DetecAgent.wxs version
+        # Patches the WiX source so MSI builds (build-agent-msi.yml or future
+        # wix build steps added here) pick up the correct version from the tag.
+        shell: bash
+        run: |
+          sed -i "s/Version=\"[0-9]*\.[0-9]*\.[0-9]*\"/Version=\"${RELEASE_VERSION}\"/" installers/windows/DetecAgent.wxs
+          grep "Version=" installers/windows/DetecAgent.wxs | head -3
       - name: Install collector and build deps
         run: |
           pip install -e .

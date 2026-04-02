@@ -12,13 +12,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
-_UNSAFE_DEFAULTS = frozenset({
-    "dev-secret-change-in-production",
-    "change-me",
-    "change-me-use-openssl-rand-hex-32",
-    "REPLACE_WITH_OPENSSL_RAND_HEX_32",
-    "dev-only-not-for-production",
-})
+_UNSAFE_DEFAULTS = frozenset(
+    {
+        "dev-secret-change-in-production",
+        "change-me",
+        "change-me-use-openssl-rand-hex-32",
+        "REPLACE_WITH_OPENSSL_RAND_HEX_32",
+        "dev-only-not-for-production",
+    }
+)
 
 
 def _default_db_url() -> str:
@@ -28,7 +30,10 @@ def _default_db_url() -> str:
     elif sys.platform == "darwin":
         data_dir = Path.home() / "Library" / "Application Support" / "Detec"
     else:
-        data_dir = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "detec"
+        data_dir = (
+            Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+            / "detec"
+        )
     data_dir.mkdir(parents=True, exist_ok=True)
     return f"sqlite:///{data_dir / 'detec.db'}"
 
@@ -57,7 +62,9 @@ class Settings(BaseSettings):
     # API
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost:3001"
+    cors_origins: str = (
+        "http://localhost:5173,http://localhost:3000,http://localhost:3001"
+    )
     allowed_origins: str = ""
     debug: bool = False
 
@@ -113,6 +120,10 @@ class Settings(BaseSettings):
     # Default transport in generated agent packages when download omits ?protocol=
     # http: works with Docker exposing only :8000. Use auto or tcp when gateway :8001 is up.
     agent_download_default_protocol: str = "http"
+
+    # Public URL of this server stamped into Windows MSI agent downloads.
+    # Empty string means "derive from the Host header of the download request".
+    detec_api_url: str = ""
 
     # Demo mode: seeds realistic sample data on startup
     demo_mode: bool = False

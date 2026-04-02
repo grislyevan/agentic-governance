@@ -20,7 +20,16 @@ from enum import Enum
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, EmailStr, Field
 from slowapi import Limiter
@@ -45,11 +54,16 @@ Proto = Literal["auto", "http", "tcp"]
 
 def _effective_protocol(requested: str | None) -> Proto:
     """Resolve transport: explicit query/body wins; else AGENT_DOWNLOAD_DEFAULT_PROTOCOL."""
-    raw = (requested or settings.agent_download_default_protocol or "http").strip().lower()
+    raw = (
+        (requested or settings.agent_download_default_protocol or "http")
+        .strip()
+        .lower()
+    )
     if raw in ("auto", "http", "tcp"):
         return raw  # type: ignore[return-value]
     logger.warning("Invalid agent_download_default_protocol %r; using http", raw)
     return "http"
+
 
 router = APIRouter(prefix="/agent", tags=["agent-download"])
 
@@ -104,8 +118,14 @@ def _ensure_agent_key(tenant: Tenant, db: Session) -> str:
     return full_key
 
 
-def _build_agent_env(api_url: str, api_key: str, interval: int, protocol: str,
-                     gateway_host: str | None, gateway_port: int) -> str:
+def _build_agent_env(
+    api_url: str,
+    api_key: str,
+    interval: int,
+    protocol: str,
+    gateway_host: str | None,
+    gateway_port: int,
+) -> str:
     lines = [
         f"AGENTIC_GOV_API_URL={api_url}",
         f"AGENTIC_GOV_API_KEY={api_key}",
@@ -119,8 +139,14 @@ def _build_agent_env(api_url: str, api_key: str, interval: int, protocol: str,
     return "\n".join(lines) + "\n"
 
 
-def _build_collector_json(api_url: str, api_key: str, interval: int, protocol: str,
-                          gateway_host: str | None, gateway_port: int) -> str:
+def _build_collector_json(
+    api_url: str,
+    api_key: str,
+    interval: int,
+    protocol: str,
+    gateway_host: str | None,
+    gateway_port: int,
+) -> str:
     cfg: dict = {
         "api_url": api_url,
         "api_key": api_key,
@@ -201,9 +227,30 @@ def _derive_api_url(request: Request) -> str:
     return f"{base}/api"
 
 
-def _embed_config_in_exe(exe_bytes: bytes, api_url: str, api_key: str,
-                         interval: int, protocol: str,
-                         gateway_host: str | None, gateway_port: int) -> bytes:
+def _resolve_api_url(request: Request) -> str:
+    """Return the public API URL for MSI stamping.
+
+    Priority:
+    1. ``DETEC_API_URL`` setting (explicit override for reverse-proxy deployments)
+    2. Host header from the download request (works for most deployments)
+    3. Falls back to ``http://localhost:8000``
+    """
+    if settings.detec_api_url:
+        return settings.detec_api_url.rstrip("/")
+    host = request.headers.get("host", "localhost:8000")
+    scheme = request.url.scheme or "https"
+    return f"{scheme}://{host}"
+
+
+def _embed_config_in_exe(
+    exe_bytes: bytes,
+    api_url: str,
+    api_key: str,
+    interval: int,
+    protocol: str,
+    gateway_host: str | None,
+    gateway_port: int,
+) -> bytes:
     """Append a config payload to an installer EXE.
 
     Layout appended after the original PE data::
@@ -228,17 +275,32 @@ def _embed_config_in_exe(exe_bytes: bytes, api_url: str, api_key: str,
     return exe_bytes + payload
 
 
-def _build_zip(pkg_path: Path, api_url: str, api_key: str, interval: int,
-               protocol: str, gateway_host: str | None, gateway_port: int,
-               platform: str) -> io.BytesIO:
+def _build_zip(
+    pkg_path: Path,
+    api_url: str,
+    api_key: str,
+    interval: int,
+    protocol: str,
+    gateway_host: str | None,
+    gateway_port: int,
+    platform: str,
+) -> io.BytesIO:
     """Build the agent zip bundle with config files baked in."""
     env_content = _build_agent_env(
-        api_url=api_url, api_key=api_key, interval=interval, protocol=protocol,
-        gateway_host=gateway_host, gateway_port=gateway_port,
+        api_url=api_url,
+        api_key=api_key,
+        interval=interval,
+        protocol=protocol,
+        gateway_host=gateway_host,
+        gateway_port=gateway_port,
     )
     json_content = _build_collector_json(
-        api_url=api_url, api_key=api_key, interval=interval, protocol=protocol,
-        gateway_host=gateway_host, gateway_port=gateway_port,
+        api_url=api_url,
+        api_key=api_key,
+        interval=interval,
+        protocol=protocol,
+        gateway_host=gateway_host,
+        gateway_port=gateway_port,
     )
     readme = _README_TEMPLATE.get(platform, "")
 
@@ -256,8 +318,14 @@ def _build_zip(pkg_path: Path, api_url: str, api_key: str, interval: int,
 
 
 def _build_download_response(
-    pkg_path: Path, api_url: str, api_key: str, interval: int,
-    protocol: str, gateway_host: str | None, gateway_port: int, platform: str,
+    pkg_path: Path,
+    api_url: str,
+    api_key: str,
+    interval: int,
+    protocol: str,
+    gateway_host: str | None,
+    gateway_port: int,
+    platform: str,
 ) -> Response:
     """Build the appropriate download response for the given package.
 
@@ -266,7 +334,16 @@ def _build_download_response(
     reads config from the same directory as the EXE, so no EXE modification
     is needed (enables code signing and avoids AV false positives).
     """
-    buf = _build_zip(pkg_path, api_url, api_key, interval, protocol, gateway_host, gateway_port, platform)
+    buf = _build_zip(
+        pkg_path,
+        api_url,
+        api_key,
+        interval,
+        protocol,
+        gateway_host,
+        gateway_port,
+        platform,
+    )
     content = buf.getvalue()
     filename = f"detec-agent-{platform}.zip"
     return Response(
@@ -283,7 +360,10 @@ def _build_download_response(
 # MSI stamped download helper
 # ---------------------------------------------------------------------------
 
-def _build_msi_download(tenant: Tenant, db: Session) -> FileResponse | None:
+
+def _build_msi_download(
+    tenant: Tenant, db: Session, request: Request | None = None
+) -> FileResponse | None:
     """Try to serve a stamped MSI for the tenant. Returns FileResponse or None.
 
     Looks up the latest AgentBuild for the tenant. If found and the file exists,
@@ -306,7 +386,14 @@ def _build_msi_download(tenant: Tenant, db: Session) -> FileResponse | None:
     if not build or not os.path.exists(build.file_path):
         return None
 
-    api_url = os.environ.get("DETEC_API_URL", "http://localhost:8000")
+    if request is not None:
+        api_url = _resolve_api_url(request)
+    else:
+        api_url = (
+            settings.detec_api_url.rstrip("/")
+            if settings.detec_api_url
+            else "http://localhost:8000"
+        )
     agent_key = _ensure_agent_key(tenant, db)
 
     tmp_dir = tempfile.mkdtemp()
@@ -322,11 +409,16 @@ def _build_msi_download(tenant: Tenant, db: Session) -> FileResponse | None:
             tenant_id=str(tenant.id),
         )
     except (FileNotFoundError, ValueError, OSError) as exc:
-        logger.warning("Failed to stamp MSI for tenant %s; falling back to zip: %s", tenant.id, exc)
+        logger.warning(
+            "Failed to stamp MSI for tenant %s; falling back to zip: %s", tenant.id, exc
+        )
         shutil.rmtree(tmp_dir, ignore_errors=True)
         return None
     except Exception:
-        logger.exception("Unexpected error stamping MSI for tenant %s; falling back to zip", tenant.id)
+        logger.exception(
+            "Unexpected error stamping MSI for tenant %s; falling back to zip",
+            tenant.id,
+        )
         shutil.rmtree(tmp_dir, ignore_errors=True)
         return None
 
@@ -345,12 +437,15 @@ def _build_msi_download(tenant: Tenant, db: Session) -> FileResponse | None:
 # Authenticated download (dashboard / admin)
 # ---------------------------------------------------------------------------
 
+
 @router.get("/download")
 @limiter.limit("10/minute")
 def download_agent(
     request: Request,
     platform: Platform = Query(..., description="Target platform"),
-    interval: int = Query(default=300, ge=30, le=86400, description="Scan interval in seconds"),
+    interval: int = Query(
+        default=300, ge=30, le=86400, description="Scan interval in seconds"
+    ),
     protocol: Proto | None = Query(
         default=None,
         description="Transport: omit for server default (http), or auto, tcp, http",
@@ -372,7 +467,7 @@ def download_agent(
 
     # Try MSI stamped download first (if a build has been uploaded for this tenant)
     if platform == Platform.windows:
-        msi_response = _build_msi_download(tenant, db)
+        msi_response = _build_msi_download(tenant, db, request)
         if msi_response:
             return msi_response
 
@@ -394,13 +489,21 @@ def download_agent(
     gw_cfg = get_effective_gateway_config(db)
 
     return _build_download_response(
-        pkg_path, api_url, agent_key, interval, eff_protocol, gateway_host, gw_cfg.port, platform.value,
+        pkg_path,
+        api_url,
+        agent_key,
+        interval,
+        eff_protocol,
+        gateway_host,
+        gw_cfg.port,
+        platform.value,
     )
 
 
 # ---------------------------------------------------------------------------
 # Token-based download (unauthenticated, single-use link from email)
 # ---------------------------------------------------------------------------
+
 
 @router.get("/download/{token}")
 @limiter.limit("10/minute")
@@ -414,10 +517,14 @@ def download_agent_by_token(
 ) -> Response:
     eff_protocol = _effective_protocol(protocol)
     token_hash = hash_token(token)
-    token_obj = db.query(AuthToken).filter(
-        AuthToken.token_hash == token_hash,
-        AuthToken.purpose == "agent_download",
-    ).first()
+    token_obj = (
+        db.query(AuthToken)
+        .filter(
+            AuthToken.token_hash == token_hash,
+            AuthToken.purpose == "agent_download",
+        )
+        .first()
+    )
 
     if not token_obj or not token_obj.is_valid:
         raise HTTPException(
@@ -429,7 +536,9 @@ def download_agent_by_token(
 
     admin = db.query(User).filter(User.id == token_obj.user_id).first()
     if not admin:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid download link.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid download link."
+        )
 
     tenant = db.query(Tenant).filter(Tenant.id == admin.tenant_id).first()
     if not tenant:
@@ -453,13 +562,21 @@ def download_agent_by_token(
     db.commit()
 
     return _build_download_response(
-        pkg_path, api_url, agent_key, interval, eff_protocol, gateway_host, gw_cfg.port, platform.value,
+        pkg_path,
+        api_url,
+        agent_key,
+        interval,
+        eff_protocol,
+        gateway_host,
+        gw_cfg.port,
+        platform.value,
     )
 
 
 # ---------------------------------------------------------------------------
 # Email enrollment
 # ---------------------------------------------------------------------------
+
 
 class EnrollEmailRequest(BaseModel):
     email: EmailStr
@@ -471,7 +588,9 @@ class EnrollEmailRequest(BaseModel):
 # Explicitly provide the types namespace so Pydantic v2 can resolve `Platform`
 # and `Proto` if the model is rebuilt (e.g., during FastAPI startup with
 # deferred annotation evaluation).
-EnrollEmailRequest.model_rebuild(_types_namespace={"Platform": Platform, "Proto": Proto})
+EnrollEmailRequest.model_rebuild(
+    _types_namespace={"Platform": Platform, "Proto": Proto}
+)
 
 
 class EnrollEmailResponse(BaseModel):
@@ -555,6 +674,7 @@ def enroll_email(
         )
 
     from core.audit_logger import record as audit_record
+
     audit_record(
         db,
         tenant_id=auth.tenant_id,
@@ -577,6 +697,7 @@ def enroll_email(
 # ---------------------------------------------------------------------------
 # Tenant agent key management
 # ---------------------------------------------------------------------------
+
 
 class AgentKeyResponse(BaseModel):
     key_prefix: str
@@ -630,6 +751,7 @@ def rotate_agent_key(
     tenant.agent_key = full_key  # keep plaintext for MSI download stamping
 
     from core.audit_logger import record as audit_record
+
     audit_record(
         db,
         tenant_id=auth.tenant_id,

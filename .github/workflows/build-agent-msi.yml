@@ -33,9 +33,29 @@ jobs:
       - name: Install WiX Toolset
         run: dotnet tool install --global wix
 
+      - name: Harvest _internal directories into WiX fragments
+        # WiX v4 uses `wix extension add WixToolset.Heat` for heat functionality.
+        # The harvest step generates AgentInternal.wxs and GuiInternal.wxs from
+        # the PyInstaller _internal dirs. These fragments are required by DetecAgent.wxs.
+        working-directory: installers/windows
+        run: |
+          wix extension add WixToolset.Heat
+          wix heat dir dist\detec-agent\_internal `
+            -cg AgentInternalFiles -dr AGENTINTERNALDIR `
+            -var var.AgentInternalDir -ag -sfrag -srd `
+            -o AgentInternal.wxs
+          wix heat dir dist\detec-agent-gui\_internal `
+            -cg GuiInternalFiles -dr GUIINTERNALDIR `
+            -var var.GuiInternalDir -ag -sfrag -srd `
+            -o GuiInternal.wxs
+
       - name: Build MSI
         working-directory: installers/windows
-        run: wix build DetecAgent.wxs -o dist/DetecAgent.msi
+        run: |
+          wix build DetecAgent.wxs AgentInternal.wxs GuiInternal.wxs `
+            -d AgentInternalDir=dist\detec-agent\_internal `
+            -d GuiInternalDir=dist\detec-agent-gui\_internal `
+            -o dist\DetecAgent.msi
 
       - name: Upload MSI artifact
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4

@@ -55,6 +55,7 @@ hiddenimports = [
     "collector.compat.paths",
     "collector.output.tcp_emitter",
     "collector.providers.etw_provider",
+    "collector.providers._etw_ctypes",
     "protocol",
     "protocol.wire",
     "protocol.messages",

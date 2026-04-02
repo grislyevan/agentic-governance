@@ -697,6 +697,21 @@ The server generates pre-configured agent packages via the dashboard or the API.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `AGENT_DOWNLOAD_DEFAULT_PROTOCOL` | `http` | Transport embedded when download omits `?protocol=`. Use `http` for Docker-only :8000. Set `auto` or `tcp` when the binary gateway is reachable on :8001. |
+| `DETEC_API_URL` | _(empty — uses Host header)_ | Public URL of this server stamped into Windows MSI agent downloads. See below. |
+
+### DETEC_API_URL (Windows agent pre-configuration)
+
+When serving Windows agent MSI downloads, Detec stamps each MSI with the server URL and agent key so the installer pre-configures the agent automatically. By default the stamper derives the URL from the `Host` header of the download request (which works for most deployments). Set `DETEC_API_URL` explicitly if:
+- Your server is behind a reverse proxy that changes the `Host` header
+- You want agents to connect via a different hostname than the one used for the dashboard
+
+Example:
+
+```
+DETEC_API_URL=https://detec.yourcompany.com
+```
+
+If neither `DETEC_API_URL` nor the `Host` header resolves to a reachable URL, agents will fall back to `http://localhost:8000` which will not work for remote endpoints.
 
 ### Setup
 
