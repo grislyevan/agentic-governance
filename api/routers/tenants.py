@@ -5,8 +5,12 @@ from __future__ import annotations
 import logging
 import re
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import func as sa_func
 from sqlalchemy.orm import Session
 
@@ -15,9 +19,9 @@ from core.auth import create_access_token, create_refresh_token
 from core.database import get_db
 from core.auth_cookies import get_authorization
 from core.tenant import resolve_auth, require_role, AuthContext
+from core.tenant import generate_agent_key
 from models.endpoint import Endpoint
 from models.tenant import Tenant
-from core.tenant import generate_agent_key
 from models.tenant_membership import TenantMembership
 from models.user import User
 from schemas.tenants import (
@@ -27,6 +31,15 @@ from schemas.tenants import (
     TenantSwitchResponse,
     TenantUpdate,
 )
+
+limiter = Limiter(key_func=get_remote_address)
+
+
+class AgentKeyRotateResponse(BaseModel):
+    agent_key: str  # full plaintext key — shown once only
+    prefix: str  # first N chars for identification
+    rotated_at: str  # ISO datetime
+
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +55,14 @@ def _tenant_to_out(tenant: Tenant, db: Session, role: str | None = None) -> Tena
     member_count = (
         db.query(sa_func.count(TenantMembership.id))
         .filter(TenantMembership.tenant_id == tenant.id)
-        .scalar() or 0
+        .scalar()
+        or 0
     )
     endpoint_count = (
         db.query(sa_func.count(Endpoint.id))
         .filter(Endpoint.tenant_id == tenant.id)
-        .scalar() or 0
+        .scalar()
+        or 0
     )
     return TenantOut(
         id=tenant.id,
@@ -76,12 +91,14 @@ def _ensure_membership(db: Session, user_id: str, tenant_id: str, role: str) -> 
         .first()
     )
     if not existing:
-        db.add(TenantMembership(
-            id=str(uuid.uuid4()),
-            user_id=user_id,
-            tenant_id=tenant_id,
-            role=role,
-        ))
+        db.add(
+            TenantMembership(
+                id=str(uuid.uuid4()),
+                user_id=user_id,
+                tenant_id=tenant_id,
+                role=role,
+            )
+        )
 
 
 @router.get("/current", response_model=TenantOut)
@@ -175,6 +192,7 @@ def create_tenant(
     db.add(membership)
 
     from core.baseline_policies import seed_baseline_policies
+
     seed_baseline_policies(db, tenant.id)
 
     audit_record(
@@ -214,7 +232,9 @@ def update_tenant(
         .first()
     )
     if not membership or membership.role != "owner":
-        raise HTTPException(status_code=403, detail="Only the owner can update a tenant")
+        raise HTTPException(
+            status_code=403, detail="Only the owner can update a tenant"
+        )
 
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
     if not tenant:
@@ -223,7 +243,11 @@ def update_tenant(
     if body.name is not None:
         tenant.name = body.name
         new_slug = _slugify(body.name)
-        conflict = db.query(Tenant).filter(Tenant.slug == new_slug, Tenant.id != tenant_id).first()
+        conflict = (
+            db.query(Tenant)
+            .filter(Tenant.slug == new_slug, Tenant.id != tenant_id)
+            .first()
+        )
         if conflict:
             new_slug = f"{new_slug}-{uuid.uuid4().hex[:6]}"
         tenant.slug = new_slug
@@ -262,7 +286,9 @@ def switch_tenant(
         .first()
     )
     if not membership:
-        raise HTTPException(status_code=403, detail="No membership in target organization")
+        raise HTTPException(
+            status_code=403, detail="No membership in target organization"
+        )
 
     tenant = db.query(Tenant).filter(Tenant.id == body.tenant_id).first()
     if not tenant:
@@ -292,4 +318,65 @@ def switch_tenant(
         access_token=create_access_token(user.id, tenant.id),
         refresh_token=refresh_tok,
         tenant=_tenant_to_out(tenant, db, role=membership.role),
+    )
+
+
+@router.post("/agent-key/rotate", response_model=AgentKeyRotateResponse)
+@limiter.limit("5/minute")
+def rotate_agent_key(
+    request: Request,
+    db: Session = Depends(get_db),
+    authorization: str | None = Depends(get_authorization),
+    x_api_key: str | None = Header(default=None),
+) -> AgentKeyRotateResponse:
+    """Rotate the tenant agent key. Owner only.
+
+    Generates a new agent key, invalidating all existing agent connections.
+    The new plaintext key is returned exactly once and must be stored securely.
+    Agents will receive 401 on their next heartbeat and must be reconfigured.
+    """
+    auth = _auth(authorization, x_api_key, db)
+    require_role(auth, "owner")
+
+    tenant = db.query(Tenant).filter(Tenant.id == auth.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    old_prefix = tenant.agent_key_prefix or ""
+
+    new_key, new_prefix, new_hash = generate_agent_key()
+
+    tenant.agent_key = new_key
+    tenant.agent_key_prefix = new_prefix
+    tenant.agent_key_hash = new_hash
+
+    rotated_at = datetime.now(timezone.utc)
+
+    audit_record(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="agent_key.rotated",
+        resource_type="tenant",
+        resource_id=auth.tenant_id,
+        detail={
+            "old_prefix": old_prefix,
+            "new_prefix": new_prefix,
+            "rotated_by": auth.user_id,
+        },
+        ip_address=request.client.host if request.client else None,
+    )
+
+    db.commit()
+
+    logger.info(
+        "Agent key rotated for tenant %s by user %s (new prefix: %s...)",
+        auth.tenant_id,
+        auth.user_id,
+        new_prefix,
+    )
+    return AgentKeyRotateResponse(
+        agent_key=new_key,
+        prefix=new_prefix,
+        rotated_at=rotated_at.isoformat(),
     )
