@@ -1,0 +1,116 @@
+# Detec — self-contained evaluator demo
+#
+# Boots the full stack (Postgres + API + dashboard) with pre-seeded sample
+# data in ~90 seconds. No .env file required.
+#
+#   docker compose -f docker-compose.demo.yml up
+#
+# Then open http://localhost:8000
+# Login: admin@example.com / detec-demo-2026
+#
+# The API key and agent key for the demo tenant are printed once at first
+# startup in the container logs (docker compose logs api).
+#
+# To reset demo data without restarting:
+#   curl -s -u admin@example.com:detec-demo-2026 \
+#        -X POST http://localhost:8000/api/demo/reset | jq
+#
+# ─────────────────────────────────────────────────────────────
+# DO NOT use these credentials in any non-demo environment.
+# The JWT_SECRET and passwords below are public. They are only
+# safe because DEMO_MODE prevents real enforcement actions and
+# the stack is not exposed to the internet by default.
+# ─────────────────────────────────────────────────────────────
+
+services:
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: detec
+      POSTGRES_PASSWORD: detec-demo-pg-2026
+      POSTGRES_DB: detec_demo
+    volumes:
+      - demo-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U detec"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - demo-internal
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "8001:8001"   # binary gateway (optional — for collector --protocol tcp)
+    environment:
+      # ── Database ──────────────────────────────────────────
+      DATABASE_URL: postgresql://detec:detec-demo-pg-2026@db:5432/detec_demo
+      DATABASE_SSLMODE: disable
+
+      # ── Auth (demo-only values — never use in production) ──
+      JWT_SECRET: "demo-jwt-secret-do-not-use-in-production-2026"
+      SEED_ADMIN_EMAIL: admin@example.com
+      SEED_ADMIN_PASSWORD: detec-demo-2026
+      SEED_TENANT_NAME: Detec Demo
+
+      # ── Demo mode: seeds ~50 realistic events on first boot ─
+      DEMO_MODE: "true"
+
+      # ── CORS: allow browser on same host ──────────────────
+      CORS_ORIGINS: "http://localhost:8000,http://localhost:3001,http://127.0.0.1:8000"
+
+      # ── Misc ──────────────────────────────────────────────
+      ENV: development
+      AGENT_PACKAGES_DIR: /data/packages
+      GATEWAY_ENABLED: "true"
+    volumes:
+      - demo-packages:/data/packages
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+    networks:
+      - demo-internal
+      - demo-external
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: "3001"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/ > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - demo-external
+
+volumes:
+  demo-pgdata:
+  demo-packages:
+
+networks:
+  demo-internal:
+    internal: true
+  demo-external:
