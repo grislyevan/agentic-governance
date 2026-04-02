@@ -38,18 +38,42 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 
-def _audit(db: Session, *, tenant_id: str, actor_id: str | None, action: str,
-           resource_id: str, detail: dict | None = None) -> None:
-    db.add(AuditLog(
-        id=str(uuid.uuid4()),
-        tenant_id=tenant_id,
-        actor_id=actor_id,
-        actor_type="user",
-        action=action,
-        resource_type="webhook",
-        resource_id=resource_id,
-        detail=detail or {},
-    ))
+_SENSITIVE_KEYS = frozenset(
+    {"secret", "signing_secret", "webhook_secret", "token", "api_key", "password"}
+)
+
+
+def _mask_detail(detail: dict | None) -> dict:
+    """Return a copy of detail with any sensitive keys replaced by '***'."""
+    if not detail:
+        return {}
+    return {
+        k: ("***" if any(s in k.lower() for s in _SENSITIVE_KEYS) else v)
+        for k, v in detail.items()
+    }
+
+
+def _audit(
+    db: Session,
+    *,
+    tenant_id: str,
+    actor_id: str | None,
+    action: str,
+    resource_id: str,
+    detail: dict | None = None,
+) -> None:
+    db.add(
+        AuditLog(
+            id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
+            actor_id=actor_id,
+            actor_type="user",
+            action=action,
+            resource_type="webhook",
+            resource_id=resource_id,
+            detail=_mask_detail(detail),
+        )
+    )
 
 
 @router.get("/templates")
@@ -63,7 +87,11 @@ def list_templates(
     return get_templates()
 
 
-@router.post("/from-template", response_model=WebhookCreateResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/from-template",
+    response_model=WebhookCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_from_template(
     body: WebhookFromTemplateRequest,
     db: Session = Depends(get_db),
@@ -76,7 +104,9 @@ def create_from_template(
 
     template = get_template(body.template_id)
     if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
+        )
 
     for field in template.get("config_fields", []):
         if field.get("required") and field["key"] not in body.config:
@@ -99,13 +129,23 @@ def create_from_template(
         is_active=True,
     )
     db.add(webhook)
-    _audit(db, tenant_id=auth.tenant_id, actor_id=auth.user_id,
-           action="webhook.created", resource_id=webhook.id,
-           detail={"url": url, "template": body.template_id, "events": events})
+    _audit(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="webhook.created",
+        resource_id=webhook.id,
+        detail={"url": url, "template": body.template_id, "events": events},
+    )
     db.commit()
     db.refresh(webhook)
 
-    logger.info("Webhook %s created from template %s by %s", webhook.id, body.template_id, auth.user_id)
+    logger.info(
+        "Webhook %s created from template %s by %s",
+        webhook.id,
+        body.template_id,
+        auth.user_id,
+    )
     return WebhookCreateResponse.model_validate(webhook)
 
 
@@ -131,7 +171,9 @@ def list_webhooks(
     )
 
 
-@router.post("", response_model=WebhookCreateResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=WebhookCreateResponse, status_code=status.HTTP_201_CREATED
+)
 def create_webhook(
     body: WebhookCreate,
     db: Session = Depends(get_db),
@@ -155,9 +197,14 @@ def create_webhook(
         is_active=body.is_active,
     )
     db.add(webhook)
-    _audit(db, tenant_id=auth.tenant_id, actor_id=auth.user_id,
-           action="webhook.created", resource_id=webhook.id,
-           detail={"url": body.url, "events": body.events})
+    _audit(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="webhook.created",
+        resource_id=webhook.id,
+        detail={"url": body.url, "events": body.events},
+    )
     db.commit()
     db.refresh(webhook)
 
@@ -182,7 +229,9 @@ def update_webhook(
         .first()
     )
     if not webhook:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found"
+        )
 
     changes: dict = {}
     update_data = body.model_dump(exclude_unset=True)
@@ -202,8 +251,14 @@ def update_webhook(
         changes["is_active"] = update_data["is_active"]
 
     if changes:
-        _audit(db, tenant_id=auth.tenant_id, actor_id=auth.user_id,
-               action="webhook.updated", resource_id=webhook.id, detail=changes)
+        _audit(
+            db,
+            tenant_id=auth.tenant_id,
+            actor_id=auth.user_id,
+            action="webhook.updated",
+            resource_id=webhook.id,
+            detail=changes,
+        )
         db.commit()
         db.refresh(webhook)
 
@@ -226,11 +281,18 @@ def delete_webhook(
         .first()
     )
     if not webhook:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found"
+        )
 
-    _audit(db, tenant_id=auth.tenant_id, actor_id=auth.user_id,
-           action="webhook.deleted", resource_id=webhook.id,
-           detail={"url": webhook.url})
+    _audit(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="webhook.deleted",
+        resource_id=webhook.id,
+        detail={"url": webhook.url},
+    )
     db.delete(webhook)
     db.commit()
 
@@ -253,7 +315,9 @@ async def test_webhook(
         .first()
     )
     if not webhook:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found"
+        )
 
     test_payload = {
         "event_id": f"test-{uuid.uuid4().hex[:8]}",
@@ -277,9 +341,14 @@ async def test_webhook(
 
     success = await deliver(webhook.url, webhook.secret, test_payload, extra_headers)
 
-    _audit(db, tenant_id=auth.tenant_id, actor_id=auth.user_id,
-           action="webhook.tested", resource_id=webhook.id,
-           detail={"url": webhook.url, "success": success})
+    _audit(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="webhook.tested",
+        resource_id=webhook.id,
+        detail={"url": webhook.url, "success": success},
+    )
     db.commit()
 
     return {"success": success, "webhook_id": webhook_id}
