@@ -45,6 +45,7 @@ from schemas.endpoints import (
     ValidateUninstallTokenRequest,
     ValidateUninstallTokenResponse,
 )
+
 from schemas.session_report import SessionReportListResponse
 
 logger = logging.getLogger(__name__)

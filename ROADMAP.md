@@ -18,11 +18,11 @@
 - ETW ctypes backend bundled in Windows installer (no pip install required)
 - Cross-platform scanner fixes: pgrep/lsof replaced with psutil compat layer on Windows
 - PowerShell version query caching + timeout reduction
+- Agent key rotation: `POST /api/agent/key/rotate` + `POST /api/endpoints/{id}/key/rotate`
 
 ## In Progress (active development — 2026-04)
 
 - Real-time approval queue: Server-Sent Events replacing 30s polling on ApprovalsPage
-- Agent key rotation: `POST /api/agent/key/rotate` + dashboard UI
 - Universal ESF helper binary: arm64 + x86_64 fat binary via CI matrix build
 - Policy Studio edit mode: routing existing-policy edits through the guided wizard
 

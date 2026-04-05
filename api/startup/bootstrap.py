@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import uuid
 from pathlib import Path
@@ -21,7 +22,13 @@ _API_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent)
 
 
 def apply_migrations() -> None:
-    """Run Alembic migrations on startup, falling back to create_all."""
+    """Run Alembic migrations on startup, falling back to create_all.
+
+    In production/staging, migration failures are fatal — the server will
+    not start with a potentially drifted schema.  In development, the
+    original create_all fallback is preserved for convenience.
+    """
+    env = os.getenv("ENV", "development").lower()
     try:
         from alembic.config import Config as AlembicConfig
         from alembic import command as alembic_command
@@ -33,7 +40,20 @@ def apply_migrations() -> None:
             alembic_command.upgrade(cfg, "head")
             logger.info("Alembic migrations applied successfully")
             return
+        # alembic.ini not found — fall through to create_all
+        logger.info("alembic.ini not found; using create_all")
+    except ImportError:
+        # Alembic not installed (expected in packaged / PyInstaller builds)
+        logger.info("Alembic not installed; using create_all")
     except Exception:
+        if env in ("production", "staging"):
+            logger.error(
+                "Alembic migration failed in %s — refusing to fall back "
+                "to create_all. Fix the migration or set ENV=development.",
+                env,
+                exc_info=True,
+            )
+            raise
         logger.warning(
             "Alembic migration failed; falling back to create_all",
             exc_info=True,
@@ -41,6 +61,7 @@ def apply_migrations() -> None:
 
     from core.database import Base
     import models  # noqa: F401
+
     Base.metadata.create_all(bind=engine)
 
 
@@ -74,9 +95,11 @@ def seed() -> None:
     """Seed a default admin user and tenant on first startup."""
     db = SessionLocal()
     try:
-        existing = db.query(User).filter(
-            sa.func.lower(User.email) == settings.seed_admin_email.lower()
-        ).first()
+        existing = (
+            db.query(User)
+            .filter(sa.func.lower(User.email) == settings.seed_admin_email.lower())
+            .first()
+        )
         if existing:
             return
 
@@ -85,6 +108,7 @@ def seed() -> None:
         slug = settings.seed_tenant_name.lower().replace(" ", "-")[:64]
         if settings.seed_agent_key:
             from core.tenant import _hash_agent_key, AGENT_KEY_PREFIX_LEN
+
             agent_key = settings.seed_agent_key
             agent_key_prefix = agent_key[:AGENT_KEY_PREFIX_LEN]
             agent_key_hash = _hash_agent_key(agent_key)
@@ -124,22 +148,13 @@ def seed() -> None:
 
         n_policies = seed_baseline_policies(db, tenant.id)
 
-        n_endpoints = 0
-        n_events = 0
-        if settings.demo_mode:
-            from core.demo_seed import seed_demo_data
-            n_endpoints, n_events = seed_demo_data(db, tenant.id)
-
         db.commit()
         logger.info(
             "Seed: created tenant '%s', admin '%s', and %d baseline policies",
-            tenant.name, admin.email, n_policies,
+            tenant.name,
+            admin.email,
+            n_policies,
         )
-        if settings.demo_mode:
-            logger.info(
-                "Demo mode: seeded %d endpoints and %d events",
-                n_endpoints, n_events,
-            )
         # Print credentials once to stdout. Never write to disk in cwd.
         print(
             "\nInitial admin credentials (store securely; they will not be shown again):\n"

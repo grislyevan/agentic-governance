@@ -13,7 +13,6 @@ import ToolTabs from '../components/dashboard/ToolTabs';
 import ToolsTable from '../components/dashboard/ToolsTable';
 import Pagination from '../components/dashboard/Pagination';
 import PostureSummaryWidget from '../components/dashboard/PostureSummaryWidget';
-import DataFlowWidget from '../components/dashboard/DataFlowWidget';
 import ResponseTimelineWidget from '../components/dashboard/ResponseTimelineWidget';
 import CapabilityDriftWidget from '../components/dashboard/CapabilityDriftWidget';
 
@@ -178,11 +177,8 @@ export default function DashboardPage({ onNavigate, searchQuery = '', refreshRef
       {/* ── Detection Timeline (full width) ── */}
       <DetectionTimelineWidget onNavigate={onNavigate} />
 
-      {/* ── Bottom Row: Data Flow + Capability Drift ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <DataFlowWidget />
-        {isAdminOrOwner && <CapabilityDriftWidget onNavigate={onNavigate} />}
-      </div>
+      {/* ── Capability Drift ── */}
+      {isAdminOrOwner && <CapabilityDriftWidget onNavigate={onNavigate} />}
 
       {/* ── Tools Table ── */}
       <ToolTabs

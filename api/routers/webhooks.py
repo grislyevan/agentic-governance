@@ -160,6 +160,7 @@ def list_webhooks(
 
     webhooks = (
         db.query(Webhook)
+        # Strict tenant scope on reads: webhook config is tenant-private (no cross-tenant visibility).
         .filter(Webhook.tenant_id == auth.tenant_id)
         .order_by(Webhook.created_at)
         .all()

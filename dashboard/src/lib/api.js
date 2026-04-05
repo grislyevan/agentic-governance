@@ -77,10 +77,6 @@ async function apiFetch(path, { apiUrl } = {}) {
   return res.json();
 }
 
-export async function fetchDemoStatus() {
-  return apiFetch('/demo/status');
-}
-
 export async function fetchEndpoints(config, page = 1, pageSize = 200) {
   return apiFetch(`/endpoints?page=${page}&page_size=${pageSize}`, config);
 }
@@ -98,18 +94,6 @@ export async function fetchEndpointProfiles(config, { page = 1, pageSize = 50 } 
 
 export async function fetchEndpointProfile(profileId) {
   return apiFetch(`/endpoint-profiles/${profileId}`);
-}
-
-export async function createEndpointProfile(data) {
-  return apiMutate('POST', '/endpoint-profiles', data);
-}
-
-export async function updateEndpointProfile(profileId, data) {
-  return apiMutate('PATCH', `/endpoint-profiles/${profileId}`, data);
-}
-
-export async function deleteEndpointProfile(profileId) {
-  return apiMutate('DELETE', `/endpoint-profiles/${profileId}`);
 }
 
 export async function fetchEndpointStatus(config) {
@@ -131,10 +115,6 @@ export async function fetchSessionReports(config, { endpointId, since, before, l
 
 export async function fetchSessionReport(config, sessionId) {
   return apiFetch(`/session-reports/${sessionId}`, config);
-}
-
-export async function fetchDemoSession(config) {
-  return apiFetch('/demo/session', config);
 }
 
 export async function fetchEvents(config, {
@@ -231,30 +211,6 @@ export async function restoreDefaultPolicies() {
   return apiMutate('POST', '/policies/restore-defaults');
 }
 
-export async function fetchPlaybooks() {
-  return apiFetch('/playbooks');
-}
-
-export async function fetchPlaybook(id) {
-  return apiFetch(`/playbooks/${id}`);
-}
-
-export async function createPlaybook(data) {
-  return apiMutate('POST', '/playbooks', data);
-}
-
-export async function updatePlaybook(id, data) {
-  return apiMutate('PUT', `/playbooks/${id}`, data);
-}
-
-export async function deletePlaybook(id) {
-  return apiMutate('DELETE', `/playbooks/${id}`);
-}
-
-export async function testPlaybook(id, eventPayload = {}) {
-  return apiMutate('POST', `/playbooks/${id}/test`, { event_payload: eventPayload });
-}
-
 export async function fetchPolicyPresets(config) {
   return apiFetch('/policies/presets', config);
 }
@@ -300,10 +256,6 @@ export async function updateUser(id, data) {
 
 export async function deleteUser(id) {
   return apiMutate('DELETE', `/users/${id}`);
-}
-
-export async function deactivateUser(id) {
-  return apiMutate('PATCH', `/users/${id}`, { is_active: false });
 }
 
 export async function sendInvite({ email, role }) {
@@ -388,36 +340,6 @@ export async function fetchMyApiKeyStatus() {
 
 export async function rotateMyApiKey() {
   return apiMutate('POST', '/users/me/api-key/rotate', {});
-}
-
-// Agent download (uses JWT auth; server embeds tenant agent key automatically)
-
-export async function downloadAgent() {
-  const config = getApiConfig();
-  const url = `${config.apiUrl.replace(/\/+$/, '')}/agent/download?platform=windows`;
-  const headers = buildAuthHeaders();
-
-  const res = await fetch(url, { headers, credentials: 'include' });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: 'Download failed' }));
-    const msg = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail) || 'Download failed';
-    throw new Error(msg);
-  }
-  const blob = await res.blob();
-  const disposition = res.headers.get('content-disposition') || '';
-  const filename = disposition.split('filename=')[1]?.replace(/"/g, '') || 'DetecAgent.msi';
-  const url2 = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url2;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  window.URL.revokeObjectURL(url2);
-}
-
-export async function enrollAgentByEmail({ email, platform, interval, protocol }) {
-  return apiMutate('POST', '/agent/enroll-email', { email, platform, interval, protocol });
 }
 
 // EDR enforcement config
@@ -552,104 +474,14 @@ export async function denyRequest(id, reason) {
   return apiMutate('POST', `/approvals/${id}/deny`, { reason: reason || undefined });
 }
 
-// Billing
-
-export async function fetchBillingStatus() {
-  return apiFetch('/billing/status');
-}
-
-export async function fetchBillingTiers() {
-  return apiFetch('/billing/tiers');
-}
-
-export async function createCheckoutSession({ tier, successUrl, cancelUrl }) {
-  return apiMutate('POST', '/billing/checkout', {
-    tier,
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-  });
-}
-
-export async function createPortalSession({ returnUrl }) {
-  return apiMutate('POST', '/billing/portal', {
-    return_url: returnUrl,
-  });
-}
-
-// Compliance reports
-
-export async function generateComplianceReport(startDate, endDate, format) {
-  const config = getApiConfig();
-  const url = `${config.apiUrl.replace(/\/+$/, '')}/reports/compliance`;
-  const headers = { ...buildAuthHeaders(), 'Content-Type': 'application/json' };
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ start_date: startDate, end_date: endDate, format }),
-    credentials: 'include',
-  });
-  if (res.status === 401 || res.status === 403) {
-    throw new Error('Authentication failed. Check your credentials.');
-  }
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || `API returned ${res.status}`);
-  }
-  if (format === 'json') {
-    return res.json();
-  }
-  const blob = await res.blob();
-  const disposition = res.headers.get('Content-Disposition') || '';
-  const match = disposition.match(/filename="?([^"]+)"?/);
-  const filename = match ? match[1] : `detec-compliance-${startDate}-${endDate}.${format}`;
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(a.href);
-  return { downloaded: true };
-}
-
-export async function fetchComplianceSummary() {
-  return apiFetch('/reports/compliance/summary');
-}
-
-// Data flow
-
-export async function fetchDataFlowSummary(days = 7) {
-  return apiFetch(`/data-flow/summary?days=${days}`);
-}
-
-// Tenants (organizations)
-
-export async function fetchTenants() {
-  return apiFetch('/tenants');
-}
-
-export async function fetchCurrentTenant() {
-  return apiFetch('/tenants/current');
-}
+// Tenants (organizations) — kept for fleet management
 
 export async function fetchMyTenants() {
   return apiFetch('/tenants/mine');
 }
 
-export async function createTenant(name) {
-  return apiMutate('POST', '/tenants', { name });
-}
-
-export async function updateTenant(id, data) {
-  return apiMutate('PATCH', `/tenants/${id}`, data);
-}
-
 export async function switchTenant(tenantId) {
   return apiMutate('POST', '/tenants/switch', { tenant_id: tenantId });
-}
-
-export async function rotateAgentKey() {
-  return apiMutate('POST', '/tenants/agent-key/rotate', {});
 }
 
 export async function generateUninstallToken(endpointId) {

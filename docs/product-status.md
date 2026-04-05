@@ -89,7 +89,7 @@ This page tracks capability maturity across Detec's core components. Use it to u
 | Daemon mode with heartbeat | Available | |
 | Session reports via API + CLI | Available | |
 | Webhooks | Available | |
-| Agent key rotation | Roadmap | Deferred; tracked post-sprint/remediation-1 |
+| Agent key rotation | Available | Tenant + per-endpoint rotation via API; auto-rotation planned |
 
 ---
 

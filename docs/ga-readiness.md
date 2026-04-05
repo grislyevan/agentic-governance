@@ -13,7 +13,7 @@ This document is a standalone GA-readiness summary. All claims reference canonic
 | Feature | Status | Notes | Reference |
 |---------|--------|-------|-----------|
 | Behavioral detection (4 core signatures + evasion) | Available | DETEC-BEH-CORE-01–04; evasion validated LAB-RUN-EVASION-001 | [docs/product-status.md](product-status.md) |
-| Approval workflow (create / approve / deny) | Available | API endpoints and dashboard UI shipped; hold label logged; enforcement gating not yet wired | [docs/product-status.md](product-status.md), [docs/enforcement-remaining-work.md](enforcement-remaining-work.md) |
+| Approval workflow (create / approve / deny) | Available | API endpoints, dashboard UI, and enforcement gating shipped. Active posture: SIGSTOP suspends process pending decision (macOS/Linux). Passive/audit: advisory only (hold label logged). | [docs/product-status.md](product-status.md), [docs/known-limitations.md](known-limitations.md) |
 | Allow-list governance (tenant-scoped, expiring) | Available | Full CRUD API and dashboard UI shipped with audit trail | [docs/product-status.md](product-status.md) |
 | Policy simulation | Available | Per-session policy simulation in session reports | [docs/product-status.md](product-status.md) |
 | Telemetry / observability | Available | Prometheus metrics, EventStore diagnostics, capability drift detection | [docs/telemetry-and-performance.md](telemetry-and-performance.md) |
@@ -71,7 +71,7 @@ Full detail: [docs/known-limitations.md](known-limitations.md)
 |----------|-----------------|
 | Telemetry constraints | Psutil polling (60s default interval) is the production path; real-time syscall telemetry (ESF/ETW/eBPF) is not yet baseline-active |
 | Confidence caveats | High-risk tools (e.g. Claude Code) commonly report Medium confidence without EDR enrichment; scores are point-in-time against calibration fixtures |
-| Policy and enforcement | "Approval Required" labels are logged but do not block execution; ISO-001 container isolation is advisory only; Linux network block affects full UID not just target process |
+| Policy and enforcement | "Approval Required" blocks execution in active posture (SIGSTOP), advisory in passive/audit; ISO-001 container isolation is advisory only; Linux network block affects full UID not just target process |
 | Deployment | Multi-tenant isolation is logical (DB query layer), not physical; >500 endpoint deployments not formally load-tested |
 | Detection scope | Detec is not a general-purpose EDR; it does not monitor browser activity, inspect LLM prompts, or detect non-AI software categories |
 
@@ -125,11 +125,14 @@ The pilot follows a staged rollout: 5 endpoints → 10 endpoints → 25 endpoint
 
 The following items are tracked as blocking or near-blocking for a v1.0 GA declaration:
 
-- **Approval Required enforcement wiring** — "Approval Required" decisions surface a hold label and create an approval record but do not currently block agent execution pending human review. Blocking execution is a Roadmap item. Operators must act manually on approval queue during this period. Tracked in [docs/enforcement-remaining-work.md](enforcement-remaining-work.md).
-- **Live soak run** — The formal 24h/72h soak test defined in [docs/soak-test-runbook.md](soak-test-runbook.md) has not been executed against a dedicated staging environment. The `PydanticUndefinedAnnotation` error in `api/routers/agent_download.py` that blocked the previous attempt (2026-03-24) has been resolved as part of the MSI stamper hardening work. A clean staging run is still needed before GA.
-- **Lighthouse performance baseline** — No Lighthouse/Web Vitals baseline has been captured for the dashboard. Requires a served build environment. Non-blocking for security reviewers; required for performance SLA commitments.
+- ~~**Approval Required enforcement wiring**~~ — **Resolved (2026-04-01).** Enforcement is wired in `collector/coordinator/emission_coordinator.py`. In **active** posture, the collector suspends detected processes via SIGSTOP (macOS/Linux), polls for a decision, and resumes or kills based on the outcome. In passive/audit posture, the hold is advisory only. Windows uses network null-route instead of SIGSTOP. See [docs/known-limitations.md](known-limitations.md).
+- **Live soak run** — The formal 24h/72h soak test defined in [docs/soak-test-runbook.md](soak-test-runbook.md) has not been executed against a dedicated staging environment. The `PydanticUndefinedAnnotation` error from the previous attempt (2026-03-24) is resolved. A clean staging run is scheduled.
+- ~~**Lighthouse performance baseline**~~ — **Resolved (2026-04-01).** All views score 0.92-0.94, FCP 2.4-2.5s, LCP 2.6-2.9s. All metrics within budget thresholds. See [docs/dashboard-performance.md](dashboard-performance.md).
+- ~~**SQLite in production**~~ — **Resolved (2026-04-01).** `api/core/config.py` now rejects SQLite when `ENV=production` or `ENV=staging`, requiring a PostgreSQL `DATABASE_URL`.
+- ~~**Backup and DR documentation**~~ — **Resolved (2026-04-01).** See [docs/backup-restore.md](backup-restore.md).
+- ~~**Incident response runbook**~~ — **Resolved (2026-04-01).** See [docs/incident-response.md](incident-response.md).
 - **G3 tenant / admin dashboard UX** — Tenant switcher is still Roadmap. Approval flow UI and allow-list management UI have shipped as of 2026-04-01 (see [docs/product-status.md](product-status.md)). Policy change history / diff view is also now Available.
-- **Agent key rotation** — Tracked as deferred post-sprint/remediation-1. API key rotation for user keys is available; per-agent key rotation lifecycle is not yet implemented.
+- ~~**Agent key rotation**~~ — **Resolved (2026-04).** Tenant-level rotation via `POST /api/agent/key/rotate` and per-endpoint rotation via `POST /api/endpoints/{id}/key/rotate`. Automatic re-auth without agent restart is planned.
 
 ---
 

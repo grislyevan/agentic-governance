@@ -56,6 +56,9 @@ docker/default-agent-packages/*
 # Claude Code IDE config
 .claude/
 
+# Interface Design system memory (local Claude working file, per-machine)
+.interface-design/
+
 # Pytest cache
 .pytest_cache/
 

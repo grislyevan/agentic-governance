@@ -10,7 +10,15 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Header,
+    HTTPException,
+    Request,
+    status,
+)
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -36,6 +44,7 @@ router = APIRouter(prefix="/enforcement", tags=["enforcement"])
 
 
 # -- Schemas ----------------------------------------------------------------
+
 
 class AllowListEntryResponse(BaseModel):
     id: str
@@ -79,6 +88,7 @@ class AllowListResponse(BaseModel):
 
 # -- Allow-list endpoints --------------------------------------------------
 
+
 @router.get("/allow-list", response_model=AllowListResponse)
 @limiter.limit("60/minute")
 def list_allow_list(
@@ -94,9 +104,11 @@ def list_allow_list(
     tenant_id = auth.tenant_id
     entries = (
         db.query(AllowListEntry)
+        # Strict tenant scope on reads: allow-list entries are tenant-private.
         .filter(AllowListEntry.tenant_id == tenant_id)
         .filter(
-            (AllowListEntry.expires_at == None) | (AllowListEntry.expires_at > datetime.now(timezone.utc))  # noqa: E711
+            (AllowListEntry.expires_at == None)
+            | (AllowListEntry.expires_at > datetime.now(timezone.utc))  # noqa: E711
         )
         .order_by(AllowListEntry.created_at.desc())
         .all()
@@ -219,10 +231,14 @@ def delete_allow_list_entry(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
 
-    entry = db.query(AllowListEntry).filter(
-        AllowListEntry.id == entry_id,
-        AllowListEntry.tenant_id == auth.tenant_id,
-    ).first()
+    entry = (
+        db.query(AllowListEntry)
+        .filter(
+            AllowListEntry.id == entry_id,
+            AllowListEntry.tenant_id == auth.tenant_id,
+        )
+        .first()
+    )
     if not entry:
         raise HTTPException(status_code=404, detail="Allow-list entry not found")
 
@@ -266,10 +282,14 @@ def patch_allow_list_entry(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
 
-    entry = db.query(AllowListEntry).filter(
-        AllowListEntry.id == entry_id,
-        strict_tenant_filter(auth, AllowListEntry),
-    ).first()
+    entry = (
+        db.query(AllowListEntry)
+        .filter(
+            AllowListEntry.id == entry_id,
+            strict_tenant_filter(auth, AllowListEntry),
+        )
+        .first()
+    )
     if not entry:
         raise HTTPException(status_code=404, detail="Allow-list entry not found")
 

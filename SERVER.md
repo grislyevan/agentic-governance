@@ -42,7 +42,7 @@ Agents can connect via either transport (or both over time with **auto**):
 | **Scale** | 1-10 endpoints (ideal for on-prem, small teams) | 10-1000+ endpoints |
 | **Concurrency** | WAL mode handles moderate concurrent writes | Full MVCC concurrency |
 | **Data location** | `C:\ProgramData\Detec\detec.db` (Windows), `~/Library/Application Support/Detec/detec.db` (macOS), `~/.local/share/detec/detec.db` (Linux) | Server-managed |
-| **Backup** | Copy the `.db` file | `pg_dump` |
+| **Backup** | Copy the `.db` file | `pg_dump` (see [docs/backup-restore.md](docs/backup-restore.md)) |
 
 To use PostgreSQL instead of SQLite, set `DATABASE_URL` to a PostgreSQL connection string (e.g., `postgresql://user:pass@host:5432/agentic_governance`).
 
@@ -633,6 +633,49 @@ On first run the API creates a seed admin user and tenant. It prints the admin e
 | `GATEWAY_TLS_KEY` | _(none)_ | Path to the PEM private key file for TLS. In `production`/`staging`, this is required when the gateway is enabled. |
 
 When enabled, the gateway listens for persistent agent connections using the Detec wire protocol (length-prefixed msgpack frames). Gateway auth accepts **tenant agent keys only** (user API keys are rejected). In `production`/`staging`, startup fails if the gateway is enabled without both `GATEWAY_TLS_CERT` and `GATEWAY_TLS_KEY`. See [DEPLOY.md](DEPLOY.md) for agent-side configuration.
+
+#### Gateway TLS setup
+
+The TCP gateway (port 8001) is **not** behind the Caddy reverse proxy — it requires its own TLS certificate. In `production`/`staging`, startup will fail with a `RuntimeError` if TLS is not configured (enforced by `require_gateway_tls_for_production()` in `api/core/server_config.py`).
+
+**Option 1: Self-signed certificate (testing / internal)**
+
+```bash
+# Generate a self-signed cert (valid 365 days)
+openssl req -x509 -newkey rsa:2048 -keyout gateway.key -out gateway.crt \
+  -days 365 -nodes -subj "/CN=detec-gateway"
+```
+
+```dotenv
+GATEWAY_TLS_CERT=/path/to/gateway.crt
+GATEWAY_TLS_KEY=/path/to/gateway.key
+```
+
+**Option 2: Let's Encrypt / cert-manager (production)**
+
+Use your existing certificate provisioning pipeline. The gateway accepts standard PEM-encoded certificate and key files. For Docker Compose, mount them as a volume:
+
+```yaml
+# In docker-compose.prod.yml, under the api service:
+volumes:
+  - ./certs/gateway.crt:/etc/detec/gateway.crt:ro
+  - ./certs/gateway.key:/etc/detec/gateway.key:ro
+environment:
+  GATEWAY_TLS_CERT: /etc/detec/gateway.crt
+  GATEWAY_TLS_KEY: /etc/detec/gateway.key
+```
+
+For Kubernetes, use a TLS Secret and mount it in the Deployment spec.
+
+**Option 3: Disable the gateway**
+
+If you only use HTTP transport (agents connect to port 8000), disable the gateway entirely:
+
+```dotenv
+GATEWAY_ENABLED=false
+```
+
+The TLS requirement enforcement is enforced by `api/core/server_config.py:require_gateway_tls_for_production()`, which is called at startup and when server settings are changed at runtime. The gateway enforces TLS 1.2 as the minimum protocol version.
 
 ### EDR integration
 

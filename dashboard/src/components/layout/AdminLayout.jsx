@@ -4,8 +4,6 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const onUsers = location.pathname === '/admin' || location.pathname === '/admin/';
-  const onPlaybooks = location.pathname === '/playbooks';
-  const onProfiles = location.pathname === '/endpoint-profiles';
   const onSso = location.pathname === '/admin/sso';
   const onServer = location.pathname === '/admin/server';
 
@@ -24,22 +22,6 @@ export default function AdminLayout() {
             className={tabCls(onUsers)}
           >
             Users
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate('/playbooks')}
-            aria-current={onPlaybooks ? 'page' : undefined}
-            className={tabCls(onPlaybooks)}
-          >
-            Playbooks
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate('/endpoint-profiles')}
-            aria-current={onProfiles ? 'page' : undefined}
-            className={tabCls(onProfiles)}
-          >
-            Endpoint Profiles
           </button>
           <button
             type="button"

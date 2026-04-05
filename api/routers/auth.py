@@ -32,6 +32,7 @@ from core.auth import (
     verify_password,
 )
 from core.audit_logger import record as audit_record
+from core.config import settings
 from core.database import get_db
 from models.auth_token import AuthToken, hash_token
 from models.tenant import Tenant
@@ -57,12 +58,17 @@ def _get_current_user(token: str, db: Session) -> User:
     payload = is_valid_token(token)
     if not payload:
         logger.warning("Token validation failed (invalid or expired)")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        )
     user = db.query(User).filter(User.id == payload["sub"]).first()
     if not user or not user.is_active:
         # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.warning("Token valid but user %s not found or inactive", payload["sub"])
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or inactive",
+        )
     return user
 
 
@@ -71,13 +77,29 @@ def _slugify(name: str) -> str:
     return slug[:64] or "tenant"
 
 
-@router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED
+)
 @limiter.limit("3/minute")
-def register(request: Request, body: RegisterRequest, db: Session = Depends(get_db)) -> RegisterResponse:
-    existing = db.query(User).filter(sa_func.lower(User.email) == body.email.lower()).first()
+def register(
+    request: Request, body: RegisterRequest, db: Session = Depends(get_db)
+) -> RegisterResponse:
+    if not settings.allow_registration:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Registration is disabled",
+        )
+    existing = (
+        db.query(User).filter(sa_func.lower(User.email) == body.email.lower()).first()
+    )
     if existing:
-        logger.warning("Registration attempt with existing email (domain: %s)", body.email.split("@")[-1] if "@" in body.email else "unknown")
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+        logger.warning(
+            "Registration attempt with existing email (domain: %s)",
+            body.email.split("@")[-1] if "@" in body.email else "unknown",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
+        )
 
     tenant_name = (body.tenant_name or body.email.split("@")[0]).strip() or "My Org"
     slug = _slugify(tenant_name)
@@ -103,14 +125,6 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
     )
     db.add(user)
     db.flush()
-
-    from models.tenant_membership import TenantMembership
-    db.add(TenantMembership(
-        id=str(uuid.uuid4()),
-        user_id=user.id,
-        tenant_id=tenant.id,
-        role="owner",
-    ))
 
     audit_record(
         db,
@@ -144,8 +158,12 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
 
 @router.post("/login", response_model=LoginResponse)
 @limiter.limit("5/minute")
-def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
-    user = db.query(User).filter(sa_func.lower(User.email) == body.email.lower()).first()
+def login(
+    request: Request, body: LoginRequest, db: Session = Depends(get_db)
+) -> LoginResponse:
+    user = (
+        db.query(User).filter(sa_func.lower(User.email) == body.email.lower()).first()
+    )
     if user and user.auth_provider != "local":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -161,19 +179,31 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)) -
         )
 
     if not user or not verify_password(body.password, user.hashed_password):
-        masked = body.email.split("@")[0][:2] + "***@" + body.email.split("@")[-1] if "@" in body.email else "***"
+        masked = (
+            body.email.split("@")[0][:2] + "***@" + body.email.split("@")[-1]
+            if "@" in body.email
+            else "***"
+        )
         logger.warning("Failed login attempt for %s", masked)
         # Increment failed attempt counter when user exists
         if user:
             user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
             if user.failed_login_attempts >= 5:
                 user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
-                logger.warning("Account %s locked after %d failed attempts", user.id, user.failed_login_attempts)
+                logger.warning(
+                    "Account %s locked after %d failed attempts",
+                    user.id,
+                    user.failed_login_attempts,
+                )
             db.commit()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+        )
     if not user.is_active:
         logger.warning("Login attempt for disabled account %s", body.email)
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled"
+        )
 
     # Reset lockout state on successful login
     user.failed_login_attempts = 0
@@ -222,11 +252,21 @@ def forgot_password(
     """
     from core.config import settings as _settings
 
-    user = db.query(User).filter(sa_func.lower(User.email) == body.email.lower(), User.is_active.is_(True)).first()
+    user = (
+        db.query(User)
+        .filter(
+            sa_func.lower(User.email) == body.email.lower(), User.is_active.is_(True)
+        )
+        .first()
+    )
     if not user:
-        return PasswordResetResponse(message="If that email is registered, a reset link has been created.")
+        return PasswordResetResponse(
+            message="If that email is registered, a reset link has been created."
+        )
     if user.auth_provider != "local":
-        return PasswordResetResponse(message="If that email is registered, a reset link has been created.")
+        return PasswordResetResponse(
+            message="If that email is registered, a reset link has been created."
+        )
 
     db.query(AuthToken).filter(
         AuthToken.user_id == user.id,
@@ -250,10 +290,15 @@ def forgot_password(
 
     if _settings.smtp_configured:
         # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
-        logger.info("Password reset token created for %s (email delivery pending)", body.email)
+        logger.info(
+            "Password reset token created for %s (email delivery pending)", body.email
+        )
     else:
         # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
-        logger.debug("Password reset token created for %s (no SMTP); token not logged", body.email)
+        logger.debug(
+            "Password reset token created for %s (no SMTP); token not logged",
+            body.email,
+        )
 
     return PasswordResetResponse(
         message="If that email is registered, a reset link has been created.",
@@ -269,10 +314,14 @@ def reset_password(
 ) -> PasswordResetResponse:
     """Reset password using a valid reset token."""
     token_hash = hash_token(body.token)
-    token_obj = db.query(AuthToken).filter(
-        AuthToken.token_hash == token_hash,
-        AuthToken.purpose == "reset",
-    ).first()
+    token_obj = (
+        db.query(AuthToken)
+        .filter(
+            AuthToken.token_hash == token_hash,
+            AuthToken.purpose == "reset",
+        )
+        .first()
+    )
 
     if not token_obj or not token_obj.is_valid:
         raise HTTPException(
@@ -314,10 +363,14 @@ def accept_invite(
 ) -> PasswordResetResponse:
     """Accept an invite and set a password for the new user account."""
     token_hash = hash_token(body.token)
-    token_obj = db.query(AuthToken).filter(
-        AuthToken.token_hash == token_hash,
-        AuthToken.purpose == "invite",
-    ).first()
+    token_obj = (
+        db.query(AuthToken)
+        .filter(
+            AuthToken.token_hash == token_hash,
+            AuthToken.purpose == "invite",
+        )
+        .first()
+    )
 
     if not token_obj or not token_obj.is_valid:
         raise HTTPException(
@@ -352,28 +405,45 @@ def accept_invite(
 
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit("10/minute")
-def refresh_token(request: Request, body: RefreshRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def refresh_token(
+    request: Request, body: RefreshRequest, db: Session = Depends(get_db)
+) -> TokenResponse:
     refresh_tok = body.refresh_token or request.cookies.get(COOKIE_REFRESH)
     if not refresh_tok:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token required"
+        )
     payload = is_valid_token(refresh_tok, token_type="refresh")
     if not payload:
         logger.warning("Invalid refresh token submitted")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+        )
 
     user = db.query(User).filter(User.id == payload["sub"]).first()
     if not user or not user.is_active:
         # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
-        logger.warning("Refresh token valid but user %s not found or inactive", payload["sub"])
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        logger.warning(
+            "Refresh token valid but user %s not found or inactive", payload["sub"]
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
 
     if user.refresh_jti and payload.get("jti") != user.refresh_jti:
         # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
-        logger.warning("Refresh token reuse detected for user %s (expected jti=%s, got=%s)",
-                        user.id, user.refresh_jti, payload.get("jti"))
+        logger.warning(
+            "Refresh token reuse detected for user %s (expected jti=%s, got=%s)",
+            user.id,
+            user.refresh_jti,
+            payload.get("jti"),
+        )
         user.refresh_jti = None
         db.commit()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token already used")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token already used",
+        )
 
     new_refresh_tok, refresh_jti = create_refresh_token(user.id, user.tenant_id)
     user.refresh_jti = refresh_jti
@@ -387,7 +457,9 @@ def refresh_token(request: Request, body: RefreshRequest, db: Session = Depends(
         ).model_dump(),
     )
     resp.set_cookie(key=COOKIE_ACCESS, value=access_token, **cookie_options_access())
-    resp.set_cookie(key=COOKIE_REFRESH, value=new_refresh_tok, **cookie_options_refresh())
+    resp.set_cookie(
+        key=COOKIE_REFRESH, value=new_refresh_tok, **cookie_options_refresh()
+    )
     return resp
 
 
@@ -407,6 +479,7 @@ def get_me(
     db: Session = Depends(get_db),
 ) -> UserResponse:
     from core.auth_cookies import get_authorization
+
     authorization = get_authorization(request)
     user = None
     if authorization and authorization.startswith("Bearer "):
@@ -415,6 +488,7 @@ def get_me(
 
     if not user and x_api_key:
         from models.user import verify_api_key, API_KEY_PREFIX_LEN
+
         prefix = x_api_key[:API_KEY_PREFIX_LEN]
         candidates = (
             db.query(User)
@@ -422,19 +496,24 @@ def get_me(
             .all()
         )
         for candidate in candidates:
-            if candidate.api_key_hash and verify_api_key(x_api_key, candidate.api_key_hash):
+            if candidate.api_key_hash and verify_api_key(
+                x_api_key, candidate.api_key_hash
+            ):
                 user = candidate
                 break
 
     if not user:
         logger.warning("GET /auth/me called without valid credentials")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+        )
 
     resp = UserResponse.model_validate(user)
 
     active_tenant_id = user.tenant_id
     if authorization and authorization.startswith("Bearer "):
         from core.auth import is_valid_token as _check_token
+
         payload = _check_token(authorization.removeprefix("Bearer ").strip())
         if payload and "tenant_id" in payload:
             active_tenant_id = payload["tenant_id"]
@@ -461,6 +540,7 @@ class SsoCallbackRequest(BaseModel):
 def sso_status() -> dict:
     """Return whether SSO is configured. Used by the dashboard to show/hide the SSO button."""
     from core.config import settings
+
     out: dict = {"configured": settings.oidc_configured}
     if settings.oidc_configured and settings.oidc_issuer:
         out["issuer"] = settings.oidc_issuer
@@ -487,7 +567,9 @@ def sso_login(request: Request) -> RedirectResponse:
     from authlib.integrations.httpx_client import AsyncOAuth2Client
     from authlib.common.security import generate_token
 
-    discovery_url = settings.oidc_issuer.rstrip("/") + "/.well-known/openid-configuration"
+    discovery_url = (
+        settings.oidc_issuer.rstrip("/") + "/.well-known/openid-configuration"
+    )
     with httpx.Client() as client:
         resp = client.get(discovery_url)
         resp.raise_for_status()
@@ -555,7 +637,13 @@ def sso_callback(
             audience="sso-state",
         )
         nonce = payload.get("nonce")
-    except (pyjwt.ExpiredSignatureError, pyjwt.InvalidTokenError, pyjwt.DecodeError, ValueError, KeyError) as exc:
+    except (
+        pyjwt.ExpiredSignatureError,
+        pyjwt.InvalidTokenError,
+        pyjwt.DecodeError,
+        ValueError,
+        KeyError,
+    ) as exc:
         logger.warning("SSO callback: invalid or expired state: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -568,7 +656,9 @@ def sso_callback(
             detail="Invalid or expired state. Please try signing in again.",
         )
 
-    discovery_url = settings.oidc_issuer.rstrip("/") + "/.well-known/openid-configuration"
+    discovery_url = (
+        settings.oidc_issuer.rstrip("/") + "/.well-known/openid-configuration"
+    )
     with httpx.Client() as client:
         resp = client.get(discovery_url)
         resp.raise_for_status()
@@ -583,9 +673,7 @@ def sso_callback(
 
     from urllib.parse import urlencode
 
-    auth_response = (
-        f"{settings.oidc_redirect_uri}?{urlencode({'code': body.code, 'state': body.state})}"
-    )
+    auth_response = f"{settings.oidc_redirect_uri}?{urlencode({'code': body.code, 'state': body.state})}"
     oauth_client = OAuth2Client(
         client_id=settings.oidc_client_id,
         client_secret=settings.oidc_client_secret,
@@ -630,7 +718,13 @@ def sso_callback(
         )
         if decoded.get("nonce") != nonce:
             raise ValueError("nonce mismatch")
-    except (pyjwt.ExpiredSignatureError, pyjwt.InvalidTokenError, pyjwt.DecodeError, ValueError, KeyError) as e:
+    except (
+        pyjwt.ExpiredSignatureError,
+        pyjwt.InvalidTokenError,
+        pyjwt.DecodeError,
+        ValueError,
+        KeyError,
+    ) as e:
         # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.warning("SSO callback: ID token validation failed: %s", e)
         raise HTTPException(

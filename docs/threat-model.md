@@ -125,7 +125,7 @@ References: [api/core/auth.py](../api/core/auth.py), [api/core/tenant.py](../api
 - **Scenario:** Attacker obtains a tenant agent key or a user API key (e.g. from a stolen config or endpoint).
 - **Capabilities:** Ingest events (including malicious or misleading payloads within validation limits), receive posture updates, trigger playbook actions (webhook, audit, enforcement) in that tenant.
 - **Existing mitigations:** Tenant isolation (attacker cannot read or write other tenants’ data); rate limits on event ingest (120/min HTTP; gateway has connection and idle limits); audit log for actions; event payload validation limits impact of malicious payloads.
-- **Gaps to consider:** No automatic key rotation or revocation for agent key (tenant-level); user API key revocation requires user deactivation or key rotation. Documented in mitigation table below.
+- **Gaps to consider:** Manual key rotation available via API (`POST /api/agent/key/rotate`, `POST /api/endpoints/{id}/key/rotate`); automatic rotation not yet implemented. User API key revocation requires user deactivation or key rotation. Documented in mitigation table below.
 
 ### 4.2 API Key Compromised
 
@@ -155,7 +155,7 @@ References: [api/core/auth.py](../api/core/auth.py), [api/core/tenant.py](../api
 | 10 | Collector | Config tampering | Medium | Invalid/non-dict JSON → empty; private keys stripped | None | [collector/tests/test_agent_security.py](../collector/tests/test_agent_security.py) |
 | 11 | Collector | Credential disclosure (TLS) | High | HTTPS emitter uses SSL context | Plaintext TCP gateway optional (deployer choice) | [collector/tests/test_agent_security.py](../collector/tests/test_agent_security.py) |
 | 12 | Playbook/orchestrator | Malicious event driving actions | Medium | Event validation; tenant-scoped execution | Playbook definitions are tenant-scoped; only default playbooks run in code today | [api/core/response_orchestrator.py](../api/core/response_orchestrator.py) |
-| 13 | All | Agent/key compromise | High | Tenant isolation; rate limits; audit | Agent key rotation and revocation process is manual | [docs/rollback.md](../docs/rollback.md), operations |
+| 13 | All | Agent/key compromise | High | Tenant isolation; rate limits; audit | Manual rotation via API; automatic rotation planned | [docs/rollback.md](../docs/rollback.md), operations |
 
 ---
 

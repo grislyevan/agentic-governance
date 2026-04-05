@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchWebhooks, fetchWebhookTemplates, createWebhook, createWebhookFromTemplate, updateWebhook, deleteWebhook, testWebhook, downloadAgent, fetchAllowList, addAllowListEntry, deleteAllowListEntry, updateTenantPosture, fetchPostureSummary, fetchDisabledServices, restoreServices } from '../lib/api';
+import { fetchWebhooks, fetchWebhookTemplates, createWebhook, createWebhookFromTemplate, updateWebhook, deleteWebhook, testWebhook, fetchAllowList, addAllowListEntry, deleteAllowListEntry, updateTenantPosture, fetchPostureSummary, fetchDisabledServices, restoreServices } from '../lib/api';
 import useAuth from '../hooks/useAuth';
 
 const EVENT_TYPES = [
@@ -21,7 +21,7 @@ export default function SettingsPage() {
       <h1 className="text-xl sm:text-2xl font-bold text-detec-ink-primary">Settings</h1>
 
       <div className="max-w-2xl space-y-6 w-full">
-        {canManageWebhooks && <AgentDownloadSection />}
+
 
         {canManageWebhooks && <WebhooksSection />}
 
@@ -34,49 +34,6 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-function AgentDownloadSection() {
-  const [downloading, setDownloading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handleDownload = async () => {
-    setDownloading(true);
-    setError(null);
-    try {
-      await downloadAgent();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  return (
-    <div className="rounded-detec-md border border-detec-ui-border/50 bg-detec-surface/80 p-5 space-y-4">
-      <h2 className="text-sm font-semibold text-detec-ink-primary uppercase tracking-wider">
-        Agent Installer
-      </h2>
-      <p className="text-xs text-detec-ink-secondary">
-        Download a pre-configured Windows installer. The agent will automatically
-        connect to this server with your tenant credentials.
-      </p>
-      {error && (
-        <div className="rounded-detec-md border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">{error}</div>
-      )}
-      <button
-        onClick={handleDownload}
-        disabled={downloading}
-        className="px-4 py-2 bg-detec-brand hover:bg-detec-brandHover text-white text-sm font-medium rounded-detec-md transition-colors disabled:opacity-50"
-      >
-        {downloading ? 'Preparing...' : 'Download Agent MSI'}
-      </button>
-      <p className="text-xs text-detec-ink-secondary">
-        Install silently: <code className="font-mono">msiexec /i DetecAgent.msi /qn</code>
-      </p>
-    </div>
-  );
-}
-
 
 function WebhooksSection() {
   const [webhooks, setWebhooks] = useState([]);

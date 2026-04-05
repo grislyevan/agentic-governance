@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.demo_session import DEMO_SESSION_ID, get_canned_demo_session
 from core.session_aggregation import (
     DEFAULT_SESSION_GAP_MINUTES,
     aggregate_events_into_sessions,
@@ -28,8 +27,12 @@ router = APIRouter(prefix="/session-reports", tags=["session-reports"])
 @router.get("", response_model=SessionReportListResponse)
 def list_session_reports(
     endpoint_id: str | None = Query(default=None, description="Filter by endpoint"),
-    since: datetime | None = Query(default=None, description="Events after this time (ISO8601)"),
-    before: datetime | None = Query(default=None, description="Events before this time (ISO8601)"),
+    since: datetime | None = Query(
+        default=None, description="Events after this time (ISO8601)"
+    ),
+    before: datetime | None = Query(
+        default=None, description="Events before this time (ISO8601)"
+    ),
     limit: int = Query(default=50, ge=1, le=500),
     db: Session = Depends(get_db),
     authorization: str | None = Depends(get_authorization),
@@ -50,7 +53,12 @@ def list_session_reports(
         observed_after, observed_before = default_session_lookback_window()
 
     events = fetch_events_for_sessions(
-        db, tenant_filter, endpoint_id=endpoint_id, observed_after=observed_after, observed_before=observed_before, limit=limit
+        db,
+        tenant_filter,
+        endpoint_id=endpoint_id,
+        observed_after=observed_after,
+        observed_before=observed_before,
+        limit=limit,
     )
     reports = aggregate_events_into_sessions(
         events,
@@ -74,8 +82,6 @@ def get_session_report(
     SESSION_REPORT_BY_ID_EVENT_LIMIT or longer SESSION_LOOKBACK_DAYS.
     """
     auth = resolve_auth(authorization, x_api_key, db)
-    if session_id == DEMO_SESSION_ID:
-        return get_canned_demo_session()
     tenant_filter = get_tenant_filter(auth, Event)
     report = get_session_report_by_id(db, tenant_filter, session_id)
     if report is None:

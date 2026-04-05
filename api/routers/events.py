@@ -31,9 +31,6 @@ from core.database import engine
 from core.metrics import (
     detec_events_ingested_total,
     detec_http_webhook_errors_total,
-    detec_playbook_runs_total,
-    detec_playbook_run_outcomes_total,
-    detec_playbook_run_latency_seconds,
     detec_beh009_hits_total,
     detec_beh009_chain_kind_total,
     detec_agent_avg_scan_ms,
@@ -567,60 +564,7 @@ def ingest_event(
             event_payload,
         )
 
-    # Run response playbooks as a background task after ingest.
-    # Previously run_playbooks() had no call sites and playbook automation
-    # was non-operational. Wired here to match documented product behavior.
-    background_tasks.add_task(
-        _run_playbooks_background,
-        tenant_id,
-        endpoint_id,
-        event_payload,
-    )
-
     return EventResponse.model_validate(event)
-
-
-def _run_playbooks_background(
-    tenant_id: str,
-    endpoint_id: str | None,
-    event_payload: dict[str, Any],
-) -> None:
-    """Background task: run tenant playbooks against the ingested event."""
-    detec_playbook_runs_total.inc()
-    started = datetime.now(timezone.utc)
-    try:
-        from core.database import SessionLocal
-        from core.response_orchestrator import run_playbooks
-
-        db = SessionLocal()
-        try:
-            run_playbooks(
-                db,
-                tenant_id=tenant_id,
-                event_payload=event_payload,
-                endpoint_id=endpoint_id,
-            )
-            db.commit()
-            detec_playbook_run_outcomes_total.labels(result="success").inc()
-        except Exception:
-            detec_playbook_run_outcomes_total.labels(result="failure").inc()
-            logger.exception(
-                "Playbook execution failed for event %s",
-                event_payload.get("event_id"),
-            )
-        finally:
-            db.close()
-    except ImportError:
-        detec_playbook_run_outcomes_total.labels(result="failure").inc()
-        logger.warning(
-            "Playbook background task setup failed: missing import", exc_info=True
-        )
-    except Exception:
-        detec_playbook_run_outcomes_total.labels(result="failure").inc()
-        logger.exception("Playbook background task setup failed")
-    finally:
-        elapsed = (datetime.now(timezone.utc) - started).total_seconds()
-        detec_playbook_run_latency_seconds.observe(max(0.0, elapsed))
 
 
 class PurgeRequest(BaseModel):

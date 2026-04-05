@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import useAuth from './useAuth';
-import { fetchTenants } from '../lib/api';
+import { fetchMyTenants } from '../lib/api';
 
 /**
  * Fetches the list of tenants the authenticated user belongs to.
@@ -19,7 +19,7 @@ export default function useTenants() {
     setLoading(true);
     setError(null);
 
-    fetchTenants()
+    fetchMyTenants()
       .then((data) => {
         if (!cancelled) {
           setTenants(data?.items ?? []);

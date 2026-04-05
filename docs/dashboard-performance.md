@@ -22,17 +22,17 @@
 
 ## Lighthouse Baseline
 
-> **Note:** Baseline captured via `scripts/lighthouse/run.sh` in CI (headless Chrome). Run locally with `bash scripts/lighthouse/run.sh /tmp/lh-results` to update.
->
-> *Initial capture pending first CI run. Values below are thresholds; actual measurements will replace these after the first successful CI run.*
+> **Note:** Baseline captured via `scripts/lighthouse/run.sh` (headless Chrome). Run locally with `bash scripts/lighthouse/run.sh /tmp/lh-results` to update.
 
 | View        | Score  | FCP    | LCP    |
 |-------------|--------|--------|--------|
-| /dashboard  | TBD    | TBD    | TBD    |
-| /events     | TBD    | TBD    | TBD    |
-| /sessions   | TBD    | TBD    | TBD    |
-| /approvals  | TBD    | TBD    | TBD    |
-| /exceptions | TBD    | TBD    | TBD    |
+| /dashboard  | 0.92   | 2.5 s  | 2.9 s  |
+| /events     | 0.92   | 2.4 s  | 2.9 s  |
+| /sessions   | 0.93   | 2.5 s  | 2.6 s  |
+| /approvals  | 0.94   | 2.4 s  | 2.6 s  |
+| /exceptions | 0.92   | 2.5 s  | 2.9 s  |
+
+*Baseline captured 2026-04-01, macOS ARM64, Chrome headless, Lighthouse 12.8.2. Build size: index 415.84 KB (87.31 KB gzip), CSS 55.95 KB (9.73 KB gzip). All scores above budget thresholds.*
 
 ## Budget Thresholds
 

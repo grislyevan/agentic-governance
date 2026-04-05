@@ -29,27 +29,17 @@ from core.database import SessionLocal
 from models.event import Event
 
 from routers import (
-    agent_builds,
-    agent_download,
     allow_list,
     approvals,
     audit,
     auth,
-    billing,
-    data_flow,
-    demo,
-    endpoint_profiles,
     endpoints,
     enforcement,
     events,
     policies,
     posture,
-    reports,
-    response_playbooks,
-    retention,
     server_settings,
     session_reports,
-    tenants,
     users,
     webhooks,
 )
@@ -77,7 +67,9 @@ def _apply_security_headers(response: Response) -> None:
     response.headers["X-XSS-Protection"] = "1; mode=block"
     env = os.getenv("ENV", "development").lower()
     if env in ("production", "staging"):
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; "
@@ -108,6 +100,7 @@ def _health_check_gateway(request: Request) -> tuple[bool, str]:
 def _health_last_event_at() -> str | None:
     try:
         from sqlalchemy import desc
+
         db = SessionLocal()
         try:
             row = (
@@ -117,7 +110,9 @@ def _health_last_event_at() -> str | None:
                 .first()
             )
             if row:
-                return row[0].isoformat() if hasattr(row[0], "isoformat") else str(row[0])
+                return (
+                    row[0].isoformat() if hasattr(row[0], "isoformat") else str(row[0])
+                )
         finally:
             db.close()
     except Exception:
@@ -140,7 +135,9 @@ def create_app(lifespan_context_manager):
     )
     app.state.limiter = limiter
 
-    async def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    async def _rate_limit_handler(
+        request: Request, exc: RateLimitExceeded
+    ) -> JSONResponse:
         r = JSONResponse(
             status_code=429,
             content={"detail": "Too many requests. Please try again later."},
@@ -151,7 +148,9 @@ def create_app(lifespan_context_manager):
     app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
 
     @app.exception_handler(Exception)
-    async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    async def _unhandled_exception_handler(
+        request: Request, exc: Exception
+    ) -> JSONResponse:
         logger.exception("Unhandled error on %s %s", request.method, request.url.path)
         r = JSONResponse(
             status_code=500,
@@ -182,28 +181,40 @@ def create_app(lifespan_context_manager):
             response = await call_next(request)
             status = response.status_code
             duration_ms = (time.perf_counter() - start) * 1000
-            http_requests_total.labels(method=method, path=path, status=str(status)).inc()
+            http_requests_total.labels(
+                method=method, path=path, status=str(status)
+            ).inc()
             http_request_duration_seconds.labels(method=method, path=path).observe(
                 duration_ms / 1000.0
             )
             if path not in SKIP_LOG_PATHS:
                 logger.info(
                     "%s %s %s %d %.2fms",
-                    method, path, client_ip, status, duration_ms,
+                    method,
+                    path,
+                    client_ip,
+                    status,
+                    duration_ms,
                     extra={"request_id": request_id},
                 )
             request_id_var.reset(token)
             return response
         except Exception:
             duration_ms = (time.perf_counter() - start) * 1000
-            http_requests_total.labels(method=method, path=path, status=str(status)).inc()
+            http_requests_total.labels(
+                method=method, path=path, status=str(status)
+            ).inc()
             http_request_duration_seconds.labels(method=method, path=path).observe(
                 duration_ms / 1000.0
             )
             if path not in SKIP_LOG_PATHS:
                 logger.info(
                     "%s %s %s %d %.2fms",
-                    method, path, client_ip, status, duration_ms,
+                    method,
+                    path,
+                    client_ip,
+                    status,
+                    duration_ms,
                     extra={"request_id": request_id},
                 )
             request_id_var.reset(token)
@@ -215,36 +226,25 @@ def create_app(lifespan_context_manager):
         _apply_security_headers(response)
         return response
 
-    app.include_router(agent_builds.router, prefix=API_PREFIX)
-    app.include_router(agent_download.router, prefix=API_PREFIX)
     app.include_router(approvals.router, prefix=API_PREFIX)
     app.include_router(auth.router, prefix=API_PREFIX)
     app.include_router(audit.router, prefix=API_PREFIX)
     app.include_router(events.router, prefix=API_PREFIX)
-    app.include_router(retention.router, prefix=API_PREFIX)
     app.include_router(endpoints.router, prefix=API_PREFIX)
-    app.include_router(endpoint_profiles.router, prefix=API_PREFIX)
     app.include_router(policies.router, prefix=API_PREFIX)
     app.include_router(users.router, prefix=API_PREFIX)
     app.include_router(webhooks.router, prefix=API_PREFIX)
     app.include_router(enforcement.router, prefix=API_PREFIX)
     app.include_router(posture.router, prefix=API_PREFIX)
     app.include_router(allow_list.router, prefix=API_PREFIX)
-    app.include_router(billing.router, prefix=API_PREFIX)
-    app.include_router(reports.router, prefix=API_PREFIX)
     app.include_router(session_reports.router, prefix=API_PREFIX)
-    app.include_router(response_playbooks.router, prefix=API_PREFIX)
     app.include_router(server_settings.router, prefix=API_PREFIX)
-    app.include_router(data_flow.router, prefix=API_PREFIX)
-    app.include_router(tenants.router, prefix=API_PREFIX)
-    app.include_router(demo.router, prefix=API_PREFIX)
 
     @app.get("/metrics", tags=["meta"], include_in_schema=False)
     def metrics(request: Request) -> Response:
-        metrics_token = os.environ.get("METRICS_TOKEN")
-        if metrics_token:
+        if settings.metrics_token:
             auth_header = request.headers.get("Authorization", "")
-            if auth_header != f"Bearer {metrics_token}":
+            if auth_header != f"Bearer {settings.metrics_token}":
                 return Response(status_code=403)
         return Response(
             content=get_metrics(),
@@ -307,7 +307,11 @@ def create_app(lifespan_context_manager):
         )
 
     if _dashboard_dist.is_dir():
-        app.mount("/assets", StaticFiles(directory=_dashboard_dist / "assets"), name="dashboard-assets")
+        app.mount(
+            "/assets",
+            StaticFiles(directory=_dashboard_dist / "assets"),
+            name="dashboard-assets",
+        )
 
         @app.get("/{full_path:path}", include_in_schema=False)
         async def _serve_spa(full_path: str) -> FileResponse:

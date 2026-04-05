@@ -15,8 +15,6 @@ import SessionsPage from './pages/SessionsPage';
 import SessionDetailPage from './pages/SessionDetailPage';
 import PoliciesPage from './pages/PoliciesPage';
 import PolicyStudioPage from './pages/PolicyStudioPage';
-import PlaybooksPage from './pages/PlaybooksPage';
-import EndpointProfilesPage from './pages/EndpointProfilesPage';
 import EndpointsPageWrapper from './pages/EndpointsPageWrapper';
 import AuditLogPage from './pages/AuditLogPage';
 import ApprovalsPage from './pages/ApprovalsPage';
@@ -24,11 +22,6 @@ import AdminPage from './pages/AdminPage';
 import AdminSsoPage from './pages/AdminSsoPage';
 import AdminServerPage from './pages/AdminServerPage';
 import SettingsPage from './pages/SettingsPage';
-import BillingPage from './pages/BillingPage';
-import OrgPage from './pages/OrgPage';
-import OrgSettingsPage from './pages/OrgSettingsPage';
-import MembersPage from './pages/MembersPage';
-import DemoBanner from './components/layout/DemoBanner';
 import ExceptionsPage from './pages/ExceptionsPage';
 import BehaviorsPage from './pages/BehaviorsPage';
 
@@ -41,10 +34,10 @@ function resolveActivePage(pathname) {
   if (pathname.startsWith('/detections') || pathname.startsWith('/events') || pathname.startsWith('/sessions')) return 'detections';
   if (pathname.startsWith('/policies')) return 'policies';
   if (pathname.startsWith('/approvals') || pathname.startsWith('/exceptions')) return 'approvals';
-  if (pathname.startsWith('/endpoints') || pathname.startsWith('/endpoint-profiles')) return 'endpoints';
+  if (pathname.startsWith('/endpoints')) return 'endpoints';
   if (pathname.startsWith('/behaviors')) return 'behaviors';
   if (pathname.startsWith('/audit')) return 'audit';
-  if (pathname.startsWith('/admin') || pathname.startsWith('/playbooks') || pathname.startsWith('/settings') || pathname.startsWith('/billing') || pathname.startsWith('/org') || pathname.startsWith('/members')) return 'admin';
+  if (pathname.startsWith('/admin') || pathname.startsWith('/settings')) return 'admin';
   return 'overview';
 }
 
@@ -128,7 +121,6 @@ export default function App() {
 
       {/* Main content — 56px left margin for icon rail on desktop */}
       <div className="flex flex-col flex-1 min-w-0 lg:ml-14">
-        <DemoBanner />
         <TopBar
           onNavigate={handleNavigate}
           onSearch={setSearchQuery}
@@ -157,9 +149,8 @@ export default function App() {
             <Route path="/approvals" element={<ApprovalsPage {...pageProps} />} />
             <Route path="/exceptions" element={<ExceptionsPage {...pageProps} />} />
 
-            {/* Endpoints + Profiles grouped */}
+            {/* Endpoints */}
             <Route path="/endpoints" element={<EndpointsPageWrapper {...pageProps} />} />
-            <Route path="/endpoint-profiles" element={<EndpointProfilesPage {...pageProps} />} />
 
             {/* Behaviors */}
             <Route path="/behaviors" element={<BehaviorsPage {...pageProps} />} />
@@ -173,14 +164,7 @@ export default function App() {
               <Route path="sso" element={<AdminSsoPage />} />
               <Route path="server" element={<AdminServerPage />} />
             </Route>
-            <Route path="/playbooks" element={<AdminLayout />}>
-              <Route index element={<PlaybooksPage {...pageProps} />} />
-            </Route>
             <Route path="/settings" element={<SettingsPage {...pageProps} />} />
-            <Route path="/billing" element={<BillingPage {...pageProps} />} />
-            <Route path="/org" element={<OrgPage {...pageProps} />} />
-            <Route path="/org-settings" element={<OrgSettingsPage />} />
-            <Route path="/members" element={<MembersPage />} />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

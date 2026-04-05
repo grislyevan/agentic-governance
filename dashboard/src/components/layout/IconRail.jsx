@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import DetecLogo from '../branding/DetecLogo';
-import { fetchBillingStatus, fetchMyTenants, switchTenant } from '../../lib/api';
+import { fetchMyTenants, switchTenant } from '../../lib/api';
 import { storeTokens } from '../../lib/auth';
 import useAuth from '../../hooks/useAuth';
 

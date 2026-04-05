@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchSessionReports, fetchDemoSession } from '../lib/api';
+import { fetchSessionReports } from '../lib/api';
 import ApertureSpinner from '../components/branding/ApertureSpinner';
 
 const VERDICT_COLORS = {
@@ -70,18 +70,7 @@ export default function SessionsPage({ embedded } = {}) {
     setError(null);
     try {
       const data = await fetchSessionReports(undefined, { limit: 100 });
-      const items = data.items || [];
-      if (items.length === 0) {
-        try {
-          const canned = await fetchDemoSession(undefined);
-          if (canned && canned.id) setReports([canned]);
-          else setReports([]);
-        } catch {
-          setReports([]);
-        }
-      } else {
-        setReports(items);
-      }
+      setReports(data.items || []);
     } catch (e) {
       setError(e.message);
     } finally {

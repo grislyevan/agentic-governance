@@ -34,7 +34,7 @@ This document maps Detec's detection and enforcement capabilities to common comp
 
 ## Gaps and evidence notes
 
-1. **Agent key rotation/revocation:** No formal key rotation or revocation workflow for the tenant agent key is implemented. Threat model mitigation #13 documents this; operations must handle rotation manually. Evidence for "logical access" may require runbooks or procedures outside this codebase.
+1. **Agent key rotation/revocation:** Tenant and per-endpoint key rotation is available via `POST /api/agent/key/rotate` and `POST /api/endpoints/{id}/key/rotate`. Automatic scheduled rotation is not yet implemented; operations trigger rotation manually. Evidence for "logical access" may require runbooks or procedures outside this codebase.
 
 2. **Container isolation (ISO-001):** The baseline rule ISO-001 (container isolation for Class C) ships inactive and is advisory until a dedicated implementation exists. Runtime containerization of already-running processes is not implemented. See [api/core/baseline_policies.py](../api/core/baseline_policies.py) and [docs/enforcement-roadmap.md](enforcement-roadmap.md).
 

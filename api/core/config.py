@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     #   verify-full - always SSL, verify CA + hostname match
     # Use 'require' or stricter in production.
     database_sslmode: str = "prefer"
+    # Set to "allow-insecure" to override the production SSL hard-fail
+    # (e.g., for VPC/sidecar proxy topologies with TLS termination at LB).
+    database_ssl_override: str = ""
 
     # Auth
     jwt_secret: str = "dev-secret-change-in-production"
@@ -67,6 +70,12 @@ class Settings(BaseSettings):
     )
     allowed_origins: str = ""
     debug: bool = False
+
+    # Self-registration toggle (set ALLOW_REGISTRATION=false to disable)
+    allow_registration: bool = True
+
+    # Bearer token for /metrics endpoint (open access when empty)
+    metrics_token: str = ""
 
     # Binary protocol gateway
     gateway_enabled: bool = True
@@ -239,13 +248,48 @@ class Settings(BaseSettings):
             )
 
         if env in ("production", "staging"):
-            if self.database_sslmode in ("disable", "allow", "prefer"):
-                logger.warning(
-                    "database_sslmode is '%s' — should be 'require' or stricter "
-                    "(require, verify-ca, verify-full) in %s",
-                    self.database_sslmode,
-                    env,
+            if self.database_url.startswith("sqlite"):
+                raise ValueError(
+                    f"SQLite is not supported in {env}. "
+                    "Set DATABASE_URL to a PostgreSQL connection string "
+                    "(e.g. postgresql://user:pass@host:5432/detec)."
                 )
+
+            # P1b: Reject weak database passwords in production
+            if self.database_url.startswith("postgresql"):
+                try:
+                    from urllib.parse import urlparse
+
+                    _parsed = urlparse(self.database_url)
+                    if _parsed.password and (
+                        _parsed.password in _UNSAFE_DEFAULTS
+                        or len(_parsed.password) < 12
+                    ):
+                        raise ValueError(
+                            f"DATABASE_URL password is too weak for {env}. "
+                            "Use a strong password (12+ characters)."
+                        )
+                except ValueError:
+                    raise
+                except Exception:
+                    pass  # non-standard URL format; skip check
+
+            if self.database_sslmode in ("disable", "allow", "prefer"):
+                if self.database_ssl_override == "allow-insecure":
+                    logger.warning(
+                        "database_sslmode is '%s' in %s — allowed via "
+                        "DATABASE_SSL_OVERRIDE=allow-insecure",
+                        self.database_sslmode,
+                        env,
+                    )
+                else:
+                    raise ValueError(
+                        f"database_sslmode '{self.database_sslmode}' is not "
+                        f"safe for {env}. Use 'require', 'verify-ca', or "
+                        "'verify-full'. Set DATABASE_SSL_OVERRIDE="
+                        "allow-insecure to override (e.g., for VPC/sidecar "
+                        "proxy topologies)."
+                    )
 
             origins = [s.strip() for s in self.allowed_origins.split(",") if s.strip()]
             if not origins:
@@ -262,6 +306,23 @@ class Settings(BaseSettings):
             logger.warning(
                 "CORS_ORIGINS contains '*'. This is unsafe with "
                 "allow_credentials=True and must not be used in production."
+            )
+
+        # P1a: Detect likely-production deployment without explicit ENV
+        if env == "development" and self.jwt_secret not in _UNSAFE_DEFAULTS:
+            if self.api_host == "0.0.0.0":
+                logger.error(
+                    "JWT_SECRET is set to a non-default value but ENV is "
+                    "still 'development'. If this is a real deployment, "
+                    "set ENV=production to enable all production safety "
+                    "checks (SSL, CORS, etc.)."
+                )
+
+        # P2a: Warn when /metrics is open to unauthenticated access
+        if not self.metrics_token:
+            logger.warning(
+                "METRICS_TOKEN is not set — /metrics endpoint is open to "
+                "unauthenticated access. Set METRICS_TOKEN to restrict."
             )
 
         return self
