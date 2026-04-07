@@ -18,10 +18,20 @@ import os
 import secrets
 import sys
 from pathlib import Path
+from typing import Callable
 
 logger = logging.getLogger("detec.agent")
 
 _IS_WINDOWS = sys.platform == "win32"
+
+
+def _lazy_cli(name: str) -> Callable[[argparse.Namespace], None]:
+    def _dispatch(args: argparse.Namespace) -> None:
+        import cli_commands
+
+        getattr(cli_commands, name)(args)
+
+    return _dispatch
 
 
 def _data_dir() -> Path:
@@ -313,12 +323,18 @@ def cmd_session_report(args: argparse.Namespace) -> None:
 
 
 def cmd_run(args: argparse.Namespace) -> None:
-    """Run the agent daemon in the foreground."""
+    """Run the agent daemon in the foreground.
+
+    When --api-url and --api-key are set (or configured), the agent sends
+    events to the central API and receives server-pushed posture/policy.
+    When omitted, the agent runs in local-only mode: scans on interval,
+    writes to NDJSON, enforces local policy, and prints to stderr.
+    """
     _try_extract_installer_config()
     _load_env()
 
     from config_loader import load_collector_config
-    from main import _run_daemon
+    from main import _run_daemon, _run_local_daemon
 
     cfg = load_collector_config()
 
@@ -331,16 +347,11 @@ def cmd_run(args: argparse.Namespace) -> None:
     cfg["verbose"] = args.verbose
     cfg["report_all"] = getattr(args, "report_all", cfg.get("report_all", False))
     cfg["enforce"] = getattr(args, "enforce", False)
+    if getattr(args, "output", None):
+        cfg["output"] = args.output
 
     ns = argparse.Namespace(**cfg)
 
-    if not ns.api_url or not ns.api_key:
-        print(
-            "Error: api_url and api_key are required. "
-            "Run 'detec-agent setup' first, or pass --api-url and --api-key.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
     if ns.interval <= 0:
         ns.interval = 300
 
@@ -349,7 +360,11 @@ def cmd_run(args: argparse.Namespace) -> None:
         format="%(levelname)s %(name)s: %(message)s",
     )
 
-    _run_daemon(ns)
+    if not ns.api_url or not ns.api_key:
+        # Local-only daemon mode — no API needed
+        _run_local_daemon(ns)
+    else:
+        _run_daemon(ns)
 
 
 # -------------------------------------------------------------------
@@ -713,38 +728,9 @@ def cmd_validate_uninstall(args: argparse.Namespace) -> None:
 
 
 def cmd_status(args: argparse.Namespace) -> None:
-    env_file = _env_path()
-    data_dir = _data_dir()
+    from cli_commands import cmd_status as _status
 
-    print(f"Data directory : {data_dir}")
-    print(
-        f"Config file    : {env_file} ({'exists' if env_file.exists() else 'NOT FOUND'})"
-    )
-
-    if env_file.exists():
-        for line in env_file.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if line and not line.startswith("#"):
-                key, _, val = line.partition("=")
-                if "KEY" in key.upper():
-                    val = val[:8] + "..." if len(val) > 8 else val
-                print(f"  {key.strip()} = {val.strip()}")
-
-    if _IS_WINDOWS:
-        import subprocess
-
-        result = subprocess.run(
-            ["schtasks.exe", "/query", "/tn", _TASK_NAME, "/fo", "list"],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode == 0:
-            for line in result.stdout.splitlines():
-                if line.strip().startswith("Status:"):
-                    print(f"Scheduled Task : {line.split(':', 1)[1].strip()}")
-                    break
-        else:
-            print("Scheduled Task : not registered")
+    _status(args)
 
 
 # -------------------------------------------------------------------
@@ -902,6 +888,11 @@ def main() -> None:
         help="Execute enforcement actions for block decisions",
     )
     p_run.add_argument(
+        "--output",
+        default=None,
+        help="Output file for local-only mode (default: ./scan-results.ndjson)",
+    )
+    p_run.add_argument(
         "--verbose", action="store_true", help="Show detailed scan output"
     )
     p_run.set_defaults(func=cmd_run)
@@ -944,8 +935,44 @@ def main() -> None:
     p_stop.set_defaults(func=cmd_stop)
 
     # --- status ---
-    p_status = sub.add_parser("status", help="Show agent status and config")
+    p_status = sub.add_parser(
+        "status", help="Show agent status, posture, and detections"
+    )
     p_status.set_defaults(func=cmd_status)
+
+    # --- policy ---
+    p_policy = sub.add_parser("policy", help="View policy rules")
+    p_policy_sub = p_policy.add_subparsers(dest="policy_command")
+    p_policy_list = p_policy_sub.add_parser("list", help="List all active policy rules")
+    p_policy_list.set_defaults(func=_lazy_cli("cmd_policy_list"))
+    p_policy_show = p_policy_sub.add_parser(
+        "show", help="Show a single policy rule by ID"
+    )
+    p_policy_show.add_argument("rule_id", help="Rule ID (e.g. ENFORCE-D01)")
+    p_policy_show.set_defaults(func=_lazy_cli("cmd_policy_show"))
+    p_policy.set_defaults(func=_lazy_cli("cmd_policy_list"))
+
+    # --- detections ---
+    p_detections = sub.add_parser("detections", help="Show recent detection history")
+    p_detections.set_defaults(func=_lazy_cli("cmd_detections"))
+
+    # --- posture ---
+    p_posture = sub.add_parser("posture", help="View or change enforcement posture")
+    p_posture_sub = p_posture.add_subparsers(dest="posture_command")
+    p_posture_show = p_posture_sub.add_parser("show", help="Show current posture")
+    p_posture_show.set_defaults(func=_lazy_cli("cmd_posture_show"))
+    p_posture_set = p_posture_sub.add_parser("set", help="Set enforcement posture")
+    p_posture_set.add_argument("posture", choices=["passive", "audit", "active"])
+    p_posture_set.set_defaults(func=_lazy_cli("cmd_posture_set"))
+    p_posture.set_defaults(func=_lazy_cli("cmd_posture_show"))
+
+    # --- config ---
+    p_config = sub.add_parser("config", help="Show resolved configuration")
+    p_config.set_defaults(func=_lazy_cli("cmd_config_show"))
+
+    # --- doctor ---
+    p_doctor = sub.add_parser("doctor", help="Run health diagnostics")
+    p_doctor.set_defaults(func=_lazy_cli("cmd_doctor"))
 
     # --- watchdog ---
     p_watchdog = sub.add_parser(
