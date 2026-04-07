@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import hashlib
 import json
 import logging
@@ -63,6 +64,9 @@ try:
     _HAS_CRYPTO = True
 except ImportError:
     _HAS_CRYPTO = False
+    logger.warning(
+        "cryptography package not installed — event signature verification disabled"
+    )
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -236,41 +240,39 @@ async def _run_edr_enforcement(
     from core.database import SessionLocal
     from integrations import enforcement_router as enf_router
 
-    db = SessionLocal()
-    try:
-        ep = db.query(Endpoint).filter(Endpoint.id == endpoint_id).first()
-        if not ep or not ep.enforcement_provider:
-            return
+    with contextlib.closing(SessionLocal()) as db:
+        try:
+            ep = db.query(Endpoint).filter(Endpoint.id == endpoint_id).first()
+            if not ep or not ep.enforcement_provider:
+                return
 
-        action = enforcement.get("action", "kill_process")
-        pid = enforcement.get("pid")
-        process_name = enforcement.get("process_name")
+            action = enforcement.get("action", "kill_process")
+            pid = enforcement.get("pid")
+            process_name = enforcement.get("process_name")
 
-        await enf_router.enforce(
-            db=db,
-            tenant_id=tenant_id,
-            endpoint_id=endpoint_id,
-            hostname=ep.hostname,
-            enforcement_provider_name=ep.enforcement_provider,
-            action=action,
-            pid=pid,
-            process_name=process_name,
-        )
-        db.commit()
-    except (ConnectionError, OSError, TimeoutError) as exc:
-        logger.warning(
-            "EDR enforcement network error for event %s: %s",
-            event_payload.get("event_id"),
-            exc,
-        )
-    except Exception as exc:
-        logger.exception(
-            "EDR enforcement failed (%s) for event %s",
-            type(exc).__name__,
-            event_payload.get("event_id"),
-        )
-    finally:
-        db.close()
+            await enf_router.enforce(
+                db=db,
+                tenant_id=tenant_id,
+                endpoint_id=endpoint_id,
+                hostname=ep.hostname,
+                enforcement_provider_name=ep.enforcement_provider,
+                action=action,
+                pid=pid,
+                process_name=process_name,
+            )
+            db.commit()
+        except (ConnectionError, OSError, TimeoutError) as exc:
+            logger.warning(
+                "EDR enforcement network error for event %s: %s",
+                event_payload.get("event_id"),
+                exc,
+            )
+        except Exception as exc:
+            logger.exception(
+                "EDR enforcement failed (%s) for event %s",
+                type(exc).__name__,
+                event_payload.get("event_id"),
+            )
 
 
 async def _run_edr_enrichment(event_payload: dict[str, object]) -> None:
@@ -319,13 +321,11 @@ async def _run_edr_enrichment(event_payload: dict[str, object]) -> None:
         # when the band changes so analysts can see the EDR-driven rescore.
         from core.database import SessionLocal
 
-        db = SessionLocal()
-        try:
+        with contextlib.closing(SessionLocal()) as db:
             event_id_val = event_payload.get("event_id")
             ev_row = db.query(Event).filter(Event.event_id == event_id_val).first()
             if ev_row is not None:
                 ev_row.attribution_confidence = result.enriched_confidence
-                # Embed enrichment metadata into the payload JSON for future reads
                 payload_copy = dict(ev_row.payload or {})
                 payload_copy["edr_enrichment"] = {
                     "provider": result.provider,
@@ -361,8 +361,6 @@ async def _run_edr_enrichment(event_payload: dict[str, object]) -> None:
                         "EDR enrichment applied: confidence band changed for event %s",
                         event_id_val,
                     )
-        finally:
-            db.close()
 
     except (ConnectionError, OSError, TimeoutError) as exc:
         logger.warning(

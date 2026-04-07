@@ -14,7 +14,11 @@ from typing import TYPE_CHECKING, Any
 
 from core.config import settings
 from core.subchain_extractor import extract_strongest_subchain
-from schemas.session_report import SessionReport, SessionReportActions, SessionTimelineEntry
+from schemas.session_report import (
+    SessionReport,
+    SessionReportActions,
+    SessionTimelineEntry,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -68,6 +72,7 @@ def _session_id(endpoint_id: str | None, tool_name: str, started_at: datetime) -
     key = f"{endpoint_id or ''}|{tool_name}|{started_at.isoformat()}"
     return hashlib.sha256(key.encode()).hexdigest()[:16]
 
+
 # action.risk_class -> numeric session risk (0-1)
 _RISK_CLASS_TO_SCORE: dict[str, float] = {
     "R1": 0.25,
@@ -100,11 +105,20 @@ _TIMELINE_TYPE_TO_STEP: dict[str, str] = {
 _SKIP_TIMELINE_TYPES = frozenset({"sequence_start", "sequence_end"})
 
 
+def _get_evidence(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return the evidence block from a payload, handling the schema migration
+    from ``evidence`` to ``evidence_details``."""
+    if not isinstance(payload, dict):
+        return {}
+    ev = payload.get("evidence_details") or payload.get("evidence") or {}
+    return ev if isinstance(ev, dict) else {}
+
+
 def _detection_codes_from_payload(payload: dict[str, Any]) -> set[str]:
     """Extract detection_codes from event payload (evidence_details or evidence)."""
     if not isinstance(payload, dict):
         return set()
-    evidence = payload.get("evidence_details") or payload.get("evidence") or {}
+    evidence = _get_evidence(payload)
     codes = evidence.get("detection_codes") if isinstance(evidence, dict) else []
     if not isinstance(codes, list):
         return set()
@@ -124,8 +138,10 @@ def _beh009_broader_impact_from_group(
     for _t, _tn, _e, payload in group:
         if not isinstance(payload, dict):
             continue
-        evidence = payload.get("evidence_details") or payload.get("evidence") or {}
-        patterns = evidence.get("behavioral_patterns") if isinstance(evidence, dict) else []
+        evidence = _get_evidence(payload)
+        patterns = (
+            evidence.get("behavioral_patterns") if isinstance(evidence, dict) else []
+        )
         if not isinstance(patterns, list):
             continue
         for p in patterns:
@@ -133,8 +149,14 @@ def _beh009_broader_impact_from_group(
                 continue
             ev = p.get("evidence") if isinstance(p.get("evidence"), dict) else {}
             flags = ev.get("flags") if isinstance(ev.get("flags"), dict) else {}
-            multi_file_val = flags.get("multi_file_change") if flags else ev.get("multi_file_change")
-            repeated_git_val = flags.get("repeated_git_activity") if flags else ev.get("repeated_git_activity")
+            multi_file_val = (
+                flags.get("multi_file_change") if flags else ev.get("multi_file_change")
+            )
+            repeated_git_val = (
+                flags.get("repeated_git_activity")
+                if flags
+                else ev.get("repeated_git_activity")
+            )
             if multi_file_val is True:
                 multi_file = True
             if repeated_git_val is True:
@@ -242,7 +264,10 @@ def _top_behavior_chains_from_timeline(
             continue
         key = (a, b)
         edge_counts[key] = edge_counts.get(key, 0) + 1
-    chains = [f"{a} -> {b}" for (a, b), _ in sorted(edge_counts.items(), key=lambda x: (-x[1], x[0]))]
+    chains = [
+        f"{a} -> {b}"
+        for (a, b), _ in sorted(edge_counts.items(), key=lambda x: (-x[1], x[0]))
+    ]
     return chains[:max_chains] if chains else []
 
 
@@ -291,7 +316,12 @@ def _compute_verdict_and_reasons(
     # Elevate: llm -> shell_exec -> git chain with high risk (canonical chain tokens)
     llm_shell = "llm -> shell_exec" in chains
     shell_git = "shell_exec -> git" in chains
-    if llm_shell and shell_git and risk >= _VERDICT_RISKY_THRESHOLD and verdict != "high_risk":
+    if (
+        llm_shell
+        and shell_git
+        and risk >= _VERDICT_RISKY_THRESHOLD
+        and verdict != "high_risk"
+    ):
         verdict = "high_risk"
         reasons.append("behavior chain included llm -> shell_exec -> git")
 
@@ -313,7 +343,11 @@ def _compute_verdict_and_reasons(
             reasons.append("repeated git activity in agent execution chain")
 
     # Suppress escalation if confidence too low
-    if verdict in ("high_risk", "risky") and conf < _MIN_CONFIDENCE_TO_ESCALATE and conf > 0:
+    if (
+        verdict in ("high_risk", "risky")
+        and conf < _MIN_CONFIDENCE_TO_ESCALATE
+        and conf > 0
+    ):
         if verdict == "high_risk":
             verdict = "risky"
             reasons.append("confidence too low to escalate to high_risk")
@@ -436,7 +470,11 @@ def _compute_policy_preview_and_reasons(
     if verdict == "risky":
         reasons_audit = ["session meets audit threshold"]
         risk = session_risk if session_risk is not None else 0.0
-        if risk >= _VERDICT_HIGH_RISK_THRESHOLD and conf < _POLICY_PREVIEW_CONTAIN_MIN_CONFIDENCE and conf > 0:
+        if (
+            risk >= _VERDICT_HIGH_RISK_THRESHOLD
+            and conf < _POLICY_PREVIEW_CONTAIN_MIN_CONFIDENCE
+            and conf > 0
+        ):
             reasons_audit.append("low confidence prevents stronger action")
         return ("would_audit", reasons_audit)
     return ("would_observe", ["observe-only under strict policy"])
@@ -508,7 +546,11 @@ def _compute_policy_simulation(
         ]
     else:
         sim["contain"] = outcome
-        reasons["contain"] = list(strict_reasons) if strict_reasons else ["observe-only under contain policy"]
+        reasons["contain"] = (
+            list(strict_reasons)
+            if strict_reasons
+            else ["observe-only under contain policy"]
+        )
     sim["block"] = outcome
     reasons["block"] = list(strict_reasons) if strict_reasons else []
     return (sim, reasons)
@@ -569,17 +611,26 @@ def _build_evidence_pack(
     if has_sensitive and has_outbound:
         evidence.append("sensitive file access observed before outbound activity")
     if llm_shell and shell_git:
-        evidence.append("LLM-driven execution chain included shell and git modification")
-    if "DETEC-BEH-CORE-04" in codes and (impact.get("multi_file") or impact.get("repeated_git")):
+        evidence.append(
+            "LLM-driven execution chain included shell and git modification"
+        )
+    if "DETEC-BEH-CORE-04" in codes and (
+        impact.get("multi_file") or impact.get("repeated_git")
+    ):
         parts = []
         if impact.get("multi_file"):
             parts.append("multiple files")
         if impact.get("repeated_git"):
             parts.append("repeated git actions")
         evidence.append(
-            "Agent execution chain touched " + " and ".join(parts) + " in the same session"
+            "Agent execution chain touched "
+            + " and ".join(parts)
+            + " in the same session"
         )
-    if preview in ("would_contain", "would_block") and conf >= _POLICY_PREVIEW_CONTAIN_MIN_CONFIDENCE:
+    if (
+        preview in ("would_contain", "would_block")
+        and conf >= _POLICY_PREVIEW_CONTAIN_MIN_CONFIDENCE
+    ):
         evidence.append("confidence sufficient for containment preview")
     if preview == "would_audit":
         evidence.append("session meets audit threshold")
@@ -682,7 +733,9 @@ def get_session_report_by_id(
         observed_before=observed_before,
         limit=limit,
     )
-    reports = aggregate_events_into_sessions(events, session_gap_minutes=DEFAULT_SESSION_GAP_MINUTES)
+    reports = aggregate_events_into_sessions(
+        events, session_gap_minutes=DEFAULT_SESSION_GAP_MINUTES
+    )
     for report in reports:
         if report.id == session_id:
             return report
@@ -795,10 +848,13 @@ def aggregate_events_into_sessions(
             if isinstance(payload, dict):
                 raw_summary = payload.get("timeline_summary")
                 if isinstance(raw_summary, dict) and all(
-                    isinstance(k, str) and isinstance(v, int) for k, v in raw_summary.items()
+                    isinstance(k, str) and isinstance(v, int)
+                    for k, v in raw_summary.items()
                 ):
                     timeline_summary = raw_summary
-            raw_timeline = payload.get("session_timeline") if isinstance(payload, dict) else None
+            raw_timeline = (
+                payload.get("session_timeline") if isinstance(payload, dict) else None
+            )
             if isinstance(raw_timeline, list) and raw_timeline:
                 try:
                     session_timeline = [
@@ -821,12 +877,18 @@ def aggregate_events_into_sessions(
 
         session_confidence = _session_confidence_from_events(group)
         session_risk = _session_risk_from_events(group)
-        top_risk_signals_list = _top_risk_signals_from_events(group, risk_signals_from_payload, top_n=10)
+        top_risk_signals_list = _top_risk_signals_from_events(
+            group, risk_signals_from_payload, top_n=10
+        )
         top_behavior_chains_list: list[str] | None = None
         strongest_subchain_list: list[str] | None = None
         if session_timeline:
-            top_behavior_chains_list = _top_behavior_chains_from_timeline(session_timeline, max_chains=5)
-            strongest_subchain_list = extract_strongest_subchain(session_timeline) or None
+            top_behavior_chains_list = _top_behavior_chains_from_timeline(
+                session_timeline, max_chains=5
+            )
+            strongest_subchain_list = (
+                extract_strongest_subchain(session_timeline) or None
+            )
 
         beh009_broader_impact = _beh009_broader_impact_from_group(group)
 
@@ -879,21 +941,27 @@ def aggregate_events_into_sessions(
                 risk_signals=risk_signals_sorted,
                 session_risk=session_risk,
                 session_confidence=session_confidence,
-                top_risk_signals=top_risk_signals_list if top_risk_signals_list else None,
+                top_risk_signals=top_risk_signals_list
+                if top_risk_signals_list
+                else None,
                 top_behavior_chains=top_behavior_chains_list,
                 strongest_subchain=strongest_subchain_list,
                 session_verdict=session_verdict,
                 recommended_action=recommended_action,
                 verdict_reasons=verdict_reasons if verdict_reasons else None,
                 policy_preview=policy_preview,
-                policy_preview_reasons=policy_preview_reasons if policy_preview_reasons else None,
+                policy_preview_reasons=policy_preview_reasons
+                if policy_preview_reasons
+                else None,
                 policy_simulation=policy_simulation,
                 policy_simulation_reasons=policy_simulation_reasons,
                 key_evidence=key_evidence_list if key_evidence_list else None,
                 evidence_count=evidence_count_val if key_evidence_list else None,
                 session_timeline=session_timeline,
                 timeline_summary=timeline_summary,
-                evasion_vectors=sorted(evasion_vectors_set) if evasion_vectors_set else None,
+                evasion_vectors=sorted(evasion_vectors_set)
+                if evasion_vectors_set
+                else None,
             )
         )
 
