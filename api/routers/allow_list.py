@@ -188,7 +188,9 @@ def create_allow_list_entry(
     db.refresh(entry)
 
     allow_list = get_active_allow_list_patterns(db, tenant_id)
-    endpoints = db.query(Endpoint).filter(Endpoint.tenant_id == tenant_id).all()
+    endpoints = (
+        db.query(Endpoint).filter(Endpoint.tenant_id == tenant_id).limit(10_000).all()
+    )
     for ep in endpoints:
         background_tasks.add_task(
             push_posture_to_agent,
@@ -256,7 +258,12 @@ def delete_allow_list_entry(
     db.commit()
 
     allow_list = get_active_allow_list_patterns(db, auth.tenant_id)
-    endpoints = db.query(Endpoint).filter(Endpoint.tenant_id == auth.tenant_id).all()
+    endpoints = (
+        db.query(Endpoint)
+        .filter(Endpoint.tenant_id == auth.tenant_id)
+        .limit(10_000)
+        .all()
+    )
     for ep in endpoints:
         background_tasks.add_task(
             push_posture_to_agent,

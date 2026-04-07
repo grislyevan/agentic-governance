@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import os
 import sys
 import time
@@ -244,7 +245,7 @@ def create_app(lifespan_context_manager):
     def metrics(request: Request) -> Response:
         if settings.metrics_token:
             auth_header = request.headers.get("Authorization", "")
-            if auth_header != f"Bearer {settings.metrics_token}":
+            if not hmac.compare_digest(auth_header, f"Bearer {settings.metrics_token}"):
                 return Response(status_code=403)
         return Response(
             content=get_metrics(),

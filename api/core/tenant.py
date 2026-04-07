@@ -109,7 +109,10 @@ def resolve_auth(
                     and getattr(tenant, "subscription_status", None)
                     in _INACTIVE_SUBSCRIPTION_STATUSES
                 ):
-                    return None
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Subscription inactive",
+                    )
                 return AuthContext(
                     tenant_id=ep.tenant_id,
                     user_id=None,
@@ -128,7 +131,10 @@ def resolve_auth(
                     getattr(candidate, "subscription_status", None)
                     in _INACTIVE_SUBSCRIPTION_STATUSES
                 ):
-                    return None  # treat as unauthenticated
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Subscription inactive",
+                    )
                 return AuthContext(
                     tenant_id=candidate.id,
                     user_id=None,

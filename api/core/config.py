@@ -231,6 +231,11 @@ class Settings(BaseSettings):
     def _reject_unsafe_defaults_in_production(self) -> "Settings":
         env = os.getenv("ENV", "development").lower()
         if env in ("production", "staging"):
+            if self.demo_mode:
+                raise ValueError(
+                    f"DEMO_MODE must not be enabled in {env}. "
+                    "Demo mode uses hardcoded credentials and pre-seeded data."
+                )
             if self.jwt_secret in _UNSAFE_DEFAULTS:
                 raise ValueError(
                     "JWT_SECRET must be set to a strong secret in "

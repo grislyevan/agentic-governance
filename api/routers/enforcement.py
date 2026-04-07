@@ -14,7 +14,15 @@ import asyncio
 import logging
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+)
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -23,7 +31,12 @@ from sqlalchemy.orm import Session
 from core.audit_logger import record as audit_record
 from core.database import get_db, SessionLocal
 from core.auth_cookies import get_authorization
-from core.tenant import resolve_auth, require_role, get_tenant_filter, strict_tenant_filter
+from core.tenant import (
+    resolve_auth,
+    require_role,
+    get_tenant_filter,
+    strict_tenant_filter,
+)
 from integrations import enforcement_router as enf_router
 from models.endpoint import Endpoint
 from routers._enforcement_shared import VALID_PROVIDERS
@@ -37,13 +50,16 @@ router = APIRouter(prefix="/enforcement", tags=["enforcement"])
 
 # -- EDR enforcement config schemas -----------------------------------------
 
+
 class EDRConfigUpdate(BaseModel):
     enforcement_provider: str | None = Field(
-        default=None, max_length=64,
+        default=None,
+        max_length=64,
         description="Provider name (e.g. 'crowdstrike') or null to clear",
     )
     edr_host_id: str | None = Field(
-        default=None, max_length=255,
+        default=None,
+        max_length=255,
         description="Cached EDR host ID (optional; resolved automatically if omitted)",
     )
 
@@ -77,6 +93,7 @@ class EDRTestResponse(BaseModel):
 
 # -- EDR enforcement config routes ------------------------------------------
 
+
 @router.put(
     "/endpoints/{endpoint_id}/edr-config",
     response_model=EDRConfigResponse,
@@ -94,10 +111,16 @@ def set_endpoint_edr_config(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
 
-    ep = db.query(Endpoint).filter(
-        Endpoint.id == endpoint_id,
-        strict_tenant_filter(auth, Endpoint),  # mutation path: strict tenant scope (BOLA fix)
-    ).first()
+    ep = (
+        db.query(Endpoint)
+        .filter(
+            Endpoint.id == endpoint_id,
+            strict_tenant_filter(
+                auth, Endpoint
+            ),  # mutation path: strict tenant scope (BOLA fix)
+        )
+        .first()
+    )
     if not ep:
         raise HTTPException(status_code=404, detail="Endpoint not found")
 
@@ -154,10 +177,14 @@ async def get_endpoint_edr_status(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin", "analyst")
 
-    ep = db.query(Endpoint).filter(
-        Endpoint.id == endpoint_id,
-        strict_tenant_filter(auth, Endpoint),
-    ).first()
+    ep = (
+        db.query(Endpoint)
+        .filter(
+            Endpoint.id == endpoint_id,
+            strict_tenant_filter(auth, Endpoint),
+        )
+        .first()
+    )
     if not ep:
         raise HTTPException(status_code=404, detail="Endpoint not found")
 
@@ -168,9 +195,13 @@ async def get_endpoint_edr_status(
             try:
                 available = await provider.available_for_endpoint(ep.hostname)
             except (ConnectionError, OSError, asyncio.TimeoutError) as exc:
-                logger.warning("EDR availability check failed for %s: %s", ep.hostname, exc)
+                logger.warning(
+                    "EDR availability check failed for %s: %s", ep.hostname, exc
+                )
             except Exception:
-                logger.exception("Unexpected error checking EDR availability for %s", ep.hostname)
+                logger.exception(
+                    "Unexpected error checking EDR availability for %s", ep.hostname
+                )
 
     return EDRStatusResponse(
         endpoint_id=ep.id,
@@ -198,15 +229,22 @@ async def test_edr_connectivity(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
 
-    ep = db.query(Endpoint).filter(
-        Endpoint.id == endpoint_id,
-        strict_tenant_filter(auth, Endpoint),
-    ).first()
+    ep = (
+        db.query(Endpoint)
+        .filter(
+            Endpoint.id == endpoint_id,
+            strict_tenant_filter(auth, Endpoint),
+        )
+        .first()
+    )
     if not ep:
         raise HTTPException(status_code=404, detail="Endpoint not found")
 
     if not ep.enforcement_provider:
-        raise HTTPException(status_code=400, detail="No enforcement provider configured for this endpoint")
+        raise HTTPException(
+            status_code=400,
+            detail="No enforcement provider configured for this endpoint",
+        )
 
     provider = enf_router.get_provider(ep.enforcement_provider)
     if not provider:
@@ -230,8 +268,11 @@ async def test_edr_connectivity(
 
             if edr_host_id:
                 import httpx
+
                 async with httpx.AsyncClient() as client:
-                    session_id = await cs.initiate_rtr_session(edr_host_id, client=client)
+                    session_id = await cs.initiate_rtr_session(
+                        edr_host_id, client=client
+                    )
                     if session_id:
                         rtr_session_ok = True
                         await cs.close_rtr_session(session_id, client=client)
@@ -270,6 +311,7 @@ async def test_edr_connectivity(
 
 # -- Disabled services (Task 11b: anti-resurrection recovery) ---------------
 
+
 class DisabledServiceResponse(BaseModel):
     endpoint_id: str
     hostname: str
@@ -282,7 +324,9 @@ class DisabledServicesListResponse(BaseModel):
 
 
 class RestoreServicesRequest(BaseModel):
-    endpoint_id: str = Field(..., description="Endpoint whose services should be restored")
+    endpoint_id: str = Field(
+        ..., description="Endpoint whose services should be restored"
+    )
     service_ids: list[str] = Field(
         default_factory=list,
         description="Specific service IDs to restore. Empty list restores all.",
@@ -316,17 +360,19 @@ def list_disabled_services(
     if endpoint_id:
         q = q.filter(Endpoint.id == endpoint_id)
 
-    endpoints = q.all()
+    endpoints = q.limit(10_000).all()
 
     items = []
     for ep in endpoints:
         services = ep.disabled_services or []
         if services:
-            items.append(DisabledServiceResponse(
-                endpoint_id=ep.id,
-                hostname=ep.hostname,
-                disabled_services=services,
-            ))
+            items.append(
+                DisabledServiceResponse(
+                    endpoint_id=ep.id,
+                    hostname=ep.hostname,
+                    disabled_services=services,
+                )
+            )
 
     return DisabledServicesListResponse(total=len(items), items=items)
 
@@ -349,19 +395,29 @@ async def restore_services(
     auth = resolve_auth(authorization, x_api_key, db)
     require_role(auth, "owner", "admin")
 
-    ep = db.query(Endpoint).filter(
-        Endpoint.id == body.endpoint_id,
-        strict_tenant_filter(auth, Endpoint),  # mutation path: strict tenant scope (BOLA fix)
-    ).first()
+    ep = (
+        db.query(Endpoint)
+        .filter(
+            Endpoint.id == body.endpoint_id,
+            strict_tenant_filter(
+                auth, Endpoint
+            ),  # mutation path: strict tenant scope (BOLA fix)
+        )
+        .first()
+    )
     if not ep:
         raise HTTPException(status_code=404, detail="Endpoint not found")
 
     current_disabled = ep.disabled_services or []
     if not current_disabled:
-        raise HTTPException(status_code=400, detail="No disabled services on this endpoint")
+        raise HTTPException(
+            status_code=400, detail="No disabled services on this endpoint"
+        )
 
     if body.service_ids:
-        known_ids = {s.get("service_id") for s in current_disabled if isinstance(s, dict)}
+        known_ids = {
+            s.get("service_id") for s in current_disabled if isinstance(s, dict)
+        }
         unknown = [sid for sid in body.service_ids if sid not in known_ids]
         if unknown:
             raise HTTPException(
@@ -371,7 +427,8 @@ async def restore_services(
         restore_ids = body.service_ids
     else:
         restore_ids = [
-            s.get("service_id") for s in current_disabled
+            s.get("service_id")
+            for s in current_disabled
             if isinstance(s, dict) and s.get("service_id")
         ]
 
@@ -420,6 +477,7 @@ async def _push_restore_to_agent(
         return
     try:
         from protocol.messages import command_msg
+
         msg = command_msg(
             command="restore_services",
             command_id=str(uuid.uuid4()),
@@ -427,7 +485,9 @@ async def _push_restore_to_agent(
         )
         sent = await gateway.push_to_endpoint(endpoint_id, msg)
         if sent:
-            logger.info("Pushed restore_services command to endpoint %s via TCP", endpoint_id)
+            logger.info(
+                "Pushed restore_services command to endpoint %s via TCP", endpoint_id
+            )
             db = SessionLocal()
             try:
                 ep = db.query(Endpoint).filter(Endpoint.id == endpoint_id).first()
@@ -437,6 +497,10 @@ async def _push_restore_to_agent(
             finally:
                 db.close()
     except (ConnectionError, OSError, asyncio.TimeoutError) as exc:
-        logger.warning("Could not push restore command to %s (not connected via TCP): %s", endpoint_id, exc)
+        logger.warning(
+            "Could not push restore command to %s (not connected via TCP): %s",
+            endpoint_id,
+            exc,
+        )
     except Exception:
         logger.exception("Unexpected error pushing restore command to %s", endpoint_id)

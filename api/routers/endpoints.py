@@ -87,6 +87,19 @@ def create_endpoint(
         management_state=body.management_state,
     )
     db.add(endpoint)
+
+    audit_record(
+        db,
+        tenant_id=tenant_id,
+        actor_id=None,
+        actor_type="agent",
+        action="endpoint.created",
+        resource_type="endpoint",
+        resource_id=endpoint.id,
+        detail={"hostname": body.hostname, "os_info": body.os_info},
+        ip_address=request.client.host if request.client else None,
+    )
+
     db.commit()
     db.refresh(endpoint)
     return EndpointResponse.model_validate(endpoint)
@@ -238,7 +251,10 @@ def heartbeat(
 
     now = datetime.now(timezone.utc)
 
+    registered_new = False
+
     if endpoint is None:
+        registered_new = True
         endpoint = Endpoint(
             id=str(uuid.uuid4()),
             tenant_id=tenant_id,
@@ -253,6 +269,7 @@ def heartbeat(
         try:
             db.flush()
         except IntegrityError:
+            registered_new = False
             db.rollback()
             endpoint = (
                 db.query(Endpoint)
@@ -272,12 +289,26 @@ def heartbeat(
     if body.disabled_services is not None:
         endpoint.disabled_services = body.disabled_services
 
+    if registered_new:
+        audit_record(
+            db,
+            tenant_id=tenant_id,
+            actor_id=None,
+            actor_type="agent",
+            action="endpoint.registered",
+            resource_type="endpoint",
+            resource_id=endpoint.id,
+            detail={"hostname": body.hostname},
+            ip_address=request.client.host if request.client else None,
+        )
+
     db.commit()
     db.refresh(endpoint)
 
     entries = (
         db.query(AllowListEntry)
         .filter(AllowListEntry.tenant_id == endpoint.tenant_id)
+        .limit(10_000)
         .all()
     )
     allow_list = [e.pattern for e in entries]

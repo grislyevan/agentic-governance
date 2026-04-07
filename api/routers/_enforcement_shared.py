@@ -70,9 +70,15 @@ async def push_tenant_posture_to_tcp(
                 (AllowListEntry.expires_at == None)
                 | (AllowListEntry.expires_at > datetime.now(timezone.utc)),  # noqa: E711
             )
+            .limit(10_000)
             .all()
         ]
-        endpoints = db.query(Endpoint).filter(Endpoint.tenant_id == tenant_id).all()
+        endpoints = (
+            db.query(Endpoint)
+            .filter(Endpoint.tenant_id == tenant_id)
+            .limit(10_000)
+            .all()
+        )
         for ep in endpoints:
             try:
                 sent = await gateway.push_posture(
@@ -101,6 +107,7 @@ def get_active_allow_list_patterns(db, tenant_id: str) -> list[str]:
             (AllowListEntry.expires_at == None)
             | (AllowListEntry.expires_at > datetime.now(timezone.utc)),  # noqa: E711
         )
+        .limit(10_000)
         .all()
     ]
 
