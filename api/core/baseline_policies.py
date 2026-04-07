@@ -135,7 +135,6 @@ BASELINE_POLICIES: list[dict] = [
             "precedence": 350,
         },
     },
-
     # ── Class D Override Rules ────────────────────────────────────────
     {
         "rule_id": "ENFORCE-D01",
@@ -197,7 +196,6 @@ BASELINE_POLICIES: list[dict] = [
             "rationale": "An always-on agent has no safe baseline; operator awareness is mandatory.",
         },
     },
-
     # ── Overlay Rules ─────────────────────────────────────────────────
     {
         "rule_id": "NET-001",
@@ -260,7 +258,6 @@ BASELINE_POLICIES: list[dict] = [
             "rationale": "Container isolation prevents host-level side effects from autonomous code execution.",
         },
     },
-
     # ── Fallback Rules ────────────────────────────────────────────────
     {
         "rule_id": "ENFORCE-001-F",
@@ -342,10 +339,13 @@ def seed_baseline_policies(
 
     existing = {
         p.rule_id: p
-        for p in db.query(Policy).filter(
+        for p in db.query(Policy)
+        .filter(
             Policy.tenant_id == tenant_id,
             Policy.is_baseline.is_(True),
-        ).all()
+        )
+        .limit(10_000)
+        .all()
     }
 
     created = 0
@@ -362,17 +362,19 @@ def seed_baseline_policies(
                 row.category = defn["category"]
             continue
 
-        db.add(Policy(
-            id=str(_uuid.uuid4()),
-            tenant_id=tenant_id,
-            rule_id=rule_id,
-            rule_version=defn["rule_version"],
-            description=defn["description"],
-            is_active=defn["is_active"],
-            is_baseline=True,
-            category=defn["category"],
-            parameters=defn["parameters"],
-        ))
+        db.add(
+            Policy(
+                id=str(_uuid.uuid4()),
+                tenant_id=tenant_id,
+                rule_id=rule_id,
+                rule_version=defn["rule_version"],
+                description=defn["description"],
+                is_active=defn["is_active"],
+                is_baseline=True,
+                category=defn["category"],
+                parameters=defn["parameters"],
+            )
+        )
         created += 1
 
     return created

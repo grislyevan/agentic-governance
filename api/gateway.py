@@ -88,6 +88,7 @@ class SessionRegistry:
 
     @property
     def count(self) -> int:
+        # len(dict) is atomic in CPython; lock not required for a read-only snapshot.
         return len(self._sessions)
 
 
@@ -149,7 +150,11 @@ class AgentSession(BaseConnection):
         if handler:
             await handler(msg)
         else:
-            logger.warning("AgentSession %s: unknown message type 0x%02x", self._session_id, msg_type)
+            logger.warning(
+                "AgentSession %s: unknown message type 0x%02x",
+                self._session_id,
+                msg_type,
+            )
             await self.send(error_msg(400, f"Unknown message type: {msg_type}"))
 
     async def _read_loop(self) -> None:
@@ -160,7 +165,8 @@ class AgentSession(BaseConnection):
             except asyncio.TimeoutError:
                 logger.info(
                     "Session %s idle for %ds, closing",
-                    self._session_id, self._read_timeout,
+                    self._session_id,
+                    self._read_timeout,
                 )
                 break
             except (ValueError, OSError) as e:
@@ -173,7 +179,12 @@ class AgentSession(BaseConnection):
             except Exception as e:
                 # Unknown decode/read path (e.g. msgpack unpack failure); treat as decode error.
                 detec_gateway_decode_errors_total.inc()
-                logger.warning("%s: unexpected recv error, closing: %s", self._label, e, exc_info=True)
+                logger.warning(
+                    "%s: unexpected recv error, closing: %s",
+                    self._label,
+                    e,
+                    exc_info=True,
+                )
                 break
             if msg is None:
                 logger.info("%s: remote end closed", self._label)
@@ -185,7 +196,8 @@ class AgentSession(BaseConnection):
                 detec_gateway_handler_errors_total.inc()
                 logger.exception(
                     "%s: error handling message type 0x%02x",
-                    self._label, msg.get("t", 0),
+                    self._label,
+                    msg.get("t", 0),
                 )
 
     # -- Authentication ------------------------------------------------------
@@ -240,14 +252,18 @@ class AgentSession(BaseConnection):
         await self._registry.register(endpoint_id, self)
         detec_active_connections.inc()
 
-        await self.send(auth_ok_msg(
-            session_id=self._session_id,
-            endpoint_id=endpoint_id,
-            server_version=PROTOCOL_VERSION,
-        ))
+        await self.send(
+            auth_ok_msg(
+                session_id=self._session_id,
+                endpoint_id=endpoint_id,
+                server_version=PROTOCOL_VERSION,
+            )
+        )
         logger.info(
             "Agent authenticated: %s (endpoint=%s, agent_version=%s)",
-            hostname, endpoint_id, agent_version,
+            hostname,
+            endpoint_id,
+            agent_version,
         )
 
     def _do_auth_db(self, api_key: str, hostname: str) -> tuple[str, str] | None:
@@ -283,21 +299,30 @@ class AgentSession(BaseConnection):
     def _verify_api_key(api_key: str, db) -> str | None:
         """Verify a tenant agent key and return tenant_id, or None."""
         from core.tenant import AGENT_KEY_PREFIX_LEN, verify_agent_key
+
         # New path: prefix lookup + constant-time hash verification
         prefix = api_key[:AGENT_KEY_PREFIX_LEN]
-        candidates = db.query(Tenant).filter(Tenant.agent_key_prefix == prefix).all()
+        candidates = (
+            db.query(Tenant).filter(Tenant.agent_key_prefix == prefix).limit(10).all()
+        )
         for candidate in candidates:
-            if candidate.agent_key_hash and verify_agent_key(api_key, candidate.agent_key_hash):
+            if candidate.agent_key_hash and verify_agent_key(
+                api_key, candidate.agent_key_hash
+            ):
                 return candidate.id
         return None
 
     @staticmethod
     def _get_or_create_endpoint(tenant_id: str, hostname: str, db) -> str:
         """Find or create an endpoint row, return its ID."""
-        ep = db.query(Endpoint).filter(
-            Endpoint.tenant_id == tenant_id,
-            Endpoint.hostname == hostname,
-        ).first()
+        ep = (
+            db.query(Endpoint)
+            .filter(
+                Endpoint.tenant_id == tenant_id,
+                Endpoint.hostname == hostname,
+            )
+            .first()
+        )
         if not ep:
             ep = Endpoint(
                 id=str(uuid.uuid4()),
@@ -312,12 +337,16 @@ class AgentSession(BaseConnection):
                 db.flush()
             except IntegrityError:
                 db.rollback()
-                ep = db.query(Endpoint).filter(
-                    Endpoint.tenant_id == tenant_id,
-                    Endpoint.hostname == hostname,
-                ).first()
+                ep = (
+                    db.query(Endpoint)
+                    .filter(
+                        Endpoint.tenant_id == tenant_id,
+                        Endpoint.hostname == hostname,
+                    )
+                    .first()
+                )
                 if ep is None:
-                    return None   # caller handles None
+                    return None  # caller handles None
         return ep.id
 
     # -- Event ingestion -----------------------------------------------------
@@ -329,13 +358,17 @@ class AgentSession(BaseConnection):
         if result:
             await self.send(ack_msg([seq_id]))
         else:
-            await self.send(nack_msg([{"seq_id": seq_id, "reason": "ingestion failed"}]))
+            await self.send(
+                nack_msg([{"seq_id": seq_id, "reason": "ingestion failed"}])
+            )
 
     async def _handle_event_batch(self, msg: dict[str, Any]) -> None:
         seq_id = msg.get("id", 0)
         events = msg.get("p", [])
         if not isinstance(events, list):
-            await self.send(nack_msg([{"seq_id": seq_id, "reason": "batch payload must be array"}]))
+            await self.send(
+                nack_msg([{"seq_id": seq_id, "reason": "batch payload must be array"}])
+            )
             return
 
         results = []
@@ -348,7 +381,12 @@ class AgentSession(BaseConnection):
             failed = []
         else:
             acked = []
-            failed = [{"seq_id": seq_id, "reason": f"{results.count(False)} of {len(results)} events failed ingestion"}]
+            failed = [
+                {
+                    "seq_id": seq_id,
+                    "reason": f"{results.count(False)} of {len(results)} events failed ingestion",
+                }
+            ]
 
         if acked:
             await self.send(ack_msg(acked))
@@ -361,7 +399,8 @@ class AgentSession(BaseConnection):
         if validation_errors:
             logger.warning(
                 "Event from %s failed validation: %s",
-                self._hostname, "; ".join(validation_errors),
+                self._hostname,
+                "; ".join(validation_errors),
             )
             return False
 
@@ -372,10 +411,14 @@ class AgentSession(BaseConnection):
                 logger.warning("Event missing event_id from %s", self._hostname)
                 return False
 
-            existing = db.query(Event).filter(
-                Event.event_id == event_id,
-                Event.tenant_id == self._tenant_id,
-            ).first()
+            existing = (
+                db.query(Event)
+                .filter(
+                    Event.event_id == event_id,
+                    Event.tenant_id == self._tenant_id,
+                )
+                .first()
+            )
             if existing:
                 return True
 
@@ -420,7 +463,10 @@ class AgentSession(BaseConnection):
             detec_events_ingested_total.inc()
 
             event_type_val = event_data.get("event_type", "")
-            if event_type_val.startswith("enforcement.") or event_type_val == "posture.changed":
+            if (
+                event_type_val.startswith("enforcement.")
+                or event_type_val == "posture.changed"
+            ):
                 enf_detail: dict[str, Any] = {}
                 if event_data.get("enforcement"):
                     enf_detail["enforcement"] = event_data["enforcement"]
@@ -442,7 +488,9 @@ class AgentSession(BaseConnection):
                 _dispatch_webhooks(db, self._tenant_id, event_data)
             except Exception:
                 detec_gateway_webhook_errors_total.inc()
-                logger.warning("Webhook dispatch failed for event %s", event_id, exc_info=True)
+                logger.warning(
+                    "Webhook dispatch failed for event %s", event_id, exc_info=True
+                )
                 # Fail-open: event is already stored.
 
             return True
@@ -473,8 +521,12 @@ class AgentSession(BaseConnection):
             seq=seq_id,
         )
         if posture_info:
-            ack["p"]["enforcement_posture"] = posture_info.get("enforcement_posture", "passive")
-            ack["p"]["auto_enforce_threshold"] = posture_info.get("auto_enforce_threshold", 0.75)
+            ack["p"]["enforcement_posture"] = posture_info.get(
+                "enforcement_posture", "passive"
+            )
+            ack["p"]["auto_enforce_threshold"] = posture_info.get(
+                "auto_enforce_threshold", 0.75
+            )
             if "allow_list" in posture_info:
                 ack["p"]["allow_list"] = posture_info["allow_list"]
             if posture_info.get("interval_seconds") is not None:
@@ -490,6 +542,7 @@ class AgentSession(BaseConnection):
         db = _database.SessionLocal()
         try:
             from sqlalchemy.orm import joinedload
+
             ep = (
                 db.query(Endpoint)
                 .options(joinedload(Endpoint.endpoint_profile))
@@ -501,7 +554,10 @@ class AgentSession(BaseConnection):
                 ep.status = ENDPOINT_STATUS_ACTIVE
                 db.commit()
                 allow_list = [
-                    e.pattern for e in db.query(AllowListEntry).filter(AllowListEntry.tenant_id == ep.tenant_id).all()
+                    e.pattern
+                    for e in db.query(AllowListEntry)
+                    .filter(AllowListEntry.tenant_id == ep.tenant_id)
+                    .all()
                 ]
                 out = {
                     "enforcement_posture": ep.enforcement_posture,
@@ -515,7 +571,9 @@ class AgentSession(BaseConnection):
         except Exception:
             db.rollback()
             detec_gateway_db_errors_total.inc()
-            logger.warning("Heartbeat update failed for %s", self._endpoint_id, exc_info=True)
+            logger.warning(
+                "Heartbeat update failed for %s", self._endpoint_id, exc_info=True
+            )
             return None
         finally:
             db.close()
@@ -538,7 +596,11 @@ class AgentSession(BaseConnection):
             await self._registry.unregister(self._endpoint_id)
             detec_active_connections.dec()
         await super().close()
-        logger.info("Session closed: %s (endpoint=%s)", self._hostname or "unauthenticated", self._endpoint_id)
+        logger.info(
+            "Session closed: %s (endpoint=%s)",
+            self._hostname or "unauthenticated",
+            self._endpoint_id,
+        )
 
 
 _MAX_GLOBAL_CONNECTIONS = 500
@@ -623,7 +685,8 @@ class DetecGateway:
         if not await self._track_connect(peer_ip):
             logger.warning(
                 "Connection rejected from %s (limit reached: %d global, %d from this IP)",
-                peer_ip, self._active_connections,
+                peer_ip,
+                self._active_connections,
                 self._connections_per_ip.get(peer_ip, 0),
             )
             writer.close()
@@ -734,7 +797,9 @@ class DetecGateway:
             await session.send(msg)
             logger.debug(
                 "push_kill_process: sent kill_process command to endpoint %s (pid=%d, process=%s)",
-                endpoint_id, pid, process_name,
+                endpoint_id,
+                pid,
+                process_name,
             )
             return True
         except ConnectionError:

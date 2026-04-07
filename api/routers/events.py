@@ -145,9 +145,10 @@ def _verify_signature(body: EventIngest, db: Session, tenant_id: str) -> bool | 
             "Signature verification failed for fingerprint %s: %s", fingerprint, exc
         )
         return False
-    except Exception:
+    except Exception as exc:
         logger.exception(
-            "Unexpected error during signature verification for fingerprint %s",
+            "Unexpected %s during signature verification for fingerprint %s",
+            type(exc).__name__,
             fingerprint,
         )
         return False
@@ -175,8 +176,10 @@ def _record_beh009_metrics(event_payload: dict[str, Any]) -> None:
             break
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
         logger.warning("BEH-009 metric recording failed: %s", exc)
-    except Exception:
-        logger.exception("Unexpected error in BEH-009 metric recording")
+    except Exception as exc:
+        logger.exception(
+            "Unexpected %s in BEH-009 metric recording", type(exc).__name__
+        )
 
 
 def _record_agent_telemetry_metrics(
@@ -209,8 +212,10 @@ def _record_agent_telemetry_metrics(
             ).inc()
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
         logger.warning("Agent telemetry metric recording failed: %s", exc)
-    except Exception:
-        logger.exception("Unexpected error in agent telemetry metric recording")
+    except Exception as exc:
+        logger.exception(
+            "Unexpected %s in agent telemetry metric recording", type(exc).__name__
+        )
 
 
 async def _run_edr_enforcement(
@@ -258,9 +263,10 @@ async def _run_edr_enforcement(
             event_payload.get("event_id"),
             exc,
         )
-    except Exception:
+    except Exception as exc:
         logger.exception(
-            "EDR enforcement failed for event %s",
+            "EDR enforcement failed (%s) for event %s",
+            type(exc).__name__,
             event_payload.get("event_id"),
         )
     finally:
@@ -369,9 +375,10 @@ async def _run_edr_enrichment(event_payload: dict[str, object]) -> None:
             "EDR enrichment import failed for event %s (missing dependency)",
             event_payload.get("event_id"),
         )
-    except Exception:
+    except Exception as exc:
         logger.exception(
-            "EDR enrichment failed for event %s",
+            "EDR enrichment failed (%s) for event %s",
+            type(exc).__name__,
             event_payload.get("event_id"),
         )
 
@@ -451,7 +458,8 @@ def ingest_event(
     endpoint_id = _get_or_create_endpoint(tenant_id, body.endpoint, db)
     if endpoint_id is None and body.endpoint:
         raise HTTPException(
-            status_code=503, detail="Endpoint registration conflict, retry"
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Endpoint registration conflict, retry",
         )
 
     tool = body.tool or {}
@@ -536,9 +544,13 @@ def ingest_event(
         logger.warning(
             "Webhook dispatch network error for event %s: %s", body.event_id, exc
         )
-    except Exception:
+    except Exception as exc:
         detec_http_webhook_errors_total.inc()
-        logger.exception("Webhook dispatch failed for event %s", body.event_id)
+        logger.exception(
+            "Webhook dispatch failed (%s) for event %s",
+            type(exc).__name__,
+            body.event_id,
+        )
 
     try:
         from core.config import settings as _cfg
@@ -550,8 +562,8 @@ def ingest_event(
             )
     except (ImportError, AttributeError) as exc:
         logger.warning("EDR enrichment hook failed to queue: %s", exc)
-    except Exception:
-        logger.exception("EDR enrichment hook failed to queue")
+    except Exception as exc:
+        logger.exception("EDR enrichment hook failed to queue (%s)", type(exc).__name__)
 
     if event_type_val and event_type_val in (
         "enforcement.applied",

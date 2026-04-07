@@ -111,6 +111,7 @@ def list_allow_list(
             | (AllowListEntry.expires_at > datetime.now(timezone.utc))  # noqa: E711
         )
         .order_by(AllowListEntry.created_at.desc())
+        .limit(1_000)
         .all()
     )
 

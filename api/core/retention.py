@@ -29,7 +29,7 @@ def purge_expired_events(db: Session) -> dict[str, int]:
     Runs in batches of BATCH_SIZE per tenant to avoid long-running
     transactions. Returns a dict of tenant_id -> count deleted.
     """
-    tenants = db.query(Tenant).all()
+    tenants = db.query(Tenant).limit(10_000).all()
     cutoff = datetime.now(timezone.utc)
     totals: dict[str, int] = {}
 
@@ -64,7 +64,9 @@ def purge_expired_events(db: Session) -> dict[str, int]:
             totals[tenant.id] = deleted
             logger.info(
                 "Purged %d events for tenant %s (retention %d days)",
-                deleted, tenant.id, days,
+                deleted,
+                tenant.id,
+                days,
             )
 
     return totals

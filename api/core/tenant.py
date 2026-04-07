@@ -77,6 +77,7 @@ def resolve_auth(
         candidates = (
             db.query(User)
             .filter(User.api_key_prefix == prefix, User.is_active.is_(True))
+            .limit(10)
             .all()
         )
         for user in candidates:
@@ -98,7 +99,10 @@ def resolve_auth(
         from models.endpoint import Endpoint
 
         ep_candidates = (
-            db.query(Endpoint).filter(Endpoint.agent_key_prefix == ep_prefix).all()
+            db.query(Endpoint)
+            .filter(Endpoint.agent_key_prefix == ep_prefix)
+            .limit(10)
+            .all()
         )
         for ep in ep_candidates:
             if ep.agent_key_hash and verify_agent_key(x_api_key, ep.agent_key_hash):
@@ -121,7 +125,9 @@ def resolve_auth(
 
         # Tenant-level agent key lookup (fleet-wide key)
         prefix = x_api_key[:AGENT_KEY_PREFIX_LEN]
-        candidates = db.query(Tenant).filter(Tenant.agent_key_prefix == prefix).all()
+        candidates = (
+            db.query(Tenant).filter(Tenant.agent_key_prefix == prefix).limit(10).all()
+        )
         for candidate in candidates:
             if candidate.agent_key_hash and verify_agent_key(
                 x_api_key, candidate.agent_key_hash

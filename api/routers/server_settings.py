@@ -9,13 +9,9 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.audit_logger import record as audit_record
 from core.config import settings
 from core.database import get_db
-from core.server_config import (
-    GatewayConfig,
-    get_effective_gateway_config,
-    require_gateway_tls_for_production,
-)
 from core.auth_cookies import get_authorization
 from core.tenant import resolve_auth, require_role
 from models.server_config import ServerConfig
@@ -81,6 +77,25 @@ async def update_server_settings(
         row.gateway_host = body.gateway_host
     if body.gateway_port is not None:
         row.gateway_port = body.gateway_port
+
+    audit_record(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_id=auth.user_id,
+        action="server.settings_updated",
+        resource_type="server_config",
+        resource_id="gateway",
+        detail={
+            k: v
+            for k, v in {
+                "gateway_enabled": body.gateway_enabled,
+                "gateway_host": body.gateway_host,
+                "gateway_port": body.gateway_port,
+            }.items()
+            if v is not None
+        },
+        ip_address=request.client.host if request.client else None,
+    )
     db.commit()
     db.refresh(row)
 

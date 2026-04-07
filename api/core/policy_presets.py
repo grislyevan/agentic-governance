@@ -62,7 +62,10 @@ for rid in _BASELINE_IDS:
             "parameters": _audit_only_params(params),
         }
     else:
-        _AUDIT_ONLY_STATES[rid] = {"is_active": default["is_active"], "parameters": None}
+        _AUDIT_ONLY_STATES[rid] = {
+            "is_active": default["is_active"],
+            "parameters": None,
+        }
 
 # Preset 3: Allow local, block cloud (local = detect/warn; cloud/autonomous = block/approval).
 # Toggle: 001/002 on; 003 off so no approval for medium Tier2/3 on A,B,C; 004,005,006,D01,D02,D03,NET-001,NET-002 on.
@@ -141,6 +144,7 @@ def apply_preset_to_tenant(db: Session, tenant_id: str, preset_id: str) -> int:
     baseline_rows = (
         db.query(Policy)
         .filter(Policy.tenant_id == tenant_id, Policy.is_baseline.is_(True))
+        .limit(10_000)
         .all()
     )
     updated = 0

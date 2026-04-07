@@ -36,13 +36,17 @@ router = APIRouter(prefix="/enforcement", tags=["enforcement"])
 
 # -- Schemas ----------------------------------------------------------------
 
+
 class PostureUpdate(BaseModel):
     enforcement_posture: str = Field(
-        ..., pattern="^(passive|audit|active)$",
+        ...,
+        pattern="^(passive|audit|active)$",
         description="One of: passive, audit, active",
     )
     auto_enforce_threshold: float | None = Field(
-        default=None, ge=0.0, le=1.0,
+        default=None,
+        ge=0.0,
+        le=1.0,
         description="Minimum confidence for auto-enforcement (0.0 - 1.0)",
     )
 
@@ -58,7 +62,8 @@ class PostureResponse(BaseModel):
 
 class TenantPostureUpdate(BaseModel):
     enforcement_posture: str = Field(
-        ..., pattern="^(passive|audit|active)$",
+        ...,
+        pattern="^(passive|audit|active)$",
     )
     auto_enforce_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
 
@@ -77,6 +82,7 @@ class PostureSummaryResponse(BaseModel):
 
 
 # -- Posture endpoints ------------------------------------------------------
+
 
 @router.put(
     "/endpoints/{endpoint_id}/posture",
@@ -100,10 +106,16 @@ async def set_endpoint_posture(
     else:
         require_role(auth, "owner", "admin")
 
-    ep = db.query(Endpoint).filter(
-        Endpoint.id == endpoint_id,
-        strict_tenant_filter(auth, Endpoint),  # mutation path: strict tenant scope (BOLA fix)
-    ).first()
+    ep = (
+        db.query(Endpoint)
+        .filter(
+            Endpoint.id == endpoint_id,
+            strict_tenant_filter(
+                auth, Endpoint
+            ),  # mutation path: strict tenant scope (BOLA fix)
+        )
+        .first()
+    )
     if not ep:
         raise HTTPException(status_code=404, detail="Endpoint not found")
 
@@ -168,10 +180,12 @@ def set_tenant_posture(
     updated = (
         db.query(Endpoint)
         .filter(Endpoint.tenant_id == tenant_id)
-        .update({
-            Endpoint.enforcement_posture: body.enforcement_posture,
-            Endpoint.auto_enforce_threshold: threshold,
-        })
+        .update(
+            {
+                Endpoint.enforcement_posture: body.enforcement_posture,
+                Endpoint.auto_enforce_threshold: threshold,
+            }
+        )
     )
 
     audit_record(
@@ -222,6 +236,7 @@ def posture_summary(
         db.query(Endpoint.enforcement_posture, func.count(Endpoint.id))
         .filter(Endpoint.tenant_id == tenant_id)
         .group_by(Endpoint.enforcement_posture)
+        .limit(100)
         .all()
     )
 

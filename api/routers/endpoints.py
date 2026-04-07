@@ -339,6 +339,7 @@ def heartbeat(
                 Policy.tenant_id == tenant_id,
                 Policy.is_baseline.is_(False),
             )
+            .limit(10_000)
             .all()
         )
         if custom_policies:
@@ -349,6 +350,7 @@ def heartbeat(
                     Policy.tenant_id == tenant_id,
                     Policy.is_active.is_(True),
                 )
+                .limit(10_000)
                 .all()
             )
             policy_rules = [
